@@ -34,6 +34,9 @@
   .gatecard button:hover{background:var(--lime-d)}
   .gate-err{color:var(--red);font-size:.82rem;min-height:1.1em;font-weight:600}
   .gate-note{color:var(--ink-3);font-size:.74rem;margin-top:18px;line-height:1.5}
+  .syncdot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px;flex:0 0 auto}
+  .syncdot.on{background:var(--lime);box-shadow:0 0 0 3px rgba(166,236,77,.18)}
+  .syncdot.off{background:var(--ink-3);box-shadow:0 0 0 3px rgba(118,124,110,.15)}
 
   /* ---------- TOP BAR ---------- */
   header.top{position:sticky;top:0;z-index:30;background:linear-gradient(var(--bg),rgba(11,12,10,.82));
@@ -164,6 +167,7 @@
         <div class="sep"></div>
         <div class="appname">Central do <span>Evento</span></div>
         <div class="spacer"></div>
+        <span class="syncdot off" id="syncDot" title=""></span>
         <button class="out" id="logout">Sair</button>
       </div>
     </header>
@@ -251,7 +255,7 @@
       </section>
 
       <div class="foot">
-        Central do Evento · <b>Suhai Festival Interlagos 2026</b> · uso interno da equipe. As informações ficam salvas neste navegador. Para sincronizar entre todo mundo em tempo real, conectar a base compartilhada.
+        Central do Evento · <b>Suhai Festival Interlagos 2026</b> · uso interno da equipe. As informações são compartilhadas em tempo real com toda a equipe conectada.
       </div>
     </main>
   </div>
@@ -259,11 +263,30 @@
   <div class="toast" id="toast"></div>
 </div>
 
+<!-- Base compartilhada em tempo real (Firebase) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
 (function(){
   "use strict";
   // ---- CONFIG ----
   var SENHA = "interlagos2026"; // troque aqui a senha unica da equipe
+
+  // ==== BASE COMPARTILHADA (Firebase) ====
+  // Cole aqui a config do seu projeto Firebase:
+  // Console Firebase > engrenagem (Configuracoes do projeto) > "Seus apps" > app Web > firebaseConfig.
+  // Enquanto os valores estiverem "COLE_AQUI", o sistema funciona so neste navegador (modo local).
+  var firebaseConfig = {
+    apiKey: "AIzaSyD1spoy847dEtccSGJflKtG4-EYZMe23OQ",
+    authDomain: "central-evento-fi.firebaseapp.com",
+    projectId: "central-evento-fi",
+    storageBucket: "central-evento-fi.firebasestorage.app",
+    messagingSenderId: "343908101394",
+    appId: "1:343908101394:web:ae260e08858b43e70dd7cb"
+  };
+  var FB_ON = !!(firebaseConfig.projectId && firebaseConfig.projectId.indexOf("COLE_AQUI") < 0 && window.firebase);
+  var db = null;
+  if(FB_ON){ try{ firebase.initializeApp(firebaseConfig); db = firebase.firestore(); }catch(e){ FB_ON = false; } }
 
   // ---- helpers ----
   var $ = function(s,r){return (r||document).querySelector(s);};
@@ -272,8 +295,26 @@
   var uid = function(){return Math.random().toString(36).slice(2,9);};
   function toast(msg){var t=$("#toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},1800);}
 
-  function load(k,def){try{var v=JSON.parse(localStorage.getItem(k));return v||def;}catch(e){return def;}}
-  function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
+  // ---- camada de dados: tempo real (Firebase) com fallback local ----
+  var watchers = {};
+  function lsGet(c){ try{ return JSON.parse(localStorage.getItem("fi_"+c)) || []; }catch(e){ return []; } }
+  function lsSet(c,a){ localStorage.setItem("fi_"+c, JSON.stringify(a)); if(watchers[c]) watchers[c](a); }
+  function setStatus(){ var s=$("#syncDot"); if(!s) return;
+    s.className = "syncdot " + (FB_ON ? "on" : "off");
+    s.title = FB_ON ? "Sincronizado em tempo real com a equipe" : "Modo local (so neste aparelho)"; }
+  function DBwatch(c,cb){ watchers[c]=cb;
+    if(FB_ON){
+      db.collection(c).onSnapshot(function(snap){
+        var a=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; a.push(o); }); cb(a);
+      }, function(){ FB_ON=false; setStatus(); cb(lsGet(c)); });
+    } else {
+      cb(lsGet(c));
+      window.addEventListener("storage", function(ev){ if(ev.key==="fi_"+c) cb(lsGet(c)); });
+    }
+  }
+  function DBadd(c,obj){ if(FB_ON){ db.collection(c).add(obj); } else { obj.id=uid(); var a=lsGet(c); a.push(obj); lsSet(c,a); } }
+  function DBupdate(c,id,patch){ if(FB_ON){ db.collection(c).doc(id).update(patch); } else { var a=lsGet(c); var it=a.find(function(x){return x.id===id;}); if(it){ for(var k in patch) it[k]=patch[k]; } lsSet(c,a); } }
+  function DBremove(c,id){ if(FB_ON){ db.collection(c).doc(id).delete(); } else { lsSet(c, lsGet(c).filter(function(x){return x.id!==id;})); } }
 
   // ---- state ----
   var MTIPOS=["agenda","update","aviso","urgente"];
@@ -281,16 +322,8 @@
   var RSTATUS=["fila","noar","ok"];
   var RLABEL={fila:"Na fila",noar:"No ar",ok:"Anunciado"};
 
-  var mural = load("fi_mural", [
-    {id:uid(),tipo:"agenda",titulo:"Abertura dos portões",hora:"09:00",local:"Entrada principal",ts:now()-500000},
-    {id:uid(),tipo:"aviso",titulo:"Credenciamento de imprensa até as 18h",hora:"18:00",local:"Sala de Imprensa",ts:now()-400000},
-    {id:uid(),tipo:"update",titulo:"Estacionamento G2 lotado, orientar para o G4",hora:"14:30",local:"Estacionamento",ts:now()-200000},
-    {id:uid(),tipo:"agenda",titulo:"Show nacional no palco principal",hora:"20:00",local:"Palco Principal",ts:now()-100000}
-  ]);
-  var recados = load("fi_recados", [
-    {id:uid(),status:"noar",marca:"Marca A",msg:"Test-ride liberado até 18h no estande, portão 3.",resp:"João",wpp:"11999990000",ts:now()-90000},
-    {id:uid(),status:"fila",marca:"Marca B",msg:"Sorteio de capacete às 17h no estande.",resp:"Ana",wpp:"11988887777",ts:now()-30000}
-  ]);
+  var mural = [];
+  var recados = [];
   var editing = {}; // id -> true
 
   var sortMural="recent", sortRec="recent";
@@ -299,6 +332,11 @@
   var logged = sessionStorage.getItem("fi_ok")==="1";
   function openApp(){ $("#gate").hidden=true; $("#app").hidden=false; renderAll(); }
   if(logged) openApp();
+
+  // conectar a base e ouvir mudancas em tempo real (todos veem o mesmo)
+  setStatus();
+  DBwatch("mural",   function(a){ mural=a;   renderMural(); });
+  DBwatch("recados", function(a){ recados=a; renderRec(); });
   $("#gateForm").addEventListener("submit",function(e){
     e.preventDefault();
     if($("#pw").value===SENHA){ sessionStorage.setItem("fi_ok","1"); $("#gateErr").textContent=""; openApp(); }
@@ -394,15 +432,17 @@
     var row=e.target.closest(".item"); var id=row.dataset.id;
     var it=mural.find(function(x){return x.id===id;}); if(!it&&btn.dataset.act!=="cancel")return;
     var act=btn.dataset.act;
-    if(act==="cycle"){ it.tipo=MTIPOS[(MTIPOS.indexOf(it.tipo)+1)%MTIPOS.length]; save("fi_mural",mural); renderMural(); }
-    else if(act==="del"){ if(confirm("Remover este item do mural?")){ mural=mural.filter(function(x){return x.id!==id;}); save("fi_mural",mural); renderMural(); } }
+    if(act==="cycle"){ DBupdate("mural",id,{tipo:MTIPOS[(MTIPOS.indexOf(it.tipo)+1)%MTIPOS.length]}); }
+    else if(act==="del"){ if(confirm("Remover este item do mural?")){ DBremove("mural",id); } }
     else if(act==="edit"){ editing[id]=true; renderMural(); }
     else if(act==="cancel"){ delete editing[id]; renderMural(); }
     else if(act==="save"){
-      it.titulo=$('[data-f="titulo"]',row).value.trim()||it.titulo;
-      it.hora=$('[data-f="hora"]',row).value.trim();
-      it.local=$('[data-f="local"]',row).value.trim();
-      delete editing[id]; save("fi_mural",mural); renderMural(); toast("Item atualizado");
+      var patch={
+        titulo:$('[data-f="titulo"]',row).value.trim()||it.titulo,
+        hora:$('[data-f="hora"]',row).value.trim(),
+        local:$('[data-f="local"]',row).value.trim()
+      };
+      delete editing[id]; renderMural(); DBupdate("mural",id,patch); toast("Item atualizado");
     }
   });
 
@@ -412,16 +452,18 @@
     var row=e.target.closest(".item"); var id=row.dataset.id;
     var it=recados.find(function(x){return x.id===id;}); if(!it&&btn.dataset.act!=="cancel")return;
     var act=btn.dataset.act;
-    if(act==="cycle"){ it.status=RSTATUS[(RSTATUS.indexOf(it.status)+1)%RSTATUS.length]; save("fi_recados",recados); renderRec(); }
-    else if(act==="del"){ if(confirm("Remover este recado?")){ recados=recados.filter(function(x){return x.id!==id;}); save("fi_recados",recados); renderRec(); } }
+    if(act==="cycle"){ DBupdate("recados",id,{status:RSTATUS[(RSTATUS.indexOf(it.status)+1)%RSTATUS.length]}); }
+    else if(act==="del"){ if(confirm("Remover este recado?")){ DBremove("recados",id); } }
     else if(act==="edit"){ editing[id]=true; renderRec(); }
     else if(act==="cancel"){ delete editing[id]; renderRec(); }
     else if(act==="save"){
-      it.marca=$('[data-f="marca"]',row).value.trim()||it.marca;
-      it.msg=$('[data-f="msg"]',row).value.trim()||it.msg;
-      it.resp=$('[data-f="resp"]',row).value.trim();
-      it.wpp=$('[data-f="wpp"]',row).value.trim();
-      delete editing[id]; save("fi_recados",recados); renderRec(); toast("Recado atualizado");
+      var patch={
+        marca:$('[data-f="marca"]',row).value.trim()||it.marca,
+        msg:$('[data-f="msg"]',row).value.trim()||it.msg,
+        resp:$('[data-f="resp"]',row).value.trim(),
+        wpp:$('[data-f="wpp"]',row).value.trim()
+      };
+      delete editing[id]; renderRec(); DBupdate("recados",id,patch); toast("Recado atualizado");
     }
   });
 
@@ -429,14 +471,14 @@
   $("#formMural").addEventListener("submit",function(e){
     e.preventDefault();
     var t=$("#m_titulo").value.trim(); if(!t)return;
-    mural.push({id:uid(),tipo:$("#m_tipo").value,titulo:t,hora:$("#m_hora").value.trim(),local:$("#m_local").value.trim(),ts:now()});
-    save("fi_mural",mural); e.target.reset(); renderMural(); toast("Adicionado ao mural");
+    DBadd("mural",{tipo:$("#m_tipo").value,titulo:t,hora:$("#m_hora").value.trim(),local:$("#m_local").value.trim(),ts:now()});
+    e.target.reset(); toast("Adicionado ao mural");
   });
   $("#formRec").addEventListener("submit",function(e){
     e.preventDefault();
     var m=$("#r_marca").value.trim(), msg=$("#r_msg").value.trim(); if(!m||!msg)return;
-    recados.push({id:uid(),status:"fila",marca:m,msg:msg,resp:$("#r_resp").value.trim(),wpp:$("#r_wpp").value.trim(),ts:now()});
-    save("fi_recados",recados); e.target.reset(); renderRec(); toast("Recado na fila");
+    DBadd("recados",{status:"fila",marca:m,msg:msg,resp:$("#r_resp").value.trim(),wpp:$("#r_wpp").value.trim(),ts:now()});
+    e.target.reset(); toast("Recado na fila");
   });
 
   // ---- sort ----
