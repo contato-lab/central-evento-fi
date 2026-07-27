@@ -41,6 +41,7 @@
   @keyframes sdpulse{0%,100%{opacity:1}50%{opacity:.4}}
   .nextbadge{background:var(--lime);color:var(--lime-ink);font-family:var(--mono);font-size:.62rem;
     font-weight:700;letter-spacing:.08em;padding:2px 7px;border-radius:5px;text-transform:uppercase}
+  .ccount{display:block;font-family:var(--mono);font-size:.68rem;color:var(--ink-3);margin-top:4px;text-align:right}
 
   /* ---------- TOP BAR ---------- */
   header.top{position:sticky;top:0;z-index:30;background:linear-gradient(var(--bg),rgba(11,12,10,.82));
@@ -251,7 +252,7 @@
           <h3><span class="bar"></span> Novo recado da marca</h3>
           <form id="formRec" class="addgrid recado">
             <div class="fld"><label>Marca</label><input id="r_marca" placeholder="Nome da marca" required></div>
-            <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="200" placeholder="O que o locutor vai anunciar" required></textarea></div>
+            <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="280" placeholder="O que o locutor vai anunciar" required></textarea><span class="ccount" id="msgCount"></span></div>
             <div class="fld"><label>Data do anúncio</label><input id="r_data" type="date" required></div>
             <div class="fld"><label>Horário do anúncio</label><input id="r_hora" type="time" required></div>
             <div class="fld"><label>Responsável</label><input id="r_resp" placeholder="Quem enviou"></div>
@@ -284,7 +285,7 @@
   // ---- CONFIG ----
   var SENHA = "interlagos2026"; // senha deste link
   var MODE  = "mural"; // "mural" (equipe) | "envio" (marcas so enviam) | "locutor" (fila completa)
-  var LIMITE_POR_MARCA = 3; // maximo de recados que cada marca pode enviar no evento
+  var LIMITE_POR_DIA = 1; // recados que cada marca pode enviar POR DIA do evento (renova a cada dia)
 
   // ==== BASE COMPARTILHADA (Firebase) ====
   // Cole aqui a config do seu projeto Firebase:
@@ -424,7 +425,7 @@
   if(MODE==="envio"){
     // marcas: so o formulario; a fila do locutor fica invisivel
     $("#view-recados h1").textContent = "Envie o recado da sua marca";
-    $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, organizado pela data e horário que você marcar. Cada marca tem direito a "+LIMITE_POR_MARCA+" recados no evento.";
+    $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, organizado pela data e horário que você marcar. Cada marca pode enviar 1 recado por dia do evento. Mensagem de até 280 caracteres.";
 
     // campo Marca vira lista fixa (padroniza o nome e permite o limite por marca)
     var MARCAS_MOTO = ["AIMA","Bajaj","BMW Motorrad","Brizzo","CFMOTO","Dafra","Ducati","Fun Motors","Harley-Davidson","Honda","Kawasaki","Mottu","MXF","Piaggio","Royal Enfield","Shineray","Suzuki","Triumph","Vespa","Voge","Yadea","Zontes"];
@@ -523,7 +524,7 @@
         el.innerHTML=
           '<div class="edit-row">'+
           '<input data-f="marca" value="'+esc(it.marca)+'" placeholder="Marca">'+
-          '<textarea data-f="msg" placeholder="Mensagem">'+esc(it.msg)+'</textarea>'+
+          '<textarea data-f="msg" maxlength="280" placeholder="Mensagem">'+esc(it.msg)+'</textarea>'+
           '<div style="display:flex;gap:8px;flex-wrap:wrap"><input data-f="data" type="date" value="'+esc(it.data||"")+'" title="Data"><input data-f="hora" type="time" value="'+esc(it.hora||"")+'" title="Horário"><input data-f="resp" value="'+esc(it.resp)+'" placeholder="Responsável"><input data-f="wpp" value="'+esc(it.wpp)+'" placeholder="WhatsApp"></div>'+
           '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
           '</div>';
@@ -622,30 +623,39 @@
       return;
     }
 
-    // modo envio: registra localmente e avisa com o contador
-    function concluir(qtdJa){
+    // modo envio: registra localmente e confirma
+    function concluir(){
       DBadd("recados",obj);
       var me=getMeusEnvios(); me.push({marca:m,msg:msg,data:data,hora:hora,ts:now()});
       if(me.length>30) me=me.slice(-30);
       localStorage.setItem("fi_meus_envios",JSON.stringify(me));
       renderMeusEnvios();
       $("#r_msg").value=""; $("#r_hora").value=""; // mantem marca/data/responsavel/whats pro proximo envio
-      toast(qtdJa===null ? "Recado enviado! Já entrou na fila do locutor." : "Recado enviado! ("+(qtdJa+1)+" de "+LIMITE_POR_MARCA+")");
+      toast("Recado enviado pro dia "+fmtData(data)+"! Já entrou na fila do locutor.");
     }
 
-    // limite por marca conferido na base (nao depende do aparelho)
+    // limite: 1 recado por marca POR DIA do evento, conferido na base (nao depende do aparelho)
     if(FB_ON){
       db.collection("recados").where("marca","==",m).get().then(function(qs){
-        if(qs.size>=LIMITE_POR_MARCA){
-          toast("A "+m+" já usou os "+LIMITE_POR_MARCA+" recados do evento.");
+        var noDia=0; qs.forEach(function(d){ if((d.data().data||"")===data) noDia++; });
+        if(noDia>=LIMITE_POR_DIA){
+          toast("A "+m+" já tem o recado do dia "+fmtData(data)+". Você pode enviar pra outro dia.");
           return;
         }
-        concluir(qs.size);
-      }).catch(function(){ concluir(null); }); // se a checagem falhar, nao trava o envio
+        concluir();
+      }).catch(function(){ concluir(); }); // se a checagem falhar, nao trava o envio
     } else {
-      concluir(null);
+      concluir();
     }
   });
+
+  // contador de caracteres da mensagem
+  (function(){
+    var ta=$("#r_msg"), c=$("#msgCount"); if(!ta||!c) return;
+    var max=ta.getAttribute("maxlength")||"280";
+    function upd(){ c.textContent = ta.value.length+" / "+max; }
+    ta.addEventListener("input",upd); upd();
+  })();
 
   // ---- sort ----
   $("#sortMural").addEventListener("change",function(){sortMural=this.value;renderMural();});
