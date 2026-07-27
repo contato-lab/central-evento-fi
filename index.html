@@ -47,6 +47,11 @@
   .nextbadge{background:var(--lime);color:var(--lime-ink);font-family:var(--mono);font-size:.62rem;
     font-weight:700;letter-spacing:.08em;padding:2px 7px;border-radius:5px;text-transform:uppercase}
   .ccount{display:block;font-family:var(--mono);font-size:.68rem;color:var(--ink-3);margin-top:4px;text-align:right}
+  .rulebox{display:flex;gap:10px;align-items:flex-start;background:rgba(166,236,77,.07);
+    border:1px solid rgba(166,236,77,.28);border-radius:11px;padding:12px 14px;margin:0 0 14px}
+  .rulebox .ic{color:var(--lime);font-weight:700;flex:0 0 auto;line-height:1.45}
+  .rulebox .tx{font-size:.86rem;line-height:1.45;color:var(--ink-2)}
+  .rulebox .tx b{color:var(--ink)}
 
   /* ---------- TOP BAR ---------- */
   header.top{position:sticky;top:0;z-index:30;background:linear-gradient(var(--bg),rgba(11,12,10,.82));
@@ -460,6 +465,16 @@
     $("#listRec").style.display="none";
     $("#cRec").style.display="none";
     var _et=document.querySelector('.tab[data-tab="recados"]'); if(_et) _et.childNodes[0].textContent="Enviar recado ";
+    // aviso destacado com as regras, em cima do formulario
+    (function(){
+      var form=$("#formRec"); if(!form) return;
+      var box=document.createElement("div"); box.className="rulebox";
+      box.innerHTML='<span class="ic">!</span><span class="tx">Cada marca pode enviar <b>1 recado por dia</b> de evento. '+
+        'Escolha a data e o horário do anúncio: no dia seguinte você tem direito a um novo recado. '+
+        'A mensagem tem no máximo <b>200 caracteres</b>.</span>';
+      form.parentNode.insertBefore(box, form);
+    })();
+
     $("#meusEnviosWrap").hidden = false;
     renderMeusEnvios();
   }
