@@ -203,7 +203,7 @@
       <div class="hi">Central do Evento</div>
       <div class="sub">Acesso da equipe</div>
       <form id="gateForm">
-        <input id="pw" type="password" placeholder="Senha de acesso" autocomplete="off" autofocus>
+        <input id="pw" name="senha" type="password" placeholder="Senha de acesso" autocomplete="current-password" autofocus>
         <div class="gate-err" id="gateErr"></div>
         <button type="submit">Entrar</button>
       </form>
@@ -436,8 +436,9 @@
   var sortMural="recent", sortRec="recent";
 
   // ---- login ----
-  var logged = sessionStorage.getItem("fi_ok")==="1";
-  function isAdmin(){ return sessionStorage.getItem("fi_adm")==="1"; }
+  // login fica salvo no aparelho ate clicar em Sair (localStorage sobrevive a fechar o navegador)
+  var logged = localStorage.getItem("fi_ok")==="1";
+  function isAdmin(){ return localStorage.getItem("fi_adm")==="1"; }
   function canManageMural(){ return MODE!=="mural" || isAdmin(); } // no mural, so o admin gerencia
   function applyPerms(){
     if(MODE!=="mural") return;
@@ -455,11 +456,11 @@
   $("#gateForm").addEventListener("submit",function(e){
     e.preventDefault();
     var v=$("#pw").value;
-    if(v===SENHA_ADMIN){ sessionStorage.setItem("fi_ok","1"); sessionStorage.setItem("fi_adm","1"); $("#gateErr").textContent=""; openApp(); }
-    else if(v===SENHA){ sessionStorage.setItem("fi_ok","1"); sessionStorage.removeItem("fi_adm"); $("#gateErr").textContent=""; openApp(); }
+    if(v===SENHA_ADMIN){ localStorage.setItem("fi_ok","1"); localStorage.setItem("fi_adm","1"); $("#gateErr").textContent=""; openApp(); }
+    else if(v===SENHA){ localStorage.setItem("fi_ok","1"); localStorage.removeItem("fi_adm"); $("#gateErr").textContent=""; openApp(); }
     else { $("#gateErr").textContent="Senha incorreta. Fale com a produção."; $("#pw").select(); }
   });
-  $("#logout").addEventListener("click",function(){ sessionStorage.removeItem("fi_ok"); sessionStorage.removeItem("fi_adm"); location.reload(); });
+  $("#logout").addEventListener("click",function(){ localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_adm"); location.reload(); });
 
   // ---- tabs ----
   document.querySelectorAll(".tab").forEach(function(b){
