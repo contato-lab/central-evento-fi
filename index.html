@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central do Evento · Suhai Festival Interlagos</title>
 <style>
   :root{
     --bg:#0B0C0A; --panel:#141613; --panel-2:#1B1E18; --raise:#23271F;
@@ -137,6 +142,12 @@
   .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--lime);box-shadow:0 0 0 3px rgba(166,236,77,.13)}
   .addbtn{background:var(--lime);color:var(--lime-ink);border:0;border-radius:10px;padding:12px 22px;font-weight:700;font-size:.92rem;white-space:nowrap;height:44px}
   .addbtn:hover{background:var(--lime-d)}
+  /* mobile: depois das regras base pra vencer a cascata */
+  @media(max-width:820px){
+    .fld input,.fld select,.fld textarea{font-size:16px;padding:12px 14px} /* 16px evita o zoom automatico do iPhone ao tocar no campo */
+    .addbtn{width:100%;height:48px}
+    .view-head h1{font-size:1.3rem}
+  }
 
   .foot{margin-top:34px;color:var(--ink-3);font-size:.76rem;line-height:1.6;font-family:var(--mono);border-top:1px solid var(--line-soft);padding-top:18px}
   .foot b{color:var(--ink-2)}
@@ -252,7 +263,7 @@
           <h3><span class="bar"></span> Novo recado da marca</h3>
           <form id="formRec" class="addgrid recado">
             <div class="fld"><label>Marca</label><input id="r_marca" placeholder="Nome da marca" required></div>
-            <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="280" placeholder="O que o locutor vai anunciar" required></textarea><span class="ccount" id="msgCount"></span></div>
+            <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="200" placeholder="O que o locutor vai anunciar" required></textarea><span class="ccount" id="msgCount"></span></div>
             <div class="fld"><label>Data do anúncio</label><input id="r_data" type="date" required></div>
             <div class="fld"><label>Horário do anúncio</label><input id="r_hora" type="time" required></div>
             <div class="fld"><label>Responsável</label><input id="r_resp" placeholder="Quem enviou"></div>
@@ -425,7 +436,7 @@
   if(MODE==="envio"){
     // marcas: so o formulario; a fila do locutor fica invisivel
     $("#view-recados h1").textContent = "Envie o recado da sua marca";
-    $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, organizado pela data e horário que você marcar. Cada marca pode enviar 1 recado por dia do evento. Mensagem de até 280 caracteres.";
+    $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, organizado pela data e horário que você marcar. Cada marca pode enviar 1 recado por dia do evento. Mensagem de até 200 caracteres.";
 
     // campo Marca vira lista fixa (padroniza o nome e permite o limite por marca)
     var MARCAS_MOTO = ["AIMA","Bajaj","BMW Motorrad","Brizzo","CFMOTO","Dafra","Ducati","Fun Motors","Harley-Davidson","Honda","Kawasaki","Mottu","MXF","Piaggio","Royal Enfield","Shineray","Suzuki","Triumph","Vespa","Voge","Yadea","Zontes"];
@@ -524,7 +535,7 @@
         el.innerHTML=
           '<div class="edit-row">'+
           '<input data-f="marca" value="'+esc(it.marca)+'" placeholder="Marca">'+
-          '<textarea data-f="msg" maxlength="280" placeholder="Mensagem">'+esc(it.msg)+'</textarea>'+
+          '<textarea data-f="msg" maxlength="200" placeholder="Mensagem">'+esc(it.msg)+'</textarea>'+
           '<div style="display:flex;gap:8px;flex-wrap:wrap"><input data-f="data" type="date" value="'+esc(it.data||"")+'" title="Data"><input data-f="hora" type="time" value="'+esc(it.hora||"")+'" title="Horário"><input data-f="resp" value="'+esc(it.resp)+'" placeholder="Responsável"><input data-f="wpp" value="'+esc(it.wpp)+'" placeholder="WhatsApp"></div>'+
           '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
           '</div>';
@@ -652,7 +663,7 @@
   // contador de caracteres da mensagem
   (function(){
     var ta=$("#r_msg"), c=$("#msgCount"); if(!ta||!c) return;
-    var max=ta.getAttribute("maxlength")||"280";
+    var max=ta.getAttribute("maxlength")||"200";
     function upd(){ c.textContent = ta.value.length+" / "+max; }
     ta.addEventListener("input",upd); upd();
   })();
