@@ -39,6 +39,8 @@
   .syncdot.off{background:var(--ink-3);box-shadow:0 0 0 3px rgba(118,124,110,.15)}
   .syncdot.warn{background:var(--amber);box-shadow:0 0 0 3px rgba(251,191,36,.2);animation:sdpulse 1s infinite}
   @keyframes sdpulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .nextbadge{background:var(--lime);color:var(--lime-ink);font-family:var(--mono);font-size:.62rem;
+    font-weight:700;letter-spacing:.08em;padding:2px 7px;border-radius:5px;text-transform:uppercase}
 
   /* ---------- TOP BAR ---------- */
   header.top{position:sticky;top:0;z-index:30;background:linear-gradient(var(--bg),rgba(11,12,10,.82));
@@ -231,6 +233,7 @@
           </div>
           <div class="controls">
             <select class="sortsel" id="sortRec">
+              <option value="prioridade">Prioridade (horário)</option>
               <option value="recent">Mais recente</option>
               <option value="status">Status</option>
               <option value="marca">Marca</option>
@@ -249,10 +252,16 @@
           <form id="formRec" class="addgrid recado">
             <div class="fld"><label>Marca</label><input id="r_marca" placeholder="Nome da marca" required></div>
             <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="200" placeholder="O que o locutor vai anunciar" required></textarea></div>
+            <div class="fld"><label>Horário do anúncio</label><input id="r_hora" type="time" required></div>
             <div class="fld"><label>Responsável</label><input id="r_resp" placeholder="Quem enviou"></div>
             <div class="fld"><label>WhatsApp</label><input id="r_wpp" placeholder="(11) 90000-0000"></div>
             <button class="addbtn" type="submit">Enviar</button>
           </form>
+        </div>
+
+        <div class="addwrap" id="meusEnviosWrap" hidden>
+          <h3><span class="bar"></span> Seus recados enviados (deste aparelho)</h3>
+          <div class="list" id="meusEnvios"></div>
         </div>
       </section>
 
@@ -273,7 +282,7 @@
   "use strict";
   // ---- CONFIG ----
   var SENHA = "interlagos2026"; // senha deste link
-  var MODE  = "mural"; // "mural" ou "recados": define o que este link mostra
+  var MODE  = "mural"; // "mural" (equipe) | "envio" (marcas so enviam) | "locutor" (fila completa)
 
   // ==== BASE COMPARTILHADA (Firebase) ====
   // Cole aqui a config do seu projeto Firebase:
@@ -379,10 +388,11 @@
   function openApp(){ $("#gate").hidden=true; $("#app").hidden=false; renderAll(); }
   if(logged) openApp();
 
-  // conectar a base e ouvir mudancas em tempo real (todos veem o mesmo)
+  // conectar a base e ouvir mudancas em tempo real
+  // envio: NAO escuta nada (marca so grava; nao ve a fila e nao gasta leitura)
   setStatus();
   if(MODE==="mural")   DBwatch("mural",   function(a){ mural=a;   renderMural(); });
-  if(MODE==="recados") DBwatch("recados", function(a){ recados=a; renderRec(); });
+  if(MODE==="locutor") DBwatch("recados", function(a){ recados=a; renderRec(); });
   $("#gateForm").addEventListener("submit",function(e){
     e.preventDefault();
     if($("#pw").value===SENHA){ sessionStorage.setItem("fi_ok","1"); $("#gateErr").textContent=""; openApp(); }
@@ -401,11 +411,31 @@
     });
   });
 
-  // aplica o MODO: este link mostra so uma funcao (mural OU recados)
-  document.querySelectorAll(".tab").forEach(function(b){ if(b.getAttribute("data-tab")!==MODE) b.style.display="none"; });
-  var _mt=document.querySelector('.tab[data-tab="'+MODE+'"]'); if(_mt) _mt.classList.add("active");
-  if($("#view-mural"))   $("#view-mural").hidden   = MODE!=="mural";
-  if($("#view-recados")) $("#view-recados").hidden = MODE!=="recados";
+  // aplica o MODO: este link mostra so uma funcao
+  var VIEW = (MODE==="mural") ? "mural" : "recados";
+  document.querySelectorAll(".tab").forEach(function(b){ if(b.getAttribute("data-tab")!==VIEW) b.style.display="none"; });
+  var _mt=document.querySelector('.tab[data-tab="'+VIEW+'"]'); if(_mt) _mt.classList.add("active");
+  if($("#view-mural"))   $("#view-mural").hidden   = VIEW!=="mural";
+  if($("#view-recados")) $("#view-recados").hidden = VIEW!=="recados";
+
+  if(MODE==="envio"){
+    // marcas: so o formulario; a fila do locutor fica invisivel
+    $("#view-recados h1").textContent = "Envie o recado da sua marca";
+    $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, organizado pelo horário que você marcar.";
+    $("#sortRec").style.display="none";
+    $("#shareRec").style.display="none";
+    $("#countRec").style.display="none";
+    $("#listRec").style.display="none";
+    $("#cRec").style.display="none";
+    var _et=document.querySelector('.tab[data-tab="recados"]'); if(_et) _et.childNodes[0].textContent="Enviar recado ";
+    $("#meusEnviosWrap").hidden = false;
+    renderMeusEnvios();
+  }
+  if(MODE==="locutor"){
+    $("#view-recados .desc").textContent = "Fila em ordem de prioridade: o que está no ar vem primeiro, depois o mais próximo de acontecer. Clique no ponto pra mover o status (na fila → no ar → anunciado), no lápis pra editar e no X pra remover.";
+    sortRec = "prioridade";
+    $("#sortRec").value = "prioridade";
+  }
 
   // ---- MURAL render ----
   function sortItems(arr,mode,kind){
@@ -415,6 +445,18 @@
     else if(mode==="tipo") a.sort(function(x,y){return MTIPOS.indexOf(x.tipo)-MTIPOS.indexOf(y.tipo);});
     else if(mode==="status") a.sort(function(x,y){return RSTATUS.indexOf(x.status)-RSTATUS.indexOf(y.status);});
     else if(mode==="marca") a.sort(function(x,y){return (x.marca||"").localeCompare(y.marca||"");});
+    else if(mode==="prioridade"){
+      // no ar > na fila (pelo horario mais proximo) > anunciados (por ultimo)
+      var rank={noar:0,fila:1,ok:2};
+      a.sort(function(x,y){
+        var rx=(rank[x.status]!==undefined?rank[x.status]:1), ry=(rank[y.status]!==undefined?rank[y.status]:1);
+        if(rx!==ry) return rx-ry;
+        if(x.status==="ok") return y.ts-x.ts; // anunciados: mais recente primeiro
+        var hx=x.hora||"~", hy=y.hora||"~";   // sem horario vai pro fim da fila
+        if(hx!==hy) return hx<hy?-1:1;
+        return x.ts-y.ts;                      // mesmo horario: quem chegou primeiro
+      });
+    }
     return a;
   }
 
@@ -451,14 +493,17 @@
     $("#cRec").textContent=recados.length;
     $("#countRec").textContent=recados.length+" RECADOS";
     if(!recados.length){host.innerHTML='<div class="empty">Nenhum recado ainda. Cadastre o primeiro abaixo.</div>';return;}
-    sortItems(recados,sortRec).forEach(function(it){
+    var sorted = sortItems(recados,sortRec);
+    var nextId = null; // primeiro da fila = proximo a ser anunciado
+    if(sortRec==="prioridade"){ for(var i=0;i<sorted.length;i++){ if(sorted[i].status==="fila"){ nextId=sorted[i].id; break; } } }
+    sorted.forEach(function(it){
       var el=document.createElement("div"); el.className="item"+(it.status==="noar"?" airing":""); el.dataset.id=it.id;
       if(editing[it.id]){
         el.innerHTML=
           '<div class="edit-row">'+
           '<input data-f="marca" value="'+esc(it.marca)+'" placeholder="Marca">'+
           '<textarea data-f="msg" placeholder="Mensagem">'+esc(it.msg)+'</textarea>'+
-          '<div style="display:flex;gap:8px"><input data-f="resp" value="'+esc(it.resp)+'" placeholder="Responsável"><input data-f="wpp" value="'+esc(it.wpp)+'" placeholder="WhatsApp"></div>'+
+          '<div style="display:flex;gap:8px"><input data-f="hora" type="time" value="'+esc(it.hora||"")+'" title="Horário"><input data-f="resp" value="'+esc(it.resp)+'" placeholder="Responsável"><input data-f="wpp" value="'+esc(it.wpp)+'" placeholder="WhatsApp"></div>'+
           '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
           '</div>';
       } else {
@@ -466,7 +511,7 @@
         el.innerHTML=
           '<button class="dotbtn" data-act="cycle" title="Mover status"><span class="d '+it.status+(it.status==="noar"?" noar-pulse":"")+'"></span></button>'+
           '<div class="body">'+
-            '<div class="kv"><span class="tagtxt '+it.status+'">'+RLABEL[it.status]+'</span><span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
+            '<div class="kv"><span class="tagtxt '+it.status+'">'+RLABEL[it.status]+'</span>'+(it.id===nextId?'<span class="nextbadge">Próximo</span>':'')+(it.hora?'<span class="when">'+esc(it.hora)+'</span>':'')+'<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
             '<div class="title">'+esc(it.msg)+'</div>'+
             '<div class="meta">'+(it.resp?'<span>👤 '+esc(it.resp)+'</span>':'')+(wlink?'<span>💬 '+wlink+'</span>':'')+'</div>'+
           '</div>'+
@@ -512,6 +557,7 @@
       var patch={
         marca:$('[data-f="marca"]',row).value.trim()||it.marca,
         msg:$('[data-f="msg"]',row).value.trim()||it.msg,
+        hora:$('[data-f="hora"]',row).value,
         resp:$('[data-f="resp"]',row).value.trim(),
         wpp:$('[data-f="wpp"]',row).value.trim()
       };
@@ -526,11 +572,37 @@
     DBadd("mural",{tipo:$("#m_tipo").value,titulo:t,hora:$("#m_hora").value.trim(),local:$("#m_local").value.trim(),ts:now()});
     e.target.reset(); toast("Adicionado ao mural");
   });
+  // historico local dos envios da marca (so deste aparelho; nao ve o dos outros)
+  function getMeusEnvios(){ try{ return JSON.parse(localStorage.getItem("fi_meus_envios"))||[]; }catch(e){ return []; } }
+  function renderMeusEnvios(){
+    var host=$("#meusEnvios"); if(!host) return;
+    var a=getMeusEnvios();
+    if(!a.length){ host.innerHTML='<div class="empty">Nenhum recado enviado deste aparelho ainda.</div>'; return; }
+    host.innerHTML="";
+    a.slice().reverse().forEach(function(it){
+      var el=document.createElement("div"); el.className="item";
+      el.innerHTML='<div class="body"><div class="kv"><span class="tagtxt fila">Enviado</span>'+
+        (it.hora?'<span class="when">'+esc(it.hora)+'</span>':'')+
+        '<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
+        '<div class="title">'+esc(it.msg)+'</div></div>';
+      host.appendChild(el);
+    });
+  }
+
   $("#formRec").addEventListener("submit",function(e){
     e.preventDefault();
-    var m=$("#r_marca").value.trim(), msg=$("#r_msg").value.trim(); if(!m||!msg)return;
-    DBadd("recados",{status:"fila",marca:m,msg:msg,resp:$("#r_resp").value.trim(),wpp:$("#r_wpp").value.trim(),ts:now()});
-    e.target.reset(); toast("Recado na fila");
+    var m=$("#r_marca").value.trim(), msg=$("#r_msg").value.trim(), hora=$("#r_hora").value; if(!m||!msg)return;
+    DBadd("recados",{status:"fila",marca:m,msg:msg,hora:hora,resp:$("#r_resp").value.trim(),wpp:$("#r_wpp").value.trim(),ts:now()});
+    if(MODE==="envio"){
+      var me=getMeusEnvios(); me.push({marca:m,msg:msg,hora:hora,ts:now()});
+      if(me.length>30) me=me.slice(-30);
+      localStorage.setItem("fi_meus_envios",JSON.stringify(me));
+      renderMeusEnvios();
+      $("#r_msg").value=""; $("#r_hora").value=""; // mantem marca/responsavel/whats pro proximo envio
+      toast("Recado enviado! Já entrou na fila do locutor.");
+    } else {
+      e.target.reset(); toast("Recado na fila");
+    }
   });
 
   // ---- sort ----
