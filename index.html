@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Central do Evento · Suhai Festival Interlagos</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap');
   :root{
     --bg:#0B0C0A; --panel:#141613; --panel-2:#1B1E18; --raise:#23271F;
     --line:#2B3026; --line-soft:#232720;
@@ -11,6 +12,7 @@
     --lime:#A6EC4D; --lime-d:#8CD230; --lime-ink:#0B0C0A;
     --cyan:#4CC3F0; --amber:#FBBF24; --red:#F5453F; --wa:#25D366;
     --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --display:'Barlow Condensed',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,"SF Mono","Cascadia Code","Segoe UI Mono",Consolas,monospace;
   }
   *{box-sizing:border-box}
@@ -28,7 +30,7 @@
     background:radial-gradient(700px 400px at 50% 0%,rgba(166,236,77,.12),transparent 60%),var(--bg)}
   .gatecard{width:100%;max-width:380px;text-align:center}
   .gatecard img{height:120px;width:auto;margin:0 auto 26px;display:block}
-  .gatecard .hi{font-weight:700;font-size:1.3rem}
+  .gatecard .hi{font-family:var(--display);font-weight:700;font-size:1.7rem;letter-spacing:.01em}
   .gatecard .sub{color:var(--ink-3);font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;margin-top:6px}
   .gatecard form{margin-top:24px;display:flex;flex-direction:column;gap:10px}
   .gatecard input{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:11px;
@@ -59,7 +61,7 @@
   .top .bar{display:flex;align-items:center;gap:16px;height:74px}
   .top img.logo{height:48px;width:auto}
   .top .sep{width:1px;height:32px;background:var(--line)}
-  .top .appname{font-weight:600;font-size:1.02rem}
+  .top .appname{font-family:var(--display);font-weight:700;font-size:1.4rem;letter-spacing:.02em}
   .top .appname span{color:var(--lime)}
   .top .spacer{flex:1}
   .top .out{background:transparent;border:1px solid var(--line);color:var(--ink-2);border-radius:9px;
@@ -69,7 +71,7 @@
   /* tabs */
   .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line-soft);margin-top:0}
   .tabs .wrap2{display:flex;gap:6px;max-width:1240px;margin:0 auto;padding:0 20px;width:100%}
-  .tab{background:none;border:0;color:var(--ink-3);font-weight:750;font-size:.95rem;padding:15px 6px;
+  .tab{background:none;border:0;color:var(--ink-3);font-family:var(--display);font-weight:700;font-size:1.12rem;letter-spacing:.02em;padding:15px 6px;
     position:relative;letter-spacing:-.01em;display:inline-flex;align-items:center;gap:9px}
   .tab .n{font-family:var(--mono);font-size:.68rem;background:var(--panel-2);border:1px solid var(--line);
     color:var(--ink-3);padding:2px 7px;border-radius:100px}
@@ -80,7 +82,7 @@
   /* ---------- CONTENT ---------- */
   main{padding:26px 0 90px}
   .view-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px}
-  .view-head h1{margin:0;font-size:1.55rem;font-weight:700}
+  .view-head h1{margin:0;font-family:var(--display);font-size:2.1rem;font-weight:800;letter-spacing:.01em;line-height:1.05}
   .view-head .desc{color:var(--ink-2);font-size:.9rem;margin:6px 0 0;max-width:70ch;line-height:1.5}
   .controls{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
   .share{background:var(--wa);color:#04110a;border:0;border-radius:9px;padding:9px 14px;font-weight:750;font-size:.82rem;display:inline-flex;gap:8px;align-items:center}
@@ -136,7 +138,7 @@
 
   /* add form */
   .addwrap{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:18px 18px 20px}
-  .addwrap h3{margin:0 0 14px;font-size:1rem;font-weight:700;display:flex;align-items:center;gap:9px}
+  .addwrap h3{margin:0 0 14px;font-family:var(--display);font-size:1.2rem;font-weight:700;letter-spacing:.01em;display:flex;align-items:center;gap:9px}
   .addwrap h3 .bar{width:16px;height:3px;background:var(--lime);border-radius:2px}
   .addgrid{display:grid;gap:10px;grid-template-columns:2fr 1fr 1fr auto;align-items:end}
   .addgrid.recado{grid-template-columns:1fr 2fr 1fr 1fr auto}
@@ -151,7 +153,7 @@
   @media(max-width:820px){
     .fld input,.fld select,.fld textarea{font-size:16px;padding:12px 14px} /* 16px evita o zoom automatico do iPhone ao tocar no campo */
     .addbtn{width:100%;height:48px}
-    .view-head h1{font-size:1.3rem}
+    .view-head h1{font-size:1.65rem}
   }
 
   .foot{margin-top:34px;color:var(--ink-3);font-size:.76rem;line-height:1.6;font-family:var(--mono);border-top:1px solid var(--line-soft);padding-top:18px}
@@ -161,6 +163,35 @@
     font-weight:750;padding:11px 20px;border-radius:100px;font-size:.86rem;opacity:0;pointer-events:none;transition:.25s;z-index:80}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   [hidden]{display:none!important}
+  /* ── upgrade visual dos cards (identidade do festival) ── */
+  .item{position:relative;overflow:hidden;border-radius:14px;padding:14px 15px 13px 20px;
+    transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+  .item::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line)}
+  .item.t-agenda::before{background:var(--lime)}
+  .item.t-update::before{background:var(--cyan)}
+  .item.t-aviso::before{background:var(--amber)}
+  .item.t-urgente::before{background:var(--red);animation:barpulse 1.5s infinite}
+  .item.t-urgente{border-color:rgba(245,69,63,.35)}
+  .item.t-fila::before{background:var(--amber)}
+  .item.t-noar::before{background:var(--red)}
+  .item.t-ok::before{background:var(--lime)}
+  @keyframes barpulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @media (prefers-reduced-motion:reduce){.item.t-urgente::before{animation:none}.item{transition:none}}
+  @media(hover:hover){.item:hover{transform:translateY(-2px);border-color:#3A4030;box-shadow:0 12px 30px rgba(0,0,0,.42)}}
+  .tagtxt{padding:3px 8px;border-radius:6px;background:var(--panel-2)}
+  .tagtxt.agenda{background:rgba(166,236,77,.12)}
+  .tagtxt.update{background:rgba(76,195,240,.12)}
+  .tagtxt.aviso{background:rgba(251,191,36,.12)}
+  .tagtxt.urgente{background:rgba(245,69,63,.15)}
+  .tagtxt.fila{background:rgba(251,191,36,.12)}
+  .tagtxt.noar{background:rgba(245,69,63,.15)}
+  .tagtxt.ok{background:rgba(166,236,77,.12)}
+  .item .title{font-size:1.04rem;font-weight:700;line-height:1.32;margin-top:3px}
+  .item .hora{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:.84rem;color:var(--ink);
+    background:var(--panel-2);border:1px solid var(--line-soft);padding:2px 9px;border-radius:7px;flex:0 0 auto}
+  .item .meta .pin{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:99px;padding:2px 10px;display:inline-block}
+  .empty{padding:44px 24px;border-radius:14px;line-height:1.6}
+  .dotview{flex:0 0 auto;margin-top:2px;width:26px;height:26px;display:grid;place-items:center}
 </style>
 
 <div class="fi">
@@ -300,6 +331,7 @@
   "use strict";
   // ---- CONFIG ----
   var SENHA = "interlagos2026"; // senha deste link
+  var SENHA_ADMIN = "ericadmin26"; // senha do ADMIN do mural (posta, edita e remove); a equipe com a senha comum so visualiza
   var MODE  = "mural"; // "mural" (equipe) | "envio" (marcas so enviam) | "locutor" (fila completa)
   var LIMITE_POR_DIA = 1; // recados que cada marca pode enviar POR DIA do evento (renova a cada dia)
 
@@ -405,7 +437,14 @@
 
   // ---- login ----
   var logged = sessionStorage.getItem("fi_ok")==="1";
-  function openApp(){ $("#gate").hidden=true; $("#app").hidden=false; renderAll(); }
+  function isAdmin(){ return sessionStorage.getItem("fi_adm")==="1"; }
+  function canManageMural(){ return MODE!=="mural" || isAdmin(); } // no mural, so o admin gerencia
+  function applyPerms(){
+    if(MODE!=="mural") return;
+    var wrap = $("#formMural") ? $("#formMural").parentNode : null; // caixa "Adicionar ao mural"
+    if(wrap) wrap.hidden = !isAdmin();
+  }
+  function openApp(){ $("#gate").hidden=true; $("#app").hidden=false; applyPerms(); renderAll(); }
   if(logged) openApp();
 
   // conectar a base e ouvir mudancas em tempo real
@@ -415,10 +454,12 @@
   if(MODE==="locutor") DBwatch("recados", function(a){ recados=a; renderRec(); });
   $("#gateForm").addEventListener("submit",function(e){
     e.preventDefault();
-    if($("#pw").value===SENHA){ sessionStorage.setItem("fi_ok","1"); $("#gateErr").textContent=""; openApp(); }
+    var v=$("#pw").value;
+    if(v===SENHA_ADMIN){ sessionStorage.setItem("fi_ok","1"); sessionStorage.setItem("fi_adm","1"); $("#gateErr").textContent=""; openApp(); }
+    else if(v===SENHA){ sessionStorage.setItem("fi_ok","1"); sessionStorage.removeItem("fi_adm"); $("#gateErr").textContent=""; openApp(); }
     else { $("#gateErr").textContent="Senha incorreta. Fale com a produção."; $("#pw").select(); }
   });
-  $("#logout").addEventListener("click",function(){ sessionStorage.removeItem("fi_ok"); location.reload(); });
+  $("#logout").addEventListener("click",function(){ sessionStorage.removeItem("fi_ok"); sessionStorage.removeItem("fi_adm"); location.reload(); });
 
   // ---- tabs ----
   document.querySelectorAll(".tab").forEach(function(b){
@@ -513,8 +554,9 @@
     $("#cMural").textContent=mural.length;
     $("#countMural").textContent=mural.length+" ITENS NO MURAL";
     if(!mural.length){host.innerHTML='<div class="empty">Nada no mural ainda. Adicione o primeiro item abaixo.</div>';return;}
+    var adm = canManageMural();
     sortItems(mural,sortMural).forEach(function(it){
-      var el=document.createElement("div"); el.className="item"; el.dataset.id=it.id;
+      var el=document.createElement("div"); el.className="item t-"+it.tipo; el.dataset.id=it.id;
       if(editing[it.id]){
         el.innerHTML=
           '<div class="edit-row">'+
@@ -524,13 +566,14 @@
           '</div>';
       } else {
         el.innerHTML=
-          '<button class="dotbtn" data-act="cycle" title="Trocar tipo"><span class="d '+it.tipo+'"></span></button>'+
+          (adm ? '<button class="dotbtn" data-act="cycle" title="Trocar tipo"><span class="d '+it.tipo+'"></span></button>'
+               : '<span class="dotview"><span class="d '+it.tipo+'"></span></span>')+
           '<div class="body">'+
-            '<div class="kv"><span class="tagtxt '+it.tipo+'">'+MLABEL[it.tipo]+'</span>'+(it.hora?'<span class="when">'+esc(it.hora)+'</span>':'')+'</div>'+
+            '<div class="kv"><span class="tagtxt '+it.tipo+'">'+MLABEL[it.tipo]+'</span>'+(it.hora?'<span class="hora">'+esc(it.hora)+'</span>':'')+'</div>'+
             '<div class="title">'+esc(it.titulo)+'</div>'+
-            (it.local?'<div class="meta"><span>📍 '+esc(it.local)+'</span></div>':'')+
+            (it.local?'<div class="meta"><span class="pin">📍 '+esc(it.local)+'</span></div>':'')+
           '</div>'+
-          '<div class="acts"><button class="iconbtn" data-act="edit" title="Editar">✎</button><button class="iconbtn del" data-act="del" title="Remover">✕</button></div>';
+          (adm ? '<div class="acts"><button class="iconbtn" data-act="edit" title="Editar">✎</button><button class="iconbtn del" data-act="del" title="Remover">✕</button></div>' : '');
       }
       host.appendChild(el);
     });
@@ -545,7 +588,7 @@
     var nextId = null; // primeiro da fila = proximo a ser anunciado
     if(sortRec==="prioridade"){ for(var i=0;i<sorted.length;i++){ if(sorted[i].status==="fila"){ nextId=sorted[i].id; break; } } }
     sorted.forEach(function(it){
-      var el=document.createElement("div"); el.className="item"+(it.status==="noar"?" airing":""); el.dataset.id=it.id;
+      var el=document.createElement("div"); el.className="item t-"+it.status+(it.status==="noar"?" airing":""); el.dataset.id=it.id;
       if(editing[it.id]){
         el.innerHTML=
           '<div class="edit-row">'+
@@ -573,6 +616,7 @@
 
   // ---- event delegation: MURAL ----
   $("#listMural").addEventListener("click",function(e){
+    if(!canManageMural()) return; // equipe so visualiza
     var btn=e.target.closest("[data-act]"); if(!btn)return;
     var row=e.target.closest(".item"); var id=row.dataset.id;
     var it=mural.find(function(x){return x.id===id;}); if(!it&&btn.dataset.act!=="cancel")return;
@@ -629,7 +673,7 @@
     if(!a.length){ host.innerHTML='<div class="empty">Nenhum recado enviado deste aparelho ainda.</div>'; return; }
     host.innerHTML="";
     a.slice().reverse().forEach(function(it){
-      var el=document.createElement("div"); el.className="item";
+      var el=document.createElement("div"); el.className="item t-fila";
       el.innerHTML='<div class="body"><div class="kv"><span class="tagtxt fila">Enviado</span>'+
         ((it.data||it.hora)?'<span class="when">'+esc((fmtData(it.data)+' '+(it.hora||'')).trim())+'</span>':'')+
         '<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
