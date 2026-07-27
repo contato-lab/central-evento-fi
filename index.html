@@ -37,6 +37,8 @@
   .syncdot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px;flex:0 0 auto}
   .syncdot.on{background:var(--lime);box-shadow:0 0 0 3px rgba(166,236,77,.18)}
   .syncdot.off{background:var(--ink-3);box-shadow:0 0 0 3px rgba(118,124,110,.15)}
+  .syncdot.warn{background:var(--amber);box-shadow:0 0 0 3px rgba(251,191,36,.2);animation:sdpulse 1s infinite}
+  @keyframes sdpulse{0%,100%{opacity:1}50%{opacity:.4}}
 
   /* ---------- TOP BAR ---------- */
   header.top{position:sticky;top:0;z-index:30;background:linear-gradient(var(--bg),rgba(11,12,10,.82));
@@ -270,7 +272,8 @@
 (function(){
   "use strict";
   // ---- CONFIG ----
-  var SENHA = "interlagos2026"; // troque aqui a senha unica da equipe
+  var SENHA = "interlagos2026"; // senha deste link
+  var MODE  = "mural"; // "mural" ou "recados": define o que este link mostra
 
   // ==== BASE COMPARTILHADA (Firebase) ====
   // Cole aqui a config do seu projeto Firebase:
@@ -296,25 +299,68 @@
   function toast(msg){var t=$("#toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},1800);}
 
   // ---- camada de dados: tempo real (Firebase) com fallback local ----
+  // Estrategia por colecao:
+  //  "doc"        = tudo num documento unico. Barato quando MUITA gente le (ex: mural com 600 pessoas).
+  //  "collection" = um documento por item. Bom quando MUITA gente escreve (ex: recados das marcas).
+  var STRATEGY = { mural: "doc", recados: "collection" };
+  var DOCPATH  = { mural: "board/mural" };
+
   var watchers = {};
   function lsGet(c){ try{ return JSON.parse(localStorage.getItem("fi_"+c)) || []; }catch(e){ return []; } }
   function lsSet(c,a){ localStorage.setItem("fi_"+c, JSON.stringify(a)); if(watchers[c]) watchers[c](a); }
-  function setStatus(){ var s=$("#syncDot"); if(!s) return;
-    s.className = "syncdot " + (FB_ON ? "on" : "off");
-    s.title = FB_ON ? "Sincronizado em tempo real com a equipe" : "Modo local (so neste aparelho)"; }
-  function DBwatch(c,cb){ watchers[c]=cb;
-    if(FB_ON){
-      db.collection(c).onSnapshot(function(snap){
-        var a=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; a.push(o); }); cb(a);
-      }, function(){ FB_ON=false; setStatus(); cb(lsGet(c)); });
+
+  var connState = FB_ON ? "on" : "off";
+  function setStatus(st){ if(st) connState = st; var s=$("#syncDot"); if(!s) return;
+    s.className = "syncdot " + connState;
+    s.title = connState==="on" ? "Sincronizado em tempo real"
+            : connState==="warn" ? "Reconectando... mostrando a ultima informacao"
+            : "Modo local (so neste aparelho)"; }
+
+  function DBwatch(c,cb){
+    watchers[c]=cb;
+    if(!FB_ON){ cb(lsGet(c)); window.addEventListener("storage", function(ev){ if(ev.key==="fi_"+c) cb(lsGet(c)); }); return; }
+    var onErr = function(){ setStatus("warn"); }; // mantem a ultima info na tela; o Firestore reconecta sozinho
+    if(STRATEGY[c]==="doc"){
+      db.doc(DOCPATH[c]).onSnapshot(function(snap){
+        setStatus("on");
+        var items = (snap.exists && snap.data() && snap.data().items) ? snap.data().items : [];
+        cb(items);
+      }, onErr);
     } else {
-      cb(lsGet(c));
-      window.addEventListener("storage", function(ev){ if(ev.key==="fi_"+c) cb(lsGet(c)); });
+      db.collection(c).onSnapshot(function(snap){
+        setStatus("on");
+        var a=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; a.push(o); }); cb(a);
+      }, onErr);
     }
   }
-  function DBadd(c,obj){ if(FB_ON){ db.collection(c).add(obj); } else { obj.id=uid(); var a=lsGet(c); a.push(obj); lsSet(c,a); } }
-  function DBupdate(c,id,patch){ if(FB_ON){ db.collection(c).doc(id).update(patch); } else { var a=lsGet(c); var it=a.find(function(x){return x.id===id;}); if(it){ for(var k in patch) it[k]=patch[k]; } lsSet(c,a); } }
-  function DBremove(c,id){ if(FB_ON){ db.collection(c).doc(id).delete(); } else { lsSet(c, lsGet(c).filter(function(x){return x.id!==id;})); } }
+
+  // escrita da estrategia "doc": transacao no documento unico (seguro com varios editores ao mesmo tempo)
+  function docTx(c, fn){
+    var ref = db.doc(DOCPATH[c]);
+    return db.runTransaction(function(tx){
+      return tx.get(ref).then(function(snap){
+        var items = (snap.exists && snap.data() && snap.data().items) ? snap.data().items.slice() : [];
+        items = fn(items) || items;
+        tx.set(ref, { items: items });
+      });
+    }).catch(function(){});
+  }
+
+  function DBadd(c,obj){
+    if(!FB_ON){ obj.id=uid(); var a=lsGet(c); a.push(obj); lsSet(c,a); return; }
+    if(STRATEGY[c]==="doc"){ obj.id=uid(); docTx(c, function(items){ items.push(obj); return items; }); }
+    else { db.collection(c).add(obj); }
+  }
+  function DBupdate(c,id,patch){
+    if(!FB_ON){ var a=lsGet(c); var it=a.find(function(x){return x.id===id;}); if(it){ for(var k in patch) it[k]=patch[k]; } lsSet(c,a); return; }
+    if(STRATEGY[c]==="doc"){ docTx(c, function(items){ for(var i=0;i<items.length;i++){ if(items[i].id===id){ for(var k in patch) items[i][k]=patch[k]; } } return items; }); }
+    else { db.collection(c).doc(id).update(patch); }
+  }
+  function DBremove(c,id){
+    if(!FB_ON){ lsSet(c, lsGet(c).filter(function(x){return x.id!==id;})); return; }
+    if(STRATEGY[c]==="doc"){ docTx(c, function(items){ return items.filter(function(x){return x.id!==id;}); }); }
+    else { db.collection(c).doc(id).delete(); }
+  }
 
   // ---- state ----
   var MTIPOS=["agenda","update","aviso","urgente"];
@@ -335,8 +381,8 @@
 
   // conectar a base e ouvir mudancas em tempo real (todos veem o mesmo)
   setStatus();
-  DBwatch("mural",   function(a){ mural=a;   renderMural(); });
-  DBwatch("recados", function(a){ recados=a; renderRec(); });
+  if(MODE==="mural")   DBwatch("mural",   function(a){ mural=a;   renderMural(); });
+  if(MODE==="recados") DBwatch("recados", function(a){ recados=a; renderRec(); });
   $("#gateForm").addEventListener("submit",function(e){
     e.preventDefault();
     if($("#pw").value===SENHA){ sessionStorage.setItem("fi_ok","1"); $("#gateErr").textContent=""; openApp(); }
@@ -354,6 +400,12 @@
       $("#view-recados").hidden = t!=="recados";
     });
   });
+
+  // aplica o MODO: este link mostra so uma funcao (mural OU recados)
+  document.querySelectorAll(".tab").forEach(function(b){ if(b.getAttribute("data-tab")!==MODE) b.style.display="none"; });
+  var _mt=document.querySelector('.tab[data-tab="'+MODE+'"]'); if(_mt) _mt.classList.add("active");
+  if($("#view-mural"))   $("#view-mural").hidden   = MODE!=="mural";
+  if($("#view-recados")) $("#view-recados").hidden = MODE!=="recados";
 
   // ---- MURAL render ----
   function sortItems(arr,mode,kind){
