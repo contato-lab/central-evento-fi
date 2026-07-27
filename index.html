@@ -252,6 +252,7 @@
           <form id="formRec" class="addgrid recado">
             <div class="fld"><label>Marca</label><input id="r_marca" placeholder="Nome da marca" required></div>
             <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="200" placeholder="O que o locutor vai anunciar" required></textarea></div>
+            <div class="fld"><label>Data do anúncio</label><input id="r_data" type="date" required></div>
             <div class="fld"><label>Horário do anúncio</label><input id="r_hora" type="time" required></div>
             <div class="fld"><label>Responsável</label><input id="r_resp" placeholder="Quem enviou"></div>
             <div class="fld"><label>WhatsApp</label><input id="r_wpp" placeholder="(11) 90000-0000"></div>
@@ -306,6 +307,7 @@
   var now = function(){return Date.now();};
   var uid = function(){return Math.random().toString(36).slice(2,9);};
   function toast(msg){var t=$("#toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},1800);}
+  function fmtData(d){ if(!d) return ""; var p=String(d).split("-"); return p.length===3 ? p[2]+"/"+p[1] : d; } // 2026-08-14 -> 14/08
 
   // ---- camada de dados: tempo real (Firebase) com fallback local ----
   // Estrategia por colecao:
@@ -421,7 +423,7 @@
   if(MODE==="envio"){
     // marcas: so o formulario; a fila do locutor fica invisivel
     $("#view-recados h1").textContent = "Envie o recado da sua marca";
-    $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, organizado pelo horário que você marcar.";
+    $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, organizado pela data e horário que você marcar.";
     $("#sortRec").style.display="none";
     $("#shareRec").style.display="none";
     $("#countRec").style.display="none";
@@ -452,9 +454,10 @@
         var rx=(rank[x.status]!==undefined?rank[x.status]:1), ry=(rank[y.status]!==undefined?rank[y.status]:1);
         if(rx!==ry) return rx-ry;
         if(x.status==="ok") return y.ts-x.ts; // anunciados: mais recente primeiro
-        var hx=x.hora||"~", hy=y.hora||"~";   // sem horario vai pro fim da fila
-        if(hx!==hy) return hx<hy?-1:1;
-        return x.ts-y.ts;                      // mesmo horario: quem chegou primeiro
+        // fila: por data + horario (sem data/horario vai pro fim)
+        var kx=(x.data||"~")+" "+(x.hora||"~"), ky=(y.data||"~")+" "+(y.hora||"~");
+        if(kx!==ky) return kx<ky?-1:1;
+        return x.ts-y.ts;                      // mesma data/horario: quem chegou primeiro
       });
     }
     return a;
@@ -503,7 +506,7 @@
           '<div class="edit-row">'+
           '<input data-f="marca" value="'+esc(it.marca)+'" placeholder="Marca">'+
           '<textarea data-f="msg" placeholder="Mensagem">'+esc(it.msg)+'</textarea>'+
-          '<div style="display:flex;gap:8px"><input data-f="hora" type="time" value="'+esc(it.hora||"")+'" title="Horário"><input data-f="resp" value="'+esc(it.resp)+'" placeholder="Responsável"><input data-f="wpp" value="'+esc(it.wpp)+'" placeholder="WhatsApp"></div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap"><input data-f="data" type="date" value="'+esc(it.data||"")+'" title="Data"><input data-f="hora" type="time" value="'+esc(it.hora||"")+'" title="Horário"><input data-f="resp" value="'+esc(it.resp)+'" placeholder="Responsável"><input data-f="wpp" value="'+esc(it.wpp)+'" placeholder="WhatsApp"></div>'+
           '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
           '</div>';
       } else {
@@ -511,7 +514,7 @@
         el.innerHTML=
           '<button class="dotbtn" data-act="cycle" title="Mover status"><span class="d '+it.status+(it.status==="noar"?" noar-pulse":"")+'"></span></button>'+
           '<div class="body">'+
-            '<div class="kv"><span class="tagtxt '+it.status+'">'+RLABEL[it.status]+'</span>'+(it.id===nextId?'<span class="nextbadge">Próximo</span>':'')+(it.hora?'<span class="when">'+esc(it.hora)+'</span>':'')+'<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
+            '<div class="kv"><span class="tagtxt '+it.status+'">'+RLABEL[it.status]+'</span>'+(it.id===nextId?'<span class="nextbadge">Próximo</span>':'')+((it.data||it.hora)?'<span class="when">'+esc((fmtData(it.data)+' '+(it.hora||'')).trim())+'</span>':'')+'<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
             '<div class="title">'+esc(it.msg)+'</div>'+
             '<div class="meta">'+(it.resp?'<span>👤 '+esc(it.resp)+'</span>':'')+(wlink?'<span>💬 '+wlink+'</span>':'')+'</div>'+
           '</div>'+
@@ -557,6 +560,7 @@
       var patch={
         marca:$('[data-f="marca"]',row).value.trim()||it.marca,
         msg:$('[data-f="msg"]',row).value.trim()||it.msg,
+        data:$('[data-f="data"]',row).value,
         hora:$('[data-f="hora"]',row).value,
         resp:$('[data-f="resp"]',row).value.trim(),
         wpp:$('[data-f="wpp"]',row).value.trim()
@@ -582,7 +586,7 @@
     a.slice().reverse().forEach(function(it){
       var el=document.createElement("div"); el.className="item";
       el.innerHTML='<div class="body"><div class="kv"><span class="tagtxt fila">Enviado</span>'+
-        (it.hora?'<span class="when">'+esc(it.hora)+'</span>':'')+
+        ((it.data||it.hora)?'<span class="when">'+esc((fmtData(it.data)+' '+(it.hora||'')).trim())+'</span>':'')+
         '<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
         '<div class="title">'+esc(it.msg)+'</div></div>';
       host.appendChild(el);
@@ -591,14 +595,14 @@
 
   $("#formRec").addEventListener("submit",function(e){
     e.preventDefault();
-    var m=$("#r_marca").value.trim(), msg=$("#r_msg").value.trim(), hora=$("#r_hora").value; if(!m||!msg)return;
-    DBadd("recados",{status:"fila",marca:m,msg:msg,hora:hora,resp:$("#r_resp").value.trim(),wpp:$("#r_wpp").value.trim(),ts:now()});
+    var m=$("#r_marca").value.trim(), msg=$("#r_msg").value.trim(), data=$("#r_data").value, hora=$("#r_hora").value; if(!m||!msg)return;
+    DBadd("recados",{status:"fila",marca:m,msg:msg,data:data,hora:hora,resp:$("#r_resp").value.trim(),wpp:$("#r_wpp").value.trim(),ts:now()});
     if(MODE==="envio"){
-      var me=getMeusEnvios(); me.push({marca:m,msg:msg,hora:hora,ts:now()});
+      var me=getMeusEnvios(); me.push({marca:m,msg:msg,data:data,hora:hora,ts:now()});
       if(me.length>30) me=me.slice(-30);
       localStorage.setItem("fi_meus_envios",JSON.stringify(me));
       renderMeusEnvios();
-      $("#r_msg").value=""; $("#r_hora").value=""; // mantem marca/responsavel/whats pro proximo envio
+      $("#r_msg").value=""; $("#r_hora").value=""; // mantem marca/data/responsavel/whats pro proximo envio
       toast("Recado enviado! Já entrou na fila do locutor.");
     } else {
       e.target.reset(); toast("Recado na fila");
