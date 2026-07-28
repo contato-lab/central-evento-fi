@@ -222,6 +222,43 @@
   .item .meta .pin{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:99px;padding:2px 10px;display:inline-block}
   .empty{padding:44px 24px;border-radius:14px;line-height:1.6}
   .dotview{flex:0 0 auto;margin-top:2px;width:26px;height:26px;display:grid;place-items:center}
+
+  /* ---------- MURAL EM GRADE (referencia: arte de agenda do festival) ---------- */
+  /* 1 coluna no celular pra nao espremer texto; 2 no tablet; 3 no desktop */
+  #listMural{grid-template-columns:1fr;gap:26px 14px;align-items:start}
+  @media(min-width:620px){ #listMural{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(min-width:1000px){ #listMural{grid-template-columns:repeat(3,minmax(0,1fr))} }
+
+  .grade{position:relative;background:transparent;border:1px solid var(--line);
+    border-radius:12px;padding:24px 14px 14px;text-align:center;transition:border-color .16s ease}
+  .grade .ghora{position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+    background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:.8rem;
+    font-weight:700;letter-spacing:.02em;white-space:nowrap;color:var(--ink-2)}
+  .grade .gtipo{display:block;font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;
+    text-transform:uppercase;margin-bottom:8px;color:var(--ink-3)}
+  .grade .gtit{font-family:var(--display);font-weight:700;font-size:1.24rem;line-height:1.14;
+    letter-spacing:.01em;text-transform:uppercase;color:var(--ink);
+    word-wrap:break-word;overflow-wrap:anywhere;text-wrap:balance}
+  .grade .gloc{display:inline-block;margin-top:10px;font-size:.74rem;color:var(--ink-3)}
+  .grade .gacts{display:flex;justify-content:center;gap:8px;margin-top:14px;
+    padding-top:12px;border-top:1px solid var(--line-soft)}
+  /* alvo de toque cheio no celular */
+  .grade .gacts .iconbtn{width:44px;height:44px;border:1px solid var(--line);border-radius:10px}
+  .grade .gacts .iconbtn:hover{background:var(--panel-2)}
+
+  .grade.t-agenda{border-color:rgba(166,236,77,.55)}  .grade.t-agenda .ghora{color:var(--lime)}
+  .grade.t-update{border-color:rgba(76,195,240,.55)}  .grade.t-update .ghora{color:var(--cyan)}
+  .grade.t-aviso{border-color:rgba(251,191,36,.55)}   .grade.t-aviso .ghora{color:var(--amber)}
+  .grade.t-urgente{border-color:rgba(245,69,63,.65)}  .grade.t-urgente .ghora{color:var(--red)}
+  .grade.t-urgente{animation:gpulse 2s infinite}
+  @keyframes gpulse{0%,100%{border-color:rgba(245,69,63,.65)}50%{border-color:rgba(245,69,63,.25)}}
+  @media (prefers-reduced-motion:reduce){.grade.t-urgente{animation:none}}
+  @media(hover:hover){.grade:hover{border-color:var(--ink-3)}}
+
+  /* legenda das cores */
+  .legenda{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0 0;padding-top:14px;border-top:1px solid var(--line-soft)}
+  .legenda span{display:flex;align-items:center;gap:7px;font-size:.72rem;color:var(--ink-2)}
+  .legenda i{width:9px;height:9px;border-radius:50%;display:inline-block;font-style:normal}
 </style>
 
 <div class="fi">
@@ -287,6 +324,12 @@
         </div>
         <div class="count" id="countMural"></div>
         <div class="list three" id="listMural"></div>
+        <div class="legenda" id="legendaMural" hidden>
+          <span><i style="background:var(--lime)"></i>Agenda</span>
+          <span><i style="background:var(--cyan)"></i>Atualização</span>
+          <span><i style="background:var(--amber)"></i>Aviso</span>
+          <span><i style="background:var(--red)"></i>Urgente</span>
+        </div>
 
         <div class="addwrap">
           <h3><span class="bar"></span> Adicionar ao mural</h3>
@@ -802,30 +845,43 @@
   }
 
   function renderMural(){
-    var host=$("#listMural"); host.innerHTML="";
+    var host=$("#listMural"); if(!host) return;
+    host.innerHTML="";
     $("#cMural").textContent=mural.length;
     $("#countMural").textContent=mural.length+" ITENS NO MURAL";
-    if(!mural.length){host.innerHTML='<div class="empty">Nada no mural ainda. Adicione o primeiro item abaixo.</div>';return;}
     var adm = podeGerenciarMural();
+    var leg = $("#legendaMural");
+    if(!mural.length){
+      host.innerHTML='<div class="empty">'+(adm
+        ? "Nada no mural ainda. Publique o primeiro item no formulário abaixo."
+        : "Nada no mural ainda. Assim que a produção publicar, aparece aqui.")+'</div>';
+      if(leg) leg.hidden = true;
+      return;
+    }
+    if(leg) leg.hidden = false;
     sortItems(mural,sortMural).forEach(function(it){
-      var el=document.createElement("div"); el.className="item t-"+it.tipo; el.dataset.id=it.id;
+      var el=document.createElement("div");
+      el.dataset.id=it.id;
       if(editing[it.id]){
+        el.className="item t-"+it.tipo;
         el.innerHTML=
           '<div class="edit-row">'+
-          '<input data-f="titulo" value="'+esc(it.titulo)+'" placeholder="Mensagem">'+
-          '<div style="display:flex;gap:8px"><input data-f="hora" value="'+esc(it.hora)+'" placeholder="Horário"><input data-f="local" value="'+esc(it.local)+'" placeholder="Local"></div>'+
+          '<input data-f="titulo" value="'+esc(it.titulo)+'" placeholder="Mensagem" maxlength="90">'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap"><input data-f="hora" value="'+esc(it.hora||"")+'" placeholder="Horário"><input data-f="local" value="'+esc(it.local||"")+'" placeholder="Local"></div>'+
           '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
           '</div>';
       } else {
+        el.className="grade t-"+it.tipo;
         el.innerHTML=
-          (adm ? '<button class="dotbtn" data-act="cycle" title="Trocar tipo"><span class="d '+it.tipo+'"></span></button>'
-               : '<span class="dotview"><span class="d '+it.tipo+'"></span></span>')+
-          '<div class="body">'+
-            '<div class="kv"><span class="tagtxt '+it.tipo+'">'+MLABEL[it.tipo]+'</span>'+(it.hora?'<span class="hora">'+esc(it.hora)+'</span>':'')+'</div>'+
-            '<div class="title">'+esc(it.titulo)+'</div>'+
-            (it.local?'<div class="meta"><span class="pin">📍 '+esc(it.local)+'</span></div>':'')+
-          '</div>'+
-          (adm ? '<div class="acts"><button class="iconbtn" data-act="edit" title="Editar">✎</button><button class="iconbtn del" data-act="del" title="Remover">✕</button></div>' : '');
+          (it.hora ? '<span class="ghora">'+esc(it.hora)+'</span>' : '')+
+          '<span class="gtipo">'+MLABEL[it.tipo]+'</span>'+
+          '<h3 class="gtit">'+esc(it.titulo)+'</h3>'+
+          (it.local ? '<span class="gloc">'+esc(it.local)+'</span>' : '')+
+          (adm ? '<div class="gacts">'+
+                   '<button class="iconbtn" data-act="cycle" title="Trocar tipo" aria-label="Trocar o tipo do aviso"><span class="d '+it.tipo+'"></span></button>'+
+                   '<button class="iconbtn" data-act="edit" title="Editar" aria-label="Editar item">✎</button>'+
+                   '<button class="iconbtn del" data-act="del" title="Remover" aria-label="Remover item">✕</button>'+
+                 '</div>' : '');
       }
       host.appendChild(el);
     });
