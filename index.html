@@ -40,6 +40,18 @@
     font-weight:700;font-size:1rem}
   .gatecard button:hover{background:var(--lime-d)}
   .gate-err{color:var(--red);font-size:.82rem;min-height:1.1em;font-weight:600}
+  .pwwrap{position:relative;display:block}
+  .pwwrap input{padding-right:96px !important;padding-left:96px !important}
+  .pweye{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    background:transparent;border:0;color:var(--ink-3);font-family:var(--mono);
+    font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;
+    min-height:44px;padding:0 10px;border-radius:9px;cursor:pointer}
+  .pweye:hover{color:var(--ink)}
+  .pweye:focus-visible{outline:2px solid var(--lime);outline-offset:2px;color:var(--ink)}
+  @media(max-width:420px){
+    .pwwrap input{padding-right:84px !important;padding-left:14px !important;text-align:left}
+    .pweye{font-size:.62rem}
+  }
   .gate-note{color:var(--ink-3);font-size:.74rem;margin-top:18px;line-height:1.5}
   .syncdot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px;flex:0 0 auto}
   .syncdot.on{background:var(--lime);box-shadow:0 0 0 3px rgba(166,236,77,.18)}
@@ -221,7 +233,10 @@
       <div class="hi">Central do Evento</div>
       <div class="sub">Acesso da equipe</div>
       <form id="gateForm">
-        <input id="pw" name="senha" type="password" placeholder="Senha de acesso" autocomplete="current-password" autofocus>
+        <div class="pwwrap">
+          <input id="pw" name="senha" type="password" placeholder="Senha de acesso" autocomplete="current-password" autofocus>
+          <button type="button" id="verSenha" class="pweye" aria-label="Mostrar senha">Mostrar</button>
+        </div>
         <div class="gate-err" id="gateErr"></div>
         <button type="submit">Entrar</button>
       </form>
@@ -391,10 +406,10 @@
   // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com a base de
   // acessos vazia, offline ou apagada por engano. Impede ficar trancado para fora.
   var ACESSOS_PADRAO = [
-    { nome:"Produção (padrão)",              senha:"producao2026",   perfil:"producao"    },
-    { nome:"Locutor (padrão)",               senha:"locutor2026",    perfil:"locutor"     },
-    { nome:"Credenciados e imprensa (padrão)", senha:"interlagos2026", perfil:"credenciado" },
-    { nome:"Marcas (padrão)",                senha:"recados2026",    perfil:"marca"       }
+    { nome:"Produção",              senha:"producao2026",   perfil:"producao"    },
+    { nome:"Locutor",               senha:"locutor2026",    perfil:"locutor"     },
+    { nome:"Credenciados e imprensa", senha:"interlagos2026", perfil:"credenciado" },
+    { nome:"Marcas",                senha:"recados2026",    perfil:"marca"       }
   ];
   var LIMITE_POR_DIA = 1; // recados que cada marca pode enviar POR DIA do evento (renova a cada dia)
 
@@ -583,6 +598,18 @@
     } else { $("#gateErr").textContent = "Senha incorreta. Fale com a produção."; $("#pw").select(); }
   });
 
+  // mostrar/ocultar senha no login (ajuda muito no celular, onde errar e facil)
+  (function(){
+    var pw = $("#pw"), bt = $("#verSenha"); if(!pw || !bt) return;
+    bt.addEventListener("click", function(){
+      var mostrar = pw.type === "password";
+      pw.type = mostrar ? "text" : "password";
+      bt.textContent = mostrar ? "Ocultar" : "Mostrar";
+      bt.setAttribute("aria-label", mostrar ? "Ocultar senha" : "Mostrar senha");
+      pw.focus();
+    });
+  })();
+
   $("#logout").addEventListener("click",function(){
     localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
     localStorage.removeItem("fi_nome"); localStorage.removeItem("fi_acesso");
@@ -609,33 +636,75 @@
   // ---- monta a interface conforme o perfil logado ----
   var jaMontado = {};
 
-  function montarSelectMarcas(){
-    if(jaMontado.select) return; jaMontado.select = true;
+  // Lista de marcas SEMPRE agrupada (Edição Moto / Edição Auto / Patrocinadores).
+  // comOutra=true (produção e locutor) acrescenta "Outra marca", que revela um
+  // campo pra digitar um patrocinador fora da lista sem perder o agrupamento.
+  function montarSelectMarcas(comOutra){
+    // a opcao "Outra marca" e sempre construida, mas so fica utilizavel pra quem
+    // pode gerenciar a fila. Assim trocar de perfil nao deixa a lista errada.
+    if(jaMontado.select){ aplicarOpcaoOutra(comOutra); return; }
+    jaMontado.select = true;
     var inp = $("#r_marca"); if(!inp || inp.tagName === "SELECT") return;
-    var sel = document.createElement("select"); sel.id = "r_marca"; sel.required = true;
-    var ph = document.createElement("option"); ph.value = ""; ph.textContent = "Escolha a marca";
-    ph.disabled = true; ph.selected = true; sel.appendChild(ph);
+
+    var sel = document.createElement("select");
+    sel.id = "r_marca"; sel.required = true; sel.autocomplete = "off";
+    var ph = document.createElement("option");
+    ph.value = ""; ph.textContent = "Escolha a marca"; ph.disabled = true; ph.selected = true;
+    sel.appendChild(ph);
     function grp(label, arr){
       var g = document.createElement("optgroup"); g.label = label;
-      arr.forEach(function(mm){ var o = document.createElement("option"); o.value = mm; o.textContent = mm; g.appendChild(o); });
+      arr.forEach(function(mm){
+        var o = document.createElement("option"); o.value = mm; o.textContent = mm; g.appendChild(o);
+      });
       return g;
     }
     sel.appendChild(grp("Edição Moto", MARCAS_MOTO));
     sel.appendChild(grp("Edição Auto", MARCAS_AUTO));
     sel.appendChild(grp("Patrocinadores", MARCAS_OUTRAS));
+
+    var go = document.createElement("optgroup");
+    go.label = "Fora da lista"; go.id = "grpOutra";
+    var oo = document.createElement("option");
+    oo.value = "__outra__"; oo.textContent = "Outra marca (digitar)";
+    go.appendChild(oo); sel.appendChild(go);
+
+    var outra = document.createElement("input");
+    outra.type = "text"; outra.id = "r_marca_outra";
+    outra.placeholder = "Digite o nome da marca";
+    outra.autocomplete = "off"; outra.hidden = true;
+    outra.style.marginTop = "8px";
+
     inp.parentNode.replaceChild(sel, inp);
+    sel.parentNode.appendChild(outra);
+    sel.addEventListener("change", function(){
+      var ehOutra = sel.value === "__outra__";
+      outra.hidden = !ehOutra;
+      if(ehOutra) outra.focus(); else outra.value = "";
+    });
+
+    aplicarOpcaoOutra(comOutra);
   }
 
-  function montarDatalistMarcas(){
-    if(jaMontado.datalist) return; jaMontado.datalist = true;
-    var inp = $("#r_marca"); if(!inp || inp.tagName !== "INPUT") return;
-    var dl = document.createElement("datalist"); dl.id = "listaMarcas";
-    MARCAS_MOTO.concat(MARCAS_AUTO, MARCAS_OUTRAS).forEach(function(mm){
-      var o = document.createElement("option"); o.value = mm; dl.appendChild(o);
-    });
-    inp.setAttribute("list", "listaMarcas");
-    inp.placeholder = "Escolha na lista ou digite";
-    inp.parentNode.appendChild(dl);
+  // liga/desliga a opcao "Outra marca (digitar)" conforme o perfil
+  function aplicarOpcaoOutra(permitir){
+    var g = $("#grpOutra"), o = $("#r_marca_outra"), sel = $("#r_marca");
+    if(!g) return;
+    g.hidden = !permitir; g.disabled = !permitir;
+    var opt = g.querySelector("option"); if(opt){ opt.hidden = !permitir; opt.disabled = !permitir; }
+    if(!permitir){
+      if(o){ o.hidden = true; o.value = ""; }
+      if(sel && sel.value === "__outra__") sel.value = "";
+    }
+  }
+
+  // nome da marca considerando a opcao "Outra marca"
+  function marcaEscolhida(){
+    var sel = $("#r_marca"); if(!sel) return "";
+    if(sel.value === "__outra__"){
+      var o = $("#r_marca_outra");
+      return o ? o.value.trim() : "";
+    }
+    return String(sel.value || "").trim();
   }
 
   function montarAvisoRegras(){
@@ -696,7 +765,7 @@
       $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, na posição do dia e da hora que você marcar pra ele anunciar.";
       var et = document.querySelector('.tab[data-tab="recados"]');
       if(et && et.childNodes[0]) et.childNodes[0].textContent = "Enviar recado ";
-      montarSelectMarcas();
+      montarSelectMarcas(false); // marca: lista fechada, e o que sustenta o limite
       montarAvisoRegras();
       $("#meusEnviosWrap").hidden = false;
       renderMeusEnvios();
@@ -704,7 +773,7 @@
       $("#view-recados .desc").textContent = "Fila em ordem de prioridade: o que está no ar vem primeiro, depois o mais próximo de acontecer. Clique no ponto pra mover o status (na fila, no ar, anunciado), no lápis pra editar e no X pra remover.";
       sortRec = "prioridade";
       if($("#sortRec")) $("#sortRec").value = "prioridade";
-      montarDatalistMarcas();
+      montarSelectMarcas(true); // producao/locutor: lista agrupada + opcao de digitar
     }
   }
 
@@ -816,7 +885,6 @@
       el.innerHTML =
         '<div class="body">' +
           '<div class="kv"><span class="tagtxt ' + (a.perfil==="producao"?"urgente":a.perfil==="locutor"?"update":a.perfil==="marca"?"aviso":"agenda") + '">' + esc(p.rotulo) + '</span>' +
-            (a.fixo ? '<span class="semhora">padrão de fábrica</span>' : '') +
             (euUso ? '<span class="nextbadge">Você está usando</span>' : '') +
           '</div>' +
           '<div class="title">' + esc(a.nome || "(sem nome)") + '</div>' +
@@ -927,7 +995,7 @@
 
   $("#formRec").addEventListener("submit",function(e){
     e.preventDefault();
-    var m=$("#r_marca").value.trim(), msg=$("#r_msg").value.trim(), data=$("#r_data").value, hora=$("#r_hora").value; if(!m||!msg)return;
+    var m=marcaEscolhida(), msg=$("#r_msg").value.trim(), data=$("#r_data").value, hora=$("#r_hora").value; if(!m||!msg)return;
     var obj={status:"fila",marca:m,msg:msg,data:data,hora:hora,resp:$("#r_resp").value.trim(),wpp:$("#r_wpp").value.trim(),ts:now()};
 
     if(!podeEnviar()){ toast("Seu acesso não permite enviar recado."); return; } // dupla checagem
