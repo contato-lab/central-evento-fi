@@ -494,15 +494,19 @@
   if($("#view-mural"))   $("#view-mural").hidden   = VIEW!=="mural";
   if($("#view-recados")) $("#view-recados").hidden = VIEW!=="recados";
 
+  // lista oficial de marcas: usada nos dois modos que tem o campo Marca.
+  // No envio ela e obrigatoria (select), no locutor ela e sugestao (datalist),
+  // pra producao poder lancar um patrocinador fora da lista numa emergencia.
+  var MARCAS_MOTO = ["AIMA","Bajaj","BMW Motorrad","Brizzo","CFMOTO","Dafra","Ducati","Fun Motors","Harley-Davidson","Honda","Kawasaki","Mottu","MXF","Piaggio","Royal Enfield","Shineray","Suzuki","Triumph","Vespa","Voge","Yadea","Zontes"];
+  var MARCAS_AUTO = ["Abarth","Aston Martin","BMW","BYD","Denza","Fiat","Ford","GAC","Geely","GWM","Honda (Auto)","Jaecoo","Jeep","Jetour","Leapmotor","Lexus","McLaren","MG","Mitsubishi","Omoda","Peugeot","RAM","Renault","Toyota Gazoo Racing","Volvo"];
+  var MARCAS_OUTRAS = ["Suhai","Mercado Livre"];
+
   if(MODE==="envio"){
     // marcas: so o formulario; a fila do locutor fica invisivel
     $("#view-recados h1").textContent = "Envie o recado da sua marca";
     $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, na posição do dia e da hora que você marcar pra ele anunciar.";
 
-    // campo Marca vira lista fixa (padroniza o nome e permite o limite por marca)
-    var MARCAS_MOTO = ["AIMA","Bajaj","BMW Motorrad","Brizzo","CFMOTO","Dafra","Ducati","Fun Motors","Harley-Davidson","Honda","Kawasaki","Mottu","MXF","Piaggio","Royal Enfield","Shineray","Suzuki","Triumph","Vespa","Voge","Yadea","Zontes"];
-    var MARCAS_AUTO = ["Abarth","Aston Martin","BMW","BYD","Denza","Fiat","Ford","GAC","Geely","GWM","Honda (Auto)","Jaecoo","Jeep","Jetour","Leapmotor","Lexus","McLaren","MG","Mitsubishi","Omoda","Peugeot","RAM","Renault","Toyota Gazoo Racing","Volvo"];
-    var MARCAS_OUTRAS = ["Suhai","Mercado Livre"];
+    // campo Marca vira lista fixa (padroniza o nome e sustenta o limite por marca)
     (function(){
       var inp = $("#r_marca");
       var sel = document.createElement("select"); sel.id="r_marca"; sel.required=true;
@@ -539,6 +543,19 @@
     $("#view-recados .desc").textContent = "Fila em ordem de prioridade: o que está no ar vem primeiro, depois o mais próximo de acontecer. Clique no ponto pra mover o status (na fila → no ar → anunciado), no lápis pra editar e no X pra remover.";
     sortRec = "prioridade";
     $("#sortRec").value = "prioridade";
+
+    // mesma lista de marcas, aqui como sugestao: a producao escolhe da lista
+    // mas ainda pode digitar uma marca fora dela (excecao no dia do evento)
+    (function(){
+      var inp = $("#r_marca"); if(!inp) return;
+      var dl = document.createElement("datalist"); dl.id = "listaMarcas";
+      MARCAS_MOTO.concat(MARCAS_AUTO, MARCAS_OUTRAS).forEach(function(mm){
+        var o = document.createElement("option"); o.value = mm; dl.appendChild(o);
+      });
+      inp.setAttribute("list","listaMarcas");
+      inp.placeholder = "Escolha na lista ou digite";
+      inp.parentNode.appendChild(dl);
+    })();
   }
 
   // ---- MURAL render ----
