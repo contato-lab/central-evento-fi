@@ -386,7 +386,7 @@
     producao:    { rotulo:"Produção",    mural:"gerenciar", fila:"gerenciar", envia:true,  admin:true  },
     locutor:     { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:true,  admin:false },
     credenciado: { rotulo:"Credenciado", mural:"ver",       fila:"nenhum",    envia:false, admin:false },
-    marca:       { rotulo:"Marca",       mural:"nenhum",    fila:"nenhum",    envia:true,  admin:false }
+    marca:       { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false }
   };
   // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com a base de
   // acessos vazia, offline ou apagada por engano. Impede ficar trancado para fora.
@@ -669,7 +669,9 @@
       b.hidden = !ok; b.style.display = ok ? "" : "none";
       if(ok && !primeira) primeira = t;
     });
-    mostrarAba(primeira || "mural");
+    // a marca abre direto no formulario (a funcao dela), nao no mural
+    var abaInicial = (soEnvia && abas.recados) ? "recados" : (primeira || "mural");
+    mostrarAba(abaInicial);
 
     // identifica quem esta logado, no topo
     var quem = $("#quemSou");
