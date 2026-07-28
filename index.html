@@ -50,6 +50,10 @@
     font-weight:700;letter-spacing:.08em;padding:2px 7px;border-radius:5px;text-transform:uppercase}
   .ccount{display:block;font-family:var(--mono);font-size:.68rem;color:var(--ink-3);margin-top:4px;text-align:right}
   .hint{display:block;font-size:.68rem;color:var(--ink-3);margin-top:5px;line-height:1.35}
+  .quemsou{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line-soft);
+    padding:4px 10px;border-radius:99px;white-space:nowrap;max-width:34vw;overflow:hidden;text-overflow:ellipsis}
+  @media(max-width:560px){.quemsou{display:none}}
   .semhora{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;
     color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line-soft);padding:2px 8px;border-radius:7px}
   .rulebox{display:flex;gap:10px;align-items:flex-start;background:rgba(166,236,77,.07);
@@ -233,6 +237,7 @@
         <div class="sep"></div>
         <div class="appname">Central do <span>Evento</span></div>
         <div class="spacer"></div>
+        <span class="quemsou" id="quemSou"></span>
         <span class="syncdot off" id="syncDot" title=""></span>
         <button class="out" id="logout">Sair</button>
       </div>
@@ -241,6 +246,7 @@
     <nav class="tabs"><div class="wrap2">
       <button class="tab active" data-tab="mural">Mural do evento <span class="n" id="cMural">0</span></button>
       <button class="tab" data-tab="recados">Recados pro locutor <span class="n" id="cRec">0</span></button>
+      <button class="tab" data-tab="acessos" hidden>Acessos <span class="n" id="cAcess">0</span></button>
     </div></nav>
 
     <main class="wrap">
@@ -328,6 +334,35 @@
         </div>
       </section>
 
+      <!-- ===== ACESSOS (so producao) ===== -->
+      <section id="view-acessos" hidden>
+        <div class="view-head">
+          <div>
+            <h1>Acessos</h1>
+            <p class="desc">Quem entra no sistema e o que cada um pode fazer. Crie uma senha para cada grupo e escolha o nível. As senhas padrão de fábrica continuam valendo sempre, para nunca ficarmos trancados para fora.</p>
+          </div>
+        </div>
+        <div class="count" id="countAcess"></div>
+        <div class="list" id="listAcess"></div>
+
+        <div class="addwrap">
+          <h3><span class="bar"></span> Novo acesso</h3>
+          <form id="formAcess" class="addgrid">
+            <div class="fld"><label>Quem é</label><input id="a_nome" placeholder="Ex: Equipe de imprensa" required></div>
+            <div class="fld"><label>Senha</label><input id="a_senha" placeholder="Senha de entrada" required></div>
+            <div class="fld"><label>Nível</label>
+              <select id="a_perfil">
+                <option value="credenciado">Credenciado (só vê o mural)</option>
+                <option value="locutor">Locutor (fila + vê o mural)</option>
+                <option value="marca">Marca (só envia recado)</option>
+                <option value="producao">Produção (acesso total)</option>
+              </select>
+            </div>
+            <button class="addbtn" type="submit">Criar acesso</button>
+          </form>
+        </div>
+      </section>
+
       <div class="foot">
         Central do Evento · <b>Suhai Festival Interlagos 2026</b> · uso interno da equipe. As informações são compartilhadas em tempo real com toda a equipe conectada.
       </div>
@@ -344,9 +379,23 @@
 (function(){
   "use strict";
   // ---- CONFIG ----
-  var SENHA = "interlagos2026"; // senha deste link
-  var SENHA_ADMIN = "producao2026"; // senha da PRODUCAO: posta, edita e remove no mural; a equipe com a senha comum so visualiza
-  var MODE  = "mural"; // "mural" (equipe) | "envio" (marcas so enviam) | "locutor" (fila completa)
+  // ==== CONTROLE DE ACESSO ====
+  // A matriz de permissao vive NO CODIGO. O banco guarda apenas QUEM tem qual perfil.
+  // Assim ninguem ganha poder editando dado, so a producao mudando o perfil de alguem.
+  var PERFIS = {
+    producao:    { rotulo:"Produção",    mural:"gerenciar", fila:"gerenciar", envia:true,  admin:true  },
+    locutor:     { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:true,  admin:false },
+    credenciado: { rotulo:"Credenciado", mural:"ver",       fila:"nenhum",    envia:false, admin:false },
+    marca:       { rotulo:"Marca",       mural:"nenhum",    fila:"nenhum",    envia:true,  admin:false }
+  };
+  // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com a base de
+  // acessos vazia, offline ou apagada por engano. Impede ficar trancado para fora.
+  var ACESSOS_PADRAO = [
+    { nome:"Produção (padrão)",              senha:"producao2026",   perfil:"producao"    },
+    { nome:"Locutor (padrão)",               senha:"locutor2026",    perfil:"locutor"     },
+    { nome:"Credenciados e imprensa (padrão)", senha:"interlagos2026", perfil:"credenciado" },
+    { nome:"Marcas (padrão)",                senha:"recados2026",    perfil:"marca"       }
+  ];
   var LIMITE_POR_DIA = 1; // recados que cada marca pode enviar POR DIA do evento (renova a cada dia)
 
   // ==== BASE COMPARTILHADA (Firebase) ====
@@ -450,49 +499,105 @@
   var sortMural="recent", sortRec="recent";
 
   // ---- login ----
-  // login fica salvo no aparelho ate clicar em Sair (localStorage sobrevive a fechar o navegador)
-  var logged = localStorage.getItem("fi_ok")==="1";
-  function isAdmin(){ return localStorage.getItem("fi_adm")==="1"; }
-  function canManageMural(){ return MODE!=="mural" || isAdmin(); } // no mural, so o admin gerencia
-  function applyPerms(){
-    if(MODE!=="mural") return;
-    var wrap = $("#formMural") ? $("#formMural").parentNode : null; // caixa "Adicionar ao mural"
-    if(wrap) wrap.hidden = !isAdmin();
-  }
-  function openApp(){ $("#gate").hidden=true; $("#app").hidden=false; applyPerms(); renderAll(); }
-  if(logged) openApp();
+  // ---- sessao e permissoes ----
+  var acessos = [];        // acessos criados pela producao (banco)
+  var PERFIL = null;       // nome do perfil logado
+  var PERM = null;         // permissoes do perfil logado
 
-  // conectar a base e ouvir mudancas em tempo real
-  // envio: NAO escuta nada (marca so grava; nao ve a fila e nao gasta leitura)
-  setStatus();
-  if(MODE==="mural")   DBwatch("mural",   function(a){ mural=a;   renderMural(); });
-  if(MODE==="locutor") DBwatch("recados", function(a){ recados=a; renderRec(); });
+  function definirPerfil(p){
+    PERFIL = PERFIS[p] ? p : null;
+    PERM = PERFIL ? PERFIS[PERFIL] : null;
+    return !!PERM;
+  }
+  // checagens usadas TANTO pra desenhar a tela QUANTO pra bloquear a acao
+  function podeGerenciarMural(){ return !!PERM && PERM.mural === "gerenciar"; }
+  function podeVerMural(){       return !!PERM && PERM.mural !== "nenhum"; }
+  function podeGerenciarFila(){  return !!PERM && PERM.fila  === "gerenciar"; }
+  function podeVerFila(){        return !!PERM && PERM.fila  !== "nenhum"; }
+  function podeEnviar(){         return !!PERM && PERM.envia === true; }
+  function ehAdmin(){            return !!PERM && PERM.admin === true; }
+
+  function acharAcesso(senha){
+    var s = String(senha||"").trim();
+    if(!s) return null;
+    for(var i=0;i<acessos.length;i++){
+      if(acessos[i].ativo !== false && String(acessos[i].senha||"").trim() === s) return acessos[i];
+    }
+    for(var j=0;j<ACESSOS_PADRAO.length;j++){
+      if(ACESSOS_PADRAO[j].senha === s) return ACESSOS_PADRAO[j];
+    }
+    return null;
+  }
+
+  function openApp(){
+    $("#gate").hidden = true; $("#app").hidden = false;
+    aplicarInterface();
+    ligarEscutas();
+    renderAll();
+  }
+
+  // so escuta o que o perfil pode ver (privacidade + economia de leitura)
+  var escutando = {};
+  function ligarEscutas(){
+    setStatus();
+    if(podeVerMural() && !escutando.mural){ escutando.mural = true;
+      DBwatch("mural", function(a){ mural = a; renderMural(); }); }
+    if(podeVerFila() && !escutando.recados){ escutando.recados = true;
+      DBwatch("recados", function(a){ recados = a; renderRec(); }); }
+    if(ehAdmin() && !escutando.acessos){ escutando.acessos = true;
+      DBwatch("acessos", function(a){ acessos = a; renderAcessos(); }); }
+  }
+
+  // sessao salva no aparelho ate clicar em Sair
+  if(localStorage.getItem("fi_ok")==="1" && definirPerfil(localStorage.getItem("fi_perfil"))) openApp();
+  else setStatus();
+
+  function entrar(acesso){
+    definirPerfil(acesso.perfil);
+    localStorage.setItem("fi_ok","1");
+    localStorage.setItem("fi_perfil", acesso.perfil);
+    localStorage.setItem("fi_nome", acesso.nome || "");
+    localStorage.setItem("fi_acesso", acesso.id || ("padrao:"+acesso.perfil));
+    $("#gateErr").textContent = "";
+    openApp();
+  }
+
   $("#gateForm").addEventListener("submit",function(e){
     e.preventDefault();
-    var v=$("#pw").value;
-    if(v===SENHA_ADMIN){ localStorage.setItem("fi_ok","1"); localStorage.setItem("fi_adm","1"); $("#gateErr").textContent=""; openApp(); }
-    else if(v===SENHA){ localStorage.setItem("fi_ok","1"); localStorage.removeItem("fi_adm"); $("#gateErr").textContent=""; openApp(); }
-    else { $("#gateErr").textContent="Senha incorreta. Fale com a produção."; $("#pw").select(); }
+    var v = $("#pw").value;
+    var a = acharAcesso(v);
+    if(a) return entrar(a);
+    // a base de acessos pode nao ter carregado ainda: busca e tenta de novo
+    if(FB_ON){
+      $("#gateErr").textContent = "Verificando...";
+      db.collection("acessos").get().then(function(snap){
+        var arr=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; arr.push(o); });
+        acessos = arr;
+        var b = acharAcesso(v);
+        if(b) return entrar(b);
+        $("#gateErr").textContent = "Senha incorreta. Fale com a produção.";
+        $("#pw").select();
+      }).catch(function(){
+        $("#gateErr").textContent = "Senha incorreta. Fale com a produção."; $("#pw").select();
+      });
+    } else { $("#gateErr").textContent = "Senha incorreta. Fale com a produção."; $("#pw").select(); }
   });
-  $("#logout").addEventListener("click",function(){ localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_adm"); location.reload(); });
+
+  $("#logout").addEventListener("click",function(){
+    localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
+    localStorage.removeItem("fi_nome"); localStorage.removeItem("fi_acesso");
+    location.reload();
+  });
 
   // ---- tabs ----
   document.querySelectorAll(".tab").forEach(function(b){
     b.addEventListener("click",function(){
-      document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("active");});
-      b.classList.add("active");
-      var t=b.getAttribute("data-tab");
-      $("#view-mural").hidden = t!=="mural";
-      $("#view-recados").hidden = t!=="recados";
+      if(b.hidden) return; // aba escondida nao navega
+      mostrarAba(b.getAttribute("data-tab"));
     });
   });
 
-  // aplica o MODO: este link mostra so uma funcao
-  var VIEW = (MODE==="mural") ? "mural" : "recados";
-  document.querySelectorAll(".tab").forEach(function(b){ if(b.getAttribute("data-tab")!==VIEW) b.style.display="none"; });
-  var _mt=document.querySelector('.tab[data-tab="'+VIEW+'"]'); if(_mt) _mt.classList.add("active");
-  if($("#view-mural"))   $("#view-mural").hidden   = VIEW!=="mural";
-  if($("#view-recados")) $("#view-recados").hidden = VIEW!=="recados";
+  // a interface e montada por aplicarInterface(), logo abaixo, conforme o perfil
 
   // lista oficial de marcas: usada nos dois modos que tem o campo Marca.
   // No envio ela e obrigatoria (select), no locutor ela e sugestao (datalist),
@@ -501,61 +606,104 @@
   var MARCAS_AUTO = ["Abarth","Aston Martin","BMW","BYD","Denza","Fiat","Ford","GAC","Geely","GWM","Honda (Auto)","Jaecoo","Jeep","Jetour","Leapmotor","Lexus","McLaren","MG","Mitsubishi","Omoda","Peugeot","RAM","Renault","Toyota Gazoo Racing","Volvo"];
   var MARCAS_OUTRAS = ["Suhai","Mercado Livre"];
 
-  if(MODE==="envio"){
-    // marcas: so o formulario; a fila do locutor fica invisivel
-    $("#view-recados h1").textContent = "Envie o recado da sua marca";
-    $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, na posição do dia e da hora que você marcar pra ele anunciar.";
+  // ---- monta a interface conforme o perfil logado ----
+  var jaMontado = {};
 
-    // campo Marca vira lista fixa (padroniza o nome e sustenta o limite por marca)
-    (function(){
-      var inp = $("#r_marca");
-      var sel = document.createElement("select"); sel.id="r_marca"; sel.required=true;
-      var ph = document.createElement("option"); ph.value=""; ph.textContent="Escolha a marca"; ph.disabled=true; ph.selected=true;
-      sel.appendChild(ph);
-      function grp(label,arr){ var g=document.createElement("optgroup"); g.label=label;
-        arr.forEach(function(mm){ var o=document.createElement("option"); o.value=mm; o.textContent=mm; g.appendChild(o); }); return g; }
-      sel.appendChild(grp("Edição Moto",MARCAS_MOTO));
-      sel.appendChild(grp("Edição Auto",MARCAS_AUTO));
-      sel.appendChild(grp("Patrocinadores",MARCAS_OUTRAS));
-      inp.parentNode.replaceChild(sel,inp);
-    })();
-    $("#sortRec").style.display="none";
-    $("#shareRec").style.display="none";
-    $("#countRec").style.display="none";
-    $("#listRec").style.display="none";
-    $("#cRec").style.display="none";
-    var _et=document.querySelector('.tab[data-tab="recados"]'); if(_et) _et.childNodes[0].textContent="Enviar recado ";
-    // aviso destacado com as regras, em cima do formulario
-    (function(){
-      var form=$("#formRec"); if(!form) return;
-      var box=document.createElement("div"); box.className="rulebox";
-      box.innerHTML='<span class="ic">!</span><span class="tx">Cada marca pode enviar <b>1 recado por dia</b> de evento. '+
-        'A <b>data</b> é o dia em que o locutor deve anunciar. A <b>hora</b> é o momento do dia pra ele falar: '+
-        'se o seu recado não tem hora certa, deixe vazio que ele anuncia quando der. '+
-        'A mensagem tem no máximo <b>200 caracteres</b>.</span>';
-      form.parentNode.insertBefore(box, form);
-    })();
-
-    $("#meusEnviosWrap").hidden = false;
-    renderMeusEnvios();
+  function montarSelectMarcas(){
+    if(jaMontado.select) return; jaMontado.select = true;
+    var inp = $("#r_marca"); if(!inp || inp.tagName === "SELECT") return;
+    var sel = document.createElement("select"); sel.id = "r_marca"; sel.required = true;
+    var ph = document.createElement("option"); ph.value = ""; ph.textContent = "Escolha a marca";
+    ph.disabled = true; ph.selected = true; sel.appendChild(ph);
+    function grp(label, arr){
+      var g = document.createElement("optgroup"); g.label = label;
+      arr.forEach(function(mm){ var o = document.createElement("option"); o.value = mm; o.textContent = mm; g.appendChild(o); });
+      return g;
+    }
+    sel.appendChild(grp("Edição Moto", MARCAS_MOTO));
+    sel.appendChild(grp("Edição Auto", MARCAS_AUTO));
+    sel.appendChild(grp("Patrocinadores", MARCAS_OUTRAS));
+    inp.parentNode.replaceChild(sel, inp);
   }
-  if(MODE==="locutor"){
-    $("#view-recados .desc").textContent = "Fila em ordem de prioridade: o que está no ar vem primeiro, depois o mais próximo de acontecer. Clique no ponto pra mover o status (na fila → no ar → anunciado), no lápis pra editar e no X pra remover.";
-    sortRec = "prioridade";
-    $("#sortRec").value = "prioridade";
 
-    // mesma lista de marcas, aqui como sugestao: a producao escolhe da lista
-    // mas ainda pode digitar uma marca fora dela (excecao no dia do evento)
-    (function(){
-      var inp = $("#r_marca"); if(!inp) return;
-      var dl = document.createElement("datalist"); dl.id = "listaMarcas";
-      MARCAS_MOTO.concat(MARCAS_AUTO, MARCAS_OUTRAS).forEach(function(mm){
-        var o = document.createElement("option"); o.value = mm; dl.appendChild(o);
-      });
-      inp.setAttribute("list","listaMarcas");
-      inp.placeholder = "Escolha na lista ou digite";
-      inp.parentNode.appendChild(dl);
-    })();
+  function montarDatalistMarcas(){
+    if(jaMontado.datalist) return; jaMontado.datalist = true;
+    var inp = $("#r_marca"); if(!inp || inp.tagName !== "INPUT") return;
+    var dl = document.createElement("datalist"); dl.id = "listaMarcas";
+    MARCAS_MOTO.concat(MARCAS_AUTO, MARCAS_OUTRAS).forEach(function(mm){
+      var o = document.createElement("option"); o.value = mm; dl.appendChild(o);
+    });
+    inp.setAttribute("list", "listaMarcas");
+    inp.placeholder = "Escolha na lista ou digite";
+    inp.parentNode.appendChild(dl);
+  }
+
+  function montarAvisoRegras(){
+    if(jaMontado.regras) return; jaMontado.regras = true;
+    var form = $("#formRec"); if(!form) return;
+    var box = document.createElement("div"); box.className = "rulebox";
+    box.innerHTML = '<span class="ic">!</span><span class="tx">Cada marca pode enviar <b>1 recado por dia</b> de evento. ' +
+      'A <b>data</b> é o dia em que o locutor deve anunciar. A <b>hora</b> é o momento do dia pra ele falar: ' +
+      'se o seu recado não tem hora certa, deixe vazio que ele anuncia quando der. ' +
+      'A mensagem tem no máximo <b>200 caracteres</b>.</span>';
+    form.parentNode.insertBefore(box, form);
+  }
+
+  function mostrarAba(t){
+    document.querySelectorAll(".tab").forEach(function(x){ x.classList.remove("active"); });
+    var b = document.querySelector('.tab[data-tab="' + t + '"]'); if(b) b.classList.add("active");
+    $("#view-mural").hidden   = t !== "mural";
+    $("#view-recados").hidden = t !== "recados";
+    $("#view-acessos").hidden = t !== "acessos";
+  }
+
+  function aplicarInterface(){
+    if(!PERM) return;
+    var soEnvia = podeEnviar() && !podeVerFila();   // perfil "marca"
+
+    // abas visiveis conforme o perfil
+    var abas = { mural: podeVerMural(), recados: (podeVerFila() || podeEnviar()), acessos: ehAdmin() };
+    var primeira = null;
+    document.querySelectorAll(".tab").forEach(function(b){
+      var t = b.getAttribute("data-tab"), ok = !!abas[t];
+      b.hidden = !ok; b.style.display = ok ? "" : "none";
+      if(ok && !primeira) primeira = t;
+    });
+    mostrarAba(primeira || "mural");
+
+    // identifica quem esta logado, no topo
+    var quem = $("#quemSou");
+    if(quem) quem.textContent = (localStorage.getItem("fi_nome") || PERM.rotulo);
+
+    // MURAL: quem so ve nao enxerga o formulario de adicionar
+    var wrapMural = $("#formMural") ? $("#formMural").parentNode : null;
+    if(wrapMural) wrapMural.hidden = !podeGerenciarMural();
+    if(podeVerMural() && !podeGerenciarMural()){
+      $("#view-mural .desc").textContent = "Agenda, atualizações e avisos que a produção dispara pra equipe, em tempo real.";
+    }
+
+    // RECADOS: a fila so aparece pra quem pode ver
+    ["#listRec","#countRec","#sortRec","#shareRec","#cRec"].forEach(function(s){
+      var el = $(s); if(el) el.style.display = podeVerFila() ? "" : "none";
+    });
+    var wrapRec = $("#formRec") ? $("#formRec").parentNode : null;
+    if(wrapRec) wrapRec.hidden = !podeEnviar();
+
+    if(soEnvia){
+      $("#view-recados h1").textContent = "Envie o recado da sua marca";
+      $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, na posição do dia e da hora que você marcar pra ele anunciar.";
+      var et = document.querySelector('.tab[data-tab="recados"]');
+      if(et && et.childNodes[0]) et.childNodes[0].textContent = "Enviar recado ";
+      montarSelectMarcas();
+      montarAvisoRegras();
+      $("#meusEnviosWrap").hidden = false;
+      renderMeusEnvios();
+    } else if(podeVerFila()){
+      $("#view-recados .desc").textContent = "Fila em ordem de prioridade: o que está no ar vem primeiro, depois o mais próximo de acontecer. Clique no ponto pra mover o status (na fila, no ar, anunciado), no lápis pra editar e no X pra remover.";
+      sortRec = "prioridade";
+      if($("#sortRec")) $("#sortRec").value = "prioridade";
+      montarDatalistMarcas();
+    }
   }
 
   // ---- MURAL render ----
@@ -587,7 +735,7 @@
     $("#cMural").textContent=mural.length;
     $("#countMural").textContent=mural.length+" ITENS NO MURAL";
     if(!mural.length){host.innerHTML='<div class="empty">Nada no mural ainda. Adicione o primeiro item abaixo.</div>';return;}
-    var adm = canManageMural();
+    var adm = podeGerenciarMural();
     sortItems(mural,sortMural).forEach(function(it){
       var el=document.createElement("div"); el.className="item t-"+it.tipo; el.dataset.id=it.id;
       if(editing[it.id]){
@@ -645,11 +793,71 @@
     });
   }
 
-  function renderAll(){renderMural();renderRec();}
+  function renderAll(){renderMural();renderRec();renderAcessos();}
+
+  // ---- ACESSOS (so producao) ----
+  function renderAcessos(){
+    var host = $("#listAcess"); if(!host || !ehAdmin()) return;
+    var padroes = ACESSOS_PADRAO.map(function(a){
+      return { nome:a.nome, senha:a.senha, perfil:a.perfil, fixo:true };
+    });
+    var todos = padroes.concat(acessos.filter(function(a){ return a && a.senha; }));
+    $("#cAcess").textContent = todos.length;
+    $("#countAcess").textContent = todos.length + " ACESSOS";
+    host.innerHTML = "";
+    todos.forEach(function(a){
+      var p = PERFIS[a.perfil] || { rotulo:"?" };
+      var euUso = (a.id || ("padrao:"+a.perfil)) === localStorage.getItem("fi_acesso");
+      var el = document.createElement("div");
+      el.className = "item t-" + (a.perfil==="producao" ? "urgente" : a.perfil==="locutor" ? "update" : a.perfil==="marca" ? "aviso" : "agenda");
+      el.dataset.id = a.id || "";
+      el.innerHTML =
+        '<div class="body">' +
+          '<div class="kv"><span class="tagtxt ' + (a.perfil==="producao"?"urgente":a.perfil==="locutor"?"update":a.perfil==="marca"?"aviso":"agenda") + '">' + esc(p.rotulo) + '</span>' +
+            (a.fixo ? '<span class="semhora">padrão de fábrica</span>' : '') +
+            (euUso ? '<span class="nextbadge">Você está usando</span>' : '') +
+          '</div>' +
+          '<div class="title">' + esc(a.nome || "(sem nome)") + '</div>' +
+          '<div class="meta"><span class="pin">senha: ' + esc(a.senha) + '</span></div>' +
+        '</div>' +
+        (a.fixo || euUso ? '' : '<div class="acts"><button class="iconbtn del" data-act="del" title="Remover acesso" aria-label="Remover acesso">✕</button></div>');
+      host.appendChild(el);
+    });
+  }
+
+  if($("#listAcess")) $("#listAcess").addEventListener("click", function(e){
+    if(!ehAdmin()) return; // dupla checagem
+    var btn = e.target.closest("[data-act]"); if(!btn) return;
+    var row = e.target.closest(".item"); var id = row && row.dataset.id;
+    if(!id) return;
+    var alvo = acessos.filter(function(x){ return x.id === id; })[0];
+    if(!alvo) return;
+    if(alvo.id === localStorage.getItem("fi_acesso")){
+      toast("Você não pode remover o acesso que está usando."); return;
+    }
+    if(confirm("Remover o acesso \"" + (alvo.nome||"") + "\"? Quem usa essa senha perde a entrada.")){
+      DBremove("acessos", id);
+    }
+  });
+
+  if($("#formAcess")) $("#formAcess").addEventListener("submit", function(e){
+    e.preventDefault();
+    if(!ehAdmin()){ toast("Só a produção cria acessos."); return; } // dupla checagem
+    var nome = $("#a_nome").value.trim();
+    var senha = $("#a_senha").value.trim();
+    var perfil = $("#a_perfil").value;
+    if(!nome || !senha) return;
+    if(!PERFIS[perfil]){ toast("Nível inválido."); return; }
+    if(senha.length < 4){ toast("Use uma senha com pelo menos 4 caracteres."); return; }
+    if(acharAcesso(senha)){ toast("Essa senha já está em uso. Escolha outra."); return; }
+    DBadd("acessos", { nome:nome, senha:senha, perfil:perfil, ativo:true, ts:now() });
+    e.target.reset();
+    toast("Acesso criado para " + nome);
+  });
 
   // ---- event delegation: MURAL ----
   $("#listMural").addEventListener("click",function(e){
-    if(!canManageMural()) return; // equipe so visualiza
+    if(!podeGerenciarMural()) return; // dupla checagem: esconder botao nao basta
     var btn=e.target.closest("[data-act]"); if(!btn)return;
     var row=e.target.closest(".item"); var id=row.dataset.id;
     var it=mural.find(function(x){return x.id===id;}); if(!it&&btn.dataset.act!=="cancel")return;
@@ -720,13 +928,16 @@
     var m=$("#r_marca").value.trim(), msg=$("#r_msg").value.trim(), data=$("#r_data").value, hora=$("#r_hora").value; if(!m||!msg)return;
     var obj={status:"fila",marca:m,msg:msg,data:data,hora:hora,resp:$("#r_resp").value.trim(),wpp:$("#r_wpp").value.trim(),ts:now()};
 
-    if(MODE!=="envio"){
+    if(!podeEnviar()){ toast("Seu acesso não permite enviar recado."); return; } // dupla checagem
+
+    // quem tambem enxerga a fila (producao/locutor) lanca direto, sem limite diario
+    if(podeVerFila()){
       DBadd("recados",obj);
       e.target.reset(); toast("Recado na fila");
       return;
     }
 
-    // modo envio: registra localmente e confirma
+    // perfil marca: registra localmente, confere o limite do dia e confirma
     function concluir(){
       DBadd("recados",obj);
       var me=getMeusEnvios(); me.push({marca:m,msg:msg,data:data,hora:hora,ts:now()});
