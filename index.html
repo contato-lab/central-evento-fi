@@ -2,6 +2,9 @@
 <html lang="pt-BR">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Central do Evento · Suhai Festival Interlagos</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap');
@@ -224,6 +227,11 @@
   .empty.carregando{animation:piscando 1.4s ease-in-out infinite}
   @keyframes piscando{0%,100%{opacity:1}50%{opacity:.45}}
   @media (prefers-reduced-motion:reduce){.empty.carregando{animation:none}}
+  .empty.erro{border-style:solid;border-color:rgba(245,69,63,.5);color:var(--ink-2)}
+  .mini.recarregar{margin-top:12px;min-height:44px;padding:0 18px;border-radius:10px;
+    border:1px solid var(--line);background:var(--panel-2);color:var(--ink);
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+  .mini.recarregar:hover{border-color:var(--ink-3)}
   .dotview{flex:0 0 auto;margin-top:2px;width:26px;height:26px;display:grid;place-items:center}
 
   /* ---------- MURAL EM GRADE (referencia: arte de agenda do festival) ---------- */
@@ -439,6 +447,29 @@
 <script>
 (function(){
   "use strict";
+
+  // ==== VERSAO E AUTO-ATUALIZACAO ====
+  // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
+  // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
+  // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
+  var VERSAO = "2026-07-28.3";
+  (function conferirVersao(){
+    try{
+      if(location.protocol === "file:") return;
+      if(sessionStorage.getItem("fi_recarregou") === VERSAO) return; // nunca entra em loop
+      fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" })
+        .then(function(r){ return r.ok ? r.text() : null; })
+        .then(function(html){
+          if(!html) return;
+          var m = html.match(/var VERSAO = "([^"]+)"/);
+          if(m && m[1] !== VERSAO){
+            sessionStorage.setItem("fi_recarregou", m[1]);
+            location.reload();
+          }
+        })["catch"](function(){});
+    }catch(e){}
+  })();
+
   // ---- CONFIG ----
   // ==== CONTROLE DE ACESSO ====
   // A matriz de permissao vive NO CODIGO. O banco guarda apenas QUEM tem qual perfil.
@@ -497,9 +528,9 @@
   var connState = FB_ON ? "on" : "off";
   function setStatus(st){ if(st) connState = st; var s=$("#syncDot"); if(!s) return;
     s.className = "syncdot " + connState;
-    s.title = connState==="on" ? "Sincronizado em tempo real"
+    s.title = (connState==="on" ? "Sincronizado em tempo real"
             : connState==="warn" ? "Reconectando... mostrando a ultima informacao"
-            : "Modo local (so neste aparelho)"; }
+            : "Modo local (so neste aparelho)") + "  ·  versao " + VERSAO; }
 
   function DBwatch(c,cb){
     watchers[c]=cb;
@@ -592,27 +623,46 @@
 
   function openApp(){
     $("#gate").hidden = true; $("#app").hidden = false;
-    aplicarInterface();
-    ligarEscutas();
+    // a ordem importa: desenhar a tela nunca pode depender do banco responder.
+    // por isso cada etapa e isolada, e o renderAll roda mesmo se as anteriores falharem.
+    try { aplicarInterface(); } catch(e){ if(window.console) console.error("[central] aplicarInterface", e); }
+    try { ligarEscutas();     } catch(e){ if(window.console) console.error("[central] ligarEscutas", e); setStatus("warn"); }
     renderAll();
   }
 
   // so escuta o que o perfil pode ver (privacidade + economia de leitura)
   var escutando = {};
   var carregou = {}; // vira true quando a primeira resposta do banco chega
+  var falhou   = {}; // vira true quando o banco nao respondeu no prazo
+  // uma escuta que falha nao pode impedir as outras de subir
+  function escutar(col, condicao, aplicar, render, seletorLista){
+    if(!condicao || escutando[col]) return;
+    escutando[col] = true;
+    armarPrazo(col, render);
+    try {
+      DBwatch(col, function(a){
+        carregou[col] = true; falhou[col] = false;
+        aplicar(a || []);
+        protegido(col, render, seletorLista);
+      });
+    } catch(e){
+      escutando[col] = false; falhou[col] = true;
+      if(window.console) console.error("[central] escuta "+col, e);
+      setStatus("warn");
+      protegido(col, render, seletorLista);
+    }
+  }
   function ligarEscutas(){
     setStatus();
-    if(podeVerMural() && !escutando.mural){ escutando.mural = true;
-      DBwatch("mural", function(a){ mural = a; carregou.mural = true; renderMural(); }); }
-    if(podeVerFila() && !escutando.recados){ escutando.recados = true;
-      DBwatch("recados", function(a){ recados = a; carregou.recados = true; renderRec(); }); }
-    if(ehAdmin() && !escutando.acessos){ escutando.acessos = true;
-      DBwatch("acessos", function(a){ acessos = a; carregou.acessos = true; renderAcessos(); }); }
+    escutar("mural",   podeVerMural(), function(a){ mural   = a; }, renderMural,   "#listMural");
+    escutar("recados", podeVerFila(),  function(a){ recados = a; }, renderRec,     "#listRec");
+    escutar("acessos", ehAdmin(),      function(a){ acessos = a; }, renderAcessos, "#listAcess");
   }
 
-  // sessao salva no aparelho ate clicar em Sair
-  if(localStorage.getItem("fi_ok")==="1" && definirPerfil(localStorage.getItem("fi_perfil"))) openApp();
-  else setStatus();
+  // A entrada automatica (sessao salva) NAO pode acontecer aqui.
+  // Daqui pra baixo ainda tem lista de marcas e outras variaveis por criar, e abrir o app
+  // antes disso quebrava a montagem da tela: quem ja tinha entrado uma vez voltava e via tudo zerado.
+  // Agora ela roda no fim de tudo, na funcao iniciar().
 
   function entrar(acesso){
     definirPerfil(acesso.perfil);
@@ -848,25 +898,45 @@
     return a;
   }
 
+  // um item com tipo faltando ou desconhecido nao pode derrubar a lista inteira
+  function tipoDe(t){ return MTIPOS.indexOf(t) >= 0 ? t : "aviso"; }
+
+  // Tres estados possiveis, nunca tela muda: carregando / deu ruim / vazio de verdade
+  function estadoVazio(col, textoVazio){
+    if(falhou[col]) return '<div class="empty erro">Não consegui carregar do servidor.<br>'+
+      '<button class="mini recarregar" type="button" onclick="location.reload()">Tentar de novo</button></div>';
+    if(!carregou[col]) return '<div class="empty carregando">Carregando...</div>';
+    return '<div class="empty">'+textoVazio+'</div>';
+  }
+  // se em 10s o banco nao respondeu, para de dizer "carregando" e fala a verdade
+  function armarPrazo(col, render){
+    setTimeout(function(){
+      if(!carregou[col]){ falhou[col] = true; try{ render(); }catch(e){} }
+    }, 10000);
+  }
+
   function renderMural(){
     var host=$("#listMural"); if(!host) return;
     host.innerHTML="";
-    $("#cMural").textContent=mural.length;
-    $("#countMural").textContent=mural.length+" ITENS NO MURAL";
+    var n = mural.length;
+    if($("#cMural"))     $("#cMural").textContent = n;
+    if($("#countMural")) $("#countMural").textContent = n + (n===1 ? " ITEM NO MURAL" : " ITENS NO MURAL");
     var adm = podeGerenciarMural();
     var leg = $("#legendaMural");
-    if(!mural.length){
-      host.innerHTML='<div class="empty'+(carregou.mural?'':' carregando')+'">'+(
-        !carregou.mural ? "Carregando o mural..."
-        : adm ? "Nada no mural ainda. Publique o primeiro item no formulário abaixo."
-              : "Nada no mural ainda. Assim que a produção publicar, aparece aqui.")+'</div>';
+    if(!n){
+      host.innerHTML = estadoVazio("mural", adm
+        ? "Nada no mural ainda. Publique o primeiro item no formulário abaixo."
+        : "Nada no mural ainda. Assim que a produção publicar, aparece aqui.");
       if(leg) leg.hidden = true;
       return;
     }
     if(leg) leg.hidden = false;
+    // monta tudo fora da tela e encaixa de uma vez: 100 cards = 1 redesenho, nao 100
+    var frag = document.createDocumentFragment();
     sortItems(mural,sortMural).forEach(function(it){
       var el=document.createElement("div");
       el.dataset.id=it.id;
+      it.tipo = tipoDe(it.tipo);
       if(editing[it.id]){
         el.className="item t-"+it.tipo;
         el.innerHTML=
@@ -888,20 +958,22 @@
                    '<button class="iconbtn del" data-act="del" title="Remover" aria-label="Remover item">✕</button>'+
                  '</div>' : '');
       }
-      host.appendChild(el);
+      frag.appendChild(el);
     });
+    host.appendChild(frag);
   }
 
   function renderRec(){
-    var host=$("#listRec"); host.innerHTML="";
-    $("#cRec").textContent=recados.length;
-    $("#countRec").textContent=recados.length+" RECADOS";
-    if(!recados.length){
-      host.innerHTML='<div class="empty'+(carregou.recados?'':' carregando')+'">'+(
-        !carregou.recados ? "Carregando a fila..."
-        : "Nenhum recado na fila ainda. Assim que uma marca enviar, aparece aqui.")+'</div>';
+    var host=$("#listRec"); if(!host) return;
+    host.innerHTML="";
+    var n = recados.length;
+    if($("#cRec"))     $("#cRec").textContent = n;
+    if($("#countRec")) $("#countRec").textContent = n + (n===1 ? " RECADO" : " RECADOS");
+    if(!n){
+      host.innerHTML = estadoVazio("recados", "Nenhum recado na fila ainda. Assim que uma marca enviar, aparece aqui.");
       return;
     }
+    var frag = document.createDocumentFragment();
     var sorted = sortItems(recados,sortRec);
     var nextId = null; // primeiro da fila = proximo a ser anunciado
     if(sortRec==="prioridade"){ for(var i=0;i<sorted.length;i++){ if(sorted[i].status==="fila"){ nextId=sorted[i].id; break; } } }
@@ -926,11 +998,27 @@
           '</div>'+
           '<div class="acts"><button class="iconbtn" data-act="edit" title="Editar">✎</button><button class="iconbtn del" data-act="del" title="Remover">✕</button></div>';
       }
-      host.appendChild(el);
+      frag.appendChild(el);
     });
+    host.appendChild(frag);
   }
 
-  function renderAll(){renderMural();renderRec();renderAcessos();}
+  // Cada lista se desenha sozinha. Se uma quebrar, as outras continuam de pe
+  // e a que quebrou avisa na tela, em vez de sumir em silencio.
+  function protegido(nome, fn, seletorLista){
+    try { fn(); }
+    catch(e){
+      if(window.console) console.error("[central] falha ao desenhar "+nome, e);
+      var host = seletorLista ? $(seletorLista) : null;
+      if(host) host.innerHTML = '<div class="empty erro">Não consegui montar esta lista.<br>'+
+        '<button class="mini recarregar" type="button" onclick="location.reload()">Tentar de novo</button></div>';
+    }
+  }
+  function renderAll(){
+    protegido("mural",   renderMural,   "#listMural");
+    protegido("fila",    renderRec,     "#listRec");
+    protegido("acessos", renderAcessos, "#listAcess");
+  }
 
   // ---- ACESSOS (so producao) ----
   function renderAcessos(){
@@ -1126,6 +1214,26 @@
     });
     window.open("https://wa.me/?text="+encodeURIComponent(lines.join("\n")),"_blank");
   });
+
+  // ---- PARTIDA ----
+  // Ultima coisa do arquivo, de proposito: aqui tudo ja existe.
+  // Se por qualquer motivo a sessao salva estiver estranha, cai na tela de senha
+  // em vez de deixar a pessoa olhando pra uma tela vazia.
+  function iniciar(){
+    try{
+      if(localStorage.getItem("fi_ok")==="1" && definirPerfil(localStorage.getItem("fi_perfil"))){
+        openApp();
+      } else {
+        setStatus();
+      }
+    }catch(e){
+      if(window.console) console.error("[central] partida", e);
+      localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
+      $("#gate").hidden = false; $("#app").hidden = true;
+      setStatus();
+    }
+  }
+  iniciar();
 
 })();
 </script>
