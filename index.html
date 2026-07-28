@@ -221,6 +221,9 @@
     background:var(--panel-2);border:1px solid var(--line-soft);padding:2px 9px;border-radius:7px;flex:0 0 auto}
   .item .meta .pin{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:99px;padding:2px 10px;display:inline-block}
   .empty{padding:44px 24px;border-radius:14px;line-height:1.6}
+  .empty.carregando{animation:piscando 1.4s ease-in-out infinite}
+  @keyframes piscando{0%,100%{opacity:1}50%{opacity:.45}}
+  @media (prefers-reduced-motion:reduce){.empty.carregando{animation:none}}
   .dotview{flex:0 0 auto;margin-top:2px;width:26px;height:26px;display:grid;place-items:center}
 
   /* ---------- MURAL EM GRADE (referencia: arte de agenda do festival) ---------- */
@@ -596,14 +599,15 @@
 
   // so escuta o que o perfil pode ver (privacidade + economia de leitura)
   var escutando = {};
+  var carregou = {}; // vira true quando a primeira resposta do banco chega
   function ligarEscutas(){
     setStatus();
     if(podeVerMural() && !escutando.mural){ escutando.mural = true;
-      DBwatch("mural", function(a){ mural = a; renderMural(); }); }
+      DBwatch("mural", function(a){ mural = a; carregou.mural = true; renderMural(); }); }
     if(podeVerFila() && !escutando.recados){ escutando.recados = true;
-      DBwatch("recados", function(a){ recados = a; renderRec(); }); }
+      DBwatch("recados", function(a){ recados = a; carregou.recados = true; renderRec(); }); }
     if(ehAdmin() && !escutando.acessos){ escutando.acessos = true;
-      DBwatch("acessos", function(a){ acessos = a; renderAcessos(); }); }
+      DBwatch("acessos", function(a){ acessos = a; carregou.acessos = true; renderAcessos(); }); }
   }
 
   // sessao salva no aparelho ate clicar em Sair
@@ -852,9 +856,10 @@
     var adm = podeGerenciarMural();
     var leg = $("#legendaMural");
     if(!mural.length){
-      host.innerHTML='<div class="empty">'+(adm
-        ? "Nada no mural ainda. Publique o primeiro item no formulário abaixo."
-        : "Nada no mural ainda. Assim que a produção publicar, aparece aqui.")+'</div>';
+      host.innerHTML='<div class="empty'+(carregou.mural?'':' carregando')+'">'+(
+        !carregou.mural ? "Carregando o mural..."
+        : adm ? "Nada no mural ainda. Publique o primeiro item no formulário abaixo."
+              : "Nada no mural ainda. Assim que a produção publicar, aparece aqui.")+'</div>';
       if(leg) leg.hidden = true;
       return;
     }
@@ -891,7 +896,12 @@
     var host=$("#listRec"); host.innerHTML="";
     $("#cRec").textContent=recados.length;
     $("#countRec").textContent=recados.length+" RECADOS";
-    if(!recados.length){host.innerHTML='<div class="empty">Nenhum recado ainda. Cadastre o primeiro abaixo.</div>';return;}
+    if(!recados.length){
+      host.innerHTML='<div class="empty'+(carregou.recados?'':' carregando')+'">'+(
+        !carregou.recados ? "Carregando a fila..."
+        : "Nenhum recado na fila ainda. Assim que uma marca enviar, aparece aqui.")+'</div>';
+      return;
+    }
     var sorted = sortItems(recados,sortRec);
     var nextId = null; // primeiro da fila = proximo a ser anunciado
     if(sortRec==="prioridade"){ for(var i=0;i<sorted.length;i++){ if(sorted[i].status==="fila"){ nextId=sorted[i].id; break; } } }
