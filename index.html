@@ -2,9 +2,6 @@
 <html lang="pt-BR">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>Central do Evento · Suhai Festival Interlagos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -352,6 +349,9 @@
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--lime);color:var(--lime-ink);
     font-weight:750;padding:11px 20px;border-radius:100px;font-size:.86rem;opacity:0;pointer-events:none;transition:.25s;z-index:80}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .offline{position:fixed;top:0;left:0;right:0;z-index:90;background:var(--amber);color:#231a02;
+    font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;font-weight:800;
+    text-align:center;padding:9px 14px}
   [hidden]{display:none!important}
   /* ── upgrade visual dos cards (identidade do festival) ── */
   .item{position:relative;overflow:hidden;border-radius:14px;padding:14px 15px 13px 20px;
@@ -595,6 +595,7 @@
     </main>
   </div>
 
+  <div class="offline" id="offline" hidden>Sem conexão agora. Mostrando a última versão salva. Reconecta sozinho.</div>
   <div class="toast" id="toast"></div>
 </div>
 
@@ -609,7 +610,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.15";
+  var VERSAO = "2026-07-29.16";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -661,7 +662,15 @@
   };
   var FB_ON = !!(firebaseConfig.projectId && firebaseConfig.projectId.indexOf("COLE_AQUI") < 0 && window.firebase);
   var db = null;
-  if(FB_ON){ try{ firebase.initializeApp(firebaseConfig); db = firebase.firestore(); }catch(e){ FB_ON = false; } }
+  if(FB_ON){
+    try{
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      // cache local no aparelho: o app abre na hora com a ultima versao mesmo com a
+      // rede do evento ruim, e reconexoes nao precisam baixar tudo de novo do servidor
+      try{ db.enablePersistence({ synchronizeTabs:true })["catch"](function(){}); }catch(e){}
+    }catch(e){ FB_ON = false; }
+  }
 
   // ---- helpers ----
   var $ = function(s,r){return (r||document).querySelector(s);};
@@ -683,25 +692,40 @@
   function lsSet(c,a){ localStorage.setItem("fi_"+c, JSON.stringify(a)); if(watchers[c]) watchers[c](a); }
 
   var connState = FB_ON ? "on" : "off";
+  var offTimer = null;
   function setStatus(st){ if(st) connState = st; var s=$("#syncDot"); if(!s) return;
     s.className = "syncdot " + connState;
     s.title = (connState==="on" ? "Sincronizado em tempo real"
             : connState==="warn" ? "Reconectando... mostrando a ultima informacao"
-            : "Modo local (so neste aparelho)") + "  ·  versao " + VERSAO; }
+            : "Modo local (so neste aparelho)") + "  ·  versao " + VERSAO;
+    // faixa de aviso quando a conexao cai por mais de alguns segundos.
+    // o pontinho e discreto demais pra alguem perceber no corre do evento.
+    var b = $("#offline"); if(!b) return;
+    if(connState === "warn"){
+      if(!offTimer && b.hidden){
+        offTimer = setTimeout(function(){ offTimer = null; if(connState === "warn") b.hidden = false; }, 4000);
+      }
+    } else {
+      if(offTimer){ clearTimeout(offTimer); offTimer = null; }
+      b.hidden = true;
+    }
+  }
 
   function DBwatch(c,cb){
     watchers[c]=cb;
     if(!FB_ON){ cb(lsGet(c)); window.addEventListener("storage", function(ev){ if(ev.key==="fi_"+c) cb(lsGet(c)); }); return; }
     var onErr = function(){ setStatus("warn"); }; // mantem a ultima info na tela; o Firestore reconecta sozinho
+    // resposta vinda do cache local = ainda sem confirmacao do servidor: pontinho amarelo,
+    // nao verde. Assim ninguem confia num "sincronizado" que na verdade esta offline.
     if(STRATEGY[c]==="doc"){
       db.doc(DOCPATH[c]).onSnapshot(function(snap){
-        setStatus("on");
+        setStatus(snap.metadata && snap.metadata.fromCache ? "warn" : "on");
         var items = (snap.exists && snap.data() && snap.data().items) ? snap.data().items : [];
         cb(items);
       }, onErr);
     } else {
       db.collection(c).onSnapshot(function(snap){
-        setStatus("on");
+        setStatus(snap.metadata && snap.metadata.fromCache ? "warn" : "on");
         var a=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; a.push(o); }); cb(a);
       }, onErr);
     }
@@ -811,6 +835,9 @@
       DBwatch(col, function(a){
         carregou[col] = true; falhou[col] = false;
         aplicar(a || []);
+        // seguro contra perda: o celular da producao guarda uma copia de tudo
+        // a cada atualizacao. Se alguem apagar algo sem querer, da pra recuperar.
+        if(ehAdmin()){ try{ localStorage.setItem("fi_bkp_"+col, JSON.stringify({ quando: now(), itens: a || [] })); }catch(e){} }
         protegido(col, render, seletorLista);
       });
     } catch(e){
@@ -1445,6 +1472,7 @@
     if(!PERFIS[perfil]){ toast("Nível inválido."); return; }
     if(senha.length < 4){ toast("Use uma senha com pelo menos 4 caracteres."); return; }
     if(acharAcesso(senha)){ toast("Essa senha já está em uso. Escolha outra."); return; }
+    if(travado("acesso")) return;
     DBadd("acessos", { nome:nome, senha:senha, perfil:perfil, ativo:true, ts:now() });
     e.target.reset();
     toast("Acesso criado para " + nome);
@@ -1513,9 +1541,20 @@
   });
 
   // ---- add forms ----
+  // toque duplo no celular e comum e criaria registro em dobro: cada envio
+  // trava o formulario por um instante
+  var trava = {};
+  function travado(k, ms){
+    if(trava[k]) return true;
+    trava[k] = true;
+    setTimeout(function(){ trava[k] = false; }, ms || 1500);
+    return false;
+  }
+
   $("#formMural").addEventListener("submit",function(e){
     e.preventDefault();
     var t=$("#m_titulo").value.trim(); if(!t)return;
+    if(travado("mural")) return;
     DBadd("mural",{tipo:$("#m_tipo").value,titulo:t,hora:$("#m_hora").value.trim(),local:$("#m_local").value.trim(),ts:now()});
     e.target.reset(); toast("Adicionado ao mural");
   });
@@ -1639,6 +1678,7 @@
     var dias = diasEscolhidos();
     if(!dias.length){ toast("Marque pelo menos um dia pro anúncio."); return; }
     if(!podeEnviar()){ toast("Seu acesso não permite enviar recado."); return; } // dupla checagem
+    if(travado("recado")) return;
     var resp=$("#r_resp").value.trim(), wpp=$("#r_wpp").value.trim();
     function novo(d){ return {status:"fila",marca:m,msg:msg,data:d,hora:hora,resp:resp,wpp:wpp,ts:now()}; }
 
