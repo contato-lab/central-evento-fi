@@ -610,7 +610,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-29.17";
+  var VERSAO = "2026-07-29.18";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -711,26 +711,42 @@
     }
   }
 
+  // Erro que NAO e queda de rede precisa aparecer com todas as letras, senao a
+  // producao fica achando que e sinal ruim enquanto o sistema esta fora do ar.
+  function avisoDeFalha(err){
+    var b = $("#offline"); if(!b) return;
+    var code = err && err.code ? String(err.code) : "";
+    if(code === "resource-exhausted"){
+      b.textContent = "O limite diário do banco de dados foi atingido. A tela mostra a última versão salva. Fale com o Eric.";
+      b.hidden = false; if(offTimer){ clearTimeout(offTimer); offTimer = null; }
+    } else if(code === "permission-denied" || code === "unauthenticated"){
+      b.textContent = "O acesso ao banco de dados foi bloqueado. A tela mostra a última versão salva. Fale com o Eric.";
+      b.hidden = false; if(offTimer){ clearTimeout(offTimer); offTimer = null; }
+    }
+    if(window.console) console.error("[central] firestore", code, err);
+  }
+
   function DBwatch(c,cb){
     watchers[c]=cb;
-    if(!FB_ON){ cb(lsGet(c)); window.addEventListener("storage", function(ev){ if(ev.key==="fi_"+c) cb(lsGet(c)); }); return; }
-    var onErr = function(){ setStatus("warn"); }; // mantem a ultima info na tela; o Firestore reconecta sozinho
+    if(!FB_ON){ cb(lsGet(c)); window.addEventListener("storage", function(ev){ if(ev.key==="fi_"+c) cb(lsGet(c)); }); return function(){}; }
+    // mantem a ultima info na tela; o Firestore reconecta sozinho
+    var onErr = function(err){ setStatus("warn"); avisoDeFalha(err); };
     // resposta vinda do cache local = ainda sem confirmacao do servidor: pontinho amarelo,
     // nao verde. Assim ninguem confia num "sincronizado" que na verdade esta offline.
     // includeMetadataChanges e obrigatorio: sem ele, quando o servidor confirma o MESMO
     // dado que ja estava no cache nao chega aviso nenhum, e o amarelo ficaria preso.
+    // devolve a funcao que desliga a escuta, usada pra pausar em segundo plano
     if(STRATEGY[c]==="doc"){
-      db.doc(DOCPATH[c]).onSnapshot({ includeMetadataChanges:true }, function(snap){
+      return db.doc(DOCPATH[c]).onSnapshot({ includeMetadataChanges:true }, function(snap){
         setStatus(snap.metadata && snap.metadata.fromCache ? "warn" : "on");
         var items = (snap.exists && snap.data() && snap.data().items) ? snap.data().items : [];
         cb(items);
       }, onErr);
-    } else {
-      db.collection(c).onSnapshot({ includeMetadataChanges:true }, function(snap){
-        setStatus(snap.metadata && snap.metadata.fromCache ? "warn" : "on");
-        var a=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; a.push(o); }); cb(a);
-      }, onErr);
     }
+    return db.collection(c).onSnapshot({ includeMetadataChanges:true }, function(snap){
+      setStatus(snap.metadata && snap.metadata.fromCache ? "warn" : "on");
+      var a=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; a.push(o); }); cb(a);
+    }, onErr);
   }
 
   // escrita da estrategia "doc": transacao no documento unico (seguro com varios editores ao mesmo tempo)
@@ -826,6 +842,7 @@
 
   // so escuta o que o perfil pode ver (privacidade + economia de leitura)
   var escutando = {};
+  var desligar  = {}; // col -> funcao que encerra a escuta
   var carregou = {}; // vira true quando a primeira resposta do banco chega
   var falhou   = {}; // vira true quando o banco nao respondeu no prazo
   // uma escuta que falha nao pode impedir as outras de subir
@@ -834,7 +851,7 @@
     escutando[col] = true;
     armarPrazo(col, render);
     try {
-      DBwatch(col, function(a){
+      desligar[col] = DBwatch(col, function(a){
         carregou[col] = true; falhou[col] = false;
         aplicar(a || []);
         // seguro contra perda: o celular da producao guarda uma copia de tudo
@@ -855,6 +872,33 @@
     escutar("recados", podeVerFila(),  function(a){ recados = a; }, renderRec,     "#listRec");
     escutar("acessos", ehAdmin(),      function(a){ acessos = a; }, renderAcessos, "#listAcess");
   }
+
+  // ---- economia de leituras em segundo plano ----
+  // Com 600 celulares conectados, CADA atualizacao do mural custa 600 leituras da
+  // cota diaria, mesmo pra quem esta com o app no bolso. Depois de 3 minutos com a
+  // tela escondida a escuta e encerrada; ao voltar, religa e busca de uma vez so.
+  var pausaTimer = null, pausado = false;
+  function pausarEscutas(){
+    if(pausado || !FB_ON) return;
+    ["mural","recados","acessos"].forEach(function(col){
+      if(desligar[col]){ try{ desligar[col](); }catch(e){} desligar[col] = null; escutando[col] = false; }
+    });
+    pausado = true;
+  }
+  function retomarEscutas(){
+    if(!pausado) return;
+    pausado = false;
+    if(PERM) { try{ ligarEscutas(); }catch(e){ if(window.console) console.error("[central] retomar", e); } }
+  }
+  document.addEventListener("visibilitychange", function(){
+    if(document.hidden){
+      if(pausaTimer) clearTimeout(pausaTimer);
+      pausaTimer = setTimeout(pausarEscutas, 180000);
+    } else {
+      if(pausaTimer){ clearTimeout(pausaTimer); pausaTimer = null; }
+      retomarEscutas();
+    }
+  });
 
   // A entrada automatica (sessao salva) NAO pode acontecer aqui.
   // Daqui pra baixo ainda tem lista de marcas e outras variaveis por criar, e abrir o app
