@@ -128,6 +128,33 @@
   .item.feito:hover{opacity:1}
   .d.agenda{background:var(--lime)} .d.update{background:var(--cyan)} .d.aviso{background:var(--amber)} .d.urgente{background:var(--red)}
 
+  /* ---- dias do evento: chips do formulario da marca ---- */
+  .diasgrid{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .edtag{font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin:0 2px}
+  .diaopt{display:inline-flex;align-items:baseline;gap:5px;min-height:44px;padding:0 12px;border-radius:10px;
+    cursor:pointer;border:1px solid var(--line);background:var(--bg);color:var(--ink-2);
+    font-family:var(--mono);font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums;
+    transition:border-color .15s,background .15s,color .15s}
+  .diaopt span{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .diaopt:hover{border-color:var(--ink-3)}
+  .diaopt[aria-pressed="true"]{background:rgba(166,236,77,.14);border-color:var(--lime);color:var(--lime)}
+  .diaopt[aria-pressed="true"] span{color:var(--lime)}
+  .diaopt:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+
+  /* ---- filtro de dia da fila do locutor ---- */
+  .diaschips{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .diachip{display:inline-flex;align-items:baseline;gap:6px;min-height:40px;padding:0 13px;border-radius:99px;
+    cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
+    font-family:var(--mono);font-size:.68rem;font-weight:700;font-variant-numeric:tabular-nums;
+    transition:border-color .15s,background .15s,color .15s}
+  .diachip .sem{font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .diachip .qt{font-size:.72rem;color:var(--ink-3)}
+  .diachip:hover{border-color:var(--ink-3)}
+  .diachip[aria-pressed="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .diachip[aria-pressed="true"] .sem,.diachip[aria-pressed="true"] .qt{color:var(--lime-ink)}
+  .diachip:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+
   /* ---- fila em rodadas: abas + destaque + linhas + gaveta ---- */
   #listRec.rodadas-on{display:block}
   .rodadas{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap}
@@ -488,7 +515,22 @@
           <form id="formRec" class="addgrid recado">
             <div class="fld"><label>Marca</label><input id="r_marca" placeholder="Nome da marca" required></div>
             <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="200" placeholder="O que o locutor vai anunciar" required></textarea><span class="ccount" id="msgCount"></span></div>
-            <div class="fld"><label>Anunciar no dia</label><input id="r_data" type="date" required></div>
+            <div class="fld" style="grid-column:1/-1"><label>Anunciar nos dias</label>
+              <div class="diasgrid" id="r_dias">
+                <span class="edtag">Moto</span>
+                <button type="button" class="diaopt" data-dia="2026-08-13" aria-pressed="false">13/08 <span>qui</span></button>
+                <button type="button" class="diaopt" data-dia="2026-08-14" aria-pressed="false">14/08 <span>sex</span></button>
+                <button type="button" class="diaopt" data-dia="2026-08-15" aria-pressed="false">15/08 <span>sáb</span></button>
+                <button type="button" class="diaopt" data-dia="2026-08-16" aria-pressed="false">16/08 <span>dom</span></button>
+                <span class="edtag">Auto</span>
+                <button type="button" class="diaopt" data-dia="2026-08-27" aria-pressed="false">27/08 <span>qui</span></button>
+                <button type="button" class="diaopt" data-dia="2026-08-28" aria-pressed="false">28/08 <span>sex</span></button>
+                <button type="button" class="diaopt" data-dia="2026-08-29" aria-pressed="false">29/08 <span>sáb</span></button>
+                <button type="button" class="diaopt" data-dia="2026-08-30" aria-pressed="false">30/08 <span>dom</span></button>
+              </div>
+              <span class="hint">Pode marcar mais de um: o mesmo recado entra em cada dia marcado.</span>
+            </div>
+            <div class="fld"><label>Outro dia</label><input id="r_data" type="date"><span class="hint">Só se não for um dos dias acima</span></div>
             <div class="fld"><label>Anunciar às</label><input id="r_hora" type="time"><span class="hint">Vazio = a qualquer hora</span></div>
             <div class="fld"><label>Responsável</label><input id="r_resp" placeholder="Quem enviou"></div>
             <div class="fld"><label>WhatsApp</label><input id="r_wpp" placeholder="(11) 90000-0000"></div>
@@ -551,7 +593,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.9";
+  var VERSAO = "2026-07-28.10";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -920,9 +962,9 @@
     var box = document.createElement("div"); box.className = "rulebox";
     box.innerHTML = '<span class="ic">!</span><span class="tx">Cada marca pode enviar <b>1 recado por dia</b> de evento, ' +
       'e esse mesmo recado <b>vai ao ar 3 vezes ao longo do dia</b> na voz do locutor. ' +
-      'A <b>data</b> é o dia em que ele deve anunciar. A <b>hora</b> é o momento do dia pra primeira leitura: ' +
-      'se o seu recado não tem hora certa, deixe vazio que ele anuncia quando der. ' +
-      'A mensagem tem no máximo <b>200 caracteres</b>.</span>';
+      'Marque <b>os dias</b> em que ele deve anunciar: pode ser mais de um, e o recado entra em cada dia marcado. ' +
+      'A <b>hora</b> é o momento do dia pra primeira leitura: se o seu recado não tem hora certa, ' +
+      'deixe vazio que ele anuncia quando der. A mensagem tem no máximo <b>200 caracteres</b>.</span>';
     form.parentNode.insertBefore(box, form);
   }
 
@@ -1079,6 +1121,11 @@
   // ---- estado da visao em rodadas ----
   var rodadaAtiva = null;   // null = segue sozinho a primeira rodada com gente
   var gavetaAberta = false; // "ja anunciados" comeca fechada
+  var diaAtivo = null;      // null = abre sozinho no dia de hoje (se tiver recado), senao em "todos"
+
+  var SEMANA = ["dom","seg","ter","qua","qui","sex","sáb"];
+  function hojeISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function diaSemanaDe(iso){ var d=new Date(iso+"T12:00:00"); return isNaN(d) ? "" : SEMANA[d.getDay()]; }
 
   function pipsHtml(vz){ var o=""; for(var p=0;p<MAX_VEZES;p++){ o+='<span class="pip'+(p<vz?' on':'')+'"></span>'; } return o; }
 
@@ -1159,10 +1206,22 @@
       return;
     }
 
-    // ---- visao em rodadas: abas + proximo em destaque + linhas + gaveta ----
+    // ---- visao em rodadas: dia + abas + proximo em destaque + linhas + gaveta ----
     var sorted = sortItems(recados,"prioridade");
+
+    // filtro de dia: cada dia do evento e uma fila propria.
+    // recado sem data aparece em todos os dias (anuncia quando der).
+    var dias = [];
+    sorted.forEach(function(it){ if(it.data && dias.indexOf(it.data)<0) dias.push(it.data); });
+    dias.sort();
+    var hoje = hojeISO();
+    var dia = diaAtivo;
+    if(dia!==null && dia!=="todos" && dias.indexOf(dia)<0) dia = null; // o dia escolhido sumiu da base
+    if(dia===null) dia = (dias.indexOf(hoje)>=0) ? hoje : "todos";
+    var doDia = (dia==="todos") ? sorted : sorted.filter(function(it){ return !it.data || it.data===dia; });
+
     var grupos=[[],[],[]], fim=[];
-    sorted.forEach(function(it){
+    doDia.forEach(function(it){
       if(statusDe(it.status)==="ok") fim.push(it);
       else grupos[Math.min(vezesDe(it), MAX_VEZES-1)].push(it);
     });
@@ -1172,7 +1231,20 @@
     var ativa = rodadaAtiva;
     if(ativa===null){ ativa=0; for(var i=0;i<MAX_VEZES;i++){ if(grupos[i].length){ ativa=i; break; } } }
 
-    var out = '<div class="rodadas">';
+    var out = "";
+    if(dias.length > 1 || (dias.length===1 && sorted.some(function(it){ return !it.data; }))){
+      var pend = function(teste){ return sorted.filter(function(it){ return statusDe(it.status)!=="ok" && teste(it); }).length; };
+      out += '<div class="diaschips">';
+      out += '<button type="button" class="diachip" data-act="dia" data-dia="todos" aria-pressed="'+(dia==="todos")+'">Todos <span class="qt">'+pend(function(){return true;})+'</span></button>';
+      dias.forEach(function(d){
+        out += '<button type="button" class="diachip" data-act="dia" data-dia="'+d+'" aria-pressed="'+(dia===d)+'">'+
+          fmtData(d)+' <span class="sem">'+diaSemanaDe(d)+(d===hoje?' · hoje':'')+'</span>'+
+          '<span class="qt">'+pend(function(it){ return !it.data || it.data===d; })+'</span></button>';
+      });
+      out += '</div>';
+    }
+
+    out += '<div class="rodadas">';
     ["1ª leitura","2ª leitura","3ª leitura"].forEach(function(r,i){
       out += '<button type="button" class="rod'+(grupos[i].length?'':' zerada')+'" data-act="rodada" data-rod="'+i+'" aria-pressed="'+(i===ativa)+'">'+r+'<span class="n">'+grupos[i].length+'</span></button>';
     });
@@ -1323,6 +1395,7 @@
     var btn=e.target.closest("[data-act]"); if(!btn)return;
     var act=btn.dataset.act;
     // acoes da moldura (nao pertencem a um recado)
+    if(act==="dia"){ diaAtivo=btn.dataset.dia; rodadaAtiva=null; renderRec(); return; }
     if(act==="rodada"){ rodadaAtiva=parseInt(btn.dataset.rod,10); renderRec(); return; }
     if(act==="gaveta"){ e.preventDefault(); gavetaAberta=!gavetaAberta; renderRec(); return; }
     var row=e.target.closest("[data-id]"); if(!row)return;
@@ -1382,43 +1455,74 @@
     });
   }
 
+  // chips de dia do formulario: liga/desliga no toque
+  $("#r_dias").addEventListener("click",function(e){
+    var b=e.target.closest(".diaopt"); if(!b) return;
+    b.setAttribute("aria-pressed", b.getAttribute("aria-pressed")==="true" ? "false" : "true");
+  });
+  function diasEscolhidos(){
+    var ds=[];
+    document.querySelectorAll('#r_dias .diaopt[aria-pressed="true"]').forEach(function(b){ ds.push(b.dataset.dia); });
+    var extra=$("#r_data") ? $("#r_data").value : "";
+    if(extra && ds.indexOf(extra)<0) ds.push(extra);
+    ds.sort();
+    return ds;
+  }
+  function limparEnvio(){
+    $("#r_msg").value=""; $("#r_hora").value="";
+    if($("#r_data")) $("#r_data").value="";
+    document.querySelectorAll('#r_dias .diaopt[aria-pressed="true"]').forEach(function(b){ b.setAttribute("aria-pressed","false"); });
+    $("#r_msg").dispatchEvent(new Event("input")); // zera o contador de caracteres
+    // marca, responsavel e whatsapp ficam pro proximo envio
+  }
+
   $("#formRec").addEventListener("submit",function(e){
     e.preventDefault();
-    var m=marcaEscolhida(), msg=$("#r_msg").value.trim(), data=$("#r_data").value, hora=$("#r_hora").value; if(!m||!msg)return;
-    var obj={status:"fila",marca:m,msg:msg,data:data,hora:hora,resp:$("#r_resp").value.trim(),wpp:$("#r_wpp").value.trim(),ts:now()};
-
+    var m=marcaEscolhida(), msg=$("#r_msg").value.trim(), hora=$("#r_hora").value; if(!m||!msg)return;
+    var dias = diasEscolhidos();
+    if(!dias.length){ toast("Marque pelo menos um dia pro anúncio."); return; }
     if(!podeEnviar()){ toast("Seu acesso não permite enviar recado."); return; } // dupla checagem
+    var resp=$("#r_resp").value.trim(), wpp=$("#r_wpp").value.trim();
+    function novo(d){ return {status:"fila",marca:m,msg:msg,data:d,hora:hora,resp:resp,wpp:wpp,ts:now()}; }
 
     // quem tambem enxerga a fila (producao/locutor) lanca direto, sem limite diario
     if(podeVerFila()){
-      DBadd("recados",obj);
-      e.target.reset(); toast("Recado na fila");
+      dias.forEach(function(d){ DBadd("recados", novo(d)); });
+      limparEnvio();
+      toast(dias.length===1 ? "Recado na fila" : "Recado na fila de "+dias.length+" dias");
       return;
     }
 
-    // perfil marca: registra localmente, confere o limite do dia e confirma
-    function concluir(){
-      DBadd("recados",obj);
-      var me=getMeusEnvios(); me.push({marca:m,msg:msg,data:data,hora:hora,ts:now()});
+    // perfil marca: registra localmente, confere o limite POR DIA e envia so pros dias livres
+    function concluir(liberados, bloqueados){
+      liberados.forEach(function(d){ DBadd("recados", novo(d)); });
+      var me=getMeusEnvios();
+      liberados.forEach(function(d){ me.push({marca:m,msg:msg,data:d,hora:hora,ts:now()}); });
       if(me.length>30) me=me.slice(-30);
       localStorage.setItem("fi_meus_envios",JSON.stringify(me));
       renderMeusEnvios();
-      $("#r_msg").value=""; $("#r_hora").value=""; // mantem marca/data/responsavel/whats pro proximo envio
-      toast("Recado enviado pro dia "+fmtData(data)+"! Já entrou na fila do locutor.");
+      limparEnvio();
+      var t = liberados.length===1
+        ? "Recado enviado pro dia "+fmtData(liberados[0])+"!"
+        : "Recado enviado pra "+liberados.length+" dias!";
+      if(bloqueados.length) t += " Dia "+bloqueados.map(fmtData).join(", ")+" já tinha recado, ficou de fora.";
+      toast(t);
     }
 
     // limite: 1 recado por marca POR DIA do evento, conferido na base (nao depende do aparelho)
     if(FB_ON){
       db.collection("recados").where("marca","==",m).get().then(function(qs){
-        var noDia=0; qs.forEach(function(d){ if((d.data().data||"")===data) noDia++; });
-        if(noDia>=LIMITE_POR_DIA){
-          toast("A "+m+" já tem o recado do dia "+fmtData(data)+". Você pode enviar pra outro dia.");
+        var porDia={}; qs.forEach(function(d){ var k=d.data().data||""; porDia[k]=(porDia[k]||0)+1; });
+        var lib=[], blo=[];
+        dias.forEach(function(d){ if((porDia[d]||0)>=LIMITE_POR_DIA) blo.push(d); else lib.push(d); });
+        if(!lib.length){
+          toast("A "+m+" já tem o recado desses dias. Escolha outros.");
           return;
         }
-        concluir();
-      }).catch(function(){ concluir(); }); // se a checagem falhar, nao trava o envio
+        concluir(lib, blo);
+      }).catch(function(){ concluir(dias, []); }); // se a checagem falhar, nao trava o envio
     } else {
-      concluir();
+      concluir(dias, []);
     }
   });
 
