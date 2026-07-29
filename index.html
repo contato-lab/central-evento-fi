@@ -128,16 +128,86 @@
   .item.feito:hover{opacity:1}
   .d.agenda{background:var(--lime)} .d.update{background:var(--cyan)} .d.aviso{background:var(--amber)} .d.urgente{background:var(--red)}
 
-  /* cabecalho de rodada de leitura (1a, 2a, 3a, anunciados) */
-  .fsec{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:14px;
-    font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;
-    font-weight:800;color:var(--lime)}
-  .fsec:first-child{margin-top:0}
-  .fsec::before{content:"";width:16px;height:3px;background:var(--lime);border-radius:2px;flex:0 0 auto}
-  .fsec::after{content:"";flex:1 1 auto;height:1px;background:var(--line-soft)}
-  .fsec .fnum{color:var(--ink-3);letter-spacing:.06em}
-  .fsec.fim{color:var(--ink-3)}
-  .fsec.fim::before{background:var(--ink-3)}
+  /* ---- fila em rodadas: abas + destaque + linhas + gaveta ---- */
+  #listRec.rodadas-on{display:block}
+  .rodadas{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap}
+  .rod{display:flex;align-items:baseline;gap:7px;min-height:44px;padding:0 14px;border-radius:10px;cursor:pointer;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
+    font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+    transition:border-color .15s,background .15s,color .15s}
+  .rod .n{font-size:.78rem;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .rod:hover{border-color:var(--ink-3)}
+  .rod[aria-pressed="true"]{background:rgba(166,236,77,.14);border-color:var(--lime);color:var(--lime)}
+  .rod[aria-pressed="true"] .n{color:var(--lime)}
+  .rod:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .rod.zerada{opacity:.45}
+
+  .agora{background:var(--panel);border:1px solid var(--lime);border-radius:16px;padding:18px 18px 16px;margin-bottom:6px}
+  .agora .eyebrow{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--lime);font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .agora .eyebrow::after{content:"";flex:1;height:1px;background:rgba(166,236,77,.3)}
+  .linhaA{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+  .horaA{font-family:var(--mono);font-size:.92rem;font-weight:700;color:var(--ink);
+    background:var(--panel-2);border:1px solid var(--line-soft);padding:3px 10px;border-radius:7px;
+    font-variant-numeric:tabular-nums}
+  .marcaA{font-family:var(--display);font-size:1.3rem;font-weight:700;letter-spacing:.01em}
+  .msgA{font-size:1.16rem;line-height:1.42;margin:0 0 12px;overflow-wrap:anywhere}
+  .quemA{font-size:.78rem;color:var(--ink-3);margin:-6px 0 14px}
+  .quemA a{color:var(--wa);text-decoration:none}
+  .btnar{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;min-height:54px;
+    border-radius:12px;border:0;background:var(--lime);color:var(--lime-ink);cursor:pointer;
+    font-family:var(--mono);font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800;
+    transition:filter .15s,transform .06s}
+  .btnar:hover{filter:brightness(1.08)}
+  .btnar:active{transform:translateY(1px)}
+  .btnar:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+  .btnar .pips{display:inline-flex;gap:5px}
+  .btnar .pip{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--lime-ink);background:transparent}
+  .btnar .pip.on{background:var(--lime-ink)}
+  .btnar .contA{font-size:.64rem;opacity:.75}
+  .agacts{display:flex;gap:4px;margin-top:8px}
+  .agacts .espaco{flex:1}
+
+  .prox-rot{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin:18px 0 9px;display:flex;align-items:center;gap:9px}
+  .prox-rot::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+  .filinha{display:flex;flex-direction:column;gap:7px}
+  .row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line-soft);
+    border-radius:10px;padding:10px 12px;transition:border-color .15s}
+  .row:hover{border-color:var(--line)}
+  .row .h{font-family:var(--mono);font-size:.72rem;color:var(--ink-2);flex:0 0 auto;
+    font-variant-numeric:tabular-nums}
+  .row .h.vaga{color:var(--ink-3);font-size:.6rem;letter-spacing:.08em}
+  .row .corpo{flex:1;min-width:0}
+  .row .m{display:block;font-family:var(--display);font-size:1rem;font-weight:700;line-height:1.2}
+  .row .t{display:block;font-size:.8rem;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .pips{display:inline-flex;gap:4px;flex:0 0 auto}
+  .row .pip{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink-3);background:transparent}
+  .row .pip.on{background:var(--lime);border-color:var(--lime)}
+  .row .mini.anunciar{flex:0 0 auto;min-height:38px;padding:0 12px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--lime);background:rgba(166,236,77,.12);color:var(--lime);
+    font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;font-weight:800}
+  .row .mini.anunciar:hover{background:rgba(166,236,77,.24)}
+  .row .mini.anunciar:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .row .iconbtn{flex:0 0 auto}
+  .row.pronto{opacity:.55}
+  .row.pronto .pip{background:var(--ink-3);border-color:var(--ink-3)}
+
+  details.gaveta{margin-top:20px;border-top:1px solid var(--line);padding-top:12px}
+  details.gaveta summary{cursor:pointer;list-style:none;font-family:var(--mono);font-size:.64rem;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:700;
+    display:flex;align-items:center;gap:9px;min-height:38px}
+  details.gaveta summary::-webkit-details-marker{display:none}
+  details.gaveta summary::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+  details.gaveta summary:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  details.gaveta[open] summary{margin-bottom:10px}
+
+  @media(max-width:520px){
+    .row{flex-wrap:wrap}
+    .row .corpo{flex:1 1 100%;order:-1}
+    .row .mini.anunciar{min-height:44px;margin-left:auto}
+    .row .iconbtn{width:40px;height:40px;border:1px solid var(--line)}
+  }
 
   /* barra de acoes do recado */
   .recacts{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap}
@@ -395,11 +465,11 @@
         <div class="view-head">
           <div>
             <h1>Recados pro locutor</h1>
-            <p class="desc">As marcas mandam o recado pro Chicão anunciar. A fila é dividida em rodadas: 1ª, 2ª e 3ª leitura. Toque em ANUNCIEI a cada vez que falar no ar, e o recado desce sozinho pra rodada seguinte. Na terceira, vira anunciado.</p>
+            <p class="desc">As marcas mandam o recado pro Chicão anunciar. O próximo a falar fica em destaque: é ler, tocar em ANUNCIEI e o seguinte assume o lugar. Cada recado vai ao ar 3 vezes; quem completa vai pra gaveta de anunciados lá embaixo.</p>
           </div>
           <div class="controls">
             <select class="sortsel" id="sortRec">
-              <option value="prioridade">Prioridade (horário)</option>
+              <option value="prioridade">Rodadas de leitura</option>
               <option value="recent">Mais recente</option>
               <option value="status">Status</option>
               <option value="marca">Marca</option>
@@ -481,7 +551,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.7";
+  var VERSAO = "2026-07-28.8";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -907,7 +977,7 @@
       $("#meusEnviosWrap").hidden = false;
       renderMeusEnvios();
     } else if(podeVerFila()){
-      $("#view-recados .desc").textContent = "A fila é dividida em rodadas: 1ª, 2ª e 3ª leitura. Toque em ANUNCIEI a cada vez que falar no ar, e o recado desce sozinho pra rodada seguinte. Na terceira, vira anunciado. Dentro de cada rodada, o mais próximo de acontecer vem primeiro.";
+      $("#view-recados .desc").textContent = "O próximo a falar fica em destaque: é ler, tocar em ANUNCIEI e o seguinte assume o lugar. As abas mostram as rodadas (cada recado vai ao ar 3 vezes) e quem completa vai pra gaveta de anunciados lá embaixo.";
       sortRec = "prioridade";
       if($("#sortRec")) $("#sortRec").value = "prioridade";
       montarSelectMarcas(true); // producao/locutor: lista agrupada + opcao de digitar
@@ -1005,79 +1075,149 @@
     host.appendChild(frag);
   }
 
+  // ---- estado da visao em rodadas ----
+  var rodadaAtiva = null;   // null = segue sozinho a primeira rodada com gente
+  var gavetaAberta = false; // "ja anunciados" comeca fechada
+
+  function pipsHtml(vz){ var o=""; for(var p=0;p<MAX_VEZES;p++){ o+='<span class="pip'+(p<vz?' on':'')+'"></span>'; } return o; }
+
+  function cardEdicao(it){
+    return '<div class="edit-row">'+
+      '<input data-f="marca" value="'+esc(it.marca)+'" placeholder="Marca">'+
+      '<textarea data-f="msg" maxlength="200" placeholder="Mensagem">'+esc(it.msg)+'</textarea>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><input data-f="data" type="date" value="'+esc(it.data||"")+'" title="Data"><input data-f="hora" type="time" value="'+esc(it.hora||"")+'" title="Horário"><input data-f="resp" value="'+esc(it.resp)+'" placeholder="Responsável"><input data-f="wpp" value="'+esc(it.wpp)+'" placeholder="WhatsApp"></div>'+
+      '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
+      '</div>';
+  }
+
+  function quandoDe(it){ return esc((fmtData(it.data)+" "+(it.hora||"")).trim()); }
+
+  // linha fina da fila (rodadas e gaveta)
+  function linhaRec(it, gerencia){
+    if(editing[it.id]) return '<div class="item" data-id="'+it.id+'">'+cardEdicao(it)+'</div>';
+    var vz = vezesDe(it), cheio = vz>=MAX_VEZES;
+    return '<div class="row'+(cheio?" pronto":"")+'" data-id="'+it.id+'">'+
+      ((it.data||it.hora) ? '<span class="h">'+quandoDe(it)+'</span>' : '<span class="h vaga">S/H</span>')+
+      '<span class="corpo"><span class="m">'+esc(it.marca)+'</span>'+
+        '<span class="t">'+esc(it.msg)+'</span></span>'+
+      '<span class="pips">'+pipsHtml(vz)+'</span>'+
+      (gerencia ? (
+        (!cheio ? '<button class="mini anunciar" data-act="anunciei" title="Falei no ar">Anunciei</button>' : '')+
+        (vz>0 ? '<button class="iconbtn" data-act="desfazer" title="Tirar uma marcação">↩</button>' : '')+
+        '<button class="iconbtn" data-act="edit" title="Editar">✎</button>'+
+        '<button class="iconbtn del" data-act="del" title="Remover">✕</button>'
+      ) : '')+
+    '</div>';
+  }
+
+  // card cheio, usado nos outros modos de ordenacao
+  function cardRec(it, gerencia){
+    var st=statusDe(it.status), vz=vezesDe(it), cheio=vz>=MAX_VEZES;
+    var el=document.createElement("div"); el.className="item t-"+st+(st==="ok"?" feito":""); el.dataset.id=it.id;
+    if(editing[it.id]){ el.innerHTML=cardEdicao(it); return el; }
+    var wlink = it.wpp? '<a href="https://wa.me/55'+String(it.wpp).replace(/\D/g,'')+'" target="_blank" rel="noopener">'+esc(it.wpp)+'</a>':'';
+    el.innerHTML=
+      '<div class="body">'+
+        '<div class="kv"><span class="tagtxt '+st+'">'+RLABEL[st]+'</span>'+((it.data||it.hora)?'<span class="when">'+quandoDe(it)+'</span>':'')+((it.data&&!it.hora)?'<span class="semhora">qualquer hora</span>':'')+'<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
+        '<div class="title">'+esc(it.msg)+'</div>'+
+        '<div class="meta">'+(it.resp?'<span>👤 '+esc(it.resp)+'</span>':'')+(wlink?'<span>💬 '+wlink+'</span>':'')+'</div>'+
+        (gerencia ? '<div class="recacts">'+
+          '<button class="btnstatus'+(cheio?' feito':'')+'" data-act="anunciei"'+(cheio?' disabled':'')+'>'+
+            '<span class="pips">'+pipsHtml(vz)+'</span>'+
+            '<span class="rot">'+(cheio?'Anunciado':'Anunciei')+'</span>'+
+            '<span class="cont">'+vz+'/'+MAX_VEZES+'</span>'+
+          '</button>'+
+          (vz>0?'<button class="iconbtn" data-act="desfazer" title="Tirar uma marcação">↩</button>':'')+
+          '<span class="espaco"></span>'+
+          '<button class="iconbtn" data-act="edit" title="Editar">✎</button>'+
+          '<button class="iconbtn del" data-act="del" title="Remover">✕</button>'+
+        '</div>' : '')+
+      '</div>';
+    return el;
+  }
+
   function renderRec(){
     var host=$("#listRec"); if(!host) return;
     host.innerHTML="";
     var n = recados.length;
     if($("#cRec"))     $("#cRec").textContent = n;
     if($("#countRec")) $("#countRec").textContent = n + (n===1 ? " RECADO" : " RECADOS");
+    var rodadas = (sortRec==="prioridade");
+    host.classList.toggle("rodadas-on", rodadas);
     if(!n){
       host.innerHTML = estadoVazio("recados", "Nenhum recado na fila ainda. Assim que uma marca enviar, aparece aqui.");
       return;
     }
-    var frag = document.createDocumentFragment();
-    var sorted = sortItems(recados,sortRec);
-    var nextId = null; // primeiro da fila = proximo a ser anunciado
-    if(sortRec==="prioridade"){ for(var i=0;i<sorted.length;i++){ if(statusDe(sorted[i].status)==="fila"){ nextId=sorted[i].id; break; } } }
-    // no modo prioridade a lista vira rodadas de leitura: 1a, 2a, 3a e anunciados.
-    // o cabecalho de cada rodada e criado quando o grupo muda; o toque no ANUNCIEI
-    // ja move o recado de rodada sozinho, o locutor nao gerencia fila nenhuma.
-    var grupoDe = function(it){ return statusDe(it.status)==="ok" ? "ok" : "v"+vezesDe(it); };
-    var rotuloDe = function(g){
-      if(g==="ok") return "Anunciados · já foram as 3";
-      var v = parseInt(g.slice(1),10);
-      return (v+1)+"ª leitura" + (v===MAX_VEZES-1 ? " · última" : "");
-    };
-    var cont = {};
-    if(sortRec==="prioridade"){ sorted.forEach(function(it){ var g=grupoDe(it); cont[g]=(cont[g]||0)+1; }); }
-    var grupoAnterior = null;
+    var gerencia = podeGerenciarFila();
+
+    // outros modos de ordenacao: cards soltos, como sempre foi
+    if(!rodadas){
+      var frag = document.createDocumentFragment();
+      sortItems(recados,sortRec).forEach(function(it){ frag.appendChild(cardRec(it, gerencia)); });
+      host.appendChild(frag);
+      return;
+    }
+
+    // ---- visao em rodadas: abas + proximo em destaque + linhas + gaveta ----
+    var sorted = sortItems(recados,"prioridade");
+    var grupos=[[],[],[]], fim=[];
     sorted.forEach(function(it){
-      if(sortRec==="prioridade"){
-        var g = grupoDe(it);
-        if(g !== grupoAnterior){
-          grupoAnterior = g;
-          var h = document.createElement("div");
-          h.className = "fsec" + (g==="ok" ? " fim" : "");
-          h.innerHTML = '<span class="frot">'+rotuloDe(g)+'</span><span class="fnum">'+cont[g]+'</span>';
-          frag.appendChild(h);
-        }
-      }
-      var st=statusDe(it.status), vz=vezesDe(it);
-      var el=document.createElement("div"); el.className="item t-"+st+(st==="ok"?" feito":""); el.dataset.id=it.id;
-      if(editing[it.id]){
-        el.innerHTML=
-          '<div class="edit-row">'+
-          '<input data-f="marca" value="'+esc(it.marca)+'" placeholder="Marca">'+
-          '<textarea data-f="msg" maxlength="200" placeholder="Mensagem">'+esc(it.msg)+'</textarea>'+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap"><input data-f="data" type="date" value="'+esc(it.data||"")+'" title="Data"><input data-f="hora" type="time" value="'+esc(it.hora||"")+'" title="Horário"><input data-f="resp" value="'+esc(it.resp)+'" placeholder="Responsável"><input data-f="wpp" value="'+esc(it.wpp)+'" placeholder="WhatsApp"></div>'+
-          '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
-          '</div>';
+      if(statusDe(it.status)==="ok") fim.push(it);
+      else grupos[Math.min(vezesDe(it), MAX_VEZES-1)].push(it);
+    });
+
+    // rodada escolhida esvaziou? volta a seguir sozinho a primeira com gente
+    if(rodadaAtiva!==null && !grupos[rodadaAtiva].length) rodadaAtiva = null;
+    var ativa = rodadaAtiva;
+    if(ativa===null){ ativa=0; for(var i=0;i<MAX_VEZES;i++){ if(grupos[i].length){ ativa=i; break; } } }
+
+    var out = '<div class="rodadas">';
+    ["1ª leitura","2ª leitura","3ª leitura"].forEach(function(r,i){
+      out += '<button type="button" class="rod'+(grupos[i].length?'':' zerada')+'" data-act="rodada" data-rod="'+i+'" aria-pressed="'+(i===ativa)+'">'+r+'<span class="n">'+grupos[i].length+'</span></button>';
+    });
+    out += '</div>';
+
+    var lista = grupos[ativa];
+    if(!lista.length){
+      out += '<div class="empty">Tudo anunciado por enquanto. Recado novo cai direto aqui.</div>';
+    } else {
+      var p = lista[0], vzp = vezesDe(p);
+      if(editing[p.id]){
+        out += '<div class="item" data-id="'+p.id+'">'+cardEdicao(p)+'</div>';
       } else {
-        var wlink = it.wpp? '<a href="https://wa.me/55'+String(it.wpp).replace(/\D/g,'')+'" target="_blank" rel="noopener">'+esc(it.wpp)+'</a>':'';
-        // bolinhas: acendem uma a cada vez que o locutor fala o recado no ar
-        var pips=''; for(var p=0;p<MAX_VEZES;p++){ pips += '<span class="pip'+(p<vz?' on':'')+'"></span>'; }
-        var cheio = vz>=MAX_VEZES;
-        el.innerHTML=
-          '<div class="body">'+
-            '<div class="kv"><span class="tagtxt '+st+'">'+RLABEL[st]+'</span>'+(it.id===nextId?'<span class="nextbadge">Próximo</span>':'')+((it.data||it.hora)?'<span class="when">'+esc((fmtData(it.data)+' '+(it.hora||'')).trim())+'</span>':'')+((it.data&&!it.hora)?'<span class="semhora">qualquer hora</span>':'')+'<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
-            '<div class="title">'+esc(it.msg)+'</div>'+
-            '<div class="meta">'+(it.resp?'<span>👤 '+esc(it.resp)+'</span>':'')+(wlink?'<span>💬 '+wlink+'</span>':'')+'</div>'+
-            '<div class="recacts">'+
-              '<button class="btnstatus'+(cheio?' feito':'')+'" data-act="anunciei"'+(cheio?' disabled':'')+' title="'+(cheio?'Já foi ao ar '+MAX_VEZES+' vezes':'Marcar que acabou de falar no ar')+'">'+
-                '<span class="pips">'+pips+'</span>'+
-                '<span class="rot">'+(cheio?'Anunciado':'Anunciei')+'</span>'+
-                '<span class="cont">'+vz+'/'+MAX_VEZES+'</span>'+
-              '</button>'+
-              (vz>0?'<button class="iconbtn" data-act="desfazer" title="Tirar uma marcação">↩</button>':'')+
+        var wl = p.wpp? '<a href="https://wa.me/55'+String(p.wpp).replace(/\D/g,'')+'" target="_blank" rel="noopener">'+esc(p.wpp)+'</a>':'';
+        out += '<div class="agora" data-id="'+p.id+'">'+
+          '<div class="eyebrow">Próximo a falar</div>'+
+          '<div class="linhaA">'+
+            ((p.data||p.hora) ? '<span class="horaA">'+quandoDe(p)+'</span>' : '<span class="semhora">Qualquer hora</span>')+
+            '<span class="marcaA">'+esc(p.marca)+'</span>'+
+          '</div>'+
+          '<p class="msgA">'+esc(p.msg)+'</p>'+
+          ((p.resp||wl) ? '<p class="quemA">'+(p.resp?'👤 '+esc(p.resp):'')+(p.resp&&wl?' · ':'')+(wl?'💬 '+wl:'')+'</p>' : '')+
+          (gerencia ?
+            '<button class="btnar" data-act="anunciei"><span class="pips">'+pipsHtml(vzp)+'</span><span>Anunciei</span><span class="contA">'+vzp+'/'+MAX_VEZES+'</span></button>'+
+            '<div class="agacts">'+
+              (vzp>0?'<button class="iconbtn" data-act="desfazer" title="Tirar uma marcação">↩</button>':'')+
               '<span class="espaco"></span>'+
               '<button class="iconbtn" data-act="edit" title="Editar">✎</button>'+
               '<button class="iconbtn del" data-act="del" title="Remover">✕</button>'+
-            '</div>'+
-          '</div>';
+            '</div>'
+          : '')+
+        '</div>';
       }
-      frag.appendChild(el);
-    });
-    host.appendChild(frag);
+      var resto = lista.slice(1);
+      if(resto.length){
+        out += '<div class="prox-rot">Depois dele · '+resto.length+'</div><div class="filinha">';
+        resto.forEach(function(it){ out += linhaRec(it, gerencia); });
+        out += '</div>';
+      }
+    }
+
+    out += '<details class="gaveta"'+(gavetaAberta?' open':'')+'><summary data-act="gaveta">Já anunciados · '+fim.length+'</summary><div class="filinha">'+
+      (fim.length ? fim.map(function(it){ return linhaRec(it, gerencia); }).join('') : '<div class="empty">Nenhum ainda.</div>')+
+    '</div></details>';
+
+    host.innerHTML = out;
   }
 
   // Cada lista se desenha sozinha. Se uma quebrar, as outras continuam de pe
@@ -1180,9 +1320,13 @@
   // ---- event delegation: RECADOS ----
   $("#listRec").addEventListener("click",function(e){
     var btn=e.target.closest("[data-act]"); if(!btn)return;
-    var row=e.target.closest(".item"); var id=row.dataset.id;
-    var it=recados.find(function(x){return x.id===id;}); if(!it&&btn.dataset.act!=="cancel")return;
     var act=btn.dataset.act;
+    // acoes da moldura (nao pertencem a um recado)
+    if(act==="rodada"){ rodadaAtiva=parseInt(btn.dataset.rod,10); renderRec(); return; }
+    if(act==="gaveta"){ e.preventDefault(); gavetaAberta=!gavetaAberta; renderRec(); return; }
+    var row=e.target.closest("[data-id]"); if(!row)return;
+    var id=row.dataset.id;
+    var it=recados.find(function(x){return x.id===id;}); if(!it&&act!=="cancel")return;
     // o contador manda no status: encheu as 3 bolinhas, virou anunciado sozinho
     if(act==="anunciei"){
       if(!podeGerenciarFila()){ toast("Seu acesso não permite mexer na fila."); return; } // dupla checagem
