@@ -128,6 +128,17 @@
   .item.feito:hover{opacity:1}
   .d.agenda{background:var(--lime)} .d.update{background:var(--cyan)} .d.aviso{background:var(--amber)} .d.urgente{background:var(--red)}
 
+  /* cabecalho de rodada de leitura (1a, 2a, 3a, anunciados) */
+  .fsec{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:14px;
+    font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;
+    font-weight:800;color:var(--lime)}
+  .fsec:first-child{margin-top:0}
+  .fsec::before{content:"";width:16px;height:3px;background:var(--lime);border-radius:2px;flex:0 0 auto}
+  .fsec::after{content:"";flex:1 1 auto;height:1px;background:var(--line-soft)}
+  .fsec .fnum{color:var(--ink-3);letter-spacing:.06em}
+  .fsec.fim{color:var(--ink-3)}
+  .fsec.fim::before{background:var(--ink-3)}
+
   /* barra de acoes do recado */
   .recacts{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap}
   .recacts .espaco{flex:1 1 auto}
@@ -384,7 +395,7 @@
         <div class="view-head">
           <div>
             <h1>Recados pro locutor</h1>
-            <p class="desc">As marcas mandam o recado pro Chicão anunciar. Cai na fila. Cada recado pode ir ao ar até 3 vezes: toque em ANUNCIEI a cada vez que falar, e as bolinhas acendem. Quando as 3 acendem, ele vira anunciado e desce pro fim da lista.</p>
+            <p class="desc">As marcas mandam o recado pro Chicão anunciar. A fila é dividida em rodadas: 1ª, 2ª e 3ª leitura. Toque em ANUNCIEI a cada vez que falar no ar, e o recado desce sozinho pra rodada seguinte. Na terceira, vira anunciado.</p>
           </div>
           <div class="controls">
             <select class="sortsel" id="sortRec">
@@ -470,7 +481,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.6";
+  var VERSAO = "2026-07-28.7";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -896,7 +907,7 @@
       $("#meusEnviosWrap").hidden = false;
       renderMeusEnvios();
     } else if(podeVerFila()){
-      $("#view-recados .desc").textContent = "Fila em ordem de prioridade: o mais próximo de acontecer vem primeiro. Cada recado pode ir ao ar até 3 vezes: toque em ANUNCIEI a cada vez que falar, e as bolinhas acendem. Quando as 3 acendem, ele vira anunciado e desce pro fim da lista.";
+      $("#view-recados .desc").textContent = "A fila é dividida em rodadas: 1ª, 2ª e 3ª leitura. Toque em ANUNCIEI a cada vez que falar no ar, e o recado desce sozinho pra rodada seguinte. Na terceira, vira anunciado. Dentro de cada rodada, o mais próximo de acontecer vem primeiro.";
       sortRec = "prioridade";
       if($("#sortRec")) $("#sortRec").value = "prioridade";
       montarSelectMarcas(true); // producao/locutor: lista agrupada + opcao de digitar
@@ -912,11 +923,14 @@
     else if(mode==="status") a.sort(function(x,y){return RSTATUS.indexOf(statusDe(x.status))-RSTATUS.indexOf(statusDe(y.status));});
     else if(mode==="marca") a.sort(function(x,y){return (x.marca||"").localeCompare(y.marca||"");});
     else if(mode==="prioridade"){
-      // na fila primeiro (pelo horario mais proximo), anunciados por ultimo
+      // rodadas de leitura: quem foi falado MENOS vezes vem primeiro (1a leitura > 2a > 3a),
+      // dentro da rodada vale o horario mais proximo; anunciados por ultimo
       a.sort(function(x,y){
         var rx=(statusDe(x.status)==="ok"?1:0), ry=(statusDe(y.status)==="ok"?1:0);
         if(rx!==ry) return rx-ry;
         if(rx===1) return y.ts-x.ts;           // anunciados: mais recente primeiro
+        var vx=vezesDe(x), vy=vezesDe(y);
+        if(vx!==vy) return vx-vy;              // rodada: menos lido primeiro
         // fila: por data + horario (sem data/horario vai pro fim)
         var kx=(x.data||"~")+" "+(x.hora||"~"), ky=(y.data||"~")+" "+(y.hora||"~");
         if(kx!==ky) return kx<ky?-1:1;
@@ -1005,7 +1019,29 @@
     var sorted = sortItems(recados,sortRec);
     var nextId = null; // primeiro da fila = proximo a ser anunciado
     if(sortRec==="prioridade"){ for(var i=0;i<sorted.length;i++){ if(statusDe(sorted[i].status)==="fila"){ nextId=sorted[i].id; break; } } }
+    // no modo prioridade a lista vira rodadas de leitura: 1a, 2a, 3a e anunciados.
+    // o cabecalho de cada rodada e criado quando o grupo muda; o toque no ANUNCIEI
+    // ja move o recado de rodada sozinho, o locutor nao gerencia fila nenhuma.
+    var grupoDe = function(it){ return statusDe(it.status)==="ok" ? "ok" : "v"+vezesDe(it); };
+    var rotuloDe = function(g){
+      if(g==="ok") return "Anunciados · já foram as 3";
+      var v = parseInt(g.slice(1),10);
+      return (v+1)+"ª leitura" + (v===MAX_VEZES-1 ? " · última" : "");
+    };
+    var cont = {};
+    if(sortRec==="prioridade"){ sorted.forEach(function(it){ var g=grupoDe(it); cont[g]=(cont[g]||0)+1; }); }
+    var grupoAnterior = null;
     sorted.forEach(function(it){
+      if(sortRec==="prioridade"){
+        var g = grupoDe(it);
+        if(g !== grupoAnterior){
+          grupoAnterior = g;
+          var h = document.createElement("div");
+          h.className = "fsec" + (g==="ok" ? " fim" : "");
+          h.innerHTML = '<span class="frot">'+rotuloDe(g)+'</span><span class="fnum">'+cont[g]+'</span>';
+          frag.appendChild(h);
+        }
+      }
       var st=statusDe(it.status), vz=vezesDe(it);
       var el=document.createElement("div"); el.className="item t-"+st+(st==="ok"?" feito":""); el.dataset.id=it.id;
       if(editing[it.id]){
