@@ -470,7 +470,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.5";
+  var VERSAO = "2026-07-28.6";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -604,7 +604,14 @@
   var MAX_VEZES=3; // o mesmo recado pode ir ao ar ate 3 vezes no dia
   // recados antigos podem ter status "noar", que nao existe mais: vira "fila"
   function statusDe(s){ return s==="ok" ? "ok" : "fila"; }
-  function vezesDe(v){ var n=parseInt(v,10); if(isNaN(n)||n<0) n=0; return n>MAX_VEZES?MAX_VEZES:n; }
+  // recado gravado antes do contador existir nao tem o campo "vezes".
+  // se ele ja estava como anunciado, conta como as 3 vezes cumpridas,
+  // senao o selo diria "Anunciado" e o botao "0/3" ao mesmo tempo.
+  function vezesDe(it){
+    var n = parseInt(it && it.vezes, 10);
+    if(isNaN(n) || n < 0) n = (it && it.status === "ok") ? MAX_VEZES : 0;
+    return n > MAX_VEZES ? MAX_VEZES : n;
+  }
 
   var mural = [];
   var recados = [];
@@ -999,7 +1006,7 @@
     var nextId = null; // primeiro da fila = proximo a ser anunciado
     if(sortRec==="prioridade"){ for(var i=0;i<sorted.length;i++){ if(statusDe(sorted[i].status)==="fila"){ nextId=sorted[i].id; break; } } }
     sorted.forEach(function(it){
-      var st=statusDe(it.status), vz=vezesDe(it.vezes);
+      var st=statusDe(it.status), vz=vezesDe(it);
       var el=document.createElement("div"); el.className="item t-"+st+(st==="ok"?" feito":""); el.dataset.id=it.id;
       if(editing[it.id]){
         el.innerHTML=
@@ -1143,14 +1150,14 @@
     // o contador manda no status: encheu as 3 bolinhas, virou anunciado sozinho
     if(act==="anunciei"){
       if(!podeGerenciarFila()){ toast("Seu acesso não permite mexer na fila."); return; } // dupla checagem
-      var vNovo = vezesDe(it.vezes) + 1;
+      var vNovo = vezesDe(it) + 1;
       if(vNovo > MAX_VEZES) return;
       DBupdate("recados",id,{ vezes:vNovo, status: vNovo>=MAX_VEZES ? "ok" : "fila" });
       toast(vNovo>=MAX_VEZES ? "Anunciado as "+MAX_VEZES+" vezes" : "Marcado: "+vNovo+" de "+MAX_VEZES);
     }
     else if(act==="desfazer"){
       if(!podeGerenciarFila()){ toast("Seu acesso não permite mexer na fila."); return; }
-      var vMenos = vezesDe(it.vezes) - 1;
+      var vMenos = vezesDe(it) - 1;
       if(vMenos < 0) vMenos = 0;
       DBupdate("recados",id,{ vezes:vMenos, status: vMenos>=MAX_VEZES ? "ok" : "fila" });
     }
@@ -1257,7 +1264,7 @@
   $("#shareRec").addEventListener("click",function(){
     var lines=["*FILA DO LOCUTOR - FESTIVAL INTERLAGOS*",""];
     sortItems(recados,"status").forEach(function(it){
-      var stt=statusDe(it.status), vzz=vezesDe(it.vezes);
+      var stt=statusDe(it.status), vzz=vezesDe(it);
       lines.push("["+RLABEL[stt].toUpperCase()+" "+vzz+"/"+MAX_VEZES+"] "+it.marca+": "+it.msg);
     });
     window.open("https://wa.me/?text="+encodeURIComponent(lines.join("\n")),"_blank");
