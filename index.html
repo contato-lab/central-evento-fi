@@ -394,15 +394,47 @@
   .mini.recarregar:hover{border-color:var(--ink-3)}
   .dotview{flex:0 0 auto;margin-top:2px;width:26px;height:26px;display:grid;place-items:center}
 
-  /* ---------- MURAL EM LINHA DO TEMPO ---------- */
+  /* ---------- MURAL: destaque no proximo + programacao + gaveta ---------- */
   /* Coluna unica: no celular texto longo em 3 colunas vira bloco ilegivel. */
-  #listMural{grid-template-columns:1fr;gap:8px;align-items:start}
+  #listMural{display:block}
+  .lista{display:flex;flex-direction:column;gap:6px}
+  .secao{font-family:var(--mono);font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:9px}
+  .secao::after{content:"";flex:1;height:1px;background:var(--line-soft)}
 
-  /* a marca do AGORA cravada entre o que ja passou e o que vem */
-  .agoraline{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:6px 0}
-  .agoraline .rot{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;
-    text-transform:uppercase;font-weight:800;color:var(--lime);flex:0 0 auto}
-  .agoraline .risco{flex:1;height:2px;background:var(--lime);border-radius:2px}
+  /* o que vem agora ocupa a tela: e a programacao da producao que manda */
+  .destaque{position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--lime);
+    border-radius:16px;padding:18px 18px 16px;margin-bottom:20px}
+  .destaque::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg,rgba(166,236,77,.09),transparent 55%)}
+  .destaque > *{position:relative;z-index:1}
+  .destaque .eyebrow{font-family:var(--mono);font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--lime);font-weight:800;display:flex;align-items:center;gap:9px;margin-bottom:13px}
+  .destaque .eyebrow::after{content:"";flex:1;height:1px;background:rgba(166,236,77,.3)}
+  .dlinha{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin-bottom:9px}
+  .dhora{font-family:var(--mono);font-size:1.5rem;font-weight:800;color:var(--lime);
+    font-variant-numeric:tabular-nums;line-height:1}
+  .drel{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .dtit{font-family:var(--display);font-size:1.72rem;font-weight:700;line-height:1.12;
+    letter-spacing:.01em;margin:0 0 9px;overflow-wrap:anywhere}
+  .dloc{font-size:.84rem;color:var(--ink-2)}
+  .destaque.urg{border-color:var(--red)}
+  .destaque.urg::after{background:linear-gradient(115deg,rgba(245,69,63,.14),transparent 55%)}
+  .destaque.urg .eyebrow,.destaque.urg .dhora{color:var(--red)}
+  .destaque.urg .eyebrow::after{background:rgba(245,69,63,.3)}
+
+  /* gaveta dos recados ja anunciados, fechada por padrao */
+  details.gavetaM{margin-top:26px;border-top:1px solid var(--line);padding-top:14px}
+  details.gavetaM summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;
+    min-height:42px;font-family:var(--mono);font-size:.63rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-3);font-weight:700}
+  details.gavetaM summary::-webkit-details-marker{display:none}
+  details.gavetaM summary .seta{display:inline-block;color:var(--wa);transition:transform .18s ease}
+  details.gavetaM[open] summary .seta{transform:rotate(90deg)}
+  details.gavetaM summary .risco{flex:1;height:1px;background:var(--line-soft)}
+  details.gavetaM summary:hover{color:var(--ink-2)}
+  details.gavetaM summary:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+  .lista.recs{margin-top:11px}
 
   .cardE{display:flex;gap:14px;background:var(--panel);border:1px solid var(--line-soft);
     border-left:3px solid var(--line);border-radius:0 12px 12px 0;padding:13px 15px;
@@ -640,7 +672,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-29.20";
+  var VERSAO = "2026-07-29.21";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1308,92 +1340,116 @@
     if(leg) leg.hidden = false;
 
     var linhaDoTempo = (sortMural === "hora");
-    host.classList.toggle("tempo-on", linhaDoTempo);
     var agoraMin = minutosAgora();
-    var jaCravou = false;
 
-    // monta tudo fora da tela e encaixa de uma vez: 100 cards = 1 redesenho, nao 100
-    var frag = document.createDocumentFragment();
-    sortItems(mural,sortMural).forEach(function(it){
-      var ehRecado = (it.origem === "recado");
-      it.tipo = tipoDe(it.tipo);
-      var m = emMinutos(it.hora);
+    // a programacao da producao manda na tela. O recado da marca, que ja foi falado
+    // no microfone, desce pra gaveta do rodape e so aparece se alguem abrir.
+    var lista   = sortItems(mural, sortMural);
+    var prog    = lista.filter(function(it){ return it.origem !== "recado"; });
+    var recados = lista.filter(function(it){ return it.origem === "recado"; });
 
-      // a linha do AGORA entra antes do primeiro item que ainda vai acontecer
-      if(linhaDoTempo && !jaCravou && m !== null && m > agoraMin){
-        jaCravou = true;
-        var div = document.createElement("div");
-        div.className = "agoraline";
-        div.innerHTML = '<span class="rot">agora · '+horaAgora()+'</span><span class="risco"></span>';
-        frag.appendChild(div);
+    // o proximo da programacao ganha o bloco grande
+    var prox = null;
+    if(linhaDoTempo){
+      for(var i=0;i<prog.length;i++){
+        var mm = emMinutos(prog[i].hora);
+        if(mm !== null && mm > agoraMin - 5 && !editing[prog[i].id]){ prox = prog[i]; break; }
       }
-
-      var el = document.createElement("article");
-      el.dataset.id = it.id;
-
-      if(editing[it.id]){
-        el.className = "item t-"+it.tipo;
-        el.innerHTML =
-          '<div class="edit-row">'+
-          '<input data-f="titulo" value="'+esc(it.titulo)+'" placeholder="Mensagem" maxlength="90">'+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap"><input data-f="hora" value="'+esc(it.hora||"")+'" placeholder="Horário"><input data-f="local" value="'+esc(it.local||"")+'" placeholder="Local"></div>'+
-          '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
-          '</div>';
-        frag.appendChild(el); return;
-      }
-
-      var passou = linhaDoTempo && m !== null && m < agoraMin - 5;
-      el.className = "cardE " + (ehRecado ? "t-recado" : "t-"+it.tipo) + (passou ? " passou" : "");
-
-      var acts = adm ? '<div class="eacts">'+
-          (ehRecado ? '' : '<button class="iconbtn" data-act="cycle" title="Trocar tipo" aria-label="Trocar o tipo"><span class="d '+it.tipo+'"></span></button>'+
-                           '<button class="iconbtn" data-act="edit" title="Editar" aria-label="Editar item">✎</button>')+
-          '<button class="iconbtn del" data-act="del" title="Remover" aria-label="Remover item">✕</button>'+
-        '</div>' : '';
-
-      var col = '<div class="hcol">'+
-          (it.hora ? '<div class="hh">'+esc(it.hora)+'</div>'+(linhaDoTempo ? '<div class="rel">'+relativoDe(m, agoraMin)+'</div>' : '')
-                   : '<div class="hh semh">—</div><div class="rel">a qualquer hora</div>')+
-        '</div>';
-
-      if(ehRecado){
-        var texto = String(it.titulo || "");
-        var aberto = !!expandido[it.id];
-        var precisaCorte = texto.length > LIMITE_RESUMO;
-        var curto = precisaCorte ? texto.slice(0, LIMITE_RESUMO).replace(/\s+\S*$/, "") + "…" : texto;
-        el.innerHTML = col +
-          '<div class="corpo">'+
-            '<div class="etipo">Recado da marca</div>'+
-            '<div class="emarca">'+esc(it.marca || "")+'</div>'+
-            '<div class="emsg">'+esc(aberto ? texto : curto)+'</div>'+
-            (precisaCorte ? '<button class="verMais" data-act="expandir">'+(aberto ? "Mostrar menos" : "Ver mensagem inteira")+'</button>' : '')+
-            acts+
-          '</div>';
-      } else {
-        el.innerHTML = col +
-          '<div class="corpo">'+
-            '<div class="etipo">'+MLABEL[it.tipo]+'</div>'+
-            '<h3 class="etit">'+esc(it.titulo)+'</h3>'+
-            (it.local ? '<div class="eloc">'+esc(it.local)+'</div>' : '')+
-            acts+
-          '</div>';
-      }
-      frag.appendChild(el);
-    });
-
-    // nada mais pra acontecer hoje: a linha do agora fecha a lista
-    if(linhaDoTempo && !jaCravou){
-      var fim = document.createElement("div");
-      fim.className = "agoraline";
-      fim.innerHTML = '<span class="rot">agora · '+horaAgora()+'</span><span class="risco"></span>';
-      frag.appendChild(fim);
     }
-    host.appendChild(frag);
+
+    var out = "";
+    if(prox){
+      prox.tipo = tipoDe(prox.tipo);
+      var mp = emMinutos(prox.hora), urg = (prox.tipo === "urgente");
+      out += '<section class="destaque'+(urg?" urg":"")+'" data-id="'+prox.id+'">'+
+        '<div class="eyebrow">'+(urg ? "Atenção agora" : "A seguir")+'</div>'+
+        '<div class="dlinha"><span class="dhora">'+esc(prox.hora)+'</span>'+
+          '<span class="drel">'+relativoDe(mp, agoraMin)+' · '+MLABEL[prox.tipo]+'</span></div>'+
+        '<h2 class="dtit">'+esc(prox.titulo)+'</h2>'+
+        (prox.local ? '<div class="dloc">'+esc(prox.local)+'</div>' : '')+
+        (adm ? '<div class="eacts">'+
+            '<button class="iconbtn" data-act="cycle" title="Trocar tipo" aria-label="Trocar o tipo"><span class="d '+prox.tipo+'"></span></button>'+
+            '<button class="iconbtn" data-act="edit" title="Editar" aria-label="Editar item">✎</button>'+
+            '<button class="iconbtn del" data-act="del" title="Remover" aria-label="Remover item">✕</button>'+
+          '</div>' : '')+
+      '</section>';
+    }
+
+    var resto = prog.filter(function(it){ return it !== prox; });
+    if(resto.length){
+      out += '<p class="secao">Programação do dia</p><div class="lista">';
+      resto.forEach(function(it){ out += cardMural(it, adm, linhaDoTempo, agoraMin); });
+      out += '</div>';
+    } else if(!prox){
+      out += estadoVazio("mural", adm
+        ? "Nada na programação ainda. Publique o primeiro item no formulário abaixo."
+        : "Nada na programação ainda. Assim que a produção publicar, aparece aqui.");
+    }
+
+    if(recados.length){
+      out += '<details class="gavetaM"'+(gavetaMural?" open":"")+'>'+
+        '<summary data-act="gavetaMural"><span class="seta">▸</span>Anunciados pelo locutor · '+recados.length+
+        '<span class="risco"></span></summary><div class="lista recs">';
+      recados.forEach(function(it){ out += cardMural(it, adm, false, agoraMin); });
+      out += '</div></details>';
+    }
+
+    host.innerHTML = out;
+  }
+
+  // um card da lista, tanto da programacao quanto da gaveta de recados
+  function cardMural(it, adm, comRelativo, agoraMin){
+    var ehRecado = (it.origem === "recado");
+    it.tipo = tipoDe(it.tipo);
+    var m = emMinutos(it.hora);
+
+    if(editing[it.id]){
+      return '<article class="item t-'+it.tipo+'" data-id="'+it.id+'">'+
+        '<div class="edit-row">'+
+        '<input data-f="titulo" value="'+esc(it.titulo)+'" placeholder="Mensagem" maxlength="90">'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap"><input data-f="hora" value="'+esc(it.hora||"")+'" placeholder="Horário"><input data-f="local" value="'+esc(it.local||"")+'" placeholder="Local"></div>'+
+        '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
+        '</div></article>';
+    }
+
+    var passou = comRelativo && m !== null && m < agoraMin - 5;
+    var acts = adm ? '<div class="eacts">'+
+        (ehRecado ? '' : '<button class="iconbtn" data-act="cycle" title="Trocar tipo" aria-label="Trocar o tipo"><span class="d '+it.tipo+'"></span></button>'+
+                         '<button class="iconbtn" data-act="edit" title="Editar" aria-label="Editar item">✎</button>')+
+        '<button class="iconbtn del" data-act="del" title="Remover" aria-label="Remover item">✕</button>'+
+      '</div>' : '';
+
+    var col = '<div class="hcol">'+
+        (it.hora ? '<div class="hh">'+esc(it.hora)+'</div>'+(comRelativo ? '<div class="rel">'+relativoDe(m, agoraMin)+'</div>' : '')
+                 : '<div class="hh semh">—</div><div class="rel">a qualquer hora</div>')+
+      '</div>';
+
+    if(ehRecado){
+      var texto = String(it.titulo || "");
+      var aberto = !!expandido[it.id];
+      var corta = texto.length > LIMITE_RESUMO;
+      var curto = corta ? texto.slice(0, LIMITE_RESUMO).replace(/\s+\S*$/, "") + "…" : texto;
+      return '<article class="cardE t-recado" data-id="'+it.id+'">'+col+
+        '<div class="corpo">'+
+          '<div class="emarca">'+esc(it.marca || "")+'</div>'+
+          '<div class="emsg">'+esc(aberto ? texto : curto)+'</div>'+
+          (corta ? '<button class="verMais" data-act="expandir">'+(aberto ? "Mostrar menos" : "Ver mensagem inteira")+'</button>' : '')+
+          acts+
+        '</div></article>';
+    }
+    return '<article class="cardE t-'+it.tipo+(passou?" passou":"")+'" data-id="'+it.id+'">'+col+
+      '<div class="corpo">'+
+        '<div class="etipo">'+MLABEL[it.tipo]+'</div>'+
+        '<h3 class="etit">'+esc(it.titulo)+'</h3>'+
+        (it.local ? '<div class="eloc">'+esc(it.local)+'</div>' : '')+
+        acts+
+      '</div></article>';
   }
 
   // ---- estado da visao em rodadas ----
   var rodadaAtiva = null;   // null = segue sozinho a primeira rodada com gente
-  var gavetaAberta = false; // "ja anunciados" comeca fechada
+  var gavetaAberta = false; // "ja anunciados" da fila comeca fechada
+  var gavetaMural = false;  // "anunciados pelo locutor" no mural comeca fechada
   var diaAtivo = null;      // null = abre sozinho no dia certo (hoje, ou o proximo com recado)
 
   function hojeISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -1667,7 +1723,8 @@
   $("#listMural").addEventListener("click",function(e){
     var btn=e.target.closest("[data-act]"); if(!btn)return;
     var alvo=e.target.closest("[data-id]");
-    // abrir a mensagem inteira do recado e leitura, qualquer perfil pode
+    // abrir a gaveta e a mensagem inteira e leitura: qualquer perfil pode
+    if(btn.dataset.act==="gavetaMural"){ e.preventDefault(); gavetaMural=!gavetaMural; renderMural(); return; }
     if(btn.dataset.act==="expandir"){
       if(!alvo) return;
       expandido[alvo.dataset.id] = !expandido[alvo.dataset.id];
