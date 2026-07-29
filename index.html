@@ -672,7 +672,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-29.21";
+  var VERSAO = "2026-07-29.22";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1388,7 +1388,7 @@
 
     if(recados.length){
       out += '<details class="gavetaM"'+(gavetaMural?" open":"")+'>'+
-        '<summary data-act="gavetaMural"><span class="seta">▸</span>Anunciados pelo locutor · '+recados.length+
+        '<summary data-act="gavetaMural"><span class="seta">▸</span>Novidades das marcas · '+recados.length+
         '<span class="risco"></span></summary><div class="lista recs">';
       recados.forEach(function(it){ out += cardMural(it, adm, false, agoraMin); });
       out += '</div></details>';
