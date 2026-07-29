@@ -188,12 +188,14 @@
 
   /* ---- fila em rodadas: abas + destaque + linhas + gaveta ---- */
   #listRec.rodadas-on{display:block}
-  .rodadas{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap}
-  .rod{display:flex;align-items:baseline;gap:7px;min-height:44px;padding:0 14px;border-radius:10px;cursor:pointer;
+  .rodadas{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  /* mesma largura e conteudo centrado, pra casar com a fileira de dias logo acima */
+  .rod{flex:1 1 0;min-width:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;min-height:52px;padding:7px 8px;border-radius:11px;cursor:pointer;
     border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
     font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
     transition:border-color .15s,background .15s,color .15s}
-  .rod .n{font-size:.78rem;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .rod .n{font-size:.62rem;letter-spacing:.04em;color:var(--ink-3);font-variant-numeric:tabular-nums}
   .rod:hover{border-color:var(--ink-3)}
   .rod[aria-pressed="true"]{background:rgba(166,236,77,.14);border-color:var(--lime);color:var(--lime)}
   .rod[aria-pressed="true"] .n{color:var(--lime)}
@@ -672,7 +674,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-29.22";
+  var VERSAO = "2026-07-29.23";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
