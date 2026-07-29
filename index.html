@@ -610,7 +610,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-29.16";
+  var VERSAO = "2026-07-29.17";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -717,14 +717,16 @@
     var onErr = function(){ setStatus("warn"); }; // mantem a ultima info na tela; o Firestore reconecta sozinho
     // resposta vinda do cache local = ainda sem confirmacao do servidor: pontinho amarelo,
     // nao verde. Assim ninguem confia num "sincronizado" que na verdade esta offline.
+    // includeMetadataChanges e obrigatorio: sem ele, quando o servidor confirma o MESMO
+    // dado que ja estava no cache nao chega aviso nenhum, e o amarelo ficaria preso.
     if(STRATEGY[c]==="doc"){
-      db.doc(DOCPATH[c]).onSnapshot(function(snap){
+      db.doc(DOCPATH[c]).onSnapshot({ includeMetadataChanges:true }, function(snap){
         setStatus(snap.metadata && snap.metadata.fromCache ? "warn" : "on");
         var items = (snap.exists && snap.data() && snap.data().items) ? snap.data().items : [];
         cb(items);
       }, onErr);
     } else {
-      db.collection(c).onSnapshot(function(snap){
+      db.collection(c).onSnapshot({ includeMetadataChanges:true }, function(snap){
         setStatus(snap.metadata && snap.metadata.fromCache ? "warn" : "on");
         var a=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; a.push(o); }); cb(a);
       }, onErr);
