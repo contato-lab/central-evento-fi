@@ -171,8 +171,8 @@
 
   /* ---- barra de dias da fila do locutor ---- */
   .diaslinha{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
-  .diachip{flex:1 1 0;min-width:74px;display:flex;flex-direction:column;align-items:center;gap:1px;
-    min-height:52px;padding:7px 8px;border-radius:11px;cursor:pointer;
+  .diachip{flex:1 1 0;min-width:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    min-height:52px;padding:7px 6px;border-radius:11px;cursor:pointer;
     border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
     font-family:var(--mono);font-variant-numeric:tabular-nums;
     transition:border-color .15s,background .15s,color .15s}
@@ -613,7 +613,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.13";
+  var VERSAO = "2026-07-28.14";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -906,8 +906,9 @@
   // A marca escolhida ja diz a edicao, entao o formulario mostra so os 4 dias dela
   // em vez dos 8. Quem nao pertence a uma edicao (patrocinador) troca na mao.
   var EDICOES = [
-    { id:"moto", rotulo:"Edição Moto", dias:["2026-08-13","2026-08-14","2026-08-15","2026-08-16"] },
-    { id:"auto", rotulo:"Edição Auto", dias:["2026-08-27","2026-08-28","2026-08-29","2026-08-30"] }
+    { id:"moto", rotulo:"Edição Moto", dias:["2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16"] }
+    // Quando a edicao auto entrar, e so descomentar a linha abaixo (com a virgula acima):
+    // { id:"auto", rotulo:"Edição Auto", dias:["2026-08-27","2026-08-28","2026-08-29","2026-08-30"] }
   ];
   var DIA_EXTENSO = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
 
@@ -1189,9 +1190,7 @@
   var diaAtivo = null;      // null = abre sozinho no dia certo (hoje, ou o proximo com recado)
   var verTudoDias = false;  // false = so a edicao em cartaz na barra de dias
 
-  var SEMANA = ["dom","seg","ter","qua","qui","sex","sáb"];
   function hojeISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
-  function diaSemanaDe(iso){ var d=new Date(iso+"T12:00:00"); return isNaN(d) ? "" : SEMANA[d.getDay()]; }
 
   function pipsHtml(vz){ var o=""; for(var p=0;p<MAX_VEZES;p++){ o+='<span class="pip'+(p<vz?' on':'')+'"></span>'; } return o; }
 
@@ -1316,22 +1315,23 @@
     var ativa = rodadaAtiva;
     if(ativa===null){ ativa=0; for(var i=0;i<MAX_VEZES;i++){ if(grupos[i].length){ ativa=i; break; } } }
 
-    // barra de dias: so os 4 da edicao em cartaz, pra nao virar fileira de 8.
-    // "Ver tudo" abre as duas edicoes quando a producao precisa olhar o resto.
+    // barra de dias: so os dias da edicao em cartaz.
+    // "Ver tudo" so faz sentido se houver outra edicao ou recado com data fora da grade.
     var edAtual = edicaoDoDia(dia) || edicaoCorrente();
     var listaDias = verTudoDias ? todosDias.slice() : edAtual.dias.slice();
     listaDias.sort();
+    var precisaVerTudo = (EDICOES.length > 1) || temFora;
 
     var out = '<div class="diasbar">'+
       '<span class="edtitulo">'+(verTudoDias ? "Todos os dias" : esc(edAtual.rotulo))+'</span>'+
       (verTudoDias ? '' : '<span class="edfaixa">'+faixaDe(edAtual)+'</span>')+
       '<span class="espaco"></span>'+
-      '<button type="button" class="edtrocar" data-act="vertudo">'+(verTudoDias ? "Só a edição" : "Ver tudo")+'</button>'+
+      (precisaVerTudo ? '<button type="button" class="edtrocar" data-act="vertudo">'+(verTudoDias ? "Só a edição" : "Ver tudo")+'</button>' : '')+
     '</div><div class="diaslinha">';
     listaDias.forEach(function(d){
       var q = pendNoDia(d);
       out += '<button type="button" class="diachip" data-act="dia" data-dia="'+d+'" aria-pressed="'+(dia===d)+'">'+
-        '<span class="dsem">'+diaSemanaDe(d)+(d===hoje?' · hoje':'')+'</span>'+
+        (d===hoje ? '<span class="dsem">hoje</span>' : '')+
         '<span class="dnum">'+fmtData(d)+'</span>'+
         '<span class="qt">'+(q||'·')+'</span></button>';
     });
