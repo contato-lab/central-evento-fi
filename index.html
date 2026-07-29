@@ -173,13 +173,18 @@
     border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
     font-family:var(--mono);font-variant-numeric:tabular-nums;
     transition:border-color .15s,background .15s,color .15s}
-  .diachip .dsem{font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
   .diachip .dnum{font-size:.82rem;font-weight:800}
   .diachip .qt{font-size:.62rem;color:var(--ink-3)}
   .diachip:hover{border-color:var(--ink-3)}
   .diachip[aria-pressed="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
-  .diachip[aria-pressed="true"] .dsem,.diachip[aria-pressed="true"] .qt{color:var(--lime-ink);opacity:.8}
+  .diachip[aria-pressed="true"] .qt{color:var(--lime-ink);opacity:.8}
   .diachip:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  /* o dia de hoje se anuncia: selo em cima e borda acesa mesmo sem estar selecionado */
+  .diachip.ehoje{border-color:var(--lime)}
+  .selohoje{display:block;background:var(--lime);color:var(--lime-ink);border-radius:99px;
+    padding:1px 7px;margin-bottom:1px;font-size:.5rem;letter-spacing:.12em;
+    text-transform:uppercase;font-weight:800;line-height:1.5}
+  .diachip[aria-pressed="true"] .selohoje{background:var(--lime-ink);color:var(--lime)}
 
   /* ---- fila em rodadas: abas + destaque + linhas + gaveta ---- */
   #listRec.rodadas-on{display:block}
@@ -610,7 +615,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-29.18";
+  var VERSAO = "2026-07-29.19";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -897,8 +902,27 @@
     } else {
       if(pausaTimer){ clearTimeout(pausaTimer); pausaTimer = null; }
       retomarEscutas();
+      virouODia();   // ficou horas fora: pode ter passado da meia-noite
     }
   });
+
+  // ---- a virada da meia-noite ----
+  // O selo "hoje" e o dia que a tela abre sozinha sao calculados na hora de desenhar.
+  // Sem isso, quem deixa o app aberto a madrugada toda continua com o dia anterior
+  // marcado. Aqui o sistema percebe a virada e se atualiza sozinho, sem recarregar.
+  var diaDeHoje = hojeISO();
+  function virouODia(){
+    var agora = hojeISO();
+    if(agora === diaDeHoje) return;
+    var anterior = diaDeHoje;
+    diaDeHoje = agora;
+    // se a tela estava seguindo o dia corrente, segue pro novo. Se o locutor tinha
+    // escolhido outro dia na mao, a escolha dele e respeitada.
+    if(diaAtivo === null || diaAtivo === anterior){ diaAtivo = null; rodadaAtiva = null; }
+    protegido("recados", renderRec, "#listRec");
+    if($("#r_dias")) { try{ montarDiasForm(); }catch(e){} }  // o form da marca tambem sugere o dia
+  }
+  setInterval(virouODia, 30000);
 
   // A entrada automatica (sessao salva) NAO pode acontecer aqui.
   // Daqui pra baixo ainda tem lista de marcas e outras variaveis por criar, e abrir o app
@@ -1391,8 +1415,9 @@
     '</div><div class="diaslinha">';
     edAtual.dias.forEach(function(d){
       var q = pendNoDia(d);
-      out += '<button type="button" class="diachip" data-act="dia" data-dia="'+d+'" aria-pressed="'+(dia===d)+'">'+
-        (d===hoje ? '<span class="dsem">hoje</span>' : '')+
+      var ehHoje = (d === hoje);
+      out += '<button type="button" class="diachip'+(ehHoje?' ehoje':'')+'" data-act="dia" data-dia="'+d+'" aria-pressed="'+(dia===d)+'">'+
+        (ehHoje ? '<span class="selohoje">hoje</span>' : '')+
         '<span class="dnum">'+fmtData(d)+'</span>'+
         '<span class="qt">'+(q||'·')+'</span></button>';
     });
