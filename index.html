@@ -551,7 +551,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.8";
+  var VERSAO = "2026-07-28.9";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -918,8 +918,9 @@
     if(jaMontado.regras) return; jaMontado.regras = true;
     var form = $("#formRec"); if(!form) return;
     var box = document.createElement("div"); box.className = "rulebox";
-    box.innerHTML = '<span class="ic">!</span><span class="tx">Cada marca pode enviar <b>1 recado por dia</b> de evento. ' +
-      'A <b>data</b> é o dia em que o locutor deve anunciar. A <b>hora</b> é o momento do dia pra ele falar: ' +
+    box.innerHTML = '<span class="ic">!</span><span class="tx">Cada marca pode enviar <b>1 recado por dia</b> de evento, ' +
+      'e esse mesmo recado <b>vai ao ar 3 vezes ao longo do dia</b> na voz do locutor. ' +
+      'A <b>data</b> é o dia em que ele deve anunciar. A <b>hora</b> é o momento do dia pra primeira leitura: ' +
       'se o seu recado não tem hora certa, deixe vazio que ele anuncia quando der. ' +
       'A mensagem tem no máximo <b>200 caracteres</b>.</span>';
     form.parentNode.insertBefore(box, form);
