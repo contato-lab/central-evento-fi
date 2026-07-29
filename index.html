@@ -183,10 +183,6 @@
   .diachip[aria-pressed="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
   .diachip[aria-pressed="true"] .dsem,.diachip[aria-pressed="true"] .qt{color:var(--lime-ink);opacity:.8}
   .diachip:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
-  .diachip.fora{flex:0 0 auto;border-style:dashed;border-color:var(--amber);color:var(--amber)}
-  .diachip.fora .dnum{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase}
-  .diachip.fora[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:var(--bg)}
-  .diachip.fora[aria-pressed="true"] .dsem,.diachip.fora[aria-pressed="true"] .qt{color:var(--bg)}
 
   /* ---- fila em rodadas: abas + destaque + linhas + gaveta ---- */
   #listRec.rodadas-on{display:block}
@@ -613,7 +609,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.14";
+  var VERSAO = "2026-07-28.15";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1188,7 +1184,6 @@
   var rodadaAtiva = null;   // null = segue sozinho a primeira rodada com gente
   var gavetaAberta = false; // "ja anunciados" comeca fechada
   var diaAtivo = null;      // null = abre sozinho no dia certo (hoje, ou o proximo com recado)
-  var verTudoDias = false;  // false = so a edicao em cartaz na barra de dias
 
   function hojeISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
@@ -1280,11 +1275,9 @@
     // A barra de dias e a GRADE DO EVENTO, nunca a lista de datas que aparecem no banco.
     // Assim data errada de teste nao cria dia na tela do locutor.
     var todosDias = EDICOES.reduce(function(a,e){ return a.concat(e.dias); },[]);
-    var temFora = sorted.some(function(it){ return it.data && !edicaoDoDia(it.data); });
 
     function noDia(it, d){
-      if(!it.data) return true;                        // sem data: pode ser anunciado em qualquer dia
-      if(d === "fora") return !edicaoDoDia(it.data);   // gaveta pros recados com data fora da grade
+      if(!it.data) return true;   // sem data: pode ser anunciado em qualquer dia
       return it.data === d;
     }
     var pendNoDia = function(d){
@@ -1315,33 +1308,21 @@
     var ativa = rodadaAtiva;
     if(ativa===null){ ativa=0; for(var i=0;i<MAX_VEZES;i++){ if(grupos[i].length){ ativa=i; break; } } }
 
-    // barra de dias: so os dias da edicao em cartaz.
-    // "Ver tudo" so faz sentido se houver outra edicao ou recado com data fora da grade.
+    // barra de dias: exatamente os dias da edicao em cartaz, nada alem disso.
+    // Quando a outra edicao entrar, edicaoCorrente() ja troca a barra sozinha na data certa.
     var edAtual = edicaoDoDia(dia) || edicaoCorrente();
-    var listaDias = verTudoDias ? todosDias.slice() : edAtual.dias.slice();
-    listaDias.sort();
-    var precisaVerTudo = (EDICOES.length > 1) || temFora;
 
     var out = '<div class="diasbar">'+
-      '<span class="edtitulo">'+(verTudoDias ? "Todos os dias" : esc(edAtual.rotulo))+'</span>'+
-      (verTudoDias ? '' : '<span class="edfaixa">'+faixaDe(edAtual)+'</span>')+
-      '<span class="espaco"></span>'+
-      (precisaVerTudo ? '<button type="button" class="edtrocar" data-act="vertudo">'+(verTudoDias ? "Só a edição" : "Ver tudo")+'</button>' : '')+
+      '<span class="edtitulo">'+esc(edAtual.rotulo)+'</span>'+
+      '<span class="edfaixa">'+faixaDe(edAtual)+'</span>'+
     '</div><div class="diaslinha">';
-    listaDias.forEach(function(d){
+    edAtual.dias.forEach(function(d){
       var q = pendNoDia(d);
       out += '<button type="button" class="diachip" data-act="dia" data-dia="'+d+'" aria-pressed="'+(dia===d)+'">'+
         (d===hoje ? '<span class="dsem">hoje</span>' : '')+
         '<span class="dnum">'+fmtData(d)+'</span>'+
         '<span class="qt">'+(q||'·')+'</span></button>';
     });
-    // recado com data fora das duas edicoes (sobra de teste, ou erro) fica numa gaveta a parte,
-    // pra producao achar e apagar, sem virar mais um dia na barra
-    if(temFora && (verTudoDias || dia==="fora")){
-      out += '<button type="button" class="diachip fora" data-act="dia" data-dia="fora" aria-pressed="'+(dia==="fora")+'">'+
-        '<span class="dsem">data</span><span class="dnum">fora da grade</span>'+
-        '<span class="qt">'+(pendNoDia("fora")||'·')+'</span></button>';
-    }
     out += '</div>';
 
     out += '<div class="rodadas">';
@@ -1496,7 +1477,6 @@
     var act=btn.dataset.act;
     // acoes da moldura (nao pertencem a um recado)
     if(act==="dia"){ diaAtivo=btn.dataset.dia; rodadaAtiva=null; renderRec(); return; }
-    if(act==="vertudo"){ verTudoDias=!verTudoDias; renderRec(); return; }
     if(act==="rodada"){ rodadaAtiva=parseInt(btn.dataset.rod,10); renderRec(); return; }
     if(act==="gaveta"){ e.preventDefault(); gavetaAberta=!gavetaAberta; renderRec(); return; }
     var row=e.target.closest("[data-id]"); if(!row)return;
