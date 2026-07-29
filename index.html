@@ -128,31 +128,46 @@
   .item.feito:hover{opacity:1}
   .d.agenda{background:var(--lime)} .d.update{background:var(--cyan)} .d.aviso{background:var(--amber)} .d.urgente{background:var(--red)}
 
-  /* ---- dias do evento: chips do formulario da marca ---- */
-  .diasgrid{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-  .edtag{font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;
-    color:var(--ink-3);font-weight:700;margin:0 2px}
-  .diaopt{display:inline-flex;align-items:baseline;gap:5px;min-height:44px;padding:0 12px;border-radius:10px;
-    cursor:pointer;border:1px solid var(--line);background:var(--bg);color:var(--ink-2);
-    font-family:var(--mono);font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums;
-    transition:border-color .15s,background .15s,color .15s}
-  .diaopt span{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-  .diaopt:hover{border-color:var(--ink-3)}
-  .diaopt[aria-pressed="true"]{background:rgba(166,236,77,.14);border-color:var(--lime);color:var(--lime)}
-  .diaopt[aria-pressed="true"] span{color:var(--lime)}
-  .diaopt:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  /* ---- barra de edicao: usada no formulario e na fila ---- */
+  .diasbar{display:flex;align-items:baseline;gap:9px;margin-bottom:9px;flex-wrap:wrap}
+  .diasbar .espaco{flex:1 1 auto}
+  .edtitulo{font-family:var(--display);font-size:1.05rem;font-weight:700;color:var(--lime)}
+  .edfaixa{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .edtrocar{min-height:36px;padding:0 12px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--line);background:transparent;color:var(--ink-2);
+    font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+  .edtrocar:hover{border-color:var(--ink-3);color:var(--ink)}
+  .edtrocar:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
 
-  /* ---- filtro de dia da fila do locutor ---- */
-  .diaschips{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-  .diachip{display:inline-flex;align-items:baseline;gap:6px;min-height:40px;padding:0 13px;border-radius:99px;
-    cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
-    font-family:var(--mono);font-size:.68rem;font-weight:700;font-variant-numeric:tabular-nums;
+  /* ---- dias no formulario da marca: uma linha por dia, por extenso ---- */
+  .dialista{display:flex;flex-direction:column;gap:6px}
+  .dialinha{display:flex;align-items:center;gap:11px;width:100%;min-height:46px;padding:0 13px;
+    border-radius:10px;cursor:pointer;text-align:left;
+    border:1px solid var(--line);background:var(--bg);color:var(--ink-2);
+    font-family:var(--sans);font-size:.92rem;
     transition:border-color .15s,background .15s,color .15s}
-  .diachip .sem{font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-  .diachip .qt{font-size:.72rem;color:var(--ink-3)}
+  .dialinha .tick{flex:0 0 auto;width:21px;height:21px;border-radius:6px;border:1.5px solid var(--ink-3);
+    display:grid;place-items:center;font-size:.72rem;font-weight:800;color:var(--lime-ink)}
+  .dialinha:hover{border-color:var(--ink-3)}
+  .dialinha[aria-pressed="true"]{background:rgba(166,236,77,.1);border-color:var(--lime);color:var(--ink)}
+  .dialinha[aria-pressed="true"] .tick{background:var(--lime);border-color:var(--lime)}
+  .dialinha:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .diasresumo{margin:9px 0 0;font-size:.78rem;color:var(--ink-2)}
+  .diasresumo .mudo{color:var(--ink-3)}
+
+  /* ---- barra de dias da fila do locutor ---- */
+  .diaslinha{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .diachip{flex:1 1 0;min-width:74px;display:flex;flex-direction:column;align-items:center;gap:1px;
+    min-height:52px;padding:7px 8px;border-radius:11px;cursor:pointer;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
+    font-family:var(--mono);font-variant-numeric:tabular-nums;
+    transition:border-color .15s,background .15s,color .15s}
+  .diachip .dsem{font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .diachip .dnum{font-size:.82rem;font-weight:800}
+  .diachip .qt{font-size:.62rem;color:var(--ink-3)}
   .diachip:hover{border-color:var(--ink-3)}
   .diachip[aria-pressed="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
-  .diachip[aria-pressed="true"] .sem,.diachip[aria-pressed="true"] .qt{color:var(--lime-ink)}
+  .diachip[aria-pressed="true"] .dsem,.diachip[aria-pressed="true"] .qt{color:var(--lime-ink);opacity:.8}
   .diachip:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
 
   /* ---- fila em rodadas: abas + destaque + linhas + gaveta ---- */
@@ -515,22 +530,10 @@
           <form id="formRec" class="addgrid recado">
             <div class="fld"><label>Marca</label><input id="r_marca" placeholder="Nome da marca" required></div>
             <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="200" placeholder="O que o locutor vai anunciar" required></textarea><span class="ccount" id="msgCount"></span></div>
-            <div class="fld" style="grid-column:1/-1"><label>Anunciar nos dias</label>
-              <div class="diasgrid" id="r_dias">
-                <span class="edtag">Moto</span>
-                <button type="button" class="diaopt" data-dia="2026-08-13" aria-pressed="false">13/08 <span>qui</span></button>
-                <button type="button" class="diaopt" data-dia="2026-08-14" aria-pressed="false">14/08 <span>sex</span></button>
-                <button type="button" class="diaopt" data-dia="2026-08-15" aria-pressed="false">15/08 <span>sáb</span></button>
-                <button type="button" class="diaopt" data-dia="2026-08-16" aria-pressed="false">16/08 <span>dom</span></button>
-                <span class="edtag">Auto</span>
-                <button type="button" class="diaopt" data-dia="2026-08-27" aria-pressed="false">27/08 <span>qui</span></button>
-                <button type="button" class="diaopt" data-dia="2026-08-28" aria-pressed="false">28/08 <span>sex</span></button>
-                <button type="button" class="diaopt" data-dia="2026-08-29" aria-pressed="false">29/08 <span>sáb</span></button>
-                <button type="button" class="diaopt" data-dia="2026-08-30" aria-pressed="false">30/08 <span>dom</span></button>
-              </div>
-              <span class="hint">Pode marcar mais de um: o mesmo recado entra em cada dia marcado.</span>
+            <div class="fld" style="grid-column:1/-1"><label>Vai ao ar nos dias</label>
+              <div class="diasbox" id="r_dias"></div>
             </div>
-            <div class="fld"><label>Outro dia</label><input id="r_data" type="date"><span class="hint">Só se não for um dos dias acima</span></div>
+            <div class="fld"><label>Outro dia</label><input id="r_data" type="date"><span class="hint">Só se for fora da grade</span></div>
             <div class="fld"><label>Anunciar às</label><input id="r_hora" type="time"><span class="hint">Vazio = a qualquer hora</span></div>
             <div class="fld"><label>Responsável</label><input id="r_resp" placeholder="Quem enviou"></div>
             <div class="fld"><label>WhatsApp</label><input id="r_wpp" placeholder="(11) 90000-0000"></div>
@@ -593,7 +596,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.10";
+  var VERSAO = "2026-07-28.11";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -882,6 +885,40 @@
   var MARCAS_AUTO = ["Abarth","Aston Martin","BMW","BYD","Denza","Fiat","Ford","GAC","Geely","GWM","Honda (Auto)","Jaecoo","Jeep","Jetour","Leapmotor","Lexus","McLaren","MG","Mitsubishi","Omoda","Peugeot","RAM","Renault","Toyota Gazoo Racing","Volvo"];
   var MARCAS_OUTRAS = ["Suhai","Mercado Livre"];
 
+  // ---- grade do evento: as duas edicoes e seus 4 dias ----
+  // A marca escolhida ja diz a edicao, entao o formulario mostra so os 4 dias dela
+  // em vez dos 8. Quem nao pertence a uma edicao (patrocinador) troca na mao.
+  var EDICOES = [
+    { id:"moto", rotulo:"Edição Moto", dias:["2026-08-13","2026-08-14","2026-08-15","2026-08-16"] },
+    { id:"auto", rotulo:"Edição Auto", dias:["2026-08-27","2026-08-28","2026-08-29","2026-08-30"] }
+  ];
+  var DIA_EXTENSO = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
+
+  function edicaoPorId(id){ for(var i=0;i<EDICOES.length;i++){ if(EDICOES[i].id===id) return EDICOES[i]; } return null; }
+  function edicaoDoDia(iso){ for(var i=0;i<EDICOES.length;i++){ if(EDICOES[i].dias.indexOf(iso)>=0) return EDICOES[i]; } return null; }
+  function edicaoDaMarca(nome){
+    if(MARCAS_MOTO.indexOf(nome)>=0) return "moto";
+    if(MARCAS_AUTO.indexOf(nome)>=0) return "auto";
+    return null; // patrocinador ou marca digitada: nao da pra deduzir
+  }
+  function faixaDe(ed){ return fmtData(ed.dias[0])+" a "+fmtData(ed.dias[ed.dias.length-1]); }
+  function diaExtenso(iso){
+    var d=new Date(iso+"T12:00:00");
+    return isNaN(d) ? fmtData(iso) : DIA_EXTENSO[d.getDay()]+", "+fmtData(iso);
+  }
+  // edicao que esta rolando (ou a proxima a acontecer), pra tela abrir no lugar certo
+  function edicaoCorrente(){
+    var h = hojeISO();
+    for(var i=0;i<EDICOES.length;i++){
+      var e=EDICOES[i];
+      if(h >= e.dias[0] && h <= e.dias[e.dias.length-1]) return e;   // acontecendo agora
+    }
+    for(var j=0;j<EDICOES.length;j++){
+      if(h < EDICOES[j].dias[0]) return EDICOES[j];                   // a proxima
+    }
+    return EDICOES[EDICOES.length-1];                                 // ja passou tudo
+  }
+
   // ---- monta a interface conforme o perfil logado ----
   var jaMontado = {};
 
@@ -962,7 +999,7 @@
     var box = document.createElement("div"); box.className = "rulebox";
     box.innerHTML = '<span class="ic">!</span><span class="tx">Cada marca pode enviar <b>1 recado por dia</b> de evento, ' +
       'e esse mesmo recado <b>vai ao ar 3 vezes ao longo do dia</b> na voz do locutor. ' +
-      'Marque <b>os dias</b> em que ele deve anunciar: pode ser mais de um, e o recado entra em cada dia marcado. ' +
+      'Já vem marcado pra <b>todos os dias da sua edição</b>: se não for o caso, é só desmarcar os dias que não quer. ' +
       'A <b>hora</b> é o momento do dia pra primeira leitura: se o seu recado não tem hora certa, ' +
       'deixe vazio que ele anuncia quando der. A mensagem tem no máximo <b>200 caracteres</b>.</span>';
     form.parentNode.insertBefore(box, form);
@@ -1017,6 +1054,7 @@
       if(et && et.childNodes[0]) et.childNodes[0].textContent = "Enviar recado ";
       montarSelectMarcas(false); // marca: lista fechada, e o que sustenta o limite
       montarAvisoRegras();
+      montarDiasForm();
       $("#meusEnviosWrap").hidden = false;
       renderMeusEnvios();
     } else if(podeVerFila()){
@@ -1024,8 +1062,17 @@
       sortRec = "prioridade";
       if($("#sortRec")) $("#sortRec").value = "prioridade";
       montarSelectMarcas(true); // producao/locutor: lista agrupada + opcao de digitar
+      montarDiasForm();
     }
   }
+
+  // a marca escolhida ja diz a edicao: o formulario troca sozinho pros dias dela
+  $("#formRec").addEventListener("change", function(e){
+    if(!e.target || e.target.id !== "r_marca") return;
+    var ed = edicaoDaMarca(marcaEscolhida());
+    if(ed && ed !== edicaoForm){ edicaoForm = ed; diasMarcados = {}; }
+    montarDiasForm();
+  });
 
   // ---- MURAL render ----
   function sortItems(arr,mode,kind){
@@ -1121,7 +1168,8 @@
   // ---- estado da visao em rodadas ----
   var rodadaAtiva = null;   // null = segue sozinho a primeira rodada com gente
   var gavetaAberta = false; // "ja anunciados" comeca fechada
-  var diaAtivo = null;      // null = abre sozinho no dia de hoje (se tiver recado), senao em "todos"
+  var diaAtivo = null;      // null = abre sozinho no dia certo (hoje, ou o proximo com recado)
+  var verTudoDias = false;  // false = so a edicao em cartaz na barra de dias
 
   var SEMANA = ["dom","seg","ter","qua","qui","sex","sáb"];
   function hojeISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -1211,14 +1259,26 @@
 
     // filtro de dia: cada dia do evento e uma fila propria.
     // recado sem data aparece em todos os dias (anuncia quando der).
+    var hoje = hojeISO();
     var dias = [];
     sorted.forEach(function(it){ if(it.data && dias.indexOf(it.data)<0) dias.push(it.data); });
     dias.sort();
-    var hoje = hojeISO();
+    var pendNoDia = function(d){
+      return sorted.filter(function(it){ return statusDe(it.status)!=="ok" && (!it.data || it.data===d); }).length;
+    };
+
+    // qual dia abrir: durante o evento, hoje. Fora dele, o proximo dia que tem recado.
     var dia = diaAtivo;
-    if(dia!==null && dia!=="todos" && dias.indexOf(dia)<0) dia = null; // o dia escolhido sumiu da base
-    if(dia===null) dia = (dias.indexOf(hoje)>=0) ? hoje : "todos";
-    var doDia = (dia==="todos") ? sorted : sorted.filter(function(it){ return !it.data || it.data===dia; });
+    if(dia === null){
+      var edC = edicaoCorrente();
+      if(edC.dias.indexOf(hoje) >= 0){ dia = hoje; }
+      else {
+        var comRecado = dias.filter(function(d){ return pendNoDia(d) > 0; });
+        var futuros = comRecado.filter(function(d){ return d >= hoje; });
+        dia = futuros[0] || comRecado[0] || edC.dias[0];
+      }
+    }
+    var doDia = sorted.filter(function(it){ return !it.data || it.data===dia; });
 
     var grupos=[[],[],[]], fim=[];
     doDia.forEach(function(it){
@@ -1231,18 +1291,29 @@
     var ativa = rodadaAtiva;
     if(ativa===null){ ativa=0; for(var i=0;i<MAX_VEZES;i++){ if(grupos[i].length){ ativa=i; break; } } }
 
-    var out = "";
-    if(dias.length > 1 || (dias.length===1 && sorted.some(function(it){ return !it.data; }))){
-      var pend = function(teste){ return sorted.filter(function(it){ return statusDe(it.status)!=="ok" && teste(it); }).length; };
-      out += '<div class="diaschips">';
-      out += '<button type="button" class="diachip" data-act="dia" data-dia="todos" aria-pressed="'+(dia==="todos")+'">Todos <span class="qt">'+pend(function(){return true;})+'</span></button>';
-      dias.forEach(function(d){
-        out += '<button type="button" class="diachip" data-act="dia" data-dia="'+d+'" aria-pressed="'+(dia===d)+'">'+
-          fmtData(d)+' <span class="sem">'+diaSemanaDe(d)+(d===hoje?' · hoje':'')+'</span>'+
-          '<span class="qt">'+pend(function(it){ return !it.data || it.data===d; })+'</span></button>';
-      });
-      out += '</div>';
-    }
+    // barra de dias: so os 4 da edicao em cartaz, pra nao virar fileira de 8.
+    // "Ver tudo" abre as duas edicoes quando a producao precisa olhar o resto.
+    var edAtual = edicaoDoDia(dia) || edicaoCorrente();
+    var listaDias = verTudoDias ? EDICOES.reduce(function(a,e){ return a.concat(e.dias); },[]) : edAtual.dias.slice();
+    // dia FORA das duas edicoes (lancamento manual da producao) nao pode sumir da tela.
+    // dia da outra edicao nao entra aqui: o lugar dele e no "Ver tudo".
+    dias.forEach(function(d){ if(!edicaoDoDia(d) && listaDias.indexOf(d) < 0) listaDias.push(d); });
+    listaDias.sort();
+
+    var out = '<div class="diasbar">'+
+      '<span class="edtitulo">'+(verTudoDias ? "Todos os dias" : esc(edAtual.rotulo))+'</span>'+
+      (verTudoDias ? '' : '<span class="edfaixa">'+faixaDe(edAtual)+'</span>')+
+      '<span class="espaco"></span>'+
+      '<button type="button" class="edtrocar" data-act="vertudo">'+(verTudoDias ? "Só a edição" : "Ver tudo")+'</button>'+
+    '</div><div class="diaslinha">';
+    listaDias.forEach(function(d){
+      var q = pendNoDia(d);
+      out += '<button type="button" class="diachip" data-act="dia" data-dia="'+d+'" aria-pressed="'+(dia===d)+'">'+
+        '<span class="dsem">'+diaSemanaDe(d)+(d===hoje?' · hoje':'')+'</span>'+
+        '<span class="dnum">'+fmtData(d)+'</span>'+
+        '<span class="qt">'+(q||'·')+'</span></button>';
+    });
+    out += '</div>';
 
     out += '<div class="rodadas">';
     ["1ª leitura","2ª leitura","3ª leitura"].forEach(function(r,i){
@@ -1396,6 +1467,7 @@
     var act=btn.dataset.act;
     // acoes da moldura (nao pertencem a um recado)
     if(act==="dia"){ diaAtivo=btn.dataset.dia; rodadaAtiva=null; renderRec(); return; }
+    if(act==="vertudo"){ verTudoDias=!verTudoDias; renderRec(); return; }
     if(act==="rodada"){ rodadaAtiva=parseInt(btn.dataset.rod,10); renderRec(); return; }
     if(act==="gaveta"){ e.preventDefault(); gavetaAberta=!gavetaAberta; renderRec(); return; }
     var row=e.target.closest("[data-id]"); if(!row)return;
@@ -1455,15 +1527,57 @@
     });
   }
 
-  // chips de dia do formulario: liga/desliga no toque
+  // ---- dias do formulario da marca ----
+  // Regra: mostra so os 4 dias da edicao da marca, ja todos marcados.
+  // Quem quiser menos, desmarca. Assim o caso comum vira envio de um toque.
+  var edicaoForm = null;   // "moto" | "auto"
+  var diasMarcados = {};   // iso -> true (sobrevive a troca de edicao)
+
+  function contarMarcados(){ var n=0; for(var k in diasMarcados){ if(diasMarcados[k]) n++; } return n; }
+  function edicaoTemMarca(ed){ return ed.dias.some(function(d){ return diasMarcados[d]; }); }
+
+  function montarDiasForm(){
+    var box = $("#r_dias"); if(!box) return;
+    if(!edicaoForm) edicaoForm = edicaoCorrente().id;
+    var ed = edicaoPorId(edicaoForm) || EDICOES[0];
+    // chegou numa edicao sem nenhum dia marcado: liga os 4 (padrao "o evento inteiro")
+    if(!edicaoTemMarca(ed)) ed.dias.forEach(function(d){ diasMarcados[d] = true; });
+
+    var outraEd = EDICOES.filter(function(e){ return e.id !== ed.id; })[0];
+    var marcadosFora = outraEd ? outraEd.dias.filter(function(d){ return diasMarcados[d]; }) : [];
+
+    var html = '<div class="diasbar">'+
+      '<span class="edtitulo">'+esc(ed.rotulo)+'</span>'+
+      '<span class="edfaixa">'+faixaDe(ed)+'</span>'+
+      '<span class="espaco"></span>'+
+      (outraEd ? '<button type="button" class="edtrocar" data-ed="'+outraEd.id+'">Ver '+esc(outraEd.rotulo.replace("Edição ",""))+'</button>' : '')+
+    '</div><div class="dialista">';
+    ed.dias.forEach(function(d){
+      var on = !!diasMarcados[d];
+      html += '<button type="button" class="dialinha" data-dia="'+d+'" aria-pressed="'+on+'">'+
+        '<span class="tick">'+(on?'✓':'')+'</span><span class="dtxt">'+diaExtenso(d)+'</span></button>';
+    });
+    html += '</div>';
+    if(marcadosFora.length){
+      html += '<p class="diasresumo">Também vai ao ar em '+marcadosFora.map(fmtData).join(", ")+
+        ' <span class="mudo">('+outraEd.rotulo.toLowerCase()+')</span></p>';
+    }
+    box.innerHTML = html;
+  }
+
   $("#r_dias").addEventListener("click",function(e){
-    var b=e.target.closest(".diaopt"); if(!b) return;
-    b.setAttribute("aria-pressed", b.getAttribute("aria-pressed")==="true" ? "false" : "true");
+    var tr = e.target.closest("[data-ed]");
+    if(tr){ edicaoForm = tr.dataset.ed; montarDiasForm(); return; }
+    var b = e.target.closest("[data-dia]"); if(!b) return;
+    var d = b.dataset.dia;
+    diasMarcados[d] = !diasMarcados[d];
+    montarDiasForm();
   });
+
   function diasEscolhidos(){
     var ds=[];
-    document.querySelectorAll('#r_dias .diaopt[aria-pressed="true"]').forEach(function(b){ ds.push(b.dataset.dia); });
-    var extra=$("#r_data") ? $("#r_data").value : "";
+    for(var k in diasMarcados){ if(diasMarcados[k]) ds.push(k); }
+    var extra = $("#r_data") ? $("#r_data").value : "";
     if(extra && ds.indexOf(extra)<0) ds.push(extra);
     ds.sort();
     return ds;
@@ -1471,8 +1585,9 @@
   function limparEnvio(){
     $("#r_msg").value=""; $("#r_hora").value="";
     if($("#r_data")) $("#r_data").value="";
-    document.querySelectorAll('#r_dias .diaopt[aria-pressed="true"]').forEach(function(b){ b.setAttribute("aria-pressed","false"); });
-    $("#r_msg").dispatchEvent(new Event("input")); // zera o contador de caracteres
+    diasMarcados = {};
+    montarDiasForm();                                // volta ao padrao: 4 dias da edicao
+    $("#r_msg").dispatchEvent(new Event("input"));   // zera o contador de caracteres
     // marca, responsavel e whatsapp ficam pro proximo envio
   }
 
