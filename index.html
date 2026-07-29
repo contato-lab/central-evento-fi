@@ -152,8 +152,22 @@
   .dialinha[aria-pressed="true"]{background:rgba(166,236,77,.1);border-color:var(--lime);color:var(--ink)}
   .dialinha[aria-pressed="true"] .tick{background:var(--lime);border-color:var(--lime)}
   .dialinha:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  /* escolha de um dia so: marcador redondo, pra ler como "so um" */
+  .dialinha.unico .tick{border-radius:50%}
   .diasresumo{margin:9px 0 0;font-size:.78rem;color:var(--ink-2)}
-  .diasresumo .mudo{color:var(--ink-3)}
+
+  /* liga o modo "mesmo texto em varios dias" */
+  .repetir{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;margin-top:9px;
+    padding:0 13px;border-radius:10px;cursor:pointer;text-align:left;
+    border:1px dashed var(--line);background:transparent;color:var(--ink-3);
+    font-family:var(--sans);font-size:.82rem;
+    transition:border-color .15s,color .15s,background .15s}
+  .repetir .tick{flex:0 0 auto;width:19px;height:19px;border-radius:5px;border:1.5px solid var(--ink-3);
+    display:grid;place-items:center;font-size:.66rem;font-weight:800;color:var(--lime-ink)}
+  .repetir:hover{border-color:var(--ink-3);color:var(--ink-2)}
+  .repetir[aria-pressed="true"]{border-style:solid;border-color:var(--lime);color:var(--lime)}
+  .repetir[aria-pressed="true"] .tick{background:var(--lime);border-color:var(--lime)}
+  .repetir:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
 
   /* ---- barra de dias da fila do locutor ---- */
   .diaslinha{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
@@ -530,10 +544,9 @@
           <form id="formRec" class="addgrid recado">
             <div class="fld"><label>Marca</label><input id="r_marca" placeholder="Nome da marca" required></div>
             <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="200" placeholder="O que o locutor vai anunciar" required></textarea><span class="ccount" id="msgCount"></span></div>
-            <div class="fld" style="grid-column:1/-1"><label>Vai ao ar nos dias</label>
+            <div class="fld" style="grid-column:1/-1"><label id="r_diasLabel">Vai ao ar no dia</label>
               <div class="diasbox" id="r_dias"></div>
             </div>
-            <div class="fld"><label>Outro dia</label><input id="r_data" type="date"><span class="hint">Só se for fora da grade</span></div>
             <div class="fld"><label>Anunciar às</label><input id="r_hora" type="time"><span class="hint">Vazio = a qualquer hora</span></div>
             <div class="fld"><label>Responsável</label><input id="r_resp" placeholder="Quem enviou"></div>
             <div class="fld"><label>WhatsApp</label><input id="r_wpp" placeholder="(11) 90000-0000"></div>
@@ -596,7 +609,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.11";
+  var VERSAO = "2026-07-28.12";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -999,7 +1012,8 @@
     var box = document.createElement("div"); box.className = "rulebox";
     box.innerHTML = '<span class="ic">!</span><span class="tx">Cada marca pode enviar <b>1 recado por dia</b> de evento, ' +
       'e esse mesmo recado <b>vai ao ar 3 vezes ao longo do dia</b> na voz do locutor. ' +
-      'Já vem marcado pra <b>todos os dias da sua edição</b>: se não for o caso, é só desmarcar os dias que não quer. ' +
+      'Escolha <b>o dia</b> em que ele deve anunciar. Se o texto for o mesmo em mais de um dia, ' +
+      'ligue <b>repetir em outros dias</b> e marque quais. ' +
       'A <b>hora</b> é o momento do dia pra primeira leitura: se o seu recado não tem hora certa, ' +
       'deixe vazio que ele anuncia quando der. A mensagem tem no máximo <b>200 caracteres</b>.</span>';
     form.parentNode.insertBefore(box, form);
@@ -1528,23 +1542,36 @@
   }
 
   // ---- dias do formulario da marca ----
-  // Regra: mostra so os 4 dias da edicao da marca, ja todos marcados.
-  // Quem quiser menos, desmarca. Assim o caso comum vira envio de um toque.
+  // O normal e UM recado pra UM dia, porque cada dia tem um texto diferente.
+  // Quem tem o mesmo texto pro evento inteiro liga "repetir em outros dias".
   var edicaoForm = null;   // "moto" | "auto"
-  var diasMarcados = {};   // iso -> true (sobrevive a troca de edicao)
+  var diasMarcados = {};   // iso -> true
+  var repetirDias = false; // false = escolhe um dia so (comportamento padrao)
 
-  function contarMarcados(){ var n=0; for(var k in diasMarcados){ if(diasMarcados[k]) n++; } return n; }
-  function edicaoTemMarca(ed){ return ed.dias.some(function(d){ return diasMarcados[d]; }); }
+  function listaMarcados(){
+    var ds=[]; for(var k in diasMarcados){ if(diasMarcados[k]) ds.push(k); }
+    ds.sort(); return ds;
+  }
+  // dia sugerido: o primeiro da edicao que ainda nao passou
+  function diaSugerido(ed){
+    var h = hojeISO();
+    for(var i=0;i<ed.dias.length;i++){ if(ed.dias[i] >= h) return ed.dias[i]; }
+    return ed.dias[0];
+  }
 
   function montarDiasForm(){
     var box = $("#r_dias"); if(!box) return;
     if(!edicaoForm) edicaoForm = edicaoCorrente().id;
     var ed = edicaoPorId(edicaoForm) || EDICOES[0];
-    // chegou numa edicao sem nenhum dia marcado: liga os 4 (padrao "o evento inteiro")
-    if(!edicaoTemMarca(ed)) ed.dias.forEach(function(d){ diasMarcados[d] = true; });
 
+    // nada escolhido ainda: sugere UM dia. Nunca marcar a edicao inteira sozinho.
+    if(!listaMarcados().length) diasMarcados[diaSugerido(ed)] = true;
+    var marcados = listaMarcados();
+    var fora = marcados.filter(function(d){ return ed.dias.indexOf(d) < 0; });
     var outraEd = EDICOES.filter(function(e){ return e.id !== ed.id; })[0];
-    var marcadosFora = outraEd ? outraEd.dias.filter(function(d){ return diasMarcados[d]; }) : [];
+
+    var lbl = $("#r_diasLabel");
+    if(lbl) lbl.textContent = repetirDias ? "Vai ao ar nos dias" : "Vai ao ar no dia";
 
     var html = '<div class="diasbar">'+
       '<span class="edtitulo">'+esc(ed.rotulo)+'</span>'+
@@ -1554,39 +1581,59 @@
     '</div><div class="dialista">';
     ed.dias.forEach(function(d){
       var on = !!diasMarcados[d];
-      html += '<button type="button" class="dialinha" data-dia="'+d+'" aria-pressed="'+on+'">'+
+      html += '<button type="button" class="dialinha'+(repetirDias?"":" unico")+'" data-dia="'+d+'" aria-pressed="'+on+'">'+
         '<span class="tick">'+(on?'✓':'')+'</span><span class="dtxt">'+diaExtenso(d)+'</span></button>';
     });
     html += '</div>';
-    if(marcadosFora.length){
-      html += '<p class="diasresumo">Também vai ao ar em '+marcadosFora.map(fmtData).join(", ")+
-        ' <span class="mudo">('+outraEd.rotulo.toLowerCase()+')</span></p>';
+
+    html += '<button type="button" class="repetir" data-act="repetir" aria-pressed="'+repetirDias+'">'+
+      '<span class="tick">'+(repetirDias?'✓':'')+'</span>'+
+      '<span class="rtxt">Repetir esse mesmo texto em outros dias</span></button>';
+
+    if(repetirDias && fora.length){
+      html += '<p class="diasresumo">Também vai ao ar em '+fora.map(fmtData).join(", ")+'</p>';
     }
     box.innerHTML = html;
   }
 
   $("#r_dias").addEventListener("click",function(e){
+    var rep = e.target.closest('[data-act="repetir"]');
+    if(rep){
+      repetirDias = !repetirDias;
+      if(!repetirDias){                       // voltou pro modo de um dia: fica so o primeiro
+        var m = listaMarcados(); diasMarcados = {};
+        if(m.length) diasMarcados[m[0]] = true;
+      }
+      montarDiasForm(); return;
+    }
     var tr = e.target.closest("[data-ed]");
-    if(tr){ edicaoForm = tr.dataset.ed; montarDiasForm(); return; }
+    if(tr){
+      edicaoForm = tr.dataset.ed;
+      if(!repetirDias) diasMarcados = {};      // um dia so: a escolha acompanha a edicao
+      montarDiasForm(); return;
+    }
     var b = e.target.closest("[data-dia]"); if(!b) return;
     var d = b.dataset.dia;
-    diasMarcados[d] = !diasMarcados[d];
+    if(repetirDias) diasMarcados[d] = !diasMarcados[d];
+    else { diasMarcados = {}; diasMarcados[d] = true; }
     montarDiasForm();
   });
 
-  function diasEscolhidos(){
-    var ds=[];
-    for(var k in diasMarcados){ if(diasMarcados[k]) ds.push(k); }
-    var extra = $("#r_data") ? $("#r_data").value : "";
-    if(extra && ds.indexOf(extra)<0) ds.push(extra);
-    ds.sort();
-    return ds;
-  }
-  function limparEnvio(){
+  function diasEscolhidos(){ return listaMarcados(); }
+
+  // depois de enviar: se foi um dia so, ja pula pro dia seguinte da edicao,
+  // que e o fluxo de quem escreve um texto diferente por dia.
+  function limparEnvio(ultimos){
     $("#r_msg").value=""; $("#r_hora").value="";
-    if($("#r_data")) $("#r_data").value="";
+    var proximo = null;
+    if(!repetirDias && ultimos && ultimos.length===1){
+      var ed = edicaoPorId(edicaoForm) || EDICOES[0];
+      var i = ed.dias.indexOf(ultimos[0]);
+      if(i >= 0 && i < ed.dias.length-1) proximo = ed.dias[i+1];
+    }
     diasMarcados = {};
-    montarDiasForm();                                // volta ao padrao: 4 dias da edicao
+    if(proximo) diasMarcados[proximo] = true;
+    montarDiasForm();
     $("#r_msg").dispatchEvent(new Event("input"));   // zera o contador de caracteres
     // marca, responsavel e whatsapp ficam pro proximo envio
   }
@@ -1603,7 +1650,7 @@
     // quem tambem enxerga a fila (producao/locutor) lanca direto, sem limite diario
     if(podeVerFila()){
       dias.forEach(function(d){ DBadd("recados", novo(d)); });
-      limparEnvio();
+      limparEnvio(dias);
       toast(dias.length===1 ? "Recado na fila" : "Recado na fila de "+dias.length+" dias");
       return;
     }
@@ -1616,7 +1663,7 @@
       if(me.length>30) me=me.slice(-30);
       localStorage.setItem("fi_meus_envios",JSON.stringify(me));
       renderMeusEnvios();
-      limparEnvio();
+      limparEnvio(liberados);
       var t = liberados.length===1
         ? "Recado enviado pro dia "+fmtData(liberados[0])+"!"
         : "Recado enviado pra "+liberados.length+" dias!";
