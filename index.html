@@ -183,6 +183,10 @@
   .diachip[aria-pressed="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
   .diachip[aria-pressed="true"] .dsem,.diachip[aria-pressed="true"] .qt{color:var(--lime-ink);opacity:.8}
   .diachip:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .diachip.fora{flex:0 0 auto;border-style:dashed;border-color:var(--amber);color:var(--amber)}
+  .diachip.fora .dnum{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase}
+  .diachip.fora[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:var(--bg)}
+  .diachip.fora[aria-pressed="true"] .dsem,.diachip.fora[aria-pressed="true"] .qt{color:var(--bg)}
 
   /* ---- fila em rodadas: abas + destaque + linhas + gaveta ---- */
   #listRec.rodadas-on{display:block}
@@ -609,7 +613,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.12";
+  var VERSAO = "2026-07-28.13";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1274,25 +1278,32 @@
     // filtro de dia: cada dia do evento e uma fila propria.
     // recado sem data aparece em todos os dias (anuncia quando der).
     var hoje = hojeISO();
-    var dias = [];
-    sorted.forEach(function(it){ if(it.data && dias.indexOf(it.data)<0) dias.push(it.data); });
-    dias.sort();
+    // A barra de dias e a GRADE DO EVENTO, nunca a lista de datas que aparecem no banco.
+    // Assim data errada de teste nao cria dia na tela do locutor.
+    var todosDias = EDICOES.reduce(function(a,e){ return a.concat(e.dias); },[]);
+    var temFora = sorted.some(function(it){ return it.data && !edicaoDoDia(it.data); });
+
+    function noDia(it, d){
+      if(!it.data) return true;                        // sem data: pode ser anunciado em qualquer dia
+      if(d === "fora") return !edicaoDoDia(it.data);   // gaveta pros recados com data fora da grade
+      return it.data === d;
+    }
     var pendNoDia = function(d){
-      return sorted.filter(function(it){ return statusDe(it.status)!=="ok" && (!it.data || it.data===d); }).length;
+      return sorted.filter(function(it){ return statusDe(it.status)!=="ok" && noDia(it,d); }).length;
     };
 
-    // qual dia abrir: durante o evento, hoje. Fora dele, o proximo dia que tem recado.
+    // qual dia abrir: durante o evento, hoje. Fora dele, o proximo dia do evento que tem recado.
     var dia = diaAtivo;
     if(dia === null){
       var edC = edicaoCorrente();
       if(edC.dias.indexOf(hoje) >= 0){ dia = hoje; }
       else {
-        var comRecado = dias.filter(function(d){ return pendNoDia(d) > 0; });
+        var comRecado = todosDias.filter(function(d){ return pendNoDia(d) > 0; });
         var futuros = comRecado.filter(function(d){ return d >= hoje; });
         dia = futuros[0] || comRecado[0] || edC.dias[0];
       }
     }
-    var doDia = sorted.filter(function(it){ return !it.data || it.data===dia; });
+    var doDia = sorted.filter(function(it){ return noDia(it, dia); });
 
     var grupos=[[],[],[]], fim=[];
     doDia.forEach(function(it){
@@ -1308,10 +1319,7 @@
     // barra de dias: so os 4 da edicao em cartaz, pra nao virar fileira de 8.
     // "Ver tudo" abre as duas edicoes quando a producao precisa olhar o resto.
     var edAtual = edicaoDoDia(dia) || edicaoCorrente();
-    var listaDias = verTudoDias ? EDICOES.reduce(function(a,e){ return a.concat(e.dias); },[]) : edAtual.dias.slice();
-    // dia FORA das duas edicoes (lancamento manual da producao) nao pode sumir da tela.
-    // dia da outra edicao nao entra aqui: o lugar dele e no "Ver tudo".
-    dias.forEach(function(d){ if(!edicaoDoDia(d) && listaDias.indexOf(d) < 0) listaDias.push(d); });
+    var listaDias = verTudoDias ? todosDias.slice() : edAtual.dias.slice();
     listaDias.sort();
 
     var out = '<div class="diasbar">'+
@@ -1327,6 +1335,13 @@
         '<span class="dnum">'+fmtData(d)+'</span>'+
         '<span class="qt">'+(q||'·')+'</span></button>';
     });
+    // recado com data fora das duas edicoes (sobra de teste, ou erro) fica numa gaveta a parte,
+    // pra producao achar e apagar, sem virar mais um dia na barra
+    if(temFora && (verTudoDias || dia==="fora")){
+      out += '<button type="button" class="diachip fora" data-act="dia" data-dia="fora" aria-pressed="'+(dia==="fora")+'">'+
+        '<span class="dsem">data</span><span class="dnum">fora da grade</span>'+
+        '<span class="qt">'+(pendNoDia("fora")||'·')+'</span></button>';
+    }
     out += '</div>';
 
     out += '<div class="rodadas">';
