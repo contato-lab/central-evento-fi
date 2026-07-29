@@ -394,37 +394,61 @@
   .mini.recarregar:hover{border-color:var(--ink-3)}
   .dotview{flex:0 0 auto;margin-top:2px;width:26px;height:26px;display:grid;place-items:center}
 
-  /* ---------- MURAL EM GRADE (referencia: arte de agenda do festival) ---------- */
-  /* 1 coluna no celular pra nao espremer texto; 2 no tablet; 3 no desktop */
-  #listMural{grid-template-columns:1fr;gap:26px 14px;align-items:start}
-  @media(min-width:620px){ #listMural{grid-template-columns:repeat(2,minmax(0,1fr))} }
-  @media(min-width:1000px){ #listMural{grid-template-columns:repeat(3,minmax(0,1fr))} }
+  /* ---------- MURAL EM LINHA DO TEMPO ---------- */
+  /* Coluna unica: no celular texto longo em 3 colunas vira bloco ilegivel. */
+  #listMural{grid-template-columns:1fr;gap:8px;align-items:start}
 
-  .grade{position:relative;background:transparent;border:1px solid var(--line);
-    border-radius:12px;padding:24px 14px 14px;text-align:center;transition:border-color .16s ease}
-  .grade .ghora{position:absolute;top:-10px;left:50%;transform:translateX(-50%);
-    background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:.8rem;
-    font-weight:700;letter-spacing:.02em;white-space:nowrap;color:var(--ink-2)}
-  .grade .gtipo{display:block;font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;
-    text-transform:uppercase;margin-bottom:8px;color:var(--ink-3)}
-  .grade .gtit{font-family:var(--display);font-weight:700;font-size:1.24rem;line-height:1.14;
-    letter-spacing:.01em;text-transform:uppercase;color:var(--ink);
-    word-wrap:break-word;overflow-wrap:anywhere;text-wrap:balance}
-  .grade .gloc{display:inline-block;margin-top:10px;font-size:.74rem;color:var(--ink-3)}
-  .grade .gacts{display:flex;justify-content:center;gap:8px;margin-top:14px;
-    padding-top:12px;border-top:1px solid var(--line-soft)}
-  /* alvo de toque cheio no celular */
-  .grade .gacts .iconbtn{width:44px;height:44px;border:1px solid var(--line);border-radius:10px}
-  .grade .gacts .iconbtn:hover{background:var(--panel-2)}
+  /* a marca do AGORA cravada entre o que ja passou e o que vem */
+  .agoraline{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:6px 0}
+  .agoraline .rot{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;
+    text-transform:uppercase;font-weight:800;color:var(--lime);flex:0 0 auto}
+  .agoraline .risco{flex:1;height:2px;background:var(--lime);border-radius:2px}
 
-  .grade.t-agenda{border-color:rgba(166,236,77,.55)}  .grade.t-agenda .ghora{color:var(--lime)}
-  .grade.t-update{border-color:rgba(76,195,240,.55)}  .grade.t-update .ghora{color:var(--cyan)}
-  .grade.t-aviso{border-color:rgba(251,191,36,.55)}   .grade.t-aviso .ghora{color:var(--amber)}
-  .grade.t-urgente{border-color:rgba(245,69,63,.65)}  .grade.t-urgente .ghora{color:var(--red)}
-  .grade.t-urgente{animation:gpulse 2s infinite}
-  @keyframes gpulse{0%,100%{border-color:rgba(245,69,63,.65)}50%{border-color:rgba(245,69,63,.25)}}
-  @media (prefers-reduced-motion:reduce){.grade.t-urgente{animation:none}}
-  @media(hover:hover){.grade:hover{border-color:var(--ink-3)}}
+  .cardE{display:flex;gap:14px;background:var(--panel);border:1px solid var(--line-soft);
+    border-left:3px solid var(--line);border-radius:0 12px 12px 0;padding:13px 15px;
+    transition:border-color .16s ease}
+  .cardE.passou{opacity:.42}
+  @media(hover:hover){.cardE:hover{opacity:1;border-color:var(--line)}}
+  .cardE .hcol{flex:0 0 auto;width:52px}
+  .cardE .hh{font-family:var(--mono);font-size:1rem;font-weight:800;line-height:1.1;color:var(--ink)}
+  .cardE .hh.semh{color:var(--ink-3)}
+  .cardE .rel{font-family:var(--mono);font-size:.56rem;color:var(--ink-3);letter-spacing:.04em;margin-top:2px}
+  .cardE .corpo{flex:1;min-width:0}
+  .cardE .etipo{font-family:var(--mono);font-size:.56rem;letter-spacing:.14em;
+    text-transform:uppercase;font-weight:800;margin-bottom:3px;color:var(--ink-3)}
+  .cardE .etit{margin:0;font-family:var(--sans);font-size:1.02rem;font-weight:600;
+    line-height:1.34;letter-spacing:0;text-transform:none;color:var(--ink);overflow-wrap:anywhere}
+  .cardE .eloc{font-size:.76rem;color:var(--ink-3);margin-top:5px}
+  .cardE .eacts{display:flex;gap:6px;margin-top:10px}
+  .cardE .eacts .iconbtn{width:40px;height:40px;border:1px solid var(--line);border-radius:9px}
+  .cardE .eacts .iconbtn:hover{background:var(--panel-2)}
+
+  .cardE.t-agenda{border-left-color:var(--lime)}   .cardE.t-agenda .etipo{color:var(--lime)}
+  .cardE.t-update{border-left-color:var(--cyan)}   .cardE.t-update .etipo{color:var(--cyan)}
+  .cardE.t-aviso{border-left-color:var(--amber)}   .cardE.t-aviso .etipo{color:var(--amber)}
+  .cardE.t-urgente{border-left-width:6px;border-left-color:var(--red);
+    background:linear-gradient(90deg,rgba(245,69,63,.1),transparent 60%)}
+  .cardE.t-urgente .etipo{color:var(--red)}
+  .cardE.t-urgente .etit{font-weight:700}
+  .cardE.t-urgente.passou{opacity:.55}
+
+  /* recado de marca: verde do WhatsApp, marca em destaque, mensagem resumida */
+  .cardE.t-recado{border-left-color:var(--wa)}
+  .cardE.t-recado .etipo{color:var(--wa)}
+  .cardE .emarca{font-family:var(--display);font-size:1.1rem;font-weight:700;
+    letter-spacing:.02em;color:var(--ink);line-height:1.15;margin-bottom:2px}
+  .cardE .emsg{font-size:.94rem;line-height:1.4;color:var(--ink-2);overflow-wrap:anywhere}
+  .verMais{margin-top:8px;background:transparent;border:1px solid var(--line);color:var(--ink-3);
+    border-radius:9px;min-height:38px;padding:0 12px;cursor:pointer;
+    font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+  .verMais:hover{border-color:var(--ink-3);color:var(--ink)}
+  .verMais:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+
+  @media(max-width:520px){
+    .cardE{gap:11px;padding:11px 13px}
+    .cardE .hcol{width:46px}
+    .cardE .etit{font-size:.98rem}
+  }
 
   /* legenda das cores */
   .legenda{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0 0;padding-top:14px;border-top:1px solid var(--line-soft)}
@@ -483,8 +507,8 @@
           </div>
           <div class="controls">
             <select class="sortsel" id="sortMural">
+              <option value="hora">Linha do tempo</option>
               <option value="recent">Mais recente</option>
-              <option value="hora">Horário</option>
               <option value="tipo">Tipo</option>
             </select>
             <button class="share" id="shareMural" title="Compartilhar no WhatsApp">
@@ -500,6 +524,7 @@
           <span><i style="background:var(--cyan)"></i>Atualização</span>
           <span><i style="background:var(--amber)"></i>Aviso</span>
           <span><i style="background:var(--red)"></i>Urgente</span>
+          <span><i style="background:var(--wa)"></i>Recado de marca</span>
         </div>
 
         <div class="addwrap">
@@ -615,7 +640,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-29.19";
+  var VERSAO = "2026-07-29.20";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -803,7 +828,7 @@
   var recados = [];
   var editing = {}; // id -> true
 
-  var sortMural="recent", sortRec="recent";
+  var sortMural="hora", sortRec="recent";   // o mural nasce em linha do tempo
 
   // ---- login ----
   // ---- sessao e permissoes ----
@@ -1190,7 +1215,16 @@
   function sortItems(arr,mode,kind){
     var a=arr.slice();
     if(mode==="recent") a.sort(function(x,y){return y.ts-x.ts;});
-    else if(mode==="hora") a.sort(function(x,y){return (x.hora||"~").localeCompare(y.hora||"~");});
+    else if(mode==="hora") a.sort(function(x,y){
+      // por minuto, nao por texto: "9:00" tem que vir antes de "14:00".
+      // Item sem hora vai pro fim, e entre eles vale quem chegou primeiro.
+      var mx=emMinutos(x.hora), my=emMinutos(y.hora);
+      if(mx===null && my===null) return x.ts-y.ts;
+      if(mx===null) return 1;
+      if(my===null) return -1;
+      if(mx!==my) return mx-my;
+      return x.ts-y.ts;
+    });
     else if(mode==="tipo") a.sort(function(x,y){return MTIPOS.indexOf(x.tipo)-MTIPOS.indexOf(y.tipo);});
     else if(mode==="status") a.sort(function(x,y){return RSTATUS.indexOf(statusDe(x.status))-RSTATUS.indexOf(statusDe(y.status));});
     else if(mode==="marca") a.sort(function(x,y){return (x.marca||"").localeCompare(y.marca||"");});
@@ -1214,6 +1248,33 @@
 
   // um item com tipo faltando ou desconhecido nao pode derrubar a lista inteira
   function tipoDe(t){ return MTIPOS.indexOf(t) >= 0 ? t : "aviso"; }
+
+  // ---- tempo do mural ----
+  // O campo de hora do mural e texto livre ("14:00", "14h", "8:30"), entao a leitura
+  // e tolerante: o que nao der pra entender vira null e o item vai pro fim da lista.
+  var LIMITE_RESUMO = 70;   // caracteres do recado antes do "ver mensagem inteira"
+  var expandido = {};       // id -> true quando a pessoa abriu a mensagem
+
+  function emMinutos(h){
+    if(!h) return null;
+    var m = String(h).match(/(\d{1,2})\s*[:h]\s*(\d{2})?/);
+    if(!m) return null;
+    var hh = parseInt(m[1], 10), mm = m[2] ? parseInt(m[2], 10) : 0;
+    if(isNaN(hh) || hh > 23 || mm > 59) return null;
+    return hh * 60 + mm;
+  }
+  function minutosAgora(){ var d = new Date(); return d.getHours()*60 + d.getMinutes(); }
+  function horaAgora(){ var d = new Date();
+    return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0"); }
+  function relativoDe(m, agora){
+    if(m === null) return "";
+    var d = m - agora;
+    if(d < -5) return "passou";
+    if(Math.abs(d) <= 5) return "agora";
+    if(d < 60) return "em " + d + "min";
+    var h = Math.floor(d/60), r = d % 60;
+    return "em " + h + "h" + (r ? String(r).padStart(2,"0") : "");
+  }
 
   // Tres estados possiveis, nunca tela muda: carregando / deu ruim / vazio de verdade
   function estadoVazio(col, textoVazio){
@@ -1245,35 +1306,88 @@
       return;
     }
     if(leg) leg.hidden = false;
+
+    var linhaDoTempo = (sortMural === "hora");
+    host.classList.toggle("tempo-on", linhaDoTempo);
+    var agoraMin = minutosAgora();
+    var jaCravou = false;
+
     // monta tudo fora da tela e encaixa de uma vez: 100 cards = 1 redesenho, nao 100
     var frag = document.createDocumentFragment();
     sortItems(mural,sortMural).forEach(function(it){
-      var el=document.createElement("div");
-      el.dataset.id=it.id;
+      var ehRecado = (it.origem === "recado");
       it.tipo = tipoDe(it.tipo);
+      var m = emMinutos(it.hora);
+
+      // a linha do AGORA entra antes do primeiro item que ainda vai acontecer
+      if(linhaDoTempo && !jaCravou && m !== null && m > agoraMin){
+        jaCravou = true;
+        var div = document.createElement("div");
+        div.className = "agoraline";
+        div.innerHTML = '<span class="rot">agora · '+horaAgora()+'</span><span class="risco"></span>';
+        frag.appendChild(div);
+      }
+
+      var el = document.createElement("article");
+      el.dataset.id = it.id;
+
       if(editing[it.id]){
-        el.className="item t-"+it.tipo;
-        el.innerHTML=
+        el.className = "item t-"+it.tipo;
+        el.innerHTML =
           '<div class="edit-row">'+
           '<input data-f="titulo" value="'+esc(it.titulo)+'" placeholder="Mensagem" maxlength="90">'+
           '<div style="display:flex;gap:8px;flex-wrap:wrap"><input data-f="hora" value="'+esc(it.hora||"")+'" placeholder="Horário"><input data-f="local" value="'+esc(it.local||"")+'" placeholder="Local"></div>'+
           '<div class="edit-actions"><button class="mini save" data-act="save">Salvar</button><button class="mini cancel" data-act="cancel">Cancelar</button></div>'+
           '</div>';
+        frag.appendChild(el); return;
+      }
+
+      var passou = linhaDoTempo && m !== null && m < agoraMin - 5;
+      el.className = "cardE " + (ehRecado ? "t-recado" : "t-"+it.tipo) + (passou ? " passou" : "");
+
+      var acts = adm ? '<div class="eacts">'+
+          (ehRecado ? '' : '<button class="iconbtn" data-act="cycle" title="Trocar tipo" aria-label="Trocar o tipo"><span class="d '+it.tipo+'"></span></button>'+
+                           '<button class="iconbtn" data-act="edit" title="Editar" aria-label="Editar item">✎</button>')+
+          '<button class="iconbtn del" data-act="del" title="Remover" aria-label="Remover item">✕</button>'+
+        '</div>' : '';
+
+      var col = '<div class="hcol">'+
+          (it.hora ? '<div class="hh">'+esc(it.hora)+'</div>'+(linhaDoTempo ? '<div class="rel">'+relativoDe(m, agoraMin)+'</div>' : '')
+                   : '<div class="hh semh">—</div><div class="rel">a qualquer hora</div>')+
+        '</div>';
+
+      if(ehRecado){
+        var texto = String(it.titulo || "");
+        var aberto = !!expandido[it.id];
+        var precisaCorte = texto.length > LIMITE_RESUMO;
+        var curto = precisaCorte ? texto.slice(0, LIMITE_RESUMO).replace(/\s+\S*$/, "") + "…" : texto;
+        el.innerHTML = col +
+          '<div class="corpo">'+
+            '<div class="etipo">Recado da marca</div>'+
+            '<div class="emarca">'+esc(it.marca || "")+'</div>'+
+            '<div class="emsg">'+esc(aberto ? texto : curto)+'</div>'+
+            (precisaCorte ? '<button class="verMais" data-act="expandir">'+(aberto ? "Mostrar menos" : "Ver mensagem inteira")+'</button>' : '')+
+            acts+
+          '</div>';
       } else {
-        el.className="grade t-"+it.tipo;
-        el.innerHTML=
-          (it.hora ? '<span class="ghora">'+esc(it.hora)+'</span>' : '')+
-          '<span class="gtipo">'+MLABEL[it.tipo]+'</span>'+
-          '<h3 class="gtit">'+esc(it.titulo)+'</h3>'+
-          (it.local ? '<span class="gloc">'+esc(it.local)+'</span>' : '')+
-          (adm ? '<div class="gacts">'+
-                   '<button class="iconbtn" data-act="cycle" title="Trocar tipo" aria-label="Trocar o tipo do aviso"><span class="d '+it.tipo+'"></span></button>'+
-                   '<button class="iconbtn" data-act="edit" title="Editar" aria-label="Editar item">✎</button>'+
-                   '<button class="iconbtn del" data-act="del" title="Remover" aria-label="Remover item">✕</button>'+
-                 '</div>' : '');
+        el.innerHTML = col +
+          '<div class="corpo">'+
+            '<div class="etipo">'+MLABEL[it.tipo]+'</div>'+
+            '<h3 class="etit">'+esc(it.titulo)+'</h3>'+
+            (it.local ? '<div class="eloc">'+esc(it.local)+'</div>' : '')+
+            acts+
+          '</div>';
       }
       frag.appendChild(el);
     });
+
+    // nada mais pra acontecer hoje: a linha do agora fecha a lista
+    if(linhaDoTempo && !jaCravou){
+      var fim = document.createElement("div");
+      fim.className = "agoraline";
+      fim.innerHTML = '<span class="rot">agora · '+horaAgora()+'</span><span class="risco"></span>';
+      frag.appendChild(fim);
+    }
     host.appendChild(frag);
   }
 
@@ -1551,9 +1665,16 @@
 
   // ---- event delegation: MURAL ----
   $("#listMural").addEventListener("click",function(e){
-    if(!podeGerenciarMural()) return; // dupla checagem: esconder botao nao basta
     var btn=e.target.closest("[data-act]"); if(!btn)return;
-    var row=e.target.closest(".item"); var id=row.dataset.id;
+    var alvo=e.target.closest("[data-id]");
+    // abrir a mensagem inteira do recado e leitura, qualquer perfil pode
+    if(btn.dataset.act==="expandir"){
+      if(!alvo) return;
+      expandido[alvo.dataset.id] = !expandido[alvo.dataset.id];
+      renderMural(); return;
+    }
+    if(!podeGerenciarMural()) return; // dupla checagem: esconder botao nao basta
+    var row=alvo; if(!row) return; var id=row.dataset.id;
     var it=mural.find(function(x){return x.id===id;}); if(!it&&btn.dataset.act!=="cancel")return;
     var act=btn.dataset.act;
     if(act==="cycle"){ DBupdate("mural",id,{tipo:MTIPOS[(MTIPOS.indexOf(it.tipo)+1)%MTIPOS.length]}); }
@@ -1584,9 +1705,17 @@
     // o contador manda no status: encheu as 3 bolinhas, virou anunciado sozinho
     if(act==="anunciei"){
       if(!podeGerenciarFila()){ toast("Seu acesso não permite mexer na fila."); return; } // dupla checagem
-      var vNovo = vezesDe(it) + 1;
+      var vAntes = vezesDe(it), vNovo = vAntes + 1;
       if(vNovo > MAX_VEZES) return;
       DBupdate("recados",id,{ vezes:vNovo, status: vNovo>=MAX_VEZES ? "ok" : "fila" });
+      // Na PRIMEIRA leitura o recado passa a ser publico: foi falado no microfone,
+      // todo mundo ouviu. So entao ele entra no mural, uma unica vez.
+      // Vai como copia dentro do documento do mural (que todos ja leem) em vez de
+      // abrir a colecao de recados pra 300 celulares, o que estouraria a cota.
+      if(vAntes === 0){
+        DBadd("mural", { tipo:"update", origem:"recado", marca:it.marca||"",
+                         titulo:it.msg||"", hora:it.hora||"", local:"", ts:now() });
+      }
       toast(vNovo>=MAX_VEZES ? "Anunciado as "+MAX_VEZES+" vezes" : "Marcado: "+vNovo+" de "+MAX_VEZES);
     }
     else if(act==="desfazer"){
