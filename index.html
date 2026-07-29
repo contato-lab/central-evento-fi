@@ -124,22 +124,40 @@
   .item{background:var(--panel);border:1px solid var(--line-soft);border-radius:13px;padding:13px 14px;
     display:flex;gap:12px;align-items:flex-start;transition:border-color .15s,transform .05s}
   .item:hover{border-color:var(--line)}
-  .item.airing{border-color:rgba(245,69,63,.5);background:linear-gradient(0deg,rgba(245,69,63,.06),transparent)}
-  .dotbtn{flex:0 0 auto;margin-top:2px;width:26px;height:26px;border-radius:8px;border:1px solid var(--line);
-    background:var(--panel-2);display:grid;place-items:center;padding:0}
-  .dotbtn .d{width:11px;height:11px;border-radius:50%}
-  .dotbtn:hover{border-color:var(--ink-3)}
+  .item.feito{opacity:.62}
+  .item.feito:hover{opacity:1}
   .d.agenda{background:var(--lime)} .d.update{background:var(--cyan)} .d.aviso{background:var(--amber)} .d.urgente{background:var(--red)}
-  .d.fila{background:var(--amber)} .d.noar{background:var(--red)} .d.ok{background:var(--lime)}
-  .noar-pulse{box-shadow:0 0 0 0 rgba(245,69,63,.5);animation:pz 1.8s infinite}
-  @keyframes pz{0%{box-shadow:0 0 0 0 rgba(245,69,63,.5)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
-  @media (prefers-reduced-motion:reduce){.noar-pulse{animation:none}}
+
+  /* barra de acoes do recado */
+  .recacts{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap}
+  .recacts .espaco{flex:1 1 auto}
+
+  /* botao de marcar que falou no ar: tem que parecer botao mesmo */
+  .btnstatus{display:inline-flex;align-items:center;gap:10px;min-height:40px;padding:0 14px;
+    border-radius:10px;border:1px solid var(--lime);background:rgba(166,236,77,.13);color:var(--lime);
+    font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:800;
+    cursor:pointer;transition:background .15s,border-color .15s,transform .06s}
+  .btnstatus:hover{background:rgba(166,236,77,.24)}
+  .btnstatus:active{transform:translateY(1px)}
+  .btnstatus:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .btnstatus .pips{display:inline-flex;gap:4px}
+  .btnstatus .pip{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--lime);background:transparent}
+  .btnstatus .pip.on{background:var(--lime)}
+  .btnstatus .cont{font-size:.62rem;opacity:.75;letter-spacing:.06em}
+  /* ja foi ao ar as 3 vezes: vira selo, nao botao */
+  .btnstatus.feito{background:transparent;border-color:var(--line);color:var(--ink-3);cursor:default}
+  .btnstatus.feito:hover{background:transparent}
+  .btnstatus.feito .pip{border-color:var(--ink-3);background:var(--ink-3)}
+  @media(max-width:720px){
+    .btnstatus{min-height:44px;flex:1 1 100%;justify-content:center;order:-1;margin-bottom:2px}
+    .recacts .iconbtn{width:44px;height:44px;border:1px solid var(--line)}
+  }
 
   .item .body{flex:1;min-width:0}
   .item .kv{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px}
   .tagtxt{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
   .tagtxt.agenda{color:var(--lime)} .tagtxt.update{color:var(--cyan)} .tagtxt.aviso{color:var(--amber)} .tagtxt.urgente{color:var(--red)}
-  .tagtxt.fila{color:var(--amber)} .tagtxt.noar{color:var(--red)} .tagtxt.ok{color:var(--lime)}
+  .tagtxt.fila{color:var(--amber)} .tagtxt.ok{color:var(--lime)}
   .item .when{font-family:var(--mono);font-size:.66rem;color:var(--ink-3)}
   .item .title{font-weight:650;font-size:.94rem;line-height:1.35;word-wrap:break-word;overflow-wrap:anywhere}
   .item .meta{color:var(--ink-3);font-size:.76rem;margin-top:3px;display:flex;gap:12px;flex-wrap:wrap}
@@ -208,7 +226,6 @@
   .item.t-urgente::before{background:var(--red);animation:barpulse 1.5s infinite}
   .item.t-urgente{border-color:rgba(245,69,63,.35)}
   .item.t-fila::before{background:var(--amber)}
-  .item.t-noar::before{background:var(--red)}
   .item.t-ok::before{background:var(--lime)}
   @keyframes barpulse{0%,100%{opacity:1}50%{opacity:.4}}
   @media (prefers-reduced-motion:reduce){.item.t-urgente::before{animation:none}.item{transition:none}}
@@ -219,7 +236,6 @@
   .tagtxt.aviso{background:rgba(251,191,36,.12)}
   .tagtxt.urgente{background:rgba(245,69,63,.15)}
   .tagtxt.fila{background:rgba(251,191,36,.12)}
-  .tagtxt.noar{background:rgba(245,69,63,.15)}
   .tagtxt.ok{background:rgba(166,236,77,.12)}
   .item .title{font-size:1.04rem;font-weight:700;line-height:1.32;margin-top:3px}
   .item .hora{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:.84rem;color:var(--ink);
@@ -368,7 +384,7 @@
         <div class="view-head">
           <div>
             <h1>Recados pro locutor</h1>
-            <p class="desc">As marcas mandam o recado pro Chicão anunciar. Cai na fila. Clique no ponto pra mover o status (na fila → no ar → anunciado), no lápis pra editar e no X pra remover.</p>
+            <p class="desc">As marcas mandam o recado pro Chicão anunciar. Cai na fila. Cada recado pode ir ao ar até 3 vezes: toque em ANUNCIEI a cada vez que falar, e as bolinhas acendem. Quando as 3 acendem, ele vira anunciado e desce pro fim da lista.</p>
           </div>
           <div class="controls">
             <select class="sortsel" id="sortRec">
@@ -454,7 +470,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-28.4";
+  var VERSAO = "2026-07-28.5";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -583,8 +599,12 @@
   // ---- state ----
   var MTIPOS=["agenda","update","aviso","urgente"];
   var MLABEL={agenda:"Agenda",update:"Atualização",aviso:"Aviso",urgente:"Urgente"};
-  var RSTATUS=["fila","noar","ok"];
-  var RLABEL={fila:"Na fila",noar:"No ar",ok:"Anunciado"};
+  var RSTATUS=["fila","ok"];
+  var RLABEL={fila:"Na fila",ok:"Anunciado"};
+  var MAX_VEZES=3; // o mesmo recado pode ir ao ar ate 3 vezes no dia
+  // recados antigos podem ter status "noar", que nao existe mais: vira "fila"
+  function statusDe(s){ return s==="ok" ? "ok" : "fila"; }
+  function vezesDe(v){ var n=parseInt(v,10); if(isNaN(n)||n<0) n=0; return n>MAX_VEZES?MAX_VEZES:n; }
 
   var mural = [];
   var recados = [];
@@ -869,7 +889,7 @@
       $("#meusEnviosWrap").hidden = false;
       renderMeusEnvios();
     } else if(podeVerFila()){
-      $("#view-recados .desc").textContent = "Fila em ordem de prioridade: o que está no ar vem primeiro, depois o mais próximo de acontecer. Clique no ponto pra mover o status (na fila, no ar, anunciado), no lápis pra editar e no X pra remover.";
+      $("#view-recados .desc").textContent = "Fila em ordem de prioridade: o mais próximo de acontecer vem primeiro. Cada recado pode ir ao ar até 3 vezes: toque em ANUNCIEI a cada vez que falar, e as bolinhas acendem. Quando as 3 acendem, ele vira anunciado e desce pro fim da lista.";
       sortRec = "prioridade";
       if($("#sortRec")) $("#sortRec").value = "prioridade";
       montarSelectMarcas(true); // producao/locutor: lista agrupada + opcao de digitar
@@ -882,15 +902,14 @@
     if(mode==="recent") a.sort(function(x,y){return y.ts-x.ts;});
     else if(mode==="hora") a.sort(function(x,y){return (x.hora||"~").localeCompare(y.hora||"~");});
     else if(mode==="tipo") a.sort(function(x,y){return MTIPOS.indexOf(x.tipo)-MTIPOS.indexOf(y.tipo);});
-    else if(mode==="status") a.sort(function(x,y){return RSTATUS.indexOf(x.status)-RSTATUS.indexOf(y.status);});
+    else if(mode==="status") a.sort(function(x,y){return RSTATUS.indexOf(statusDe(x.status))-RSTATUS.indexOf(statusDe(y.status));});
     else if(mode==="marca") a.sort(function(x,y){return (x.marca||"").localeCompare(y.marca||"");});
     else if(mode==="prioridade"){
-      // no ar > na fila (pelo horario mais proximo) > anunciados (por ultimo)
-      var rank={noar:0,fila:1,ok:2};
+      // na fila primeiro (pelo horario mais proximo), anunciados por ultimo
       a.sort(function(x,y){
-        var rx=(rank[x.status]!==undefined?rank[x.status]:1), ry=(rank[y.status]!==undefined?rank[y.status]:1);
+        var rx=(statusDe(x.status)==="ok"?1:0), ry=(statusDe(y.status)==="ok"?1:0);
         if(rx!==ry) return rx-ry;
-        if(x.status==="ok") return y.ts-x.ts; // anunciados: mais recente primeiro
+        if(rx===1) return y.ts-x.ts;           // anunciados: mais recente primeiro
         // fila: por data + horario (sem data/horario vai pro fim)
         var kx=(x.data||"~")+" "+(x.hora||"~"), ky=(y.data||"~")+" "+(y.hora||"~");
         if(kx!==ky) return kx<ky?-1:1;
@@ -978,9 +997,10 @@
     var frag = document.createDocumentFragment();
     var sorted = sortItems(recados,sortRec);
     var nextId = null; // primeiro da fila = proximo a ser anunciado
-    if(sortRec==="prioridade"){ for(var i=0;i<sorted.length;i++){ if(sorted[i].status==="fila"){ nextId=sorted[i].id; break; } } }
+    if(sortRec==="prioridade"){ for(var i=0;i<sorted.length;i++){ if(statusDe(sorted[i].status)==="fila"){ nextId=sorted[i].id; break; } } }
     sorted.forEach(function(it){
-      var el=document.createElement("div"); el.className="item t-"+it.status+(it.status==="noar"?" airing":""); el.dataset.id=it.id;
+      var st=statusDe(it.status), vz=vezesDe(it.vezes);
+      var el=document.createElement("div"); el.className="item t-"+st+(st==="ok"?" feito":""); el.dataset.id=it.id;
       if(editing[it.id]){
         el.innerHTML=
           '<div class="edit-row">'+
@@ -991,14 +1011,26 @@
           '</div>';
       } else {
         var wlink = it.wpp? '<a href="https://wa.me/55'+String(it.wpp).replace(/\D/g,'')+'" target="_blank" rel="noopener">'+esc(it.wpp)+'</a>':'';
+        // bolinhas: acendem uma a cada vez que o locutor fala o recado no ar
+        var pips=''; for(var p=0;p<MAX_VEZES;p++){ pips += '<span class="pip'+(p<vz?' on':'')+'"></span>'; }
+        var cheio = vz>=MAX_VEZES;
         el.innerHTML=
-          '<button class="dotbtn" data-act="cycle" title="Mover status"><span class="d '+it.status+(it.status==="noar"?" noar-pulse":"")+'"></span></button>'+
           '<div class="body">'+
-            '<div class="kv"><span class="tagtxt '+it.status+'">'+RLABEL[it.status]+'</span>'+(it.id===nextId?'<span class="nextbadge">Próximo</span>':'')+((it.data||it.hora)?'<span class="when">'+esc((fmtData(it.data)+' '+(it.hora||'')).trim())+'</span>':'')+((it.data&&!it.hora)?'<span class="semhora">qualquer hora</span>':'')+'<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
+            '<div class="kv"><span class="tagtxt '+st+'">'+RLABEL[st]+'</span>'+(it.id===nextId?'<span class="nextbadge">Próximo</span>':'')+((it.data||it.hora)?'<span class="when">'+esc((fmtData(it.data)+' '+(it.hora||'')).trim())+'</span>':'')+((it.data&&!it.hora)?'<span class="semhora">qualquer hora</span>':'')+'<span class="when" style="font-weight:700;color:var(--ink)">'+esc(it.marca)+'</span></div>'+
             '<div class="title">'+esc(it.msg)+'</div>'+
             '<div class="meta">'+(it.resp?'<span>👤 '+esc(it.resp)+'</span>':'')+(wlink?'<span>💬 '+wlink+'</span>':'')+'</div>'+
-          '</div>'+
-          '<div class="acts"><button class="iconbtn" data-act="edit" title="Editar">✎</button><button class="iconbtn del" data-act="del" title="Remover">✕</button></div>';
+            '<div class="recacts">'+
+              '<button class="btnstatus'+(cheio?' feito':'')+'" data-act="anunciei"'+(cheio?' disabled':'')+' title="'+(cheio?'Já foi ao ar '+MAX_VEZES+' vezes':'Marcar que acabou de falar no ar')+'">'+
+                '<span class="pips">'+pips+'</span>'+
+                '<span class="rot">'+(cheio?'Anunciado':'Anunciei')+'</span>'+
+                '<span class="cont">'+vz+'/'+MAX_VEZES+'</span>'+
+              '</button>'+
+              (vz>0?'<button class="iconbtn" data-act="desfazer" title="Tirar uma marcação">↩</button>':'')+
+              '<span class="espaco"></span>'+
+              '<button class="iconbtn" data-act="edit" title="Editar">✎</button>'+
+              '<button class="iconbtn del" data-act="del" title="Remover">✕</button>'+
+            '</div>'+
+          '</div>';
       }
       frag.appendChild(el);
     });
@@ -1108,7 +1140,20 @@
     var row=e.target.closest(".item"); var id=row.dataset.id;
     var it=recados.find(function(x){return x.id===id;}); if(!it&&btn.dataset.act!=="cancel")return;
     var act=btn.dataset.act;
-    if(act==="cycle"){ DBupdate("recados",id,{status:RSTATUS[(RSTATUS.indexOf(it.status)+1)%RSTATUS.length]}); }
+    // o contador manda no status: encheu as 3 bolinhas, virou anunciado sozinho
+    if(act==="anunciei"){
+      if(!podeGerenciarFila()){ toast("Seu acesso não permite mexer na fila."); return; } // dupla checagem
+      var vNovo = vezesDe(it.vezes) + 1;
+      if(vNovo > MAX_VEZES) return;
+      DBupdate("recados",id,{ vezes:vNovo, status: vNovo>=MAX_VEZES ? "ok" : "fila" });
+      toast(vNovo>=MAX_VEZES ? "Anunciado as "+MAX_VEZES+" vezes" : "Marcado: "+vNovo+" de "+MAX_VEZES);
+    }
+    else if(act==="desfazer"){
+      if(!podeGerenciarFila()){ toast("Seu acesso não permite mexer na fila."); return; }
+      var vMenos = vezesDe(it.vezes) - 1;
+      if(vMenos < 0) vMenos = 0;
+      DBupdate("recados",id,{ vezes:vMenos, status: vMenos>=MAX_VEZES ? "ok" : "fila" });
+    }
     else if(act==="del"){ if(confirm("Remover este recado?")){ DBremove("recados",id); } }
     else if(act==="edit"){ editing[id]=true; renderRec(); }
     else if(act==="cancel"){ delete editing[id]; renderRec(); }
@@ -1212,7 +1257,8 @@
   $("#shareRec").addEventListener("click",function(){
     var lines=["*FILA DO LOCUTOR - FESTIVAL INTERLAGOS*",""];
     sortItems(recados,"status").forEach(function(it){
-      lines.push("["+RLABEL[it.status].toUpperCase()+"] "+it.marca+": "+it.msg);
+      var stt=statusDe(it.status), vzz=vezesDe(it.vezes);
+      lines.push("["+RLABEL[stt].toUpperCase()+" "+vzz+"/"+MAX_VEZES+"] "+it.marca+": "+it.msg);
     });
     window.open("https://wa.me/?text="+encodeURIComponent(lines.join("\n")),"_blank");
   });
