@@ -674,7 +674,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-29.23";
+  var VERSAO = "2026-07-30.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1378,14 +1378,37 @@
     }
 
     var resto = prog.filter(function(it){ return it !== prox; });
-    if(resto.length){
+
+    // O que ja passou nao pode ocupar o topo da tela. As 20h do dia 3 seriam uns
+    // 12 itens mortos empurrando pra baixo os 2 que ainda importam, e no celular
+    // isso vira rolagem no meio do autodromo. Entao a lista se afasta do agora nos
+    // dois sentidos: o que vem por ordem crescente, e o que passou numa secao
+    // propria embaixo, do mais recente pro mais antigo (as 11h30 interessa mais
+    // que as 8h). Item sem horario conta como "por vir", igual ja era antes.
+    var porVir = resto, jaFoi = [];
+    if(linhaDoTempo){
+      porVir = [];
+      resto.forEach(function(it){
+        var mm = emMinutos(it.hora);
+        if(mm !== null && mm < agoraMin - 5) jaFoi.push(it); else porVir.push(it);
+      });
+      jaFoi.reverse();
+    }
+
+    if(porVir.length){
       out += '<p class="secao">Programação do dia</p><div class="lista">';
-      resto.forEach(function(it){ out += cardMural(it, adm, linhaDoTempo, agoraMin); });
+      porVir.forEach(function(it){ out += cardMural(it, adm, linhaDoTempo, agoraMin); });
       out += '</div>';
-    } else if(!prox){
+    } else if(!prox && !jaFoi.length){
       out += estadoVazio("mural", adm
         ? "Nada na programação ainda. Publique o primeiro item no formulário abaixo."
         : "Nada na programação ainda. Assim que a produção publicar, aparece aqui.");
+    }
+
+    if(jaFoi.length){
+      out += '<p class="secao">Já aconteceu</p><div class="lista">';
+      jaFoi.forEach(function(it){ out += cardMural(it, adm, linhaDoTempo, agoraMin); });
+      out += '</div>';
     }
 
     if(recados.length){
