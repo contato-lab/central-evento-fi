@@ -526,6 +526,7 @@
 
     <nav class="tabs"><div class="wrap2">
       <button class="tab active" data-tab="mural">Mural do evento <span class="n" id="cMural">0</span></button>
+      <button class="tab" data-tab="interno" hidden>Mural interno <span class="n" id="cInterno">0</span></button>
       <button class="tab" data-tab="recados">Recados pro locutor <span class="n" id="cRec">0</span></button>
       <button class="tab" data-tab="acessos" hidden>Acessos <span class="n" id="cAcess">0</span></button>
     </div></nav>
@@ -571,6 +572,55 @@
               <select id="m_tipo">
                 <option value="agenda">Agenda</option>
                 <option value="update">Atualização</option>
+                <option value="aviso">Aviso</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </div>
+            <button class="addbtn" type="submit">Adicionar</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ===== MURAL INTERNO ===== -->
+      <!-- Espelho do mural do evento, mas fechado no time fixo. E onde o atendimento
+           joga as demandas que as marcas pedem ao longo do dia pra todo mundo ver. -->
+      <section id="view-interno" hidden>
+        <div class="view-head">
+          <div>
+            <h1>Mural interno</h1>
+            <p class="desc">Comunicação interna do time. O atendimento publica aqui as demandas que chegam das marcas durante o dia, e produção e comunicação acompanham no mesmo lugar. Credenciados e marcas não têm acesso a esta aba.</p>
+          </div>
+          <div class="controls">
+            <select class="sortsel" id="sortInterno">
+              <option value="recent">Mais recente</option>
+              <option value="hora">Linha do tempo</option>
+              <option value="tipo">Tipo</option>
+            </select>
+            <button class="share" id="shareInterno" title="Compartilhar no WhatsApp">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2zm0 2a8 8 0 11-4.2 14.8l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 0112 4zm4.4 9.8c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1l-.7.9c-.1.2-.3.2-.5.1a6.5 6.5 0 01-3.2-2.8c-.1-.2 0-.4.1-.5l.4-.5.2-.4v-.4l-.8-1.8c-.2-.4-.4-.4-.5-.4h-.5c-.2 0-.4.1-.6.3-.7.7-.9 1.7-.6 2.7.5 1.7 1.6 3.1 3.2 4.1 1.2.7 2.1.9 2.8.8.5-.1 1.4-.6 1.6-1.2.2-.5.2-1 .1-1.1l-.3-.2z"/></svg>
+              Compartilhar
+            </button>
+          </div>
+        </div>
+        <div class="count" id="countInterno"></div>
+        <div class="list three" id="listInterno"></div>
+        <div class="legenda" id="legendaInterno" hidden>
+          <span><i style="background:var(--lime)"></i>Agenda</span>
+          <span><i style="background:var(--cyan)"></i>Atualização</span>
+          <span><i style="background:var(--amber)"></i>Aviso</span>
+          <span><i style="background:var(--red)"></i>Urgente</span>
+        </div>
+
+        <div class="addwrap">
+          <h3><span class="bar"></span> Adicionar ao mural interno</h3>
+          <form id="formInterno" class="addgrid">
+            <div class="fld"><label>Demanda / mensagem</label><input id="n_titulo" placeholder="Ex: Honda pediu troca do banner do box 12" required></div>
+            <div class="fld"><label>Horário</label><input id="n_hora" placeholder="14:30"></div>
+            <div class="fld"><label>Marca / local</label><input id="n_local" placeholder="Honda · Box 12"></div>
+            <div class="fld"><label>Tipo</label>
+              <select id="n_tipo">
+                <option value="update">Atualização</option>
+                <option value="agenda">Agenda</option>
                 <option value="aviso">Aviso</option>
                 <option value="urgente">Urgente</option>
               </select>
@@ -674,7 +724,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-07-30.1";
+  var VERSAO = "2026-07-31.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -696,11 +746,13 @@
   // ==== CONTROLE DE ACESSO ====
   // A matriz de permissao vive NO CODIGO. O banco guarda apenas QUEM tem qual perfil.
   // Assim ninguem ganha poder editando dado, so a producao mudando o perfil de alguem.
+  // "interno" e o mural de comunicacao interna do time fixo (producao e comunicacao).
+  // Credenciado e marca nao enxergam: a marca e quem manda a demanda, nao quem le a fila dela.
   var PERFIS = {
-    producao:    { rotulo:"Produção",    mural:"gerenciar", fila:"gerenciar", envia:true,  admin:true  },
-    locutor:     { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:true,  admin:false },
-    credenciado: { rotulo:"Credenciado", mural:"ver",       fila:"nenhum",    envia:false, admin:false },
-    marca:       { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false }
+    producao:    { rotulo:"Produção",    mural:"gerenciar", fila:"gerenciar", envia:true,  admin:true,  interno:"gerenciar" },
+    locutor:     { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:true,  admin:false, interno:"nenhum"    },
+    credenciado: { rotulo:"Credenciado", mural:"ver",       fila:"nenhum",    envia:false, admin:false, interno:"nenhum"    },
+    marca:       { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum"    }
   };
   // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com a base de
   // acessos vazia, offline ou apagada por engano. Impede ficar trancado para fora.
@@ -748,8 +800,8 @@
   // Estrategia por colecao:
   //  "doc"        = tudo num documento unico. Barato quando MUITA gente le (ex: mural com 600 pessoas).
   //  "collection" = um documento por item. Bom quando MUITA gente escreve (ex: recados das marcas).
-  var STRATEGY = { mural: "doc", recados: "collection" };
-  var DOCPATH  = { mural: "board/mural" };
+  var STRATEGY = { mural: "doc", recados: "collection", interno: "doc" };
+  var DOCPATH  = { mural: "board/mural", interno: "board/interno" };
 
   var watchers = {};
   function lsGet(c){ try{ return JSON.parse(localStorage.getItem("fi_"+c)) || []; }catch(e){ return []; } }
@@ -859,10 +911,12 @@
   }
 
   var mural = [];
+  var interno = [];   // mural interno: demandas das marcas que o atendimento recebe
   var recados = [];
   var editing = {}; // id -> true
 
   var sortMural="hora", sortRec="recent";   // o mural nasce em linha do tempo
+  var sortInterno="recent";                 // demanda que acabou de chegar e a que importa
 
   // ---- login ----
   // ---- sessao e permissoes ----
@@ -878,6 +932,8 @@
   // checagens usadas TANTO pra desenhar a tela QUANTO pra bloquear a acao
   function podeGerenciarMural(){ return !!PERM && PERM.mural === "gerenciar"; }
   function podeVerMural(){       return !!PERM && PERM.mural !== "nenhum"; }
+  // no mural interno quem ve tambem publica: e ferramenta de trabalho do time, nao vitrine
+  function podeVerInterno(){     return !!PERM && PERM.interno === "gerenciar"; }
   function podeGerenciarFila(){  return !!PERM && PERM.fila  === "gerenciar"; }
   function podeVerFila(){        return !!PERM && PERM.fila  !== "nenhum"; }
   function podeEnviar(){         return !!PERM && PERM.envia === true; }
@@ -932,9 +988,10 @@
   }
   function ligarEscutas(){
     setStatus();
-    escutar("mural",   podeVerMural(), function(a){ mural   = a; }, renderMural,   "#listMural");
-    escutar("recados", podeVerFila(),  function(a){ recados = a; }, renderRec,     "#listRec");
-    escutar("acessos", ehAdmin(),      function(a){ acessos = a; }, renderAcessos, "#listAcess");
+    escutar("mural",   podeVerMural(),   function(a){ mural   = a; }, renderMural,   "#listMural");
+    escutar("interno", podeVerInterno(), function(a){ interno = a; }, renderInterno, "#listInterno");
+    escutar("recados", podeVerFila(),    function(a){ recados = a; }, renderRec,     "#listRec");
+    escutar("acessos", ehAdmin(),        function(a){ acessos = a; }, renderAcessos, "#listAcess");
   }
 
   // ---- economia de leituras em segundo plano ----
@@ -944,7 +1001,7 @@
   var pausaTimer = null, pausado = false;
   function pausarEscutas(){
     if(pausado || !FB_ON) return;
-    ["mural","recados","acessos"].forEach(function(col){
+    ["mural","interno","recados","acessos"].forEach(function(col){
       if(desligar[col]){ try{ desligar[col](); }catch(e){} desligar[col] = null; escutando[col] = false; }
     });
     pausado = true;
@@ -979,6 +1036,7 @@
     // escolhido outro dia na mao, a escolha dele e respeitada.
     if(diaAtivo === null || diaAtivo === anterior){ diaAtivo = null; rodadaAtiva = null; }
     protegido("recados", renderRec, "#listRec");
+    protegido("interno", renderInterno, "#listInterno");     // o "ja aconteceu" precisa reavaliar
     if($("#r_dias")) { try{ montarDiasForm(); }catch(e){} }  // o form da marca tambem sugere o dia
   }
   setInterval(virouODia, 30000);
@@ -1180,6 +1238,7 @@
     document.querySelectorAll(".tab").forEach(function(x){ x.classList.remove("active"); });
     var b = document.querySelector('.tab[data-tab="' + t + '"]'); if(b) b.classList.add("active");
     $("#view-mural").hidden   = t !== "mural";
+    $("#view-interno").hidden = t !== "interno";
     $("#view-recados").hidden = t !== "recados";
     $("#view-acessos").hidden = t !== "acessos";
   }
@@ -1189,7 +1248,7 @@
     var soEnvia = podeEnviar() && !podeVerFila();   // perfil "marca"
 
     // abas visiveis conforme o perfil
-    var abas = { mural: podeVerMural(), recados: (podeVerFila() || podeEnviar()), acessos: ehAdmin() };
+    var abas = { mural: podeVerMural(), interno: podeVerInterno(), recados: (podeVerFila() || podeEnviar()), acessos: ehAdmin() };
     var primeira = null;
     document.querySelectorAll(".tab").forEach(function(b){
       var t = b.getAttribute("data-tab"), ok = !!abas[t];
@@ -1419,6 +1478,54 @@
       out += '</div></details>';
     }
 
+    host.innerHTML = out;
+  }
+
+  // ---- MURAL INTERNO ----
+  // Usa o mesmo card do mural do evento. O que nao vem junto: o bloco grande
+  // "A seguir", porque demanda de marca nao e programacao com hora marcada, e a
+  // gaveta de recados, que aqui nao existe. Quem enxerga esta aba tambem publica,
+  // entao o card sempre vem com os botoes de editar e remover.
+  function renderInterno(){
+    var host = $("#listInterno"); if(!host) return;
+    host.innerHTML = "";
+    var n = interno.length;
+    if($("#cInterno"))     $("#cInterno").textContent = n;
+    if($("#countInterno")) $("#countInterno").textContent = n + (n===1 ? " DEMANDA" : " DEMANDAS");
+    var leg = $("#legendaInterno");
+    if(!n){
+      host.innerHTML = estadoVazio("interno", "Nada por aqui ainda. O atendimento publica a primeira demanda no formulário abaixo.");
+      if(leg) leg.hidden = true;
+      return;
+    }
+    if(leg) leg.hidden = false;
+
+    var linhaDoTempo = (sortInterno === "hora");
+    var agoraMin = minutosAgora();
+    var lista = sortItems(interno, sortInterno);
+
+    // mesma regra do mural do evento: o que passou desce pro rodape
+    var porVir = lista, jaFoi = [];
+    if(linhaDoTempo){
+      porVir = [];
+      lista.forEach(function(it){
+        var mm = emMinutos(it.hora);
+        if(mm !== null && mm < agoraMin - 5) jaFoi.push(it); else porVir.push(it);
+      });
+      jaFoi.reverse();
+    }
+
+    var out = "";
+    if(porVir.length){
+      out += '<div class="lista">';
+      porVir.forEach(function(it){ out += cardMural(it, true, linhaDoTempo, agoraMin); });
+      out += '</div>';
+    }
+    if(jaFoi.length){
+      out += '<p class="secao">Já aconteceu</p><div class="lista">';
+      jaFoi.forEach(function(it){ out += cardMural(it, true, linhaDoTempo, agoraMin); });
+      out += '</div>';
+    }
     host.innerHTML = out;
   }
 
@@ -1680,6 +1787,7 @@
   }
   function renderAll(){
     protegido("mural",   renderMural,   "#listMural");
+    protegido("interno", renderInterno, "#listInterno");
     protegido("fila",    renderRec,     "#listRec");
     protegido("acessos", renderAcessos, "#listAcess");
   }
@@ -1773,6 +1881,33 @@
     }
   });
 
+  // ---- event delegation: MURAL INTERNO ----
+  $("#listInterno").addEventListener("click",function(e){
+    var btn=e.target.closest("[data-act]"); if(!btn)return;
+    var alvo=e.target.closest("[data-id]");
+    if(btn.dataset.act==="expandir"){
+      if(!alvo) return;
+      expandido[alvo.dataset.id] = !expandido[alvo.dataset.id];
+      renderInterno(); return;
+    }
+    if(!podeVerInterno()) return; // dupla checagem: esconder a aba nao basta
+    var row=alvo; if(!row) return; var id=row.dataset.id;
+    var it=interno.find(function(x){return x.id===id;}); if(!it&&btn.dataset.act!=="cancel")return;
+    var act=btn.dataset.act;
+    if(act==="cycle"){ DBupdate("interno",id,{tipo:MTIPOS[(MTIPOS.indexOf(it.tipo)+1)%MTIPOS.length]}); }
+    else if(act==="del"){ if(confirm("Remover esta demanda do mural interno?")){ DBremove("interno",id); } }
+    else if(act==="edit"){ editing[id]=true; renderInterno(); }
+    else if(act==="cancel"){ delete editing[id]; renderInterno(); }
+    else if(act==="save"){
+      var patch={
+        titulo:$('[data-f="titulo"]',row).value.trim()||it.titulo,
+        hora:$('[data-f="hora"]',row).value.trim(),
+        local:$('[data-f="local"]',row).value.trim()
+      };
+      delete editing[id]; renderInterno(); DBupdate("interno",id,patch); toast("Demanda atualizada");
+    }
+  });
+
   // ---- event delegation: RECADOS ----
   $("#listRec").addEventListener("click",function(e){
     var btn=e.target.closest("[data-act]"); if(!btn)return;
@@ -1839,6 +1974,14 @@
     if(travado("mural")) return;
     DBadd("mural",{tipo:$("#m_tipo").value,titulo:t,hora:$("#m_hora").value.trim(),local:$("#m_local").value.trim(),ts:now()});
     e.target.reset(); toast("Adicionado ao mural");
+  });
+
+  $("#formInterno").addEventListener("submit",function(e){
+    e.preventDefault();
+    var t=$("#n_titulo").value.trim(); if(!t)return;
+    if(travado("interno")) return;
+    DBadd("interno",{tipo:$("#n_tipo").value,titulo:t,hora:$("#n_hora").value.trim(),local:$("#n_local").value.trim(),ts:now()});
+    e.target.reset(); toast("Publicado no mural interno");
   });
   // historico local dos envios da marca (so deste aparelho; nao ve o dos outros)
   function getMeusEnvios(){ try{ return JSON.parse(localStorage.getItem("fi_meus_envios"))||[]; }catch(e){ return []; } }
@@ -2015,12 +2158,20 @@
 
   // ---- sort ----
   $("#sortMural").addEventListener("change",function(){sortMural=this.value;renderMural();});
+  $("#sortInterno").addEventListener("change",function(){sortInterno=this.value;renderInterno();});
   $("#sortRec").addEventListener("change",function(){sortRec=this.value;renderRec();});
 
   // ---- share ----
   $("#shareMural").addEventListener("click",function(){
     var lines=["*MURAL - SUHAI FESTIVAL INTERLAGOS 2026*",""];
     sortItems(mural,"hora").forEach(function(it){
+      lines.push((it.hora?it.hora+" - ":"")+"["+MLABEL[it.tipo].toUpperCase()+"] "+it.titulo+(it.local?" ("+it.local+")":""));
+    });
+    window.open("https://wa.me/?text="+encodeURIComponent(lines.join("\n")),"_blank");
+  });
+  $("#shareInterno").addEventListener("click",function(){
+    var lines=["*MURAL INTERNO - SUHAI FESTIVAL INTERLAGOS 2026*","_uso interno da equipe_",""];
+    sortItems(interno,"hora").forEach(function(it){
       lines.push((it.hora?it.hora+" - ":"")+"["+MLABEL[it.tipo].toUpperCase()+"] "+it.titulo+(it.local?" ("+it.local+")":""));
     });
     window.open("https://wa.me/?text="+encodeURIComponent(lines.join("\n")),"_blank");
