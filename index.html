@@ -298,26 +298,16 @@
     text-transform:uppercase;font-weight:800;line-height:1.5}
   .diachip[aria-pressed="true"] .selohoje{background:var(--lime-ink);color:var(--lime)}
 
-  /* ---- fila em rodadas: abas + destaque + linhas + gaveta ---- */
+  /* ---- fila do locutor: destaque + linhas + gaveta ---- */
   #listRec.rodadas-on{display:block}
-  .rodadas{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
-  /* mesma largura e conteudo centrado, pra casar com a fileira de dias logo acima */
-  .rod{flex:1 1 0;min-width:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:2px;min-height:52px;padding:7px 8px;border-radius:11px;cursor:pointer;
-    border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
-    font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
-    transition:border-color .15s,background .15s,color .15s}
-  .rod .n{font-size:.62rem;letter-spacing:.04em;color:var(--ink-3);font-variant-numeric:tabular-nums}
-  .rod:hover{border-color:var(--ink-3)}
-  .rod[aria-pressed="true"]{background:rgba(166,236,77,.14);border-color:var(--lime);color:var(--lime)}
-  .rod[aria-pressed="true"] .n{color:var(--lime)}
-  .rod:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
-  .rod.zerada{opacity:.45}
 
   .agora{background:var(--panel);border:1px solid var(--lime);border-radius:16px;padding:18px 18px 16px;margin-bottom:6px}
   .agora .eyebrow{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;
     color:var(--lime);font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:12px}
-  .agora .eyebrow::after{content:"";flex:1;height:1px;background:rgba(166,236,77,.3)}
+  .agora .eyebrow::after{content:"";flex:1;height:1px;background:rgba(166,236,77,.3);order:9}
+  /* de qual leitura se trata: so aparece quando a marca pediu repeticao */
+  .qualLeitura{font-size:.6rem;letter-spacing:.1em;padding:2px 8px;border-radius:99px;
+    background:rgba(166,236,77,.16);border:1px solid rgba(166,236,77,.4);color:var(--lime)}
   .linhaA{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px}
   .horaA{font-family:var(--mono);font-size:.92rem;font-weight:700;color:var(--ink);
     background:var(--panel-2);border:1px solid var(--line-soft);padding:3px 10px;border-radius:7px;
@@ -397,7 +387,7 @@
   .btnstatus .pip{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--lime);background:transparent}
   .btnstatus .pip.on{background:var(--lime)}
   .btnstatus .cont{font-size:.62rem;opacity:.75;letter-spacing:.06em}
-  /* ja foi ao ar as 3 vezes: vira selo, nao botao */
+  /* cumpriu todas as leituras pedidas: vira selo, nao botao */
   .btnstatus.feito{background:transparent;border-color:var(--line);color:var(--ink-3);cursor:default}
   .btnstatus.feito:hover{background:transparent}
   .btnstatus.feito .pip{border-color:var(--ink-3);background:var(--ink-3)}
@@ -747,7 +737,7 @@
         <div class="view-head">
           <div>
             <h1>Recados pro locutor</h1>
-            <p class="desc">As marcas mandam o recado pro Chicão anunciar. O próximo a falar fica em destaque: é ler, tocar em ANUNCIEI e o seguinte assume o lugar. Cada recado vai ao ar 3 vezes; quem completa vai pra gaveta de anunciados lá embaixo.</p>
+            <p class="desc">As marcas mandam o recado pro Chicão anunciar. O próximo a falar fica em destaque: é ler, tocar em ANUNCIEI e o seguinte assume o lugar. Cada recado traz quantas vezes a marca pediu que ele vá ao ar; quem completa vai pra gaveta de anunciados lá embaixo.</p>
           </div>
           <div class="controls">
             <select class="sortsel" id="sortRec">
@@ -873,7 +863,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-03.1";
+  var VERSAO = "2026-08-03.2";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1059,16 +1049,28 @@
   var MLABEL={agenda:"Agenda",update:"Atualização",aviso:"Aviso",urgente:"Urgente"};
   var RSTATUS=["fila","ok"];
   var RLABEL={fila:"Na fila",ok:"Anunciado"};
-  var MAX_VEZES=3; // o mesmo recado pode ir ao ar ate 3 vezes no dia
+  var MAX_VEZES=3; // teto absoluto: nenhum recado vai ao ar mais que isso no dia
   // recados antigos podem ter status "noar", que nao existe mais: vira "fila"
   function statusDe(s){ return s==="ok" ? "ok" : "fila"; }
+
+  // ATENCAO: sao DOIS numeros diferentes, e ja se atropelaram uma vez.
+  //   repeticoes = quantas vezes a MARCA pediu que o locutor fale  (o alvo)
+  //   vezes      = quantas vezes o LOCUTOR ja falou                (o placar)
+  // Recado gravado antes dessa regra nao tem "repeticoes": naquela epoca a regra
+  // era "todo recado vai ao ar 3 vezes", entao o alvo dele e 3.
+  function repeticoesDe(it){
+    var n = parseInt(it && it.repeticoes, 10);
+    if(isNaN(n) || n < 1) return MAX_VEZES;
+    return n > MAX_VEZES ? MAX_VEZES : n;
+  }
   // recado gravado antes do contador existir nao tem o campo "vezes".
-  // se ele ja estava como anunciado, conta como as 3 vezes cumpridas,
+  // se ele ja estava como anunciado, conta como o alvo cumprido,
   // senao o selo diria "Anunciado" e o botao "0/3" ao mesmo tempo.
   function vezesDe(it){
+    var alvo = repeticoesDe(it);
     var n = parseInt(it && it.vezes, 10);
-    if(isNaN(n) || n < 0) n = (it && it.status === "ok") ? MAX_VEZES : 0;
-    return n > MAX_VEZES ? MAX_VEZES : n;
+    if(isNaN(n) || n < 0) n = (it && it.status === "ok") ? alvo : 0;
+    return n > alvo ? alvo : n;
   }
 
   var mural = [];
@@ -1195,7 +1197,7 @@
     diaDeHoje = agora;
     // se a tela estava seguindo o dia corrente, segue pro novo. Se o locutor tinha
     // escolhido outro dia na mao, a escolha dele e respeitada.
-    if(diaAtivo === null || diaAtivo === anterior){ diaAtivo = null; rodadaAtiva = null; }
+    if(diaAtivo === null || diaAtivo === anterior){ diaAtivo = null; }
     protegido("recados", renderRec, "#listRec");
     protegido("interno", renderInterno, "#listInterno");     // o "ja aconteceu" precisa reavaliar
     if($("#r_dias")) { try{ montarDiasForm(); }catch(e){} }  // o form da marca tambem sugere o dia
@@ -1473,7 +1475,7 @@
       pdIniciar();                       // painel do dia no lugar do formulario solto
       $("#meusEnviosWrap").hidden = true; // o painel ja mostra o que foi enviado
     } else if(podeVerFila()){
-      $("#view-recados .desc").textContent = "O próximo a falar fica em destaque: é ler, tocar em ANUNCIEI e o seguinte assume o lugar. As abas mostram as rodadas (cada recado vai ao ar 3 vezes) e quem completa vai pra gaveta de anunciados lá embaixo.";
+      $("#view-recados .desc").textContent = "O próximo a falar fica em destaque: é ler, tocar em ANUNCIEI e o seguinte assume o lugar. O selo mostra de qual leitura se trata quando a marca pediu repetição, e quem completa vai pra gaveta de anunciados lá embaixo.";
       sortRec = "prioridade";
       if($("#sortRec")) $("#sortRec").value = "prioridade";
       montarSelectMarcas(true); // producao/locutor: lista agrupada + opcao de digitar
@@ -1508,8 +1510,8 @@
     else if(mode==="status") a.sort(function(x,y){return RSTATUS.indexOf(statusDe(x.status))-RSTATUS.indexOf(statusDe(y.status));});
     else if(mode==="marca") a.sort(function(x,y){return (x.marca||"").localeCompare(y.marca||"");});
     else if(mode==="prioridade"){
-      // rodadas de leitura: quem foi falado MENOS vezes vem primeiro (1a leitura > 2a > 3a),
-      // dentro da rodada vale o horario mais proximo; anunciados por ultimo
+      // ordem da fila: quem foi falado MENOS vezes vem primeiro, entao todas as
+      // primeiras leituras saem antes das segundas; hora mais proxima desempata
       a.sort(function(x,y){
         var rx=(statusDe(x.status)==="ok"?1:0), ry=(statusDe(y.status)==="ok"?1:0);
         if(rx!==ry) return rx-ry;
@@ -1764,15 +1766,14 @@
       '</div></article>';
   }
 
-  // ---- estado da visao em rodadas ----
-  var rodadaAtiva = null;   // null = segue sozinho a primeira rodada com gente
+  // ---- estado da visao da fila ----
   var gavetaAberta = false; // "ja anunciados" da fila comeca fechada
   var gavetaMural = false;  // "anunciados pelo locutor" no mural comeca fechada
   var diaAtivo = null;      // null = abre sozinho no dia certo (hoje, ou o proximo com recado)
 
   function hojeISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
-  function pipsHtml(vz){ var o=""; for(var p=0;p<MAX_VEZES;p++){ o+='<span class="pip'+(p<vz?' on':'')+'"></span>'; } return o; }
+  function pipsHtml(vz, alvo){ var t=alvo||MAX_VEZES, o=""; for(var p=0;p<t;p++){ o+='<span class="pip'+(p<vz?' on':'')+'"></span>'; } return o; }
 
   function cardEdicao(it){
     return '<div class="edit-row">'+
@@ -1785,15 +1786,15 @@
 
   function quandoDe(it){ return esc((fmtData(it.data)+" "+(it.hora||"")).trim()); }
 
-  // linha fina da fila (rodadas e gaveta)
+  // linha fina da fila (pendentes e gaveta)
   function linhaRec(it, gerencia){
     if(editing[it.id]) return '<div class="item" data-id="'+it.id+'">'+cardEdicao(it)+'</div>';
-    var vz = vezesDe(it), cheio = vz>=MAX_VEZES;
+    var vz = vezesDe(it), alvo = repeticoesDe(it), cheio = vz>=alvo;
     return '<div class="row'+(cheio?" pronto":"")+'" data-id="'+it.id+'">'+
       ((it.data||it.hora) ? '<span class="h">'+quandoDe(it)+'</span>' : '<span class="h vaga">S/H</span>')+
       '<span class="corpo"><span class="m">'+esc(it.marca)+'</span>'+
         '<span class="t">'+esc(it.msg)+'</span></span>'+
-      '<span class="pips">'+pipsHtml(vz)+'</span>'+
+      '<span class="pips">'+pipsHtml(vz, alvo)+'</span>'+
       (gerencia ? (
         (!cheio ? '<button class="mini anunciar" data-act="anunciei" title="Falei no ar">Anunciei</button>' : '')+
         (vz>0 ? '<button class="iconbtn" data-act="desfazer" title="Tirar uma marcação">↩</button>' : '')+
@@ -1805,7 +1806,7 @@
 
   // card cheio, usado nos outros modos de ordenacao
   function cardRec(it, gerencia){
-    var st=statusDe(it.status), vz=vezesDe(it), cheio=vz>=MAX_VEZES;
+    var st=statusDe(it.status), vz=vezesDe(it), alvo=repeticoesDe(it), cheio=vz>=alvo;
     var el=document.createElement("div"); el.className="item t-"+st+(st==="ok"?" feito":""); el.dataset.id=it.id;
     if(editing[it.id]){ el.innerHTML=cardEdicao(it); return el; }
     var wlink = it.wpp? '<a href="https://wa.me/55'+String(it.wpp).replace(/\D/g,'')+'" target="_blank" rel="noopener">'+esc(it.wpp)+'</a>':'';
@@ -1816,9 +1817,9 @@
         '<div class="meta">'+(it.resp?'<span>👤 '+esc(it.resp)+'</span>':'')+(wlink?'<span>💬 '+wlink+'</span>':'')+'</div>'+
         (gerencia ? '<div class="recacts">'+
           '<button class="btnstatus'+(cheio?' feito':'')+'" data-act="anunciei"'+(cheio?' disabled':'')+'>'+
-            '<span class="pips">'+pipsHtml(vz)+'</span>'+
+            '<span class="pips">'+pipsHtml(vz, alvo)+'</span>'+
             '<span class="rot">'+(cheio?'Anunciado':'Anunciei')+'</span>'+
-            '<span class="cont">'+vz+'/'+MAX_VEZES+'</span>'+
+            '<span class="cont">'+vz+'/'+alvo+'</span>'+
           '</button>'+
           (vz>0?'<button class="iconbtn" data-act="desfazer" title="Tirar uma marcação">↩</button>':'')+
           '<span class="espaco"></span>'+
@@ -1882,16 +1883,15 @@
     }
     var doDia = sorted.filter(function(it){ return noDia(it, dia); });
 
-    var grupos=[[],[],[]], fim=[];
+    // Fila unica. As abas de rodada sairam quando cada recado passou a ter o
+    // proprio alvo: com alvos diferentes (1, 2 ou 3), "2a leitura" nao quer mais
+    // dizer a mesma coisa pra todo mundo. A ordem ja resolve: quem foi falado
+    // menos vezes vem antes, entao as primeiras leituras saem todas antes das
+    // segundas, sem o locutor precisar trocar de aba no meio do evento.
+    var pend=[], fim=[];
     doDia.forEach(function(it){
-      if(statusDe(it.status)==="ok") fim.push(it);
-      else grupos[Math.min(vezesDe(it), MAX_VEZES-1)].push(it);
+      if(statusDe(it.status)==="ok") fim.push(it); else pend.push(it);
     });
-
-    // rodada escolhida esvaziou? volta a seguir sozinho a primeira com gente
-    if(rodadaAtiva!==null && !grupos[rodadaAtiva].length) rodadaAtiva = null;
-    var ativa = rodadaAtiva;
-    if(ativa===null){ ativa=0; for(var i=0;i<MAX_VEZES;i++){ if(grupos[i].length){ ativa=i; break; } } }
 
     // barra de dias: exatamente os dias da edicao em cartaz, nada alem disso.
     // Quando a outra edicao entrar, edicaoCorrente() ja troca a barra sozinha na data certa.
@@ -1911,23 +1911,19 @@
     });
     out += '</div>';
 
-    out += '<div class="rodadas">';
-    ["1ª leitura","2ª leitura","3ª leitura"].forEach(function(r,i){
-      out += '<button type="button" class="rod'+(grupos[i].length?'':' zerada')+'" data-act="rodada" data-rod="'+i+'" aria-pressed="'+(i===ativa)+'">'+r+'<span class="n">'+grupos[i].length+'</span></button>';
-    });
-    out += '</div>';
-
-    var lista = grupos[ativa];
+    var lista = pend;
     if(!lista.length){
       out += '<div class="empty">Tudo anunciado por enquanto. Recado novo cai direto aqui.</div>';
     } else {
-      var p = lista[0], vzp = vezesDe(p);
+      var p = lista[0], vzp = vezesDe(p), alvop = repeticoesDe(p);
       if(editing[p.id]){
         out += '<div class="item" data-id="'+p.id+'">'+cardEdicao(p)+'</div>';
       } else {
         var wl = p.wpp? '<a href="https://wa.me/55'+String(p.wpp).replace(/\D/g,'')+'" target="_blank" rel="noopener">'+esc(p.wpp)+'</a>':'';
         out += '<div class="agora" data-id="'+p.id+'">'+
-          '<div class="eyebrow">Próximo a falar</div>'+
+          '<div class="eyebrow">Próximo a falar'+
+            (alvop>1 ? ' <span class="qualLeitura">'+(vzp+1)+'ª de '+alvop+'</span>' : '')+
+          '</div>'+
           '<div class="linhaA">'+
             ((p.data||p.hora) ? '<span class="horaA">'+quandoDe(p)+'</span>' : '<span class="semhora">Qualquer hora</span>')+
             '<span class="marcaA">'+esc(p.marca)+'</span>'+
@@ -1935,7 +1931,7 @@
           '<p class="msgA">'+esc(p.msg)+'</p>'+
           ((p.resp||wl) ? '<p class="quemA">'+(p.resp?'👤 '+esc(p.resp):'')+(p.resp&&wl?' · ':'')+(wl?'💬 '+wl:'')+'</p>' : '')+
           (gerencia ?
-            '<button class="btnar" data-act="anunciei"><span class="pips">'+pipsHtml(vzp)+'</span><span>Anunciei</span><span class="contA">'+vzp+'/'+MAX_VEZES+'</span></button>'+
+            '<button class="btnar" data-act="anunciei"><span class="pips">'+pipsHtml(vzp, alvop)+'</span><span>Anunciei</span><span class="contA">'+vzp+'/'+alvop+'</span></button>'+
             '<div class="agacts">'+
               (vzp>0?'<button class="iconbtn" data-act="desfazer" title="Tirar uma marcação">↩</button>':'')+
               '<span class="espaco"></span>'+
@@ -2099,8 +2095,7 @@
     var btn=e.target.closest("[data-act]"); if(!btn)return;
     var act=btn.dataset.act;
     // acoes da moldura (nao pertencem a um recado)
-    if(act==="dia"){ diaAtivo=btn.dataset.dia; rodadaAtiva=null; renderRec(); return; }
-    if(act==="rodada"){ rodadaAtiva=parseInt(btn.dataset.rod,10); renderRec(); return; }
+    if(act==="dia"){ diaAtivo=btn.dataset.dia; renderRec(); return; }
     if(act==="gaveta"){ e.preventDefault(); gavetaAberta=!gavetaAberta; renderRec(); return; }
     var row=e.target.closest("[data-id]"); if(!row)return;
     var id=row.dataset.id;
@@ -2108,9 +2103,9 @@
     // o contador manda no status: encheu as 3 bolinhas, virou anunciado sozinho
     if(act==="anunciei"){
       if(!podeGerenciarFila()){ toast("Seu acesso não permite mexer na fila."); return; } // dupla checagem
-      var vAntes = vezesDe(it), vNovo = vAntes + 1;
-      if(vNovo > MAX_VEZES) return;
-      DBupdate("recados",id,{ vezes:vNovo, status: vNovo>=MAX_VEZES ? "ok" : "fila" });
+      var alvoIt = repeticoesDe(it), vAntes = vezesDe(it), vNovo = vAntes + 1;
+      if(vNovo > alvoIt) return;
+      DBupdate("recados",id,{ vezes:vNovo, status: vNovo>=alvoIt ? "ok" : "fila" });
       // Na PRIMEIRA leitura o recado passa a ser publico: foi falado no microfone,
       // todo mundo ouviu. So entao ele entra no mural, uma unica vez.
       // Vai como copia dentro do documento do mural (que todos ja leem) em vez de
@@ -2119,13 +2114,13 @@
         DBadd("mural", { tipo:"update", origem:"recado", marca:it.marca||"",
                          titulo:it.msg||"", hora:it.hora||"", local:"", ts:now() });
       }
-      toast(vNovo>=MAX_VEZES ? "Anunciado as "+MAX_VEZES+" vezes" : "Marcado: "+vNovo+" de "+MAX_VEZES);
+      toast(vNovo>=alvoIt ? "Pronto! Falou as "+alvoIt+" vezes pedidas" : "Marcado: "+vNovo+" de "+alvoIt);
     }
     else if(act==="desfazer"){
       if(!podeGerenciarFila()){ toast("Seu acesso não permite mexer na fila."); return; }
       var vMenos = vezesDe(it) - 1;
       if(vMenos < 0) vMenos = 0;
-      DBupdate("recados",id,{ vezes:vMenos, status: vMenos>=MAX_VEZES ? "ok" : "fila" });
+      DBupdate("recados",id,{ vezes:vMenos, status: vMenos>=repeticoesDe(it) ? "ok" : "fila" });
     }
     else if(act==="del"){ if(confirm("Remover este recado?")){ DBremove("recados",id); } }
     else if(act==="edit"){ editing[id]=true; renderRec(); }
@@ -2302,7 +2297,7 @@
     });
   }
   function pdEdicao(){ return edicaoPorId(edicaoDaMarca(pdMarca) || edicaoCorrente().id) || EDICOES[0]; }
-  function pdUsadas(d){ return (pdDados[d] || []).reduce(function(s,r){ return s + (parseInt(r.vezes,10) || 1); }, 0); }
+  function pdUsadas(d){ return (pdDados[d] || []).reduce(function(s,r){ return s + (repeticoesDe(r) || 1); }, 0); }
   function pdLivres(d){ return Math.max(0, minhasLeituras() - pdUsadas(d)); }
   function pdPlural(n){ return n === 1 ? "1 vez" : n + " vezes"; }
 
@@ -2388,7 +2383,7 @@
     box.innerHTML = "";
     var lista = pdDados[pdDia] || [], ordem = 0;
     lista.forEach(function(r){
-      var vz = parseInt(r.vezes,10) || 1;
+      var vz = repeticoesDe(r) || 1;
       for(var k = 0; k < vz; k++){
         ordem++;
         var el = document.createElement("div");
@@ -2509,7 +2504,7 @@
       // aparelho pode ter gasto fala nesse meio tempo
       function gravar(){
         var rec = { status:"fila", marca:pdMarca, msg:msg, data:pdDia,
-                    hora:$("#pdHora").value, resp:resp, wpp:wpp, vezes:vz, ts:now() };
+                    hora:$("#pdHora").value, resp:resp, wpp:wpp, repeticoes:vz, ts:now() };
         DBadd("recados", rec);
         (pdDados[pdDia] = pdDados[pdDia] || []).push(rec);
         pdEscrevendo = false; pdVezes = 1; pdPintar();
@@ -2523,7 +2518,7 @@
       ok.disabled = true;
       db.collection("recados").where("marca","==",pdMarca).get().then(function(qs){
         var usadas = 0;
-        qs.forEach(function(d){ var r = d.data(); if((r.data||"") === pdDia) usadas += (parseInt(r.vezes,10)||1); });
+        qs.forEach(function(d){ var r = d.data(); if((r.data||"") === pdDia) usadas += (repeticoesDe(r)||1); });
         if(usadas + vz > minhasLeituras()){
           pdCarregar();
           toast("Esse dia já está sem espaço pra " + pdPlural(vz) + ". Confira o saldo.");
@@ -2635,7 +2630,7 @@
       qs.forEach(function(doc){
         var r = doc.data(), k = r.data || "";
         if(!k) return;
-        saldoDias[k] = (saldoDias[k] || 0) + (parseInt(r.vezes,10) || 1);
+        saldoDias[k] = (saldoDias[k] || 0) + (repeticoesDe(r) || 1);
       });
       montarVezes();
       if(quando) quando();
@@ -2651,7 +2646,7 @@
     if(travado("recado")) return;
     var resp=$("#r_resp").value.trim(), wpp=$("#r_wpp").value.trim();
     var vezes = podeVerFila() ? 1 : Math.max(1, vezesEscolhidas);
-    function novo(d){ return {status:"fila",marca:m,msg:msg,data:d,hora:hora,resp:resp,wpp:wpp,vezes:vezes,ts:now()}; }
+    function novo(d){ return {status:"fila",marca:m,msg:msg,data:d,hora:hora,resp:resp,wpp:wpp,repeticoes:vezes,ts:now()}; }
 
     // quem tambem enxerga a fila (producao/locutor) lanca direto, sem limite diario
     if(podeVerFila()){
@@ -2665,7 +2660,7 @@
     function concluir(liberados, bloqueados){
       liberados.forEach(function(d){ DBadd("recados", novo(d)); });
       var me=getMeusEnvios();
-      liberados.forEach(function(d){ me.push({marca:m,msg:msg,data:d,hora:hora,vezes:vezes,ts:now()}); });
+      liberados.forEach(function(d){ me.push({marca:m,msg:msg,data:d,hora:hora,repeticoes:vezes,ts:now()}); });
       if(me.length>30) me=me.slice(-30);
       localStorage.setItem("fi_meus_envios",JSON.stringify(me));
       renderMeusEnvios();
@@ -2689,7 +2684,7 @@
         var usadas={};
         qs.forEach(function(doc){
           var r=doc.data(), k=r.data||"";
-          if(k) usadas[k] = (usadas[k]||0) + (parseInt(r.vezes,10)||1);
+          if(k) usadas[k] = (usadas[k]||0) + (repeticoesDe(r)||1);
         });
         saldoDias = usadas;
         var teto = minhasLeituras();
@@ -2742,7 +2737,7 @@
     var lines=["*FILA DO LOCUTOR - FESTIVAL INTERLAGOS*",""];
     sortItems(recados,"status").forEach(function(it){
       var stt=statusDe(it.status), vzz=vezesDe(it);
-      lines.push("["+RLABEL[stt].toUpperCase()+" "+vzz+"/"+MAX_VEZES+"] "+it.marca+": "+it.msg);
+      lines.push("["+RLABEL[stt].toUpperCase()+" "+vzz+"/"+repeticoesDe(it)+"] "+it.marca+": "+it.msg);
     });
     window.open("https://wa.me/?text="+encodeURIComponent(lines.join("\n")),"_blank");
   });
