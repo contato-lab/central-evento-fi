@@ -276,17 +276,6 @@
     border:1px solid color-mix(in srgb,var(--amber) 30%,transparent);color:var(--ink-2)}
   .pd-cheio b{color:var(--amber)}
 
-  /* ---- quantas vezes o locutor repete o recado (form antigo) ---- */
-  .vezesbox{display:flex;gap:8px;flex-wrap:wrap}
-  .vezchip{flex:1 1 0;min-width:80px;min-height:46px;display:flex;align-items:center;justify-content:center;gap:7px;
-    padding:10px 12px;border-radius:11px;cursor:pointer;border:1px solid var(--line);
-    background:var(--panel);color:var(--ink-2);font-weight:700;font-size:.9rem;
-    transition:border-color .15s,background .15s,color .15s}
-  .vezchip:hover:not([disabled]){border-color:var(--ink-3)}
-  .vezchip[aria-pressed="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
-  .vezchip[disabled]{opacity:.32;cursor:not-allowed}
-  .vezchip:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
-
   /* ---- barra de dias da fila do locutor ---- */
   .diaslinha{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
   .diachip{flex:1 1 0;min-width:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
@@ -808,10 +797,6 @@
             <div class="fld" style="grid-column:1/-1"><label id="r_diasLabel">Vai ao ar no dia</label>
               <div class="diasbox" id="r_dias"></div>
             </div>
-            <div class="fld" style="grid-column:1/-1"><label>Quantas vezes o locutor fala esse recado</label>
-              <div class="vezesbox" id="r_vezes"></div>
-              <span class="hint" id="r_vezesHint"></span>
-            </div>
             <div class="fld"><label>Anunciar às</label><input id="r_hora" type="time"><span class="hint">Vazio = a qualquer hora</span></div>
             <div class="fld"><label>Responsável</label><input id="r_resp" placeholder="Quem enviou"></div>
             <div class="fld"><label>WhatsApp</label><input id="r_wpp" placeholder="(11) 90000-0000"></div>
@@ -875,7 +860,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-03.5";
+  var VERSAO = "2026-08-03.6";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -907,7 +892,9 @@
   // tela de quem entra, entao "Marca" nos dois nao denuncia quem tem 3 e quem tem 2.
   var PERFIS = {
     producao:      { rotulo:"Produção",    mural:"gerenciar", fila:"gerenciar", envia:true,  admin:true,  interno:"gerenciar" },
-    locutor:       { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:true,  admin:false, interno:"nenhum"    },
+    // locutor nao envia: a funcao dele e ler a fila, nao alimentar ela.
+    // A aba de recados continua aparecendo pra ele porque depende de "fila".
+    locutor:       { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:false, admin:false, interno:"nenhum"    },
     credenciado:   { rotulo:"Credenciado", mural:"ver",       fila:"nenhum",    envia:false, admin:false, interno:"nenhum"    },
     marca_largada: { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum", leituras:3 },
     marca_bandeira:{ rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum", leituras:2 },
@@ -1378,11 +1365,6 @@
       var ehOutra = sel.value === "__outra__";
       outra.hidden = !ehOutra;
       if(ehOutra) outra.focus(); else outra.value = "";
-      // saldo e por marca: trocou a marca, recarrega quantas leituras ela ja gastou
-      if(typeof carregarSaldo === "function") carregarSaldo(marcaEscolhida());
-    });
-    outra.addEventListener("change", function(){
-      if(typeof carregarSaldo === "function") carregarSaldo(marcaEscolhida());
     });
 
     aplicarOpcaoOutra(comOutra);
@@ -1501,7 +1483,6 @@
     var ed = edicaoDaMarca(marcaEscolhida());
     if(ed && ed !== edicaoForm){ edicaoForm = ed; diasMarcados = {}; }
     montarDiasForm();
-    montarVezes();
   });
 
   // ---- MURAL render ----
@@ -2285,8 +2266,6 @@
     if(repetirDias) diasMarcados[d] = !diasMarcados[d];
     else { diasMarcados = {}; diasMarcados[d] = true; }
     montarDiasForm();
-    // saldo e por dia: mudou o dia, os chips de repeticao mudam junto
-    if(typeof montarVezes === "function") montarVezes();
   });
 
   function diasEscolhidos(){ return listaMarcados(); }
@@ -2660,74 +2639,6 @@
     if(salva){ pdTrocarMarca(salva); } else { pdPedirMarca(); }
   }
 
-  // ==== SALDO DE LEITURAS (marca x dia) ====
-  // Guarda quantas leituras cada dia ja consumiu, pra desenhar os chips e barrar
-  // o envio. Uma leitura = uma vez que o locutor fala. O teto vem do login.
-  var saldoDias = {};   // { "2026-08-14": 2, ... }  leituras JA usadas
-  var vezesEscolhidas = 1;
-
-  function usadasNoDia(d){ return saldoDias[d] || 0; }
-  function tetoDoDia(d){ return Math.max(0, minhasLeituras() - usadasNoDia(d)); }
-  // com varios dias marcados, manda o dia mais apertado
-  function tetoAtual(){
-    var ds = (typeof diasEscolhidos === "function") ? diasEscolhidos() : [];
-    if(!ds.length) return minhasLeituras();
-    return ds.reduce(function(min,d){ return Math.min(min, tetoDoDia(d)); }, 99);
-  }
-
-  function montarVezes(){
-    var box = $("#r_vezes"), hint = $("#r_vezesHint");
-    if(!box) return;
-    // producao e locutor lancam sem teto: campo some
-    var wrap = box.closest(".fld");
-    if(podeVerFila()){ if(wrap) wrap.hidden = true; return; }
-    if(wrap) wrap.hidden = false;
-
-    var max = minhasLeituras(), livre = tetoAtual();
-    if(vezesEscolhidas > livre) vezesEscolhidas = Math.max(1, livre);
-
-    box.innerHTML = "";
-    for(var i=1; i<=max; i++){
-      (function(n){
-        var b = document.createElement("button");
-        b.type = "button"; b.className = "vezchip";
-        b.textContent = n === 1 ? "1 vez" : n + " vezes";
-        b.setAttribute("aria-pressed", String(n === vezesEscolhidas));
-        if(n > livre) b.disabled = true;
-        b.addEventListener("click", function(){ vezesEscolhidas = n; montarVezes(); });
-        box.appendChild(b);
-      })(i);
-    }
-    if(hint){
-      var ds = (typeof diasEscolhidos === "function") ? diasEscolhidos() : [];
-      if(!ds.length){
-        hint.textContent = "Você tem " + max + " leituras por dia de evento.";
-      } else if(livre <= 0){
-        hint.innerHTML = '<b style="color:var(--red)">Sem leitura sobrando nesse dia.</b> Amanhã renova.';
-      } else {
-        var usadas = max - livre;
-        hint.innerHTML = usadas > 0
-          ? 'Restam <b style="color:var(--lime)">' + livre + ' de ' + max + '</b> leituras nesse dia.'
-          : 'Você tem <b style="color:var(--lime)">' + max + '</b> leituras nesse dia. Pode usar tudo num texto só ou dividir em textos diferentes.';
-      }
-    }
-  }
-
-  // le da base quantas leituras a marca ja gastou em cada dia
-  function carregarSaldo(m, quando){
-    if(!FB_ON || !m){ saldoDias = {}; montarVezes(); if(quando) quando(); return; }
-    db.collection("recados").where("marca","==",m).get().then(function(qs){
-      saldoDias = {};
-      qs.forEach(function(doc){
-        var r = doc.data(), k = r.data || "";
-        if(!k) return;
-        saldoDias[k] = (saldoDias[k] || 0) + (repeticoesDe(r) || 1);
-      });
-      montarVezes();
-      if(quando) quando();
-    }).catch(function(){ saldoDias = {}; montarVezes(); if(quando) quando(); });
-  }
-
   $("#formRec").addEventListener("submit",function(e){
     e.preventDefault();
     var m=marcaEscolhida(), msg=$("#r_msg").value.trim(), hora=$("#r_hora").value; if(!m||!msg)return;
@@ -2736,64 +2647,16 @@
     if(!podeEnviar()){ toast("Seu acesso não permite enviar recado."); return; } // dupla checagem
     if(travado("recado")) return;
     var resp=$("#r_resp").value.trim(), wpp=$("#r_wpp").value.trim();
-    var vezes = podeVerFila() ? 1 : Math.max(1, vezesEscolhidas);
-    function novo(d){ return {status:"fila",marca:m,msg:msg,data:d,hora:hora,resp:resp,wpp:wpp,repeticoes:vezes,ts:now()}; }
 
-    // quem tambem enxerga a fila (producao/locutor) lanca direto, sem limite diario
-    if(podeVerFila()){
-      dias.forEach(function(d){ DBadd("recados", novo(d)); });
-      limparEnvio(dias);
-      toast(dias.length===1 ? "Recado na fila" : "Recado na fila de "+dias.length+" dias");
-      return;
-    }
-
-    // perfil marca: registra localmente, confere o limite POR DIA e envia so pros dias livres
-    function concluir(liberados, bloqueados){
-      liberados.forEach(function(d){ DBadd("recados", novo(d)); });
-      var me=getMeusEnvios();
-      liberados.forEach(function(d){ me.push({marca:m,msg:msg,data:d,hora:hora,repeticoes:vezes,ts:now()}); });
-      if(me.length>30) me=me.slice(-30);
-      localStorage.setItem("fi_meus_envios",JSON.stringify(me));
-      renderMeusEnvios();
-      // o saldo do dia ja conta o que acabou de entrar
-      liberados.forEach(function(d){ saldoDias[d] = (saldoDias[d]||0) + vezes; });
-      vezesEscolhidas = 1;
-      limparEnvio(liberados);
-      montarVezes();
-      var quantas = vezes===1 ? "1 leitura" : vezes+" leituras";
-      var t = liberados.length===1
-        ? "Recado enviado pro dia "+fmtData(liberados[0])+" ("+quantas+")!"
-        : "Recado enviado pra "+liberados.length+" dias ("+quantas+" em cada)!";
-      if(bloqueados.length) t += " Dia "+bloqueados.map(fmtData).join(", ")+" não tinha leitura sobrando, ficou de fora.";
-      toast(t);
-    }
-
-    // limite POR DIA em LEITURAS (3 ou 2 conforme o login), conferido na base
-    // pra nao depender do aparelho: o mesmo login em outro celular ve o mesmo saldo
-    if(FB_ON){
-      db.collection("recados").where("marca","==",m).get().then(function(qs){
-        var usadas={};
-        qs.forEach(function(doc){
-          var r=doc.data(), k=r.data||"";
-          if(k) usadas[k] = (usadas[k]||0) + (repeticoesDe(r)||1);
-        });
-        saldoDias = usadas;
-        var teto = minhasLeituras();
-        var lib=[], blo=[];
-        dias.forEach(function(d){ if((usadas[d]||0) + vezes > teto) blo.push(d); else lib.push(d); });
-        if(!lib.length){
-          var d0 = dias[0], resta = Math.max(0, teto - (usadas[d0]||0));
-          montarVezes();
-          toast(resta > 0
-            ? "A "+m+" só tem "+resta+" leitura(s) sobrando no dia "+fmtData(d0)+". Diminua as vezes."
-            : "A "+m+" já usou as "+teto+" leituras do dia "+fmtData(d0)+". Amanhã renova.");
-          return;
-        }
-        concluir(lib, blo);
-      }).catch(function(){ concluir(dias, []); }); // se a checagem falhar, nao trava o envio
-    } else {
-      concluir(dias, []);
-    }
+    // Este formulario e so da producao (a marca usa o painel do dia, e o locutor
+    // nao envia). Cada envio vale UMA leitura, igual a uma linha do painel da
+    // marca: quem quiser repetir manda de novo com outro horario.
+    dias.forEach(function(d){
+      DBadd("recados", { status:"fila", marca:m, msg:msg, data:d, hora:hora,
+                         resp:resp, wpp:wpp, repeticoes:1, ts:now() });
+    });
+    limparEnvio(dias);
+    toast(dias.length===1 ? "Recado na fila" : "Recado na fila de "+dias.length+" dias");
   });
 
   // contador de caracteres da mensagem
