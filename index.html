@@ -860,7 +860,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-03.6";
+  var VERSAO = "2026-08-03.7";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1392,21 +1392,35 @@
     return String(sel.value || "").trim();
   }
 
+  // Instrucao da marca. Vai DENTRO do painel do dia: antes ela era inserida no
+  // formulario antigo, que hoje fica escondido pra marca, entao o texto existia
+  // mas ninguem via. O conteudo muda conforme o acesso, e de proposito nenhum
+  // dos dois cita a existencia do outro nivel.
   function montarAvisoRegras(){
-    var form = $("#formRec"); if(!form) return;
-    // o texto depende do login, e o login so e conhecido depois de entrar:
-    // por isso o aviso e REESCRITO a cada chamada, em vez de montado uma vez so
-    var box = form.parentNode.querySelector(".rulebox");
-    if(!box){ box = document.createElement("div"); box.className = "rulebox"; form.parentNode.insertBefore(box, form); }
+    var painel = $("#painelDia"); if(!painel) return;
+    var box = painel.querySelector(".rulebox");
+    if(!box){
+      box = document.createElement("div"); box.className = "rulebox";
+      box.style.marginBottom = "14px";
+      painel.insertBefore(box, painel.firstChild);
+    }
     var lt = minhasLeituras();
-    box.innerHTML = '<span class="ic">!</span><span class="tx">O locutor fala pela sua marca <b>' + lt +
-      ' vezes por dia</b> de evento. Você decide como usar: <b>um texto só, repetido ' + lt + ' vezes</b>, ' +
-      'ou <b>até ' + lt + ' textos diferentes</b>, uma leitura cada. ' +
-      'Escolha <b>o dia</b> em que ele deve anunciar. Se o texto for o mesmo em mais de um dia, ' +
-      'ligue <b>repetir em outros dias</b> e marque quais. ' +
-      'A <b>hora</b> é o momento do dia pra primeira leitura: se o seu recado não tem hora certa, ' +
-      'deixe vazio que ele anuncia quando der. A mensagem tem no máximo <b>200 caracteres</b>. ' +
-      'O saldo <b>renova todo dia</b>.</span>';
+    var digitaNome = !(PERM && PERM.leituras === 3); // quem tem 3 escolhe na lista
+
+    var t = 'O locutor fala pela sua marca <b>' + lt + ' vezes por dia</b> de evento. ' +
+            'Você decide como usar: <b>um texto só, repetido ' + lt + ' vezes</b> ao longo do dia, ' +
+            'ou <b>' + (lt > 2 ? 'até ' : '') + lt + ' textos diferentes</b>. ';
+
+    if(digitaNome){
+      t += 'Escreva sempre o <b>nome da marca do mesmo jeito</b>: é ele que separa os seus ' +
+           'recados dos das outras marcas. ';
+    }
+
+    t += 'Toque numa <b>vaga livre</b> do dia pra escrever. Ao pedir mais de uma vez, ' +
+         'você informa <b>o horário de cada leitura</b>; deixando em branco, o locutor fala quando der. ' +
+         'Cada recado tem no máximo <b>200 caracteres</b>, e o saldo <b>renova todo dia</b>.';
+
+    box.innerHTML = '<span class="ic">!</span><span class="tx">' + t + '</span>';
   }
 
   function mostrarAba(t){
