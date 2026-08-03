@@ -185,6 +185,99 @@
   .repetir[aria-pressed="true"] .tick{background:var(--lime);border-color:var(--lime)}
   .repetir:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
 
+  /* ---- painel do dia (perfil marca): as falas do locutor a vista ---- */
+  .pd-marca{display:flex;align-items:center;gap:10px;padding:11px 13px;margin-bottom:14px;
+    border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+  .pd-lb{font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-3);display:block}
+  .pd-nm{font-family:var(--display);font-weight:700;font-size:1.24rem;line-height:1.1}
+  .pd-tr{margin-left:auto;font-size:.72rem;color:var(--ink-3);background:none;border:0;
+    text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-family:inherit}
+  .pd-lbl{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-3);display:block;margin-bottom:9px}
+  .pd-fita{display:flex;gap:6px;margin-bottom:16px}
+  .pd-dia{flex:1;min-height:64px;border-radius:11px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink-2);padding:8px 4px;cursor:pointer;font-family:inherit;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    transition:background .15s,border-color .15s,color .15s}
+  .pd-dia .sem{font-family:var(--mono);font-size:.53rem;letter-spacing:.08em;text-transform:uppercase}
+  .pd-dia .num{font-family:var(--display);font-weight:800;font-size:1.12rem;line-height:1}
+  .pd-dia .pts{display:flex;gap:3px;margin-top:1px}
+  .pd-dia .pts i{width:5px;height:5px;border-radius:50%;background:var(--raise)}
+  .pd-dia .pts i.on{background:var(--lime)}
+  .pd-dia[aria-pressed="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .pd-dia[aria-pressed="true"] .pts i{background:rgba(11,12,10,.28)}
+  .pd-dia[aria-pressed="true"] .pts i.on{background:var(--lime-ink)}
+  .pd-dia.cheio:not([aria-pressed="true"]){border-color:color-mix(in srgb,var(--amber) 42%,var(--line))}
+  .pd-dia:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .pd-dhd{display:flex;align-items:baseline;gap:9px;margin-bottom:10px}
+  .pd-tt{font-family:var(--display);font-weight:800;font-size:1.36rem;line-height:1}
+  .pd-sd{margin-left:auto;font-family:var(--mono);font-size:.66rem;color:var(--ink-3);
+    font-variant-numeric:tabular-nums}
+  .pd-sd b{color:var(--lime)}
+  .pd-sd.esgotado b{color:var(--amber)}
+  .pd-falas{display:flex;flex-direction:column;gap:8px}
+  .pd-fala{border-radius:12px;border:1px solid var(--line);background:var(--panel);
+    padding:12px 13px;display:flex;gap:11px;align-items:flex-start;text-align:left;width:100%}
+  .pd-fala .ord{font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;color:var(--ink-3);
+    flex:0 0 auto;padding-top:2px;width:22px}
+  .pd-fala .mid{flex:1;min-width:0}
+  .pd-fala .tx{font-size:.87rem;line-height:1.42;color:var(--ink);overflow-wrap:anywhere;display:block}
+  .pd-fala .mt{font-family:var(--mono);font-size:.58rem;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--ink-3);margin-top:5px;display:flex;gap:9px;flex-wrap:wrap}
+  .pd-fala .mt .rp{color:var(--amber)}
+  .pd-fala .x{flex:0 0 auto;width:26px;height:26px;border-radius:7px;border:1px solid var(--line);
+    background:none;color:var(--ink-3);font-size:.85rem;line-height:1;cursor:pointer;font-family:inherit;
+    display:flex;align-items:center;justify-content:center}
+  .pd-fala .x:hover{border-color:var(--red);color:var(--red)}
+  .pd-vaga{border-style:dashed;background:none;color:var(--ink-3);align-items:center;min-height:52px;
+    cursor:pointer;font-family:inherit;transition:border-color .15s,color .15s}
+  .pd-vaga .tx{color:var(--ink-3);font-size:.85rem}
+  .pd-vaga:hover{border-color:var(--lime);color:var(--lime)}
+  .pd-vaga:hover .tx{color:var(--lime)}
+  .pd-vaga .mais{font-size:1.05rem;color:var(--lime);flex:0 0 auto}
+  .pd-eco{background:var(--panel-2);border-style:dotted}
+  .pd-eco .tx{color:var(--ink-3);font-size:.8rem;font-style:italic}
+  .pd-comp{margin-top:8px;border-radius:12px;border:1px solid var(--lime);background:var(--panel);
+    padding:13px;display:flex;flex-direction:column;gap:11px}
+  .pd-comp textarea{width:100%;min-height:74px;resize:vertical;font-family:inherit;font-size:16px;
+    line-height:1.42;padding:10px 11px;border-radius:9px;background:var(--bg);
+    border:1px solid var(--line);color:var(--ink)}
+  .pd-comp textarea:focus{outline:none;border-color:var(--lime)}
+  .pd-cc{font-family:var(--mono);font-size:.58rem;color:var(--ink-3);text-align:right;margin-top:-6px}
+  .pd-cc.warn{color:var(--amber)}
+  .pd-lin2{display:flex;gap:9px;flex-wrap:wrap}
+  .pd-lin2 .f{flex:1 1 132px;min-width:0}
+  .pd-comp input{width:100%;font-family:inherit;font-size:16px;padding:9px 11px;border-radius:9px;
+    background:var(--bg);border:1px solid var(--line);color:var(--ink)}
+  .pd-comp input:focus{outline:none;border-color:var(--lime)}
+  .pd-rep{display:flex;gap:6px}
+  .pd-rep button{flex:1;min-height:40px;border-radius:9px;border:1px solid var(--line);
+    background:var(--bg);color:var(--ink-2);font-size:.8rem;font-weight:650;cursor:pointer;font-family:inherit}
+  .pd-rep button[aria-pressed="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .pd-rep button[disabled]{opacity:.3;cursor:not-allowed}
+  .pd-acoes{display:flex;gap:8px}
+  .pd-ok{flex:1;min-height:44px;border-radius:10px;border:0;background:var(--lime);
+    color:var(--lime-ink);font-weight:750;font-size:.9rem;cursor:pointer;font-family:inherit}
+  .pd-ok[disabled]{opacity:.4;cursor:not-allowed}
+  .pd-no{min-height:44px;padding:0 15px;border-radius:10px;border:1px solid var(--line);
+    background:none;color:var(--ink-2);font-size:.85rem;cursor:pointer;font-family:inherit}
+  .pd-cheio{margin-top:8px;padding:11px 13px;border-radius:11px;font-size:.8rem;line-height:1.5;
+    background:color-mix(in srgb,var(--amber) 9%,transparent);
+    border:1px solid color-mix(in srgb,var(--amber) 30%,transparent);color:var(--ink-2)}
+  .pd-cheio b{color:var(--amber)}
+
+  /* ---- quantas vezes o locutor repete o recado (form antigo) ---- */
+  .vezesbox{display:flex;gap:8px;flex-wrap:wrap}
+  .vezchip{flex:1 1 0;min-width:80px;min-height:46px;display:flex;align-items:center;justify-content:center;gap:7px;
+    padding:10px 12px;border-radius:11px;cursor:pointer;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink-2);font-weight:700;font-size:.9rem;
+    transition:border-color .15s,background .15s,color .15s}
+  .vezchip:hover:not([disabled]){border-color:var(--ink-3)}
+  .vezchip[aria-pressed="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .vezchip[disabled]{opacity:.32;cursor:not-allowed}
+  .vezchip:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+
   /* ---- barra de dias da fila do locutor ---- */
   .diaslinha{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
   .diachip{flex:1 1 0;min-width:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
@@ -672,13 +765,50 @@
         <div class="count" id="countRec"></div>
         <div class="list" id="listRec"></div>
 
-        <div class="addwrap">
+        <!-- ===== PAINEL DO DIA (perfil marca) =====
+             Substitui o formulario solto: mostra as falas do locutor do dia
+             inteiro, cheias e vazias, pra marca ver o saldo sem precisar tentar. -->
+        <div class="addwrap" id="painelDia" hidden>
+          <div class="pd-marca">
+            <div class="pd-mk">
+              <span class="pd-lb">Sua marca</span>
+              <span class="pd-nm" id="pdNome">—</span>
+            </div>
+            <button class="pd-tr" type="button" id="pdTrocar">trocar</button>
+          </div>
+          <div class="fld" id="pdCampoMarca" hidden>
+            <label for="pdInput">Nome da sua marca</label>
+            <input id="pdInput" placeholder="Escreva o nome da marca" autocomplete="organization">
+            <span class="hint">Escreva sempre do mesmo jeito. É o nome que separa o seu saldo do das outras marcas.</span>
+          </div>
+          <div class="fld" id="pdCampoSelect" hidden>
+            <label for="pdSelect">Sua marca</label>
+            <select id="pdSelect"><option value="" disabled selected>Escolha a marca</option></select>
+          </div>
+
+          <div id="pdCorpo" hidden>
+            <span class="pd-lbl" id="pdFitaLb">Dia do evento</span>
+            <div class="pd-fita" id="pdFita"></div>
+            <div class="pd-dhd">
+              <span class="pd-tt" id="pdTt"></span>
+              <span class="pd-sd" id="pdSd"></span>
+            </div>
+            <div class="pd-falas" id="pdFalas"></div>
+            <div id="pdComp"></div>
+          </div>
+        </div>
+
+        <div class="addwrap" id="wrapFormRec">
           <h3><span class="bar"></span> Novo recado da marca</h3>
           <form id="formRec" class="addgrid recado">
             <div class="fld"><label>Marca</label><input id="r_marca" placeholder="Nome da marca" required></div>
             <div class="fld"><label>Mensagem</label><textarea id="r_msg" maxlength="200" placeholder="O que o locutor vai anunciar" required></textarea><span class="ccount" id="msgCount"></span></div>
             <div class="fld" style="grid-column:1/-1"><label id="r_diasLabel">Vai ao ar no dia</label>
               <div class="diasbox" id="r_dias"></div>
+            </div>
+            <div class="fld" style="grid-column:1/-1"><label>Quantas vezes o locutor fala esse recado</label>
+              <div class="vezesbox" id="r_vezes"></div>
+              <span class="hint" id="r_vezesHint"></span>
             </div>
             <div class="fld"><label>Anunciar às</label><input id="r_hora" type="time"><span class="hint">Vazio = a qualquer hora</span></div>
             <div class="fld"><label>Responsável</label><input id="r_resp" placeholder="Quem enviou"></div>
@@ -743,7 +873,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-01.1";
+  var VERSAO = "2026-08-03.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -767,11 +897,20 @@
   // Assim ninguem ganha poder editando dado, so a producao mudando o perfil de alguem.
   // "interno" e o mural de comunicacao interna do time fixo (producao e comunicacao).
   // Credenciado e marca nao enxergam: a marca e quem manda a demanda, nao quem le a fila dela.
+  //
+  // LEITURAS: quantas vezes o locutor fala pra aquela marca POR DIA de evento.
+  // Regra confirmada pela produção: no máximo 3 vezes pra montadora/patrocinador
+  // master e 2 pras demais, podendo ser o mesmo texto repetido ou textos diferentes.
+  // Os dois perfis de marca tem o MESMO rotulo de proposito: o rotulo aparece na
+  // tela de quem entra, entao "Marca" nos dois nao denuncia quem tem 3 e quem tem 2.
   var PERFIS = {
-    producao:    { rotulo:"Produção",    mural:"gerenciar", fila:"gerenciar", envia:true,  admin:true,  interno:"gerenciar" },
-    locutor:     { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:true,  admin:false, interno:"nenhum"    },
-    credenciado: { rotulo:"Credenciado", mural:"ver",       fila:"nenhum",    envia:false, admin:false, interno:"nenhum"    },
-    marca:       { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum"    }
+    producao:      { rotulo:"Produção",    mural:"gerenciar", fila:"gerenciar", envia:true,  admin:true,  interno:"gerenciar" },
+    locutor:       { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:true,  admin:false, interno:"nenhum"    },
+    credenciado:   { rotulo:"Credenciado", mural:"ver",       fila:"nenhum",    envia:false, admin:false, interno:"nenhum"    },
+    marca_largada: { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum", leituras:3 },
+    marca_bandeira:{ rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum", leituras:2 },
+    // perfil antigo: quem ja recebeu "recados2026" continua entrando, no nivel menor
+    marca:         { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum", leituras:2 }
   };
   // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com a base de
   // acessos vazia, offline ou apagada por engano. Impede ficar trancado para fora.
@@ -779,9 +918,12 @@
     { nome:"Produção",              senha:"producao2026",   perfil:"producao"    },
     { nome:"Locutor",               senha:"locutor2026",    perfil:"locutor"     },
     { nome:"Credenciados e imprensa", senha:"interlagos2026", perfil:"credenciado" },
-    { nome:"Marcas",                senha:"recados2026",    perfil:"marca"       }
+    { nome:"Marca",                 senha:"largada2026",    perfil:"marca_largada"  },
+    { nome:"Marca",                 senha:"bandeira2026",   perfil:"marca_bandeira" },
+    { nome:"Marca",                 senha:"recados2026",    perfil:"marca"          }
   ];
-  var LIMITE_POR_DIA = 1; // recados que cada marca pode enviar POR DIA do evento (renova a cada dia)
+  // Leituras que o login atual tem por dia de evento. Producao e locutor nao tem teto.
+  function minhasLeituras(){ return (PERM && PERM.leituras) || 2; }
 
   // ==== BASE COMPARTILHADA (Firebase) ====
   // Cole aqui a config do seu projeto Firebase:
@@ -1111,6 +1253,10 @@
   $("#logout").addEventListener("click",function(){
     localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
     localStorage.removeItem("fi_nome"); localStorage.removeItem("fi_acesso");
+    // aparelho da producao costuma passar de mao em mao: a marca e o contato
+    // do anterior nao podem ficar guardados pro proximo que entrar
+    localStorage.removeItem("fi_marca");
+    localStorage.removeItem("fi_resp"); localStorage.removeItem("fi_wpp");
     location.reload();
   });
 
@@ -1209,10 +1355,20 @@
 
     inp.parentNode.replaceChild(sel, inp);
     sel.parentNode.appendChild(outra);
+
+    // selo do nivel: mostra quantos recados por dia a marca escolhida tem
+    var selo = document.createElement("span");
+    selo.id = "r_nivelMarca"; selo.className = "hint"; selo.hidden = true;
+    sel.parentNode.appendChild(selo);
     sel.addEventListener("change", function(){
       var ehOutra = sel.value === "__outra__";
       outra.hidden = !ehOutra;
       if(ehOutra) outra.focus(); else outra.value = "";
+      // saldo e por marca: trocou a marca, recarrega quantas leituras ela ja gastou
+      if(typeof carregarSaldo === "function") carregarSaldo(marcaEscolhida());
+    });
+    outra.addEventListener("change", function(){
+      if(typeof carregarSaldo === "function") carregarSaldo(marcaEscolhida());
     });
 
     aplicarOpcaoOutra(comOutra);
@@ -1241,16 +1397,20 @@
   }
 
   function montarAvisoRegras(){
-    if(jaMontado.regras) return; jaMontado.regras = true;
     var form = $("#formRec"); if(!form) return;
-    var box = document.createElement("div"); box.className = "rulebox";
-    box.innerHTML = '<span class="ic">!</span><span class="tx">Cada marca pode enviar <b>1 recado por dia</b> de evento, ' +
-      'e esse mesmo recado <b>vai ao ar 3 vezes ao longo do dia</b> na voz do locutor. ' +
+    // o texto depende do login, e o login so e conhecido depois de entrar:
+    // por isso o aviso e REESCRITO a cada chamada, em vez de montado uma vez so
+    var box = form.parentNode.querySelector(".rulebox");
+    if(!box){ box = document.createElement("div"); box.className = "rulebox"; form.parentNode.insertBefore(box, form); }
+    var lt = minhasLeituras();
+    box.innerHTML = '<span class="ic">!</span><span class="tx">O locutor fala pela sua marca <b>' + lt +
+      ' vezes por dia</b> de evento. Você decide como usar: <b>um texto só, repetido ' + lt + ' vezes</b>, ' +
+      'ou <b>até ' + lt + ' textos diferentes</b>, uma leitura cada. ' +
       'Escolha <b>o dia</b> em que ele deve anunciar. Se o texto for o mesmo em mais de um dia, ' +
       'ligue <b>repetir em outros dias</b> e marque quais. ' +
       'A <b>hora</b> é o momento do dia pra primeira leitura: se o seu recado não tem hora certa, ' +
-      'deixe vazio que ele anuncia quando der. A mensagem tem no máximo <b>200 caracteres</b>.</span>';
-    form.parentNode.insertBefore(box, form);
+      'deixe vazio que ele anuncia quando der. A mensagem tem no máximo <b>200 caracteres</b>. ' +
+      'O saldo <b>renova todo dia</b>.</span>';
   }
 
   function mostrarAba(t){
@@ -1296,16 +1456,22 @@
     var wrapRec = $("#formRec") ? $("#formRec").parentNode : null;
     if(wrapRec) wrapRec.hidden = !podeEnviar();
 
+    // Estado base da aba de recados. Sem isso, sair de um login de marca e
+    // entrar como producao na MESMA pagina deixaria o painel da marca na tela.
+    $("#painelDia").hidden = true;
+    $("#wrapFormRec").hidden = !podeEnviar();
+    var abaRec = document.querySelector('.tab[data-tab="recados"]');
+    if(abaRec && abaRec.childNodes[0]){
+      abaRec.childNodes[0].textContent = soEnvia ? "Enviar recado " : "Recados pro locutor ";
+    }
+    $("#view-recados h1").textContent = soEnvia ? "Envie o recado da sua marca" : "Recados pro locutor";
+
     if(soEnvia){
-      $("#view-recados h1").textContent = "Envie o recado da sua marca";
-      $("#view-recados .desc").textContent = "Preencha e envie. O recado entra na hora na fila do locutor, na posição do dia e da hora que você marcar pra ele anunciar.";
-      var et = document.querySelector('.tab[data-tab="recados"]');
-      if(et && et.childNodes[0]) et.childNodes[0].textContent = "Enviar recado ";
-      montarSelectMarcas(false); // marca: lista fechada, e o que sustenta o limite
+      $("#view-recados .desc").textContent =
+        "Cada dia mostra as falas que o locutor faz pela sua marca. Toque numa vaga livre pra escrever.";
       montarAvisoRegras();
-      montarDiasForm();
-      $("#meusEnviosWrap").hidden = false;
-      renderMeusEnvios();
+      pdIniciar();                       // painel do dia no lugar do formulario solto
+      $("#meusEnviosWrap").hidden = true; // o painel ja mostra o que foi enviado
     } else if(podeVerFila()){
       $("#view-recados .desc").textContent = "O próximo a falar fica em destaque: é ler, tocar em ANUNCIEI e o seguinte assume o lugar. As abas mostram as rodadas (cada recado vai ao ar 3 vezes) e quem completa vai pra gaveta de anunciados lá embaixo.";
       sortRec = "prioridade";
@@ -1321,6 +1487,7 @@
     var ed = edicaoDaMarca(marcaEscolhida());
     if(ed && ed !== edicaoForm){ edicaoForm = ed; diasMarcados = {}; }
     montarDiasForm();
+    montarVezes();
   });
 
   // ---- MURAL render ----
@@ -2095,6 +2262,8 @@
     if(repetirDias) diasMarcados[d] = !diasMarcados[d];
     else { diasMarcados = {}; diasMarcados[d] = true; }
     montarDiasForm();
+    // saldo e por dia: mudou o dia, os chips de repeticao mudam junto
+    if(typeof montarVezes === "function") montarVezes();
   });
 
   function diasEscolhidos(){ return listaMarcados(); }
@@ -2116,6 +2285,363 @@
     // marca, responsavel e whatsapp ficam pro proximo envio
   }
 
+  // =========================================================================
+  // PAINEL DO DIA (perfil marca)
+  // O formulario antigo manda um recado e limpa: a marca nunca ve o que ja
+  // mandou nem quanto sobrou. Aqui o dia inteiro fica aberto, com as falas do
+  // locutor (3 ou 2, conforme o login) cheias ou vazias. O saldo vira a tela.
+  // =========================================================================
+  var pdMarca = "", pdDia = "", pdDados = {}, pdEscrevendo = false, pdVezes = 1, pdCarregando = false;
+
+  // nome digitado vira uma forma unica: "  honda   motos " e "Honda Motos" viram
+  // a mesma marca, senao cada jeito de escrever ganharia um saldo proprio.
+  function pdNormaliza(s){
+    s = String(s || "").replace(/\s+/g, " ").trim();
+    return s.replace(/\S+/g, function(p){
+      return p.length <= 2 ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+    });
+  }
+  function pdEdicao(){ return edicaoPorId(edicaoDaMarca(pdMarca) || edicaoCorrente().id) || EDICOES[0]; }
+  function pdUsadas(d){ return (pdDados[d] || []).reduce(function(s,r){ return s + (parseInt(r.vezes,10) || 1); }, 0); }
+  function pdLivres(d){ return Math.max(0, minhasLeituras() - pdUsadas(d)); }
+  function pdPlural(n){ return n === 1 ? "1 vez" : n + " vezes"; }
+
+  // busca na base os recados desta marca e agrupa por dia
+  function pdCarregar(){
+    pdDados = {};
+    if(!pdMarca){ pdPintar(); return; }
+    if(!FB_ON){ pdPintar(); return; }
+    pdCarregando = true; pdPintar();
+    db.collection("recados").where("marca","==",pdMarca).get().then(function(qs){
+      pdDados = {};
+      qs.forEach(function(doc){
+        var r = doc.data(); r.id = doc.id;
+        var k = r.data || ""; if(!k) return;
+        (pdDados[k] = pdDados[k] || []).push(r);
+      });
+      pdCarregando = false; pdPintar();
+    }).catch(function(){ pdCarregando = false; pdPintar(); });
+  }
+
+  function pdTrocarMarca(nome){
+    nome = pdNormaliza(nome);
+    if(!nome) return;
+    pdMarca = nome;
+    localStorage.setItem("fi_marca", nome);
+    var el = $("#pdNome"); if(el) el.textContent = nome;
+    var ed = pdEdicao();
+    if(ed.dias.indexOf(pdDia) < 0) pdDia = pdDiaSugerido(ed);
+    pdEscrevendo = false; pdVezes = 1;
+    $("#pdCampoMarca").hidden = true;
+    $("#pdCampoSelect").hidden = true;
+    $("#pdCorpo").hidden = false;
+    pdCarregar();
+  }
+
+  // abre no dia de hoje quando o evento ja comecou; senao, no primeiro dia
+  function pdDiaSugerido(ed){
+    var h = hojeISO();
+    return ed.dias.indexOf(h) >= 0 ? h : ed.dias[0];
+  }
+
+  function pdPedirMarca(){
+    pdMarca = "";
+    localStorage.removeItem("fi_marca");
+    $("#pdCorpo").hidden = true;
+    var livre = (PERM && PERM.leituras === 3) ? false : true; // 3 falas = lista fechada
+    $("#pdCampoSelect").hidden = livre;
+    $("#pdCampoMarca").hidden = !livre;
+    var el = $("#pdNome"); if(el) el.textContent = "—";
+    if(livre){ var i = $("#pdInput"); if(i){ i.value = ""; i.focus(); } }
+  }
+
+  function pdPintarFita(){
+    var box = $("#pdFita"); if(!box) return;
+    var ed = pdEdicao(), teto = minhasLeituras();
+    $("#pdFitaLb").textContent = "Dia do evento · " + ed.rotulo;
+    box.innerHTML = "";
+    ed.dias.forEach(function(iso){
+      var u = pdUsadas(iso), b = document.createElement("button");
+      b.type = "button"; b.className = "pd-dia" + (u >= teto ? " cheio" : "");
+      b.setAttribute("aria-pressed", String(iso === pdDia));
+      var d = new Date(iso + "T12:00:00");
+      var sem = isNaN(d) ? "" : ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d.getDay()];
+      var pts = "";
+      for(var i = 1; i <= teto; i++) pts += '<i class="' + (i <= u ? "on" : "") + '"></i>';
+      b.innerHTML = '<span class="sem">' + sem + '</span><span class="num">' +
+                    String(iso).split("-")[2] + '</span><span class="pts">' + pts + "</span>";
+      b.addEventListener("click", function(){
+        pdDia = iso; pdEscrevendo = false; pdVezes = 1; pdPintar();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function pdPintarFalas(){
+    var box = $("#pdFalas"); if(!box) return;
+    $("#pdTt").textContent = diaExtenso(pdDia);
+    var teto = minhasLeituras(), livre = pdLivres(pdDia), sd = $("#pdSd");
+    sd.className = "pd-sd" + (livre === 0 ? " esgotado" : "");
+    sd.innerHTML = pdCarregando ? "conferindo…"
+                 : (livre === 0 ? "<b>dia completo</b>" : "<b>" + livre + "</b> de " + teto + " livres");
+
+    box.innerHTML = "";
+    var lista = pdDados[pdDia] || [], ordem = 0;
+    lista.forEach(function(r){
+      var vz = parseInt(r.vezes,10) || 1;
+      for(var k = 0; k < vz; k++){
+        ordem++;
+        var el = document.createElement("div");
+        el.className = "pd-fala" + (k > 0 ? " pd-eco" : "");
+        var meta = k > 0
+          ? '<span class="rp">repetição</span>'
+          : (r.hora ? "às " + r.hora : "a qualquer hora") +
+            (vz > 1 ? ' <span class="rp">· fala ' + pdPlural(vz) + "</span>" : "") +
+            (r.status === "ok" ? ' <span class="rp">· já anunciado</span>' : "");
+        el.innerHTML = '<span class="ord">' + ordem + 'ª</span><span class="mid"><span class="tx">' +
+          (k > 0 ? "mesmo texto acima" : esc(r.msg || "")) + '</span><span class="mt">' + meta + "</span></span>";
+        if(k === 0 && r.id && r.status !== "ok"){
+          var x = document.createElement("button");
+          x.type = "button"; x.className = "x"; x.textContent = "✕";
+          x.setAttribute("aria-label", "Remover esse recado");
+          x.addEventListener("click", function(){
+            if(!confirm("Tirar esse recado da fila do locutor?")) return;
+            DBremove("recados", r.id);
+            var arr = pdDados[pdDia] || [];
+            pdDados[pdDia] = arr.filter(function(o){ return o.id !== r.id; });
+            pdEscrevendo = false; pdVezes = 1; pdPintar();
+            toast("Recado removido. A fala voltou pro seu saldo.");
+          });
+          el.appendChild(x);
+        }
+        box.appendChild(el);
+      }
+    });
+
+    if(livre > 0 && !pdEscrevendo && !pdCarregando){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "pd-fala pd-vaga";
+      var qual = ordem === 0 ? "primeiro" : ordem === 1 ? "segundo" : "terceiro";
+      b.innerHTML = '<span class="ord">' + (ordem + 1) + 'ª</span><span class="mid"><span class="tx">' +
+                    "Escrever o " + qual + ' recado do dia</span></span><span class="mais">+</span>';
+      b.addEventListener("click", function(){
+        pdEscrevendo = true; pdVezes = 1; pdPintar();
+        var t = $("#pdMsg"); if(t) t.focus();
+      });
+      box.appendChild(b);
+    }
+  }
+
+  function pdPintarComp(){
+    var box = $("#pdComp"); if(!box) return;
+    box.innerHTML = "";
+    var livre = pdLivres(pdDia), teto = minhasLeituras();
+
+    if(!pdEscrevendo){
+      if(livre === 0 && !pdCarregando){
+        var av = document.createElement("div");
+        av.className = "pd-cheio";
+        av.innerHTML = "As <b>" + teto + " falas</b> desse dia estão preenchidas. Pra trocar alguma coisa, " +
+                       "remova um recado no ✕ e escreva outro. <b>No dia seguinte o saldo renova.</b>";
+        box.appendChild(av);
+      }
+      return;
+    }
+
+    if(pdVezes > livre) pdVezes = Math.max(1, livre);
+    var reps = "";
+    for(var i = 1; i <= teto; i++){
+      reps += '<button type="button" data-v="' + i + '" aria-pressed="' + (i === pdVezes) + '"' +
+              (i > livre ? " disabled" : "") + ">" + pdPlural(i) + "</button>";
+    }
+    var c = document.createElement("div");
+    c.className = "pd-comp";
+    c.innerHTML =
+      '<div><span class="pd-lbl">O que o locutor vai falar</span>' +
+      '<textarea id="pdMsg" maxlength="200" placeholder="Escreva o recado da sua marca"></textarea>' +
+      '<div class="pd-cc" id="pdCc">0 / 200</div></div>' +
+      '<div class="pd-lin2">' +
+        '<div class="f"><span class="pd-lbl">Hora</span><input type="time" id="pdHora"></div>' +
+        '<div class="f"><span class="pd-lbl">Vai ao ar</span><div class="pd-rep" id="pdRep">' + reps + "</div></div>" +
+      "</div>" +
+      '<div class="pd-lin2"><div class="f"><span class="pd-lbl">Responsável</span>' +
+      '<input id="pdResp" placeholder="Quem enviou" autocomplete="name"></div>' +
+      '<div class="f"><span class="pd-lbl">WhatsApp</span>' +
+      '<input id="pdWpp" placeholder="(11) 90000-0000" autocomplete="tel"></div></div>' +
+      '<div class="pd-acoes"><button type="button" class="pd-ok" id="pdOk" disabled>Enviar pro locutor</button>' +
+      '<button type="button" class="pd-no" id="pdNo">Cancelar</button></div>';
+    box.appendChild(c);
+
+    // responsavel e whatsapp ficam guardados: a marca so digita uma vez
+    $("#pdResp").value = localStorage.getItem("fi_resp") || "";
+    $("#pdWpp").value  = localStorage.getItem("fi_wpp")  || "";
+
+    var ta = $("#pdMsg"), cc = $("#pdCc"), ok = $("#pdOk");
+    ta.addEventListener("input", function(){
+      var n = ta.value.length;
+      cc.textContent = n + " / 200";
+      cc.className = "pd-cc" + (n > 170 ? " warn" : "");
+      ok.disabled = !ta.value.trim();
+    });
+
+    $("#pdRep").addEventListener("click", function(e){
+      var b = e.target.closest("[data-v]"); if(!b || b.disabled) return;
+      pdVezes = parseInt(b.dataset.v, 10);
+      var guarda = { msg:ta.value, hora:$("#pdHora").value, resp:$("#pdResp").value, wpp:$("#pdWpp").value };
+      pdPintar();
+      var t2 = $("#pdMsg");
+      if(t2){
+        t2.value = guarda.msg; t2.dispatchEvent(new Event("input"));
+        $("#pdHora").value = guarda.hora; $("#pdResp").value = guarda.resp; $("#pdWpp").value = guarda.wpp;
+      }
+    });
+
+    $("#pdNo").addEventListener("click", function(){ pdEscrevendo = false; pdVezes = 1; pdPintar(); });
+
+    ok.addEventListener("click", function(){
+      var msg = ta.value.trim(); if(!msg) return;
+      if(travado("recado")) return;
+      var resp = $("#pdResp").value.trim(), wpp = $("#pdWpp").value.trim();
+      localStorage.setItem("fi_resp", resp); localStorage.setItem("fi_wpp", wpp);
+      var vz = Math.max(1, Math.min(pdVezes, pdLivres(pdDia)));
+
+      // confere o saldo na base antes de gravar: o mesmo login em outro
+      // aparelho pode ter gasto fala nesse meio tempo
+      function gravar(){
+        var rec = { status:"fila", marca:pdMarca, msg:msg, data:pdDia,
+                    hora:$("#pdHora").value, resp:resp, wpp:wpp, vezes:vz, ts:now() };
+        DBadd("recados", rec);
+        (pdDados[pdDia] = pdDados[pdDia] || []).push(rec);
+        pdEscrevendo = false; pdVezes = 1; pdPintar();
+        var s = pdLivres(pdDia);
+        toast(s > 0 ? "Enviado! Ainda cabem " + s + " fala(s) nesse dia."
+                    : "Enviado! Esse dia está completo.");
+        setTimeout(pdCarregar, 900); // pega o id de verdade que o banco deu
+      }
+
+      if(!FB_ON){ gravar(); return; }
+      ok.disabled = true;
+      db.collection("recados").where("marca","==",pdMarca).get().then(function(qs){
+        var usadas = 0;
+        qs.forEach(function(d){ var r = d.data(); if((r.data||"") === pdDia) usadas += (parseInt(r.vezes,10)||1); });
+        if(usadas + vz > minhasLeituras()){
+          pdCarregar();
+          toast("Esse dia já está sem espaço pra " + pdPlural(vz) + ". Confira o saldo.");
+          return;
+        }
+        gravar();
+      }).catch(function(){ gravar(); }); // se a conferencia falhar, nao trava o envio
+    });
+  }
+
+  function pdPintar(){ pdPintarFita(); pdPintarFalas(); pdPintarComp(); }
+
+  // liga os controles fixos do painel
+  (function(){
+    var tr = $("#pdTrocar"); if(tr) tr.addEventListener("click", pdPedirMarca);
+    var inp = $("#pdInput");
+    if(inp){
+      inp.addEventListener("keydown", function(e){
+        if(e.key === "Enter"){ e.preventDefault(); pdTrocarMarca(inp.value); }
+      });
+      inp.addEventListener("blur", function(){ if(inp.value.trim()) pdTrocarMarca(inp.value); });
+    }
+    var sl = $("#pdSelect");
+    if(sl) sl.addEventListener("change", function(){ if(sl.value) pdTrocarMarca(sl.value); });
+  })();
+
+  // monta a lista fechada do painel (so pra quem tem 3 falas)
+  function pdMontarSelect(){
+    var sl = $("#pdSelect"); if(!sl || sl.dataset.pronto) return;
+    sl.dataset.pronto = "1";
+    function grp(label, arr){
+      var g = document.createElement("optgroup"); g.label = label;
+      arr.forEach(function(m){ var o = document.createElement("option"); o.value = m; o.textContent = m; g.appendChild(o); });
+      return g;
+    }
+    sl.appendChild(grp("Edição Moto", MARCAS_MOTO));
+    sl.appendChild(grp("Edição Auto", MARCAS_AUTO));
+    sl.appendChild(grp("Patrocinadores", MARCAS_OUTRAS));
+  }
+
+  // ponto de entrada, chamado por aplicarInterface quando o perfil e marca
+  function pdIniciar(){
+    $("#painelDia").hidden = false;
+    $("#wrapFormRec").hidden = true;      // o formulario antigo sai de cena
+    pdMontarSelect();
+    var salva = localStorage.getItem("fi_marca");
+    pdDia = pdDia || pdDiaSugerido(EDICOES[0]);
+    if(salva){ pdTrocarMarca(salva); } else { pdPedirMarca(); }
+  }
+
+  // ==== SALDO DE LEITURAS (marca x dia) ====
+  // Guarda quantas leituras cada dia ja consumiu, pra desenhar os chips e barrar
+  // o envio. Uma leitura = uma vez que o locutor fala. O teto vem do login.
+  var saldoDias = {};   // { "2026-08-14": 2, ... }  leituras JA usadas
+  var vezesEscolhidas = 1;
+
+  function usadasNoDia(d){ return saldoDias[d] || 0; }
+  function tetoDoDia(d){ return Math.max(0, minhasLeituras() - usadasNoDia(d)); }
+  // com varios dias marcados, manda o dia mais apertado
+  function tetoAtual(){
+    var ds = (typeof diasEscolhidos === "function") ? diasEscolhidos() : [];
+    if(!ds.length) return minhasLeituras();
+    return ds.reduce(function(min,d){ return Math.min(min, tetoDoDia(d)); }, 99);
+  }
+
+  function montarVezes(){
+    var box = $("#r_vezes"), hint = $("#r_vezesHint");
+    if(!box) return;
+    // producao e locutor lancam sem teto: campo some
+    var wrap = box.closest(".fld");
+    if(podeVerFila()){ if(wrap) wrap.hidden = true; return; }
+    if(wrap) wrap.hidden = false;
+
+    var max = minhasLeituras(), livre = tetoAtual();
+    if(vezesEscolhidas > livre) vezesEscolhidas = Math.max(1, livre);
+
+    box.innerHTML = "";
+    for(var i=1; i<=max; i++){
+      (function(n){
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "vezchip";
+        b.textContent = n === 1 ? "1 vez" : n + " vezes";
+        b.setAttribute("aria-pressed", String(n === vezesEscolhidas));
+        if(n > livre) b.disabled = true;
+        b.addEventListener("click", function(){ vezesEscolhidas = n; montarVezes(); });
+        box.appendChild(b);
+      })(i);
+    }
+    if(hint){
+      var ds = (typeof diasEscolhidos === "function") ? diasEscolhidos() : [];
+      if(!ds.length){
+        hint.textContent = "Você tem " + max + " leituras por dia de evento.";
+      } else if(livre <= 0){
+        hint.innerHTML = '<b style="color:var(--red)">Sem leitura sobrando nesse dia.</b> Amanhã renova.';
+      } else {
+        var usadas = max - livre;
+        hint.innerHTML = usadas > 0
+          ? 'Restam <b style="color:var(--lime)">' + livre + ' de ' + max + '</b> leituras nesse dia.'
+          : 'Você tem <b style="color:var(--lime)">' + max + '</b> leituras nesse dia. Pode usar tudo num texto só ou dividir em textos diferentes.';
+      }
+    }
+  }
+
+  // le da base quantas leituras a marca ja gastou em cada dia
+  function carregarSaldo(m, quando){
+    if(!FB_ON || !m){ saldoDias = {}; montarVezes(); if(quando) quando(); return; }
+    db.collection("recados").where("marca","==",m).get().then(function(qs){
+      saldoDias = {};
+      qs.forEach(function(doc){
+        var r = doc.data(), k = r.data || "";
+        if(!k) return;
+        saldoDias[k] = (saldoDias[k] || 0) + (parseInt(r.vezes,10) || 1);
+      });
+      montarVezes();
+      if(quando) quando();
+    }).catch(function(){ saldoDias = {}; montarVezes(); if(quando) quando(); });
+  }
+
   $("#formRec").addEventListener("submit",function(e){
     e.preventDefault();
     var m=marcaEscolhida(), msg=$("#r_msg").value.trim(), hora=$("#r_hora").value; if(!m||!msg)return;
@@ -2124,7 +2650,8 @@
     if(!podeEnviar()){ toast("Seu acesso não permite enviar recado."); return; } // dupla checagem
     if(travado("recado")) return;
     var resp=$("#r_resp").value.trim(), wpp=$("#r_wpp").value.trim();
-    function novo(d){ return {status:"fila",marca:m,msg:msg,data:d,hora:hora,resp:resp,wpp:wpp,ts:now()}; }
+    var vezes = podeVerFila() ? 1 : Math.max(1, vezesEscolhidas);
+    function novo(d){ return {status:"fila",marca:m,msg:msg,data:d,hora:hora,resp:resp,wpp:wpp,vezes:vezes,ts:now()}; }
 
     // quem tambem enxerga a fila (producao/locutor) lanca direto, sem limite diario
     if(podeVerFila()){
@@ -2138,26 +2665,42 @@
     function concluir(liberados, bloqueados){
       liberados.forEach(function(d){ DBadd("recados", novo(d)); });
       var me=getMeusEnvios();
-      liberados.forEach(function(d){ me.push({marca:m,msg:msg,data:d,hora:hora,ts:now()}); });
+      liberados.forEach(function(d){ me.push({marca:m,msg:msg,data:d,hora:hora,vezes:vezes,ts:now()}); });
       if(me.length>30) me=me.slice(-30);
       localStorage.setItem("fi_meus_envios",JSON.stringify(me));
       renderMeusEnvios();
+      // o saldo do dia ja conta o que acabou de entrar
+      liberados.forEach(function(d){ saldoDias[d] = (saldoDias[d]||0) + vezes; });
+      vezesEscolhidas = 1;
       limparEnvio(liberados);
+      montarVezes();
+      var quantas = vezes===1 ? "1 leitura" : vezes+" leituras";
       var t = liberados.length===1
-        ? "Recado enviado pro dia "+fmtData(liberados[0])+"!"
-        : "Recado enviado pra "+liberados.length+" dias!";
-      if(bloqueados.length) t += " Dia "+bloqueados.map(fmtData).join(", ")+" já tinha recado, ficou de fora.";
+        ? "Recado enviado pro dia "+fmtData(liberados[0])+" ("+quantas+")!"
+        : "Recado enviado pra "+liberados.length+" dias ("+quantas+" em cada)!";
+      if(bloqueados.length) t += " Dia "+bloqueados.map(fmtData).join(", ")+" não tinha leitura sobrando, ficou de fora.";
       toast(t);
     }
 
-    // limite: 1 recado por marca POR DIA do evento, conferido na base (nao depende do aparelho)
+    // limite POR DIA em LEITURAS (3 ou 2 conforme o login), conferido na base
+    // pra nao depender do aparelho: o mesmo login em outro celular ve o mesmo saldo
     if(FB_ON){
       db.collection("recados").where("marca","==",m).get().then(function(qs){
-        var porDia={}; qs.forEach(function(d){ var k=d.data().data||""; porDia[k]=(porDia[k]||0)+1; });
+        var usadas={};
+        qs.forEach(function(doc){
+          var r=doc.data(), k=r.data||"";
+          if(k) usadas[k] = (usadas[k]||0) + (parseInt(r.vezes,10)||1);
+        });
+        saldoDias = usadas;
+        var teto = minhasLeituras();
         var lib=[], blo=[];
-        dias.forEach(function(d){ if((porDia[d]||0)>=LIMITE_POR_DIA) blo.push(d); else lib.push(d); });
+        dias.forEach(function(d){ if((usadas[d]||0) + vezes > teto) blo.push(d); else lib.push(d); });
         if(!lib.length){
-          toast("A "+m+" já tem o recado desses dias. Escolha outros.");
+          var d0 = dias[0], resta = Math.max(0, teto - (usadas[d0]||0));
+          montarVezes();
+          toast(resta > 0
+            ? "A "+m+" só tem "+resta+" leitura(s) sobrando no dia "+fmtData(d0)+". Diminua as vezes."
+            : "A "+m+" já usou as "+teto+" leituras do dia "+fmtData(d0)+". Amanhã renova.");
           return;
         }
         concluir(lib, blo);
