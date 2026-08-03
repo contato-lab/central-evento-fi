@@ -860,7 +860,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-03.7";
+  var VERSAO = "2026-08-03.8";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1405,22 +1405,12 @@
       painel.insertBefore(box, painel.firstChild);
     }
     var lt = minhasLeituras();
-    var digitaNome = !(PERM && PERM.leituras === 3); // quem tem 3 escolhe na lista
 
-    var t = 'O locutor fala pela sua marca <b>' + lt + ' vezes por dia</b> de evento. ' +
-            'Você decide como usar: <b>um texto só, repetido ' + lt + ' vezes</b> ao longo do dia, ' +
-            'ou <b>' + (lt > 2 ? 'até ' : '') + lt + ' textos diferentes</b>. ';
-
-    if(digitaNome){
-      t += 'Escreva sempre o <b>nome da marca do mesmo jeito</b>: é ele que separa os seus ' +
-           'recados dos das outras marcas. ';
-    }
-
-    t += 'Toque numa <b>vaga livre</b> do dia pra escrever. Ao pedir mais de uma vez, ' +
-         'você informa <b>o horário de cada leitura</b>; deixando em branco, o locutor fala quando der. ' +
-         'Cada recado tem no máximo <b>200 caracteres</b>, e o saldo <b>renova todo dia</b>.';
-
-    box.innerHTML = '<span class="ic">!</span><span class="tx">' + t + '</span>';
+    // Curto de proposito. Cada coisa aparece UMA vez, no lugar onde e usada:
+    // "toque numa vaga" ja esta na descricao do topo, e o aviso do nome da
+    // marca esta na dica do proprio campo. Aqui fica so a regra do saldo.
+    box.innerHTML = '<span class="ic">!</span><span class="tx"><b>' + lt +
+      ' falas por dia</b>, renovadas a cada dia. Até 200 caracteres por recado.</span>';
   }
 
   function mostrarAba(t){
