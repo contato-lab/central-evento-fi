@@ -251,6 +251,15 @@
   .pd-comp input{width:100%;font-family:inherit;font-size:16px;padding:9px 11px;border-radius:9px;
     background:var(--bg);border:1px solid var(--line);color:var(--ink)}
   .pd-comp input:focus{outline:none;border-color:var(--lime)}
+  /* uma linha por leitura: rotulo fixo a esquerda, campo de hora a direita */
+  .pd-horas{display:flex;flex-direction:column;gap:7px}
+  .pd-hlin{display:flex;align-items:center;gap:11px;padding:8px 11px;border-radius:10px;
+    background:var(--bg);border:1px solid var(--line)}
+  .pd-hlin .ord{font-family:var(--mono);font-size:.62rem;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-3);flex:0 0 82px}
+  .pd-hlin input{flex:1;background:none;border:0;padding:4px 0}
+  .pd-hlin input:focus{outline:none}
+  .pd-hlin:focus-within{border-color:var(--lime)}
   .pd-rep{display:flex;gap:6px}
   .pd-rep button{flex:1;min-height:40px;border-radius:9px;border:1px solid var(--line);
     background:var(--bg);color:var(--ink-2);font-size:.8rem;font-weight:650;cursor:pointer;font-family:inherit}
@@ -308,6 +317,9 @@
   /* de qual leitura se trata: so aparece quando a marca pediu repeticao */
   .qualLeitura{font-size:.6rem;letter-spacing:.1em;padding:2px 8px;border-radius:99px;
     background:rgba(166,236,77,.16);border:1px solid rgba(166,236,77,.4);color:var(--lime)}
+  /* mesma marca de leitura, na linha fina da fila */
+  .parteRot{font-family:var(--mono);font-size:.56rem;letter-spacing:.06em;padding:1px 6px;
+    border-radius:99px;background:rgba(166,236,77,.12);color:var(--lime);white-space:nowrap}
   .linhaA{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px}
   .horaA{font-family:var(--mono);font-size:.92rem;font-weight:700;color:var(--ink);
     background:var(--panel-2);border:1px solid var(--line-soft);padding:3px 10px;border-radius:7px;
@@ -863,7 +875,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-03.2";
+  var VERSAO = "2026-08-03.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1773,6 +1785,17 @@
 
   function hojeISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
+  // Selo "2ª de 2" no destaque. Sem ele o locutor ve o mesmo texto duas vezes
+  // na fila, em horarios diferentes, e acha que e engano.
+  // Vem de dois lugares: recado novo traz parte/partes (uma linha por leitura);
+  // recado antigo e um item so que vale N leituras, e ai o placar e que diz.
+  function seloLeitura(it, vz, alvo){
+    var p = parseInt(it && it.partes, 10);
+    if(p > 1) return ' <span class="qualLeitura">'+(parseInt(it.parte,10)||1)+'ª de '+p+'</span>';
+    if(alvo > 1) return ' <span class="qualLeitura">'+(vz+1)+'ª de '+alvo+'</span>';
+    return '';
+  }
+
   function pipsHtml(vz, alvo){ var t=alvo||MAX_VEZES, o=""; for(var p=0;p<t;p++){ o+='<span class="pip'+(p<vz?' on':'')+'"></span>'; } return o; }
 
   function cardEdicao(it){
@@ -1792,7 +1815,9 @@
     var vz = vezesDe(it), alvo = repeticoesDe(it), cheio = vz>=alvo;
     return '<div class="row'+(cheio?" pronto":"")+'" data-id="'+it.id+'">'+
       ((it.data||it.hora) ? '<span class="h">'+quandoDe(it)+'</span>' : '<span class="h vaga">S/H</span>')+
-      '<span class="corpo"><span class="m">'+esc(it.marca)+'</span>'+
+      '<span class="corpo"><span class="m">'+esc(it.marca)+
+          (parseInt(it.partes,10)>1 ? ' <span class="parteRot">'+(parseInt(it.parte,10)||1)+'ª de '+it.partes+'</span>' : '')+
+        '</span>'+
         '<span class="t">'+esc(it.msg)+'</span></span>'+
       '<span class="pips">'+pipsHtml(vz, alvo)+'</span>'+
       (gerencia ? (
@@ -1921,9 +1946,7 @@
       } else {
         var wl = p.wpp? '<a href="https://wa.me/55'+String(p.wpp).replace(/\D/g,'')+'" target="_blank" rel="noopener">'+esc(p.wpp)+'</a>':'';
         out += '<div class="agora" data-id="'+p.id+'">'+
-          '<div class="eyebrow">Próximo a falar'+
-            (alvop>1 ? ' <span class="qualLeitura">'+(vzp+1)+'ª de '+alvop+'</span>' : '')+
-          '</div>'+
+          '<div class="eyebrow">Próximo a falar'+ seloLeitura(p, vzp, alvop) +'</div>'+
           '<div class="linhaA">'+
             ((p.data||p.hora) ? '<span class="horaA">'+quandoDe(p)+'</span>' : '<span class="semhora">Qualquer hora</span>')+
             '<span class="marcaA">'+esc(p.marca)+'</span>'+
@@ -1931,7 +1954,12 @@
           '<p class="msgA">'+esc(p.msg)+'</p>'+
           ((p.resp||wl) ? '<p class="quemA">'+(p.resp?'👤 '+esc(p.resp):'')+(p.resp&&wl?' · ':'')+(wl?'💬 '+wl:'')+'</p>' : '')+
           (gerencia ?
-            '<button class="btnar" data-act="anunciei"><span class="pips">'+pipsHtml(vzp, alvop)+'</span><span>Anunciei</span><span class="contA">'+vzp+'/'+alvop+'</span></button>'+
+            // leitura unica nao precisa de placar: "0/1" so polui o botao
+            '<button class="btnar" data-act="anunciei">'+
+              (alvop>1 ? '<span class="pips">'+pipsHtml(vzp, alvop)+'</span>' : '')+
+              '<span>Anunciei</span>'+
+              (alvop>1 ? '<span class="contA">'+vzp+'/'+alvop+'</span>' : '')+
+            '</button>'+
             '<div class="agacts">'+
               (vzp>0?'<button class="iconbtn" data-act="desfazer" title="Tirar uma marcação">↩</button>':'')+
               '<span class="espaco"></span>'+
@@ -2287,6 +2315,7 @@
   // locutor (3 ou 2, conforme o login) cheias ou vazias. O saldo vira a tela.
   // =========================================================================
   var pdMarca = "", pdDia = "", pdDados = {}, pdEscrevendo = false, pdVezes = 1, pdCarregando = false;
+  var pdHoras = [];   // uma hora por leitura pedida; vazia = a qualquer hora
 
   // nome digitado vira uma forma unica: "  honda   motos " e "Honda Motos" viram
   // a mesma marca, senao cada jeito de escrever ganharia um saldo proprio.
@@ -2381,34 +2410,47 @@
                  : (livre === 0 ? "<b>dia completo</b>" : "<b>" + livre + "</b> de " + teto + " livres");
 
     box.innerHTML = "";
-    var lista = pdDados[pdDia] || [], ordem = 0;
+    // as falas aparecem na ordem em que vao ao ar: por hora, e quem nao marcou
+    // hora fica no fim. E a mesma ordem que o locutor ve do lado dele.
+    var lista = (pdDados[pdDia] || []).slice().sort(function(a,b){
+      var ha = a.hora || "~", hb = b.hora || "~";
+      if(ha !== hb) return ha < hb ? -1 : 1;
+      return (a.ts||0) - (b.ts||0);
+    });
+    var ordem = 0, jaVisto = {};
     lista.forEach(function(r){
-      var vz = repeticoesDe(r) || 1;
+      var vz = repeticoesDe(r) || 1;   // recado antigo ainda vale 3 leituras num item so
       for(var k = 0; k < vz; k++){
         ordem++;
+        // 2a linha do mesmo texto: mostra so a hora dela, sem repetir o texto inteiro
+        var irma = r.grupo && jaVisto[r.grupo];
         var el = document.createElement("div");
-        el.className = "pd-fala" + (k > 0 ? " pd-eco" : "");
+        el.className = "pd-fala" + ((k > 0 || irma) ? " pd-eco" : "");
+        var quando = r.hora ? "às " + r.hora : "a qualquer hora";
         var meta = k > 0
           ? '<span class="rp">repetição</span>'
-          : (r.hora ? "às " + r.hora : "a qualquer hora") +
+          : quando +
+            (r.partes > 1 ? ' <span class="rp">· ' + r.parte + "ª de " + r.partes + "</span>" : "") +
             (vz > 1 ? ' <span class="rp">· fala ' + pdPlural(vz) + "</span>" : "") +
             (r.status === "ok" ? ' <span class="rp">· já anunciado</span>' : "");
         el.innerHTML = '<span class="ord">' + ordem + 'ª</span><span class="mid"><span class="tx">' +
-          (k > 0 ? "mesmo texto acima" : esc(r.msg || "")) + '</span><span class="mt">' + meta + "</span></span>";
+          ((k > 0) ? "mesmo texto acima" : (irma ? "mesmo texto, " + quando : esc(r.msg || ""))) +
+          '</span><span class="mt">' + meta + "</span></span>";
         if(k === 0 && r.id && r.status !== "ok"){
           var x = document.createElement("button");
           x.type = "button"; x.className = "x"; x.textContent = "✕";
-          x.setAttribute("aria-label", "Remover esse recado");
+          x.setAttribute("aria-label", "Remover essa fala");
           x.addEventListener("click", function(){
-            if(!confirm("Tirar esse recado da fila do locutor?")) return;
+            if(!confirm("Tirar essa fala da fila do locutor?")) return;
             DBremove("recados", r.id);
             var arr = pdDados[pdDia] || [];
             pdDados[pdDia] = arr.filter(function(o){ return o.id !== r.id; });
             pdEscrevendo = false; pdVezes = 1; pdPintar();
-            toast("Recado removido. A fala voltou pro seu saldo.");
+            toast("Fala removida. Ela voltou pro seu saldo.");
           });
           el.appendChild(x);
         }
+        if(r.grupo) jaVisto[r.grupo] = true;
         box.appendChild(el);
       }
     });
@@ -2455,10 +2497,8 @@
       '<div><span class="pd-lbl">O que o locutor vai falar</span>' +
       '<textarea id="pdMsg" maxlength="200" placeholder="Escreva o recado da sua marca"></textarea>' +
       '<div class="pd-cc" id="pdCc">0 / 200</div></div>' +
-      '<div class="pd-lin2">' +
-        '<div class="f"><span class="pd-lbl">Hora</span><input type="time" id="pdHora"></div>' +
-        '<div class="f"><span class="pd-lbl">Vai ao ar</span><div class="pd-rep" id="pdRep">' + reps + "</div></div>" +
-      "</div>" +
+      '<div><span class="pd-lbl">Vai ao ar</span><div class="pd-rep" id="pdRep">' + reps + "</div></div>" +
+      '<div id="pdHorasBox"></div>' +
       '<div class="pd-lin2"><div class="f"><span class="pd-lbl">Responsável</span>' +
       '<input id="pdResp" placeholder="Quem enviou" autocomplete="name"></div>' +
       '<div class="f"><span class="pd-lbl">WhatsApp</span>' +
@@ -2479,16 +2519,17 @@
       ok.disabled = !ta.value.trim();
     });
 
+    pdPintarHoras();
+
+    // trocar a quantidade so redesenha as horas: o texto e o contato ficam onde
+    // estao, sem aquele vai e volta de salvar e repor o que a pessoa ja digitou
     $("#pdRep").addEventListener("click", function(e){
       var b = e.target.closest("[data-v]"); if(!b || b.disabled) return;
       pdVezes = parseInt(b.dataset.v, 10);
-      var guarda = { msg:ta.value, hora:$("#pdHora").value, resp:$("#pdResp").value, wpp:$("#pdWpp").value };
-      pdPintar();
-      var t2 = $("#pdMsg");
-      if(t2){
-        t2.value = guarda.msg; t2.dispatchEvent(new Event("input"));
-        $("#pdHora").value = guarda.hora; $("#pdResp").value = guarda.resp; $("#pdWpp").value = guarda.wpp;
-      }
+      [].forEach.call($("#pdRep").children, function(x){
+        x.setAttribute("aria-pressed", String(parseInt(x.dataset.v,10) === pdVezes));
+      });
+      pdPintarHoras();
     });
 
     $("#pdNo").addEventListener("click", function(){ pdEscrevendo = false; pdVezes = 1; pdPintar(); });
@@ -2500,18 +2541,33 @@
       localStorage.setItem("fi_resp", resp); localStorage.setItem("fi_wpp", wpp);
       var vz = Math.max(1, Math.min(pdVezes, pdLivres(pdDia)));
 
+      var horas = pdHorasEscolhidas();
+
       // confere o saldo na base antes de gravar: o mesmo login em outro
       // aparelho pode ter gasto fala nesse meio tempo
       function gravar(){
-        var rec = { status:"fila", marca:pdMarca, msg:msg, data:pdDia,
-                    hora:$("#pdHora").value, resp:resp, wpp:wpp, repeticoes:vz, ts:now() };
-        DBadd("recados", rec);
-        (pdDados[pdDia] = pdDados[pdDia] || []).push(rec);
-        pdEscrevendo = false; pdVezes = 1; pdPintar();
+        // UMA LINHA POR LEITURA. Cada leitura tem hora propria, entao ela precisa
+        // ser um item proprio na fila do locutor: um item so nao saberia em que
+        // posicao ficar tendo dois horarios. "grupo" liga as irmas; parte/partes
+        // e o que faz o locutor ver "2a de 2" e nao achar que e texto repetido.
+        // numera pela ordem em que VAI AO AR, nao pela ordem dos campos: quem
+        // deixou a 2a sem hora veria "2a de 3" numa fala que sai por ultimo
+        var ordenadas = horas.slice(0, vz).sort(function(a,b){
+          return (a || "~") < (b || "~") ? -1 : (a || "~") > (b || "~") ? 1 : 0;
+        });
+        var grupo = uid(), t0 = now();
+        for(var i = 0; i < vz; i++){
+          var rec = { status:"fila", marca:pdMarca, msg:msg, data:pdDia,
+                      hora:ordenadas[i] || "", resp:resp, wpp:wpp,
+                      repeticoes:1, grupo:grupo, parte:i+1, partes:vz, ts:t0 + i };
+          DBadd("recados", rec);
+          (pdDados[pdDia] = pdDados[pdDia] || []).push(rec);
+        }
+        pdEscrevendo = false; pdVezes = 1; pdHoras = []; pdPintar();
         var s = pdLivres(pdDia);
         toast(s > 0 ? "Enviado! Ainda cabem " + s + " fala(s) nesse dia."
                     : "Enviado! Esse dia está completo.");
-        setTimeout(pdCarregar, 900); // pega o id de verdade que o banco deu
+        setTimeout(pdCarregar, 900); // pega os ids de verdade que o banco deu
       }
 
       if(!FB_ON){ gravar(); return; }
@@ -2527,6 +2583,41 @@
         gravar();
       }).catch(function(){ gravar(); }); // se a conferencia falhar, nao trava o envio
     });
+  }
+
+  // Um campo de hora POR LEITURA. Quem pede 2 vezes precisa dizer quando e a
+  // segunda, senao o locutor fica sem saber. Em branco = a qualquer hora.
+  function pdPintarHoras(){
+    var box = $("#pdHorasBox"); if(!box) return;
+    // guarda o que ja estava digitado antes de redesenhar
+    [].forEach.call(box.querySelectorAll("input[data-i]"), function(inp){
+      pdHoras[parseInt(inp.dataset.i,10)] = inp.value;
+    });
+    box.innerHTML = "";
+    if(pdVezes === 1){
+      box.innerHTML = '<div class="pd-lin2"><div class="f"><span class="pd-lbl">Hora</span>' +
+        '<input type="time" data-i="0" value="' + (pdHoras[0] || "") + '">' +
+        '<span class="hint">Vazio = a qualquer hora</span></div><div class="f"></div></div>';
+      return;
+    }
+    var ord = ["1ª leitura","2ª leitura","3ª leitura"];
+    var h = '<span class="pd-lbl">Horário de cada leitura</span><div class="pd-horas">';
+    for(var i = 0; i < pdVezes; i++){
+      h += '<label class="pd-hlin"><span class="ord">' + ord[i] + '</span>' +
+           '<input type="time" data-i="' + i + '" value="' + (pdHoras[i] || "") + '"></label>';
+    }
+    h += '</div><span class="hint">Pode deixar qualquer uma em branco: o locutor fala quando der.</span>';
+    box.innerHTML = h;
+  }
+
+  function pdHorasEscolhidas(){
+    var box = $("#pdHorasBox"), out = [];
+    if(!box) return out;
+    [].forEach.call(box.querySelectorAll("input[data-i]"), function(inp){
+      out[parseInt(inp.dataset.i,10)] = inp.value || "";
+    });
+    for(var i = 0; i < pdVezes; i++) if(!out[i]) out[i] = "";
+    return out.slice(0, pdVezes);
   }
 
   function pdPintar(){ pdPintarFita(); pdPintarFalas(); pdPintarComp(); }
