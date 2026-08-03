@@ -875,7 +875,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-03.4";
+  var VERSAO = "2026-08-03.5";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2837,8 +2837,58 @@
   // Ultima coisa do arquivo, de proposito: aqui tudo ja existe.
   // Se por qualquer motivo a sessao salva estiver estranha, cai na tela de senha
   // em vez de deixar a pessoa olhando pra uma tela vazia.
+  // Senha vinda no proprio link: central.festivalinterlagos.com.br/#largada2026
+  // Serve pra ninguem precisar digitar nada, e pra caber num QR code.
+  // Assim que entra, o endereco e limpo (replaceState) pra senha nao ficar
+  // exposta na barra do navegador nem no historico de quem pegar o aparelho.
+  // Isso NAO e login de verdade, e organizacao de acesso: quem tem o link tem
+  // o acesso, igualzinho a quem tem a senha.
+  function senhaDoLink(){
+    var h = (location.hash || "").replace(/^#/, "");
+    if(!h){
+      var m = (location.search || "").match(/[?&]s=([^&]+)/);
+      h = m ? m[1] : "";
+    }
+    try{ h = decodeURIComponent(h); }catch(e){}
+    return h.trim();
+  }
+  function limparEndereco(){
+    if(!history.replaceState) return;
+    try{ history.replaceState(null, "", location.pathname); }catch(e){}
+  }
+
+  // Trocar so o "#" NAO recarrega a pagina. Sem isso, quem ja esta logado e
+  // abre um link de outro acesso continuaria no acesso antigo, sem entender.
+  window.addEventListener("hashchange", function(){
+    var s = senhaDoLink(); if(!s) return;
+    var a = acharAcesso(s);
+    limparEndereco();
+    if(a && a.perfil !== localStorage.getItem("fi_perfil")){
+      // acesso diferente do atual: comeca sessao limpa, como se fosse outra pessoa
+      localStorage.removeItem("fi_marca");
+      localStorage.removeItem("fi_resp"); localStorage.removeItem("fi_wpp");
+      entrar(a);
+    }
+  });
+
   function iniciar(){
     try{
+      var sl = senhaDoLink();
+      if(sl){
+        var a = acharAcesso(sl);
+        limparEndereco();
+        if(a){ entrar(a); return; }
+        // a base de acessos pode nao ter carregado ainda: tenta de novo
+        if(FB_ON){
+          db.collection("acessos").get().then(function(snap){
+            var arr=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; arr.push(o); });
+            acessos = arr;
+            var b = acharAcesso(sl);
+            if(b) entrar(b); else setStatus();
+          }).catch(function(){ setStatus(); });
+          return;
+        }
+      }
       if(localStorage.getItem("fi_ok")==="1" && definirPerfil(localStorage.getItem("fi_perfil"))){
         openApp();
       } else {
