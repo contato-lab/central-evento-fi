@@ -257,9 +257,16 @@
     background:var(--bg);border:1px solid var(--line)}
   .pd-hlin .ord{font-family:var(--mono);font-size:.62rem;letter-spacing:.09em;text-transform:uppercase;
     color:var(--ink-3);flex:0 0 82px}
-  .pd-hlin input{flex:1;background:none;border:0;padding:4px 0}
+  .pd-hlin input{flex:1;min-width:0;background:none;border:0;padding:4px 0}
   .pd-hlin input:focus{outline:none}
   .pd-hlin:focus-within{border-color:var(--lime)}
+  /* volta pro "sem hora": o seletor nativo do celular nao tem como esvaziar */
+  .pd-semhora{flex:0 0 auto;background:none;border:1px solid var(--line);color:var(--ink-3);
+    font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;
+    padding:5px 9px;border-radius:99px;cursor:pointer}
+  .pd-semhora:hover{border-color:var(--amber);color:var(--amber)}
+  .pd-qq{flex:0 0 auto;font-family:var(--mono);font-size:.58rem;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ink-3)}
   .pd-rep{display:flex;gap:6px}
   .pd-rep button{flex:1;min-height:40px;border-radius:9px;border:1px solid var(--line);
     background:var(--bg);color:var(--ink-2);font-size:.8rem;font-weight:650;cursor:pointer;font-family:inherit}
@@ -769,7 +776,9 @@
           </div>
           <div class="fld" id="pdCampoMarca" hidden>
             <label for="pdInput">Nome da sua marca</label>
-            <input id="pdInput" placeholder="Escreva o nome da marca" autocomplete="organization">
+            <input id="pdInput" placeholder="Escreva o nome da marca" autocomplete="organization"
+                   enterkeyhint="go" autocapitalize="words">
+            <button type="button" class="pd-ok" id="pdConfirmaMarca" style="margin-top:9px">Continuar</button>
             <span class="hint">Escreva sempre do mesmo jeito. É o nome que separa o seu saldo do das outras marcas.</span>
           </div>
           <div class="fld" id="pdCampoSelect" hidden>
@@ -860,7 +869,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-03.8";
+  var VERSAO = "2026-08-03.9";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2576,21 +2585,50 @@
     [].forEach.call(box.querySelectorAll("input[data-i]"), function(inp){
       pdHoras[parseInt(inp.dataset.i,10)] = inp.value;
     });
+    // O campo de hora do celular nao tem como voltar pro vazio depois que a
+    // roleta abre: no iPhone a pessoa fica obrigada a escolher um horario.
+    // Por isso cada linha tem o proprio botao de limpar.
+    function linhaHora(i, rotulo){
+      var v = pdHoras[i] || "";
+      return '<div class="pd-hlin"><span class="ord">' + rotulo + '</span>' +
+        '<input type="time" data-i="' + i + '" value="' + v + '">' +
+        '<button type="button" class="pd-semhora" data-limpa="' + i + '"' +
+        (v ? '' : ' hidden') + '>limpar</button>' +
+        (v ? '' : '<span class="pd-qq">a qualquer hora</span>') +
+      '</div>';
+    }
+
     box.innerHTML = "";
+    var h, i;
     if(pdVezes === 1){
-      box.innerHTML = '<div class="pd-lin2"><div class="f"><span class="pd-lbl">Hora</span>' +
-        '<input type="time" data-i="0" value="' + (pdHoras[0] || "") + '">' +
-        '<span class="hint">Vazio = a qualquer hora</span></div><div class="f"></div></div>';
-      return;
+      h = '<span class="pd-lbl">Hora</span><div class="pd-horas">' + linhaHora(0, "Anunciar às") + '</div>';
+    } else {
+      var ord = ["1ª leitura","2ª leitura","3ª leitura"];
+      h = '<span class="pd-lbl">Horário de cada leitura</span><div class="pd-horas">';
+      for(i = 0; i < pdVezes; i++) h += linhaHora(i, ord[i]);
+      h += '</div>';
     }
-    var ord = ["1ª leitura","2ª leitura","3ª leitura"];
-    var h = '<span class="pd-lbl">Horário de cada leitura</span><div class="pd-horas">';
-    for(var i = 0; i < pdVezes; i++){
-      h += '<label class="pd-hlin"><span class="ord">' + ord[i] + '</span>' +
-           '<input type="time" data-i="' + i + '" value="' + (pdHoras[i] || "") + '"></label>';
-    }
-    h += '</div><span class="hint">Pode deixar qualquer uma em branco: o locutor fala quando der.</span>';
+    h += '<span class="hint">Sem horário, o locutor fala quando der.</span>';
     box.innerHTML = h;
+
+    // uma vez so: pdPintarHoras roda a cada mudanca e ficaria empilhando
+    // listener em cima de listener, fazendo um clique valer por varios
+    if(!box.dataset.ligado){
+      box.dataset.ligado = "1";
+      box.addEventListener("click", function(e){
+        var b = e.target.closest("[data-limpa]"); if(!b) return;
+        var i = parseInt(b.dataset.limpa, 10);
+        pdHoras[i] = "";
+        var inp = box.querySelector('input[data-i="' + i + '"]');
+        if(inp) inp.value = "";
+        pdPintarHoras();
+      });
+      box.addEventListener("change", function(e){
+        var inp = e.target.closest("input[data-i]"); if(!inp) return;
+        pdHoras[parseInt(inp.dataset.i,10)] = inp.value;
+        pdPintarHoras();
+      });
+    }
   }
 
   function pdHorasEscolhidas(){
@@ -2608,12 +2646,21 @@
   // liga os controles fixos do painel
   (function(){
     var tr = $("#pdTrocar"); if(tr) tr.addEventListener("click", pdPedirMarca);
-    var inp = $("#pdInput");
+    var inp = $("#pdInput"), okMarca = $("#pdConfirmaMarca");
     if(inp){
+      // No iPhone o "OK" do teclado so fecha o teclado e o foco continua no
+      // campo: o blur nunca dispara e a pessoa fica presa. Por isso existe um
+      // botao de verdade, que e o caminho garantido em qualquer aparelho.
+      function confirmarMarca(){
+        var v = inp.value.trim();
+        if(!v){ inp.focus(); return; }
+        pdTrocarMarca(v);
+      }
+      if(okMarca) okMarca.addEventListener("click", confirmarMarca);
       inp.addEventListener("keydown", function(e){
-        if(e.key === "Enter"){ e.preventDefault(); pdTrocarMarca(inp.value); }
+        if(e.key === "Enter"){ e.preventDefault(); confirmarMarca(); }
       });
-      inp.addEventListener("blur", function(){ if(inp.value.trim()) pdTrocarMarca(inp.value); });
+      inp.addEventListener("blur", function(){ if(inp.value.trim()) confirmarMarca(); });
     }
     var sl = $("#pdSelect");
     if(sl) sl.addEventListener("change", function(){ if(sl.value) pdTrocarMarca(sl.value); });
