@@ -97,8 +97,9 @@
   .top .bar{display:flex;align-items:center;gap:16px;height:74px}
   .top img.logo{height:48px;width:auto}
   .top .sep{width:1px;height:32px;background:var(--line)}
-  .top .appname{font-family:var(--display);font-weight:700;font-size:1.4rem;letter-spacing:.02em}
-  .top .appname span{color:var(--lime)}
+  /* a Lime entrou no lugar do nome do sistema, do lado do logo do festival */
+  .top img.logolime{height:40px;width:auto;display:block}
+  @media(max-width:420px){ .top img.logolime{height:32px} }
   .top .spacer{flex:1}
   .top .out{background:transparent;border:1px solid var(--line);color:var(--ink-2);border-radius:9px;
     padding:8px 12px;font-size:.78rem;font-weight:600}
@@ -650,7 +651,7 @@
       <div class="wrap bar">
         <img class="logo" src="logo.png" width="577" height="300" alt="Suhai Festival Interlagos">
         <div class="sep"></div>
-        <div class="appname">Central do <span>Evento</span></div>
+        <img class="logolime" src="logo-lime.png" width="763" height="703" alt="Lime">
         <div class="spacer"></div>
         <span class="quemsou" id="quemSou"></span>
         <span class="syncdot off" id="syncDot" title=""></span>
@@ -897,7 +898,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-04.1";
+  var VERSAO = "2026-08-04.2";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
