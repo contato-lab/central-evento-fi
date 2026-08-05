@@ -98,8 +98,8 @@
   .top img.logo{height:48px;width:auto}
   .top .sep{width:1px;height:32px;background:var(--line)}
   /* a Lime entrou no lugar do nome do sistema, do lado do logo do festival */
-  .top img.logolime{height:40px;width:auto;display:block}
-  @media(max-width:420px){ .top img.logolime{height:32px} }
+  .top img.logolime{height:54px;width:auto;display:block}
+  @media(max-width:420px){ .top img.logolime{height:42px} }
   .top .spacer{flex:1}
   .top .out{background:transparent;border:1px solid var(--line);color:var(--ink-2);border-radius:9px;
     padding:8px 12px;font-size:.78rem;font-weight:600}
@@ -898,7 +898,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-04.2";
+  var VERSAO = "2026-08-04.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
