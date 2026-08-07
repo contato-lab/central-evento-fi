@@ -504,6 +504,28 @@
   .item.t-ok::before{background:var(--lime)}
   @keyframes barpulse{0%,100%{opacity:1}50%{opacity:.4}}
   @media (prefers-reduced-motion:reduce){.item.t-urgente::before{animation:none}.item{transition:none}}
+
+  /* ===== AVISOS (operacional) =====
+     Cartao de tema: nome do tema pequeno em cima, o que VALE AGORA grande
+     embaixo. O valor antigo nao aparece na tela, so dentro do historico. */
+  .avcol{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+  .avtema{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);
+    display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .avurg{font-size:.62rem;letter-spacing:.04em;text-transform:uppercase;color:var(--red);
+    border:1px solid rgba(245,69,63,.45);border-radius:6px;padding:1px 6px}
+  .avtexto{font-size:1.02rem;font-weight:600;line-height:1.35;color:var(--ink);word-break:break-word}
+  .avquando{font-size:.68rem;color:var(--ink-2);opacity:.85}
+  .hist{margin-top:2px}
+  /* NAO trocar o display do summary (ex: inline-block): o Chrome deixa de
+     tratar ele como gatilho do <details> e o historico fica sempre aberto.
+     Pra encurtar o sublinhado usa-se width:fit-content, nao display. */
+  .hist summary{font-size:.68rem;color:var(--ink-2);cursor:pointer;list-style:none;
+    width:fit-content;border-bottom:1px dotted var(--line);padding-bottom:1px}
+  .hist summary::-webkit-details-marker{display:none}
+  .hist summary:hover{color:var(--ink)}
+  .histlinha{font-size:.72rem;color:var(--ink-2);padding:4px 0 0 10px;
+    border-left:2px solid var(--line);margin-top:5px;line-height:1.4;text-decoration:line-through;opacity:.75}
+  .histq{color:var(--ink-2);opacity:.7;margin-right:5px}
   @media(hover:hover){.item:hover{transform:translateY(-2px);border-color:#3A4030;box-shadow:0 12px 30px rgba(0,0,0,.42)}}
   .tagtxt{padding:3px 8px;border-radius:6px;background:var(--panel-2)}
   .tagtxt.agenda{background:rgba(166,236,77,.12)}
@@ -661,6 +683,7 @@
 
     <nav class="tabs"><div class="wrap2">
       <button class="tab active" data-tab="mural">Mural do evento <span class="n" id="cMural">0</span></button>
+      <button class="tab" data-tab="avisos">Avisos <span class="n" id="cAvisos">0</span></button>
       <button class="tab" data-tab="interno" hidden>Mural interno <span class="n" id="cInterno">0</span></button>
       <button class="tab" data-tab="recados">Recados pro locutor <span class="n" id="cRec">0</span></button>
       <button class="tab" data-tab="acessos" hidden>Acessos <span class="n" id="cAcess">0</span></button>
@@ -713,6 +736,50 @@
             </div>
             <button class="addbtn" type="submit">Adicionar</button>
           </form>
+        </div>
+      </section>
+
+      <!-- ===== AVISOS (operacional) ===== -->
+      <!-- O que NAO e programacao: estacionamento, credenciamento, acesso, clima.
+           Regra da tela: cada TEMA mostra so o aviso mais recente, que e o que vale
+           agora. O anterior sai da tela e vai pro historico. Foi desenhado assim
+           por causa de um caso real: a informacao do estacionamento mudou e, numa
+           lista cronologica, o portao velho e o novo apareceriam juntos. -->
+      <section id="view-avisos" hidden>
+        <div class="view-head">
+          <div>
+            <h1>Avisos</h1>
+            <p class="sub">Informação operacional do evento. Cada tema mostra o que vale agora.</p>
+          </div>
+        </div>
+        <div class="count" id="countAvisos"></div>
+        <div class="list three" id="listAvisos"></div>
+
+        <div class="addwrap" id="wrapAvisos" hidden>
+          <h3><span class="bar"></span> Publicar aviso</h3>
+          <form id="formAvisos" class="addgrid">
+            <div class="fld"><label>Tema</label>
+              <input id="a_tema" list="temasAvisos" placeholder="Ex: Estacionamento" required>
+              <datalist id="temasAvisos">
+                <option value="Estacionamento"></option>
+                <option value="Credenciamento"></option>
+                <option value="Acesso e portões"></option>
+                <option value="Sala de imprensa"></option>
+                <option value="Clima"></option>
+                <option value="Transporte"></option>
+                <option value="Alimentação"></option>
+              </datalist>
+            </div>
+            <div class="fld"><label>O que vale agora</label><input id="a_texto" placeholder="Ex: Entrada pelo Portão 7" required></div>
+            <div class="fld"><label>Urgência</label>
+              <select id="a_tipo">
+                <option value="aviso">Normal</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </div>
+            <button class="addbtn" type="submit">Publicar</button>
+          </form>
+          <p class="sub" style="margin-top:8px">Publicar no mesmo tema substitui o aviso anterior. O antigo vai para o histórico, não some.</p>
         </div>
       </section>
 
@@ -898,7 +965,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-04.3";
+  var VERSAO = "2026-08-07.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -928,16 +995,21 @@
   // master e 2 pras demais, podendo ser o mesmo texto repetido ou textos diferentes.
   // Os dois perfis de marca tem o MESMO rotulo de proposito: o rotulo aparece na
   // tela de quem entra, entao "Marca" nos dois nao denuncia quem tem 3 e quem tem 2.
+  // "avisos" e a aba nova de informacao OPERACIONAL (estacionamento, credenciamento,
+  // acesso, clima). Fica separada do mural do evento de proposito: o mural e a
+  // PROGRAMACAO, e misturar as duas coisas fazia o jornalista rolar a agenda de
+  // palco atras de saber por qual portao entrar. Todo mundo ve, so a producao
+  // publica — igual ao mural do evento.
   var PERFIS = {
-    producao:      { rotulo:"Produção",    mural:"gerenciar", fila:"gerenciar", envia:true,  admin:true,  interno:"gerenciar" },
+    producao:      { rotulo:"Produção",    mural:"gerenciar", fila:"gerenciar", envia:true,  admin:true,  interno:"gerenciar", avisos:"gerenciar" },
     // locutor nao envia: a funcao dele e ler a fila, nao alimentar ela.
     // A aba de recados continua aparecendo pra ele porque depende de "fila".
-    locutor:       { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:false, admin:false, interno:"nenhum"    },
-    credenciado:   { rotulo:"Credenciado", mural:"ver",       fila:"nenhum",    envia:false, admin:false, interno:"nenhum"    },
-    marca_largada: { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum", leituras:3 },
-    marca_bandeira:{ rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum", leituras:2 },
+    locutor:       { rotulo:"Locutor",     mural:"ver",       fila:"gerenciar", envia:false, admin:false, interno:"nenhum",    avisos:"ver" },
+    credenciado:   { rotulo:"Credenciado", mural:"ver",       fila:"nenhum",    envia:false, admin:false, interno:"nenhum",    avisos:"ver" },
+    marca_largada: { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum",    avisos:"ver", leituras:3 },
+    marca_bandeira:{ rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum",    avisos:"ver", leituras:2 },
     // perfil antigo: quem ja recebeu "recados2026" continua entrando, no nivel menor
-    marca:         { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum", leituras:2 }
+    marca:         { rotulo:"Marca",       mural:"ver",       fila:"nenhum",    envia:true,  admin:false, interno:"nenhum",    avisos:"ver", leituras:2 }
   };
   // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com a base de
   // acessos vazia, offline ou apagada por engano. Impede ficar trancado para fora.
@@ -988,8 +1060,8 @@
   // Estrategia por colecao:
   //  "doc"        = tudo num documento unico. Barato quando MUITA gente le (ex: mural com 600 pessoas).
   //  "collection" = um documento por item. Bom quando MUITA gente escreve (ex: recados das marcas).
-  var STRATEGY = { mural: "doc", recados: "collection", interno: "doc" };
-  var DOCPATH  = { mural: "board/mural", interno: "board/interno" };
+  var STRATEGY = { mural: "doc", recados: "collection", interno: "doc", avisos: "doc" };
+  var DOCPATH  = { mural: "board/mural", interno: "board/interno", avisos: "board/avisos" };
 
   var watchers = {};
   function lsGet(c){ try{ return JSON.parse(localStorage.getItem("fi_"+c)) || []; }catch(e){ return []; } }
@@ -1112,6 +1184,7 @@
 
   var mural = [];
   var interno = [];   // mural interno: demandas das marcas que o atendimento recebe
+  var avisos  = [];   // avisos operacionais (estacionamento, credenciamento, acesso...)
   var recados = [];
   var editing = {}; // id -> true
 
@@ -1134,6 +1207,8 @@
   function podeVerMural(){       return !!PERM && PERM.mural !== "nenhum"; }
   // no mural interno quem ve tambem publica: e ferramenta de trabalho do time, nao vitrine
   function podeVerInterno(){     return !!PERM && PERM.interno === "gerenciar"; }
+  function podeGerenciarAvisos(){ return !!PERM && PERM.avisos === "gerenciar"; }
+  function podeVerAvisos(){       return !!PERM && !!PERM.avisos && PERM.avisos !== "nenhum"; }
   function podeGerenciarFila(){  return !!PERM && PERM.fila  === "gerenciar"; }
   function podeVerFila(){        return !!PERM && PERM.fila  !== "nenhum"; }
   function podeEnviar(){         return !!PERM && PERM.envia === true; }
@@ -1189,6 +1264,7 @@
   function ligarEscutas(){
     setStatus();
     escutar("mural",   podeVerMural(),   function(a){ mural   = a; }, renderMural,   "#listMural");
+    escutar("avisos",  podeVerAvisos(),  function(a){ avisos  = a; }, renderAvisos,  "#listAvisos");
     escutar("interno", podeVerInterno(), function(a){ interno = a; }, renderInterno, "#listInterno");
     escutar("recados", podeVerFila(),    function(a){ recados = a; }, renderRec,     "#listRec");
     escutar("acessos", ehAdmin(),        function(a){ acessos = a; }, renderAcessos, "#listAcess");
@@ -1455,6 +1531,7 @@
     document.querySelectorAll(".tab").forEach(function(x){ x.classList.remove("active"); });
     var b = document.querySelector('.tab[data-tab="' + t + '"]'); if(b) b.classList.add("active");
     $("#view-mural").hidden   = t !== "mural";
+    $("#view-avisos").hidden  = t !== "avisos";
     $("#view-interno").hidden = t !== "interno";
     $("#view-recados").hidden = t !== "recados";
     $("#view-acessos").hidden = t !== "acessos";
@@ -1465,7 +1542,7 @@
     var soEnvia = podeEnviar() && !podeVerFila();   // perfil "marca"
 
     // abas visiveis conforme o perfil
-    var abas = { mural: podeVerMural(), interno: podeVerInterno(), recados: (podeVerFila() || podeEnviar()), acessos: ehAdmin() };
+    var abas = { mural: podeVerMural(), avisos: podeVerAvisos(), interno: podeVerInterno(), recados: (podeVerFila() || podeEnviar()), acessos: ehAdmin() };
     var primeira = null;
     document.querySelectorAll(".tab").forEach(function(b){
       var t = b.getAttribute("data-tab"), ok = !!abas[t];
@@ -1483,6 +1560,9 @@
     // MURAL: quem so ve nao enxerga o formulario de adicionar
     var wrapMural = $("#formMural") ? $("#formMural").parentNode : null;
     if(wrapMural) wrapMural.hidden = !podeGerenciarMural();
+    // o formulario de avisos so existe pra producao; quem so ve nem enxerga o bloco
+    var wrapAvisos = $("#wrapAvisos");
+    if(wrapAvisos) wrapAvisos.hidden = !podeGerenciarAvisos();
     if(podeVerMural() && !podeGerenciarMural()){
       $("#view-mural .desc").textContent = "Agenda, atualizações e avisos que a produção dispara pra equipe, em tempo real.";
     }
@@ -1709,6 +1789,87 @@
   // "A seguir", porque demanda de marca nao e programacao com hora marcada, e a
   // gaveta de recados, que aqui nao existe. Quem enxerga esta aba tambem publica,
   // entao o card sempre vem com os botoes de editar e remover.
+  // ===== AVISOS (operacional) =====
+  // Agrupa por TEMA e mostra so o mais recente de cada um: e o que vale agora.
+  // Os anteriores do mesmo tema viram historico, recolhido atras de um clique.
+  // Publicar de novo no mesmo tema NAO apaga nada, so empurra o antigo pra baixo.
+  function agruparAvisos(lista){
+    var porTema = {};
+    (lista || []).forEach(function(it){
+      var tema = String(it.tema || "Geral").trim() || "Geral";
+      var chave = tema.toLowerCase();
+      if(!porTema[chave]) porTema[chave] = { tema: tema, itens: [] };
+      porTema[chave].itens.push(it);
+    });
+    var grupos = Object.keys(porTema).map(function(k){
+      var g = porTema[k];
+      // mais novo primeiro: o topo da pilha e o estado atual
+      g.itens.sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+      g.atual = g.itens[0];
+      g.historico = g.itens.slice(1);
+      return g;
+    });
+    // urgente na frente; depois o que mudou mais recentemente
+    grupos.sort(function(a,b){
+      var ua = (a.atual && a.atual.tipo === "urgente") ? 1 : 0;
+      var ub = (b.atual && b.atual.tipo === "urgente") ? 1 : 0;
+      if(ua !== ub) return ub - ua;
+      return ((b.atual && b.atual.ts) || 0) - ((a.atual && a.atual.ts) || 0);
+    });
+    return grupos;
+  }
+
+  function quandoTexto(ts){
+    if(!ts) return "";
+    var d = new Date(ts), ag = new Date();
+    var hh = ("0"+d.getHours()).slice(-2) + ":" + ("0"+d.getMinutes()).slice(-2);
+    var mesmoDia = d.getFullYear()===ag.getFullYear() && d.getMonth()===ag.getMonth() && d.getDate()===ag.getDate();
+    if(mesmoDia) return "hoje " + hh;
+    return ("0"+d.getDate()).slice(-2) + "/" + ("0"+(d.getMonth()+1)).slice(-2) + " " + hh;
+  }
+
+  function renderAvisos(){
+    var host = $("#listAvisos"); if(!host) return;
+    host.innerHTML = "";
+    var grupos = agruparAvisos(avisos);
+    var n = grupos.length;
+    if($("#cAvisos"))     $("#cAvisos").textContent = n;
+    if($("#countAvisos")) $("#countAvisos").textContent = n + (n===1 ? " TEMA" : " TEMAS");
+    var adm = podeGerenciarAvisos();
+    if(!n){
+      host.innerHTML = estadoVazio("avisos", adm
+        ? "Nenhum aviso publicado. Use o formulário abaixo para o primeiro."
+        : "Nenhum aviso no momento. Se algo mudar no evento, aparece aqui.");
+      return;
+    }
+    var frag = document.createDocumentFragment();
+    grupos.forEach(function(g){
+      var it = g.atual || {};
+      var urgente = (it.tipo === "urgente");
+      var art = document.createElement("article");
+      art.className = "item t-" + (urgente ? "urgente" : "update");
+      art.setAttribute("data-id", it.id || "");
+      var hist = "";
+      if(g.historico.length){
+        hist = '<details class="hist"><summary>histórico (' + g.historico.length + ')</summary>' +
+          g.historico.map(function(h){
+            return '<div class="histlinha"><span class="histq">' + esc(quandoTexto(h.ts)) + '</span> ' + esc(h.texto || "") + '</div>';
+          }).join("") + '</details>';
+      }
+      art.innerHTML =
+        '<div class="avcol">' +
+          '<div class="avtema">' + esc(g.tema) + (urgente ? ' <span class="avurg">urgente</span>' : '') + '</div>' +
+          '<div class="avtexto">' + esc(it.texto || "") + '</div>' +
+          '<div class="avquando">atualizado ' + esc(quandoTexto(it.ts)) +
+            (g.historico.length ? ' · mudou ' + g.historico.length + (g.historico.length===1 ? ' vez' : ' vezes') : '') +
+          '</div>' + hist +
+        '</div>' +
+        (adm ? '<div class="eacts"><button class="iconbtn del" data-act="del" title="Remover" aria-label="Remover aviso">✕</button></div>' : '');
+      frag.appendChild(art);
+    });
+    host.appendChild(frag);
+  }
+
   function renderInterno(){
     var host = $("#listInterno"); if(!host) return;
     host.innerHTML = "";
@@ -2020,6 +2181,7 @@
   }
   function renderAll(){
     protegido("mural",   renderMural,   "#listMural");
+    protegido("avisos",  renderAvisos,  "#listAvisos");
     protegido("interno", renderInterno, "#listInterno");
     protegido("fila",    renderRec,     "#listRec");
     protegido("acessos", renderAcessos, "#listAcess");
@@ -2141,6 +2303,25 @@
     }
   });
 
+  // ---- event delegation: AVISOS ----
+  $("#listAvisos").addEventListener("click",function(e){
+    var btn = e.target.closest("[data-act]"); if(!btn) return;
+    // dupla checagem: esconder o botao nao basta, a acao tambem confere o perfil
+    if(!podeGerenciarAvisos()) return;
+    var row = e.target.closest("[data-id]"); if(!row) return;
+    var id = row.dataset.id;
+    var it = avisos.find(function(x){ return x.id === id; }); if(!it) return;
+    if(btn.dataset.act === "del"){
+      // remove so o aviso ATUAL do tema; se houver historico, o anterior volta a valer
+      var g = agruparAvisos(avisos).filter(function(x){ return x.atual && x.atual.id === id; })[0];
+      var volta = (g && g.historico.length) ? g.historico[0] : null;
+      var msg = volta
+        ? 'Remover este aviso? O tema volta a mostrar: "' + (volta.texto || "") + '"'
+        : "Remover este aviso? O tema sai da tela.";
+      if(confirm(msg)) DBremove("avisos", id);
+    }
+  });
+
   // ---- event delegation: RECADOS ----
   $("#listRec").addEventListener("click",function(e){
     var btn=e.target.closest("[data-act]"); if(!btn)return;
@@ -2206,6 +2387,17 @@
     if(travado("mural")) return;
     DBadd("mural",{tipo:$("#m_tipo").value,titulo:t,hora:$("#m_hora").value.trim(),local:$("#m_local").value.trim(),ts:now()});
     e.target.reset(); toast("Adicionado ao mural");
+  });
+
+  $("#formAvisos").addEventListener("submit",function(e){
+    e.preventDefault();
+    var tema  = $("#a_tema").value.trim();
+    var texto = $("#a_texto").value.trim();
+    if(!tema || !texto) return;
+    if(travado("avisos")) return;
+    DBadd("avisos",{ tema:tema, texto:texto, tipo:$("#a_tipo").value, ts:now() });
+    e.target.reset();
+    toast("Aviso publicado");
   });
 
   $("#formInterno").addEventListener("submit",function(e){
