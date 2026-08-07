@@ -513,7 +513,18 @@
     display:flex;align-items:center;gap:7px;flex-wrap:wrap}
   .avurg{font-size:.62rem;letter-spacing:.04em;text-transform:uppercase;color:var(--red);
     border:1px solid rgba(245,69,63,.45);border-radius:6px;padding:1px 6px}
-  .avtexto{font-size:1.02rem;font-weight:600;line-height:1.35;color:var(--ink);word-break:break-word}
+  /* pre-line preserva a quebra de linha que a producao digitou no textarea,
+     sem deixar espaco solto virar espaco duplo na tela */
+  .avtexto{font-size:1.02rem;font-weight:600;line-height:1.4;color:var(--ink);
+    word-break:break-word;white-space:pre-line}
+  /* aviso comprido nasce cortado em 3 linhas pra caber varios temas na tela
+     sem rolar; o botao abaixo abre o resto */
+  .avtexto.curto{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .avmais{background:none;border:none;padding:2px 0;margin:0;cursor:pointer;
+    font:inherit;font-size:.7rem;font-weight:500;color:var(--lime);
+    width:fit-content;border-bottom:1px dotted rgba(166,236,77,.5)}
+  .avmais:hover{color:var(--lime-d)}
+  .avmais:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
   .avquando{font-size:.68rem;color:var(--ink-2);opacity:.85}
   .hist{margin-top:2px}
   /* NAO trocar o display do summary (ex: inline-block): o Chrome deixa de
@@ -770,7 +781,12 @@
                 <option value="Alimentação"></option>
               </datalist>
             </div>
-            <div class="fld"><label>O que vale agora</label><input id="a_texto" placeholder="Ex: Entrada pelo Portão 7" required></div>
+            <!-- textarea, nao input: aviso operacional costuma ter mais de uma
+                 informacao no mesmo tema (ex: acesso de moto E de carro). Numa
+                 linha so vira bloco corrido e ninguem acha o que precisa. -->
+            <div class="fld" style="grid-column:1/-1"><label>O que vale agora</label>
+              <textarea id="a_texto" rows="3" placeholder="Ex: Moto: entrada pelo Portão TL&#10;Carro: estacionamento no Autódromo" required></textarea>
+            </div>
             <div class="fld"><label>Urgência</label>
               <select id="a_tipo">
                 <option value="aviso">Normal</option>
@@ -965,7 +981,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-07.1";
+  var VERSAO = "2026-08-07.2";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1856,10 +1872,22 @@
             return '<div class="histlinha"><span class="histq">' + esc(quandoTexto(h.ts)) + '</span> ' + esc(h.texto || "") + '</div>';
           }).join("") + '</details>';
       }
+      // "comprido" pelo que ocupa na tela: 3+ linhas digitadas ou texto longo.
+      // O clamp do CSS corta em 3 linhas; a conta aqui so decide se mostra o botao.
+      var texto  = String(it.texto || "");
+      var linhas = texto.split("\n").length;
+      var comprido = (linhas > 3) || (texto.length > 150);
+      var aberto = !!expandido[it.id];
+      var botao = comprido
+        ? '<button class="avmais" data-act="vermais" aria-expanded="' + (aberto ? 'true' : 'false') + '">' +
+            (aberto ? 'ver menos' : 'ver mais') + '</button>'
+        : '';
+
       art.innerHTML =
         '<div class="avcol">' +
           '<div class="avtema">' + esc(g.tema) + (urgente ? ' <span class="avurg">urgente</span>' : '') + '</div>' +
-          '<div class="avtexto">' + esc(it.texto || "") + '</div>' +
+          '<div class="avtexto' + ((comprido && !aberto) ? ' curto' : '') + '">' + esc(texto) + '</div>' +
+          botao +
           '<div class="avquando">atualizado ' + esc(quandoTexto(it.ts)) +
             (g.historico.length ? ' · mudou ' + g.historico.length + (g.historico.length===1 ? ' vez' : ' vezes') : '') +
           '</div>' + hist +
@@ -2306,9 +2334,21 @@
   // ---- event delegation: AVISOS ----
   $("#listAvisos").addEventListener("click",function(e){
     var btn = e.target.closest("[data-act]"); if(!btn) return;
+    var alvo = e.target.closest("[data-id]");
+
+    // "ver mais" vale pra TODO MUNDO que enxerga a aba, inclusive credenciado.
+    // Fica antes da checagem de producao de proposito: quem so le tambem
+    // precisa abrir o texto cortado.
+    if(btn.dataset.act === "vermais"){
+      if(!alvo) return;
+      expandido[alvo.dataset.id] = !expandido[alvo.dataset.id];
+      renderAvisos();
+      return;
+    }
+
     // dupla checagem: esconder o botao nao basta, a acao tambem confere o perfil
     if(!podeGerenciarAvisos()) return;
-    var row = e.target.closest("[data-id]"); if(!row) return;
+    var row = alvo; if(!row) return;
     var id = row.dataset.id;
     var it = avisos.find(function(x){ return x.id === id; }); if(!it) return;
     if(btn.dataset.act === "del"){
