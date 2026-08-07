@@ -104,6 +104,11 @@
   .top .out{background:transparent;border:1px solid var(--line);color:var(--ink-2);border-radius:9px;
     padding:8px 12px;font-size:.78rem;font-weight:600}
   .top .out:hover{border-color:var(--line);color:var(--ink)}
+  /* botao "?" reabre o mini guia. Redondo e com area de toque de 36px */
+  .top .ajuda{background:transparent;border:1px solid var(--line);color:var(--ink-2);
+    border-radius:50%;width:36px;height:36px;font-size:.9rem;font-weight:700;
+    cursor:pointer;flex-shrink:0;font-family:inherit}
+  .top .ajuda:hover{border-color:var(--lime);color:var(--lime)}
 
   /* tabs */
   .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line-soft);margin-top:0}
@@ -537,6 +542,29 @@
   .histlinha{font-size:.72rem;color:var(--ink-2);padding:4px 0 0 10px;
     border-left:2px solid var(--line);margin-top:5px;line-height:1.4;text-decoration:line-through;opacity:.75}
   .histq{color:var(--ink-2);opacity:.7;margin-right:5px}
+
+  /* ===== MINI GUIA (primeira visita, uma unica vez) =====
+     No celular o cartao cola embaixo, tipo gaveta; no desktop centraliza. */
+  #guiaOverlay{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:90;
+    display:flex;align-items:flex-end;justify-content:center;padding:14px}
+  .guiacard{background:var(--panel);border:1px solid var(--line);border-radius:18px;
+    padding:22px 20px;width:100%;max-width:420px;box-shadow:0 -8px 40px rgba(0,0,0,.5)}
+  .guiaquem{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-2)}
+  .guiaperfil{font-family:'Barlow Condensed',sans-serif;font-weight:700;
+    font-size:1.7rem;color:var(--lime);margin:2px 0 12px}
+  .guialista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+  .guialista li{font-size:.9rem;line-height:1.5;color:var(--ink);padding-left:14px;
+    border-left:2px solid var(--lime)}
+  .guialista b{color:var(--lime)}
+  .guiabtn{margin-top:18px;width:100%;min-height:48px;background:var(--lime);
+    color:var(--lime-ink);border:none;border-radius:12px;font-weight:700;
+    font-size:1rem;cursor:pointer;font-family:inherit}
+  .guiabtn:active{transform:scale(.985)}
+  @media (min-width:700px){
+    #guiaOverlay{align-items:center}
+    .guiacard{border-radius:16px}
+  }
   @media(hover:hover){.item:hover{transform:translateY(-2px);border-color:#3A4030;box-shadow:0 12px 30px rgba(0,0,0,.42)}}
   .tagtxt{padding:3px 8px;border-radius:6px;background:var(--panel-2)}
   .tagtxt.agenda{background:rgba(166,236,77,.12)}
@@ -688,6 +716,7 @@
         <div class="spacer"></div>
         <span class="quemsou" id="quemSou"></span>
         <span class="syncdot off" id="syncDot" title=""></span>
+        <button class="ajuda" id="btnGuia" type="button" title="Como usar" aria-label="Como usar a Central">?</button>
         <button class="out" id="logout">Sair</button>
       </div>
     </header>
@@ -981,7 +1010,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-07.2";
+  var VERSAO = "2026-08-07.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1249,6 +1278,67 @@
     try { aplicarInterface(); } catch(e){ if(window.console) console.error("[central] aplicarInterface", e); }
     try { ligarEscutas();     } catch(e){ if(window.console) console.error("[central] ligarEscutas", e); setStatus("warn"); }
     renderAll();
+    try { mostrarGuiaUmaVez(); } catch(e){ if(window.console) console.error("[central] guia", e); }
+  }
+
+  // ===== MINI GUIA =====
+  // UMA tela por perfil, leitura de segundos. Dois caminhos ate ela:
+  //   1. Primeira visita: abre SOZINHA uma unica vez por aparelho. A garantia
+  //      de nao repetir e dura: a marca "ja viu" e gravada ANTES de mostrar,
+  //      e se nao der pra gravar (aba anonima, armazenamento cheio) o guia
+  //      automatico nem abre. Preferimos alguem nao ver a alguem ver duas
+  //      vezes — foi pedido explicito.
+  //   2. Botao "?" no topo: reabre a MESMA tela quando a pessoa quiser.
+  //      Clique voluntario nao conta como "aparecer", entao nao passa pela
+  //      trava — funciona sempre, ate sem armazenamento.
+  var GUIA_KEY = "fi_guia_v1";
+  function mostrarGuiaUmaVez(){
+    if(!PERFIL || !PERM) return;
+    try {
+      if(localStorage.getItem(GUIA_KEY) === "1") return;
+      localStorage.setItem(GUIA_KEY, "1");
+      if(localStorage.getItem(GUIA_KEY) !== "1") return;  // gravou mesmo?
+    } catch(e){ return; }  // sem armazenamento confiavel = nao mostra
+    abrirGuia();
+  }
+
+  function abrirGuia(){
+    if(!PERFIL || !PERM) return;
+    if(document.getElementById("guiaOverlay")) return;  // ja aberto
+
+    // 3 linhas por perfil, o essencial e mais nada
+    var linhas;
+    if(PERFIL === "producao"){
+      linhas = ["<b>Mural do Evento</b> é a programação: atração, horário, palco.",
+                "<b>Avisos</b> é o operacional. Publicar no mesmo tema substitui o anterior — o antigo vira histórico.",
+                "Na aba <b>Acessos</b> você cria logins novos."];
+    } else if(PERFIL === "locutor"){
+      linhas = ["A fila abre no dia de <b>hoje</b>, em rodadas de leitura.",
+                "O destaque grande é o próximo a ler. Toque em <b>ANUNCIEI</b> a cada leitura.",
+                "Na 3ª leitura o recado se completa e desce sozinho."];
+    } else if(PERFIL === "credenciado"){
+      linhas = ["<b>Mural do Evento</b> tem a programação com horários e locais.",
+                "<b>Avisos</b> tem estacionamento, credenciamento e mudanças de última hora — sempre atualizados.",
+                "Dá pra adicionar à tela de início do celular e usar como aplicativo."];
+    } else {
+      linhas = ["Envie o recado escolhendo o <b>dia</b>; o horário é opcional.",
+                "Há um limite de recados por dia conforme seu acesso.",
+                "O recado aparece no mural <b>depois que o locutor anunciar</b> no microfone — não estranhe se não surgir na hora."];
+    }
+
+    var ov = document.createElement("div");
+    ov.id = "guiaOverlay";
+    ov.innerHTML =
+      '<div class="guiacard" role="dialog" aria-modal="true" aria-label="Como usar a Central">'+
+        '<div class="guiaquem">Você entrou como</div>'+
+        '<div class="guiaperfil">'+esc(PERM.rotulo)+'</div>'+
+        '<ul class="guialista">'+ linhas.map(function(l){ return "<li>"+l+"</li>"; }).join("") +'</ul>'+
+        '<button class="guiabtn" type="button">Entendi</button>'+
+      '</div>';
+    document.body.appendChild(ov);
+    ov.querySelector(".guiabtn").addEventListener("click", function(){ ov.remove(); });
+    // tocar fora do cartao tambem fecha — ninguem fica preso
+    ov.addEventListener("click", function(e){ if(e.target === ov) ov.remove(); });
   }
 
   // so escuta o que o perfil pode ver (privacidade + economia de leitura)
@@ -1381,6 +1471,7 @@
     });
   })();
 
+  $("#btnGuia").addEventListener("click", function(){ try { abrirGuia(); } catch(e){} });
   $("#logout").addEventListener("click",function(){
     localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
     localStorage.removeItem("fi_nome"); localStorage.removeItem("fi_acesso");
