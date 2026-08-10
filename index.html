@@ -543,6 +543,34 @@
     border-left:2px solid var(--line);margin-top:5px;line-height:1.4;text-decoration:line-through;opacity:.75}
   .histq{color:var(--ink-2);opacity:.7;margin-right:5px}
 
+  /* ===== SUB-ABAS DO MURAL + COLETIVAS =====
+     A agenda de coletivas e uma grade fixa: dia, hora e marca. O slot em
+     andamento ganha destaque AGORA; o que ja passou apaga. */
+  .subtabs{display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap}
+  .subtab{background:transparent;border:1px solid var(--line);color:var(--ink-2);
+    border-radius:20px;padding:8px 16px;font-size:.82rem;font-weight:600;
+    cursor:pointer;font-family:inherit;min-height:38px}
+  .subtab.active{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .subtab:not(.active):hover{border-color:var(--lime);color:var(--ink)}
+  .coldia{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:14px 16px;margin-bottom:12px}
+  .coldia h3{margin:0 0 10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+    font-size:1.05rem;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);
+    display:flex;align-items:baseline;gap:8px}
+  .coldia h3 small{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;color:var(--ink-2)}
+  .colrow{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:9px}
+  .colrow + .colrow{margin-top:2px}
+  .colhora{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;
+    color:var(--lime);min-width:52px}
+  .colnome{font-size:.9rem;color:var(--ink);font-weight:600}
+  .colrow.momento .colnome{color:var(--ink-2);font-weight:500;font-style:italic}
+  .colrow.momento .colhora{color:var(--ink-2)}
+  .colrow.passou{opacity:.4}
+  .colrow.agora{background:rgba(166,236,77,.09);border:1px solid rgba(166,236,77,.35)}
+  .colagora{margin-left:auto;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;
+    color:var(--lime);border:1px solid rgba(166,236,77,.5);border-radius:6px;padding:2px 7px}
+  .colnota{font-size:.72rem;color:var(--ink-2);line-height:1.5;margin:2px 0 14px}
+
   /* ===== MINI GUIA (primeira visita, uma unica vez) =====
      No celular o cartao cola embaixo, tipo gaveta; no desktop centraliza. */
   #guiaOverlay{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:90;
@@ -750,6 +778,14 @@
             </button>
           </div>
         </div>
+        <!-- sub-abas do mural: a programacao geral e a agenda de coletivas de
+             imprensa (12 e 13/08). A agenda e OFICIAL e fixa no codigo, em
+             COLETIVAS — mudou a grade, edita la e sobe versao nova. -->
+        <div class="subtabs" id="subMural">
+          <button type="button" class="subtab active" data-sub="prog">Programação</button>
+          <button type="button" class="subtab" data-sub="coletivas">Coletivas de imprensa</button>
+        </div>
+        <div id="coletivasBox" style="display:none"></div>
         <div class="count" id="countMural"></div>
         <div class="list three" id="listMural"></div>
         <div class="legenda" id="legendaMural" hidden>
@@ -1010,7 +1046,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-07.3";
+  var VERSAO = "2026-08-07.4";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1472,6 +1508,17 @@
   })();
 
   $("#btnGuia").addEventListener("click", function(){ try { abrirGuia(); } catch(e){} });
+  $("#subMural").addEventListener("click", function(e){
+    var b = e.target.closest(".subtab"); if(!b) return;
+    subMuralAtivo = b.dataset.sub;
+    aplicarSubMural();
+  });
+  // atualiza o marcador AGORA sem ninguem precisar recarregar (so quando a
+  // agenda esta na tela — fora dela o timer nao faz nada)
+  setInterval(function(){
+    var v = document.getElementById("view-mural");
+    if(subMuralAtivo !== "prog" && v && !v.hidden) renderColetivas();
+  }, 60000);
   $("#logout").addEventListener("click",function(){
     localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
     localStorage.removeItem("fi_nome"); localStorage.removeItem("fi_acesso");
@@ -1896,6 +1943,87 @@
   // "A seguir", porque demanda de marca nao e programacao com hora marcada, e a
   // gaveta de recados, que aqui nao existe. Quem enxerga esta aba tambem publica,
   // entao o card sempre vem com os botoes de editar e remover.
+  // ===== COLETIVAS DE IMPRENSA (agenda oficial, fixa no codigo) =====
+  // Grade dos dias de imprensa. E dado, nao HTML: mudou a agenda, edita aqui
+  // e sobe VERSAO nova. "momento" marca o que nao e coletiva de marca
+  // (abertura, intervalo) — aparece em italico, sem cara de atracao.
+  var COLETIVAS = [
+    { data:"2026-08-12", rotulo:"Quarta-feira, 12/08", itens:[
+      { hora:"08h10", nome:"CFMOTO" },
+      { hora:"09h20", nome:"Shineray" },
+      { hora:"10h30", nome:"Yamaha" },
+      { hora:"11h40", nome:"Abertura oficial", momento:true },
+      { hora:"13h00", nome:"Intervalo", momento:true },
+      { hora:"13h30", nome:"BMW Motorrad" },
+      { hora:"14h40", nome:"Bajaj" },
+      { hora:"15h50", nome:"Voge" },
+      { hora:"17h00", nome:"Suzuki/JTZ" },
+      { hora:"18h00", nome:"Dafra" },
+      { hora:"19h00", nome:"Fun Motors" }
+    ]},
+    { data:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
+      { hora:"07h00", nome:"Royal Enfield" },
+      { hora:"08h10", nome:"Triumph" },
+      { hora:"09h20", nome:"Moto Morini" },
+      { hora:"10h30", nome:"Kawasaki" },
+      { hora:"11h40", nome:"Honda" }
+    ]}
+  ];
+
+  function coletivaMin(h){
+    var m = /^(\d{1,2})h(\d{2})$/.exec(h || "");
+    return m ? (+m[1])*60 + (+m[2]) : null;
+  }
+  function hojeISO(){
+    var d = new Date();
+    return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+  }
+
+  function renderColetivas(){
+    var box = $("#coletivasBox"); if(!box) return;
+    var hoje = hojeISO(), agora = minutosAgora();
+    var html = '<p class="colnota">Agenda oficial das coletivas de imprensa. ' +
+               'Cada integrante da equipe precisa do próprio convite recebido por e-mail.</p>';
+    COLETIVAS.forEach(function(dia){
+      var ehHoje = (dia.data === hoje);
+      html += '<div class="coldia"><h3>' + esc(dia.rotulo) + (ehHoje ? ' <small>HOJE</small>' : '') + '</h3>';
+      dia.itens.forEach(function(it, i){
+        var ini = coletivaMin(it.hora);
+        var fimSlot = (i + 1 < dia.itens.length) ? coletivaMin(dia.itens[i+1].hora) : (ini != null ? ini + 70 : null);
+        var passou = ehHoje && fimSlot != null && agora >= fimSlot;
+        var rolando = ehHoje && ini != null && agora >= ini && (fimSlot == null || agora < fimSlot);
+        html += '<div class="colrow' + (it.momento ? ' momento' : '') +
+                (passou ? ' passou' : '') + (rolando ? ' agora' : '') + '">' +
+          '<span class="colhora">' + esc(it.hora) + '</span>' +
+          '<span class="colnome">' + esc(it.nome) + '</span>' +
+          (rolando ? '<span class="colagora">AGORA</span>' : '') +
+        '</div>';
+      });
+      html += '</div>';
+    });
+    box.innerHTML = html;
+  }
+
+  // troca entre Programacao e Coletivas dentro do Mural do Evento.
+  // Sub-aba usa style.display; o "hidden" continua sendo so da permissao,
+  // assim um nunca atropela o outro.
+  var subMuralAtivo = "prog";
+  function aplicarSubMural(){
+    var prog = (subMuralAtivo === "prog");
+    ["countMural","listMural","legendaMural"].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.style.display = prog ? "" : "none";
+    });
+    var wrapForm = $("#formMural") ? $("#formMural").parentNode : null;
+    if(wrapForm) wrapForm.style.display = prog ? "" : "none";
+    var box = $("#coletivasBox");
+    if(box) box.style.display = prog ? "none" : "";
+    document.querySelectorAll("#subMural .subtab").forEach(function(b){
+      b.classList.toggle("active", b.dataset.sub === subMuralAtivo);
+    });
+    if(!prog) renderColetivas();
+  }
+
   // ===== AVISOS (operacional) =====
   // Agrupa por TEMA e mostra so o mais recente de cada um: e o que vale agora.
   // Os anteriores do mesmo tema viram historico, recolhido atras de um clique.
