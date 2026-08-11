@@ -11,6 +11,17 @@
 <meta name="apple-mobile-web-app-title" content="Central FI">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Google Analytics (GA4) — propriedade SEPARADA da do site de vendas.
+     Nao usar o G- do site de ingressos aqui: o acesso da equipe entraria no
+     mesmo funil de venda e sujaria a analise de origem e de influenciadores.
+     async: nao segura a tela. Se o Google estiver fora, a Central abre igual. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NRX7DEGC47"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-NRX7DEGC47');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap">
@@ -1048,7 +1059,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-10.1";
+  var VERSAO = "2026-08-11.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1309,8 +1320,27 @@
     return null;
   }
 
+  // ===== MEDICAO (GA4) =====
+  // So manda TIPO DE PERFIL e nome de aba. Nunca senha, nome da pessoa,
+  // marca ou conteudo de recado: e medicao de uso, nao de gente.
+  // Blindado de proposito: bloqueador de anuncio, modo restrito ou Google
+  // fora do ar nao podem derrubar a Central. Se gtag nao existir, nao faz nada.
+  function ga(evento, params){
+    try {
+      if (typeof gtag !== "function") return;
+      gtag("event", evento, params || {});
+    } catch(e) { /* medicao nunca quebra a tela */ }
+  }
+
   function openApp(){
     $("#gate").hidden = true; $("#app").hidden = false;
+    // roda nos DOIS caminhos: login digitado e sessao ja salva no aparelho
+    try {
+      if (typeof gtag === "function" && PERFIL) {
+        gtag("set", "user_properties", { perfil: PERFIL });
+      }
+    } catch(e) {}
+    ga("acesso_central", { perfil: PERFIL || "desconhecido" });
     // a ordem importa: desenhar a tela nunca pode depender do banco responder.
     // por isso cada etapa e isolada, e o renderAll roda mesmo se as anteriores falharem.
     try { aplicarInterface(); } catch(e){ if(window.console) console.error("[central] aplicarInterface", e); }
@@ -1693,6 +1723,7 @@
     $("#view-interno").hidden = t !== "interno";
     $("#view-recados").hidden = t !== "recados";
     $("#view-acessos").hidden = t !== "acessos";
+    ga("aba_aberta", { aba: t, perfil: PERFIL || "desconhecido" });
   }
 
   function aplicarInterface(){
