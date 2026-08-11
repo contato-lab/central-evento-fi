@@ -783,8 +783,10 @@
              COLETIVAS — mudou a grade, edita la e sobe versao nova. -->
         <div class="subtabs" id="subMural">
           <button type="button" class="subtab active" data-sub="prog">Programação</button>
+          <button type="button" class="subtab" data-sub="shows">Shows</button>
           <button type="button" class="subtab" data-sub="coletivas">Coletivas de imprensa</button>
         </div>
+        <div id="showsBox" style="display:none"></div>
         <div id="coletivasBox" style="display:none"></div>
         <div class="count" id="countMural"></div>
         <div class="list three" id="listMural"></div>
@@ -1046,7 +1048,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-07.4";
+  var VERSAO = "2026-08-10.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1517,7 +1519,9 @@
   // agenda esta na tela — fora dela o timer nao faz nada)
   setInterval(function(){
     var v = document.getElementById("view-mural");
-    if(subMuralAtivo !== "prog" && v && !v.hidden) renderColetivas();
+    if(!v || v.hidden || subMuralAtivo === "prog") return;
+    if(subMuralAtivo === "shows")     renderShows();
+    if(subMuralAtivo === "coletivas") renderColetivas();
   }, 60000);
   $("#logout").addEventListener("click",function(){
     localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
@@ -1970,8 +1974,36 @@
     ]}
   ];
 
+  // aceita "08h10" e "19:00" — a agenda de coletivas usa o primeiro formato,
+  // a de shows chegou no segundo, e nao vale a pena obrigar um so
+  // ===== SHOWS (line-up oficial, fixo no codigo) =====
+  // Edicao moto. Alinhado com a producao (Rago). Mesma regra das coletivas:
+  // e dado, nao HTML — mudou o line-up, edita aqui e sobe VERSAO nova.
+  // "FIM" nao e atracao, e o encerramento: entra como momento (italico).
+  // A quinta 13/08 nao tem show nesta grade; se entrar, e so acrescentar.
+  var SHOWS = [
+    { data:"2026-08-14", rotulo:"Sexta-feira, 14/08", itens:[
+      { hora:"19h00", nome:"Cat Dealers" },
+      { hora:"20h30", nome:"Filipe Ret" },
+      { hora:"22h30", nome:"Pedro Sampaio" },
+      { hora:"00h00", nome:"Fim", momento:true }
+    ]},
+    { data:"2026-08-15", rotulo:"Sábado, 15/08", itens:[
+      { hora:"19h00", nome:"Marcelo D2" },
+      { hora:"20h30", nome:"Ludmilla" },
+      { hora:"22h30", nome:"Matheus e Kauan" },
+      { hora:"00h00", nome:"Fim", momento:true }
+    ]},
+    { data:"2026-08-16", rotulo:"Domingo, 16/08", itens:[
+      { hora:"18h00", nome:"Benzadeus" },
+      { hora:"20h00", nome:"Ferrugem" },
+      { hora:"21h30", nome:"Thiaguinho" },
+      { hora:"23h00", nome:"Fim", momento:true }
+    ]}
+  ];
+
   function coletivaMin(h){
-    var m = /^(\d{1,2})h(\d{2})$/.exec(h || "");
+    var m = /^(\d{1,2})[h:](\d{2})$/.exec(String(h || "").trim());
     return m ? (+m[1])*60 + (+m[2]) : null;
   }
   function hojeISO(){
@@ -1979,18 +2011,24 @@
     return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
   }
 
-  function renderColetivas(){
-    var box = $("#coletivasBox"); if(!box) return;
+  // Render generico das agendas oficiais (coletivas e shows).
+  // Trata a VIRADA DA MEIA-NOITE: o show das 22h30 termina no "00h00 FIM", e
+  // 0 min e menor que 1350 min. Sem somar 24h nesse caso, o slot da madrugada
+  // nasceria como "ja passou" e o AGORA nunca apareceria no ultimo show.
+  function renderAgenda(box, dados, nota){
+    if(!box) return;
     var hoje = hojeISO(), agora = minutosAgora();
-    var html = '<p class="colnota">Agenda oficial das coletivas de imprensa. ' +
-               'Cada integrante da equipe precisa do próprio convite recebido por e-mail.</p>';
-    COLETIVAS.forEach(function(dia){
+    var html = nota ? '<p class="colnota">' + nota + '</p>' : '';
+    dados.forEach(function(dia){
       var ehHoje = (dia.data === hoje);
       html += '<div class="coldia"><h3>' + esc(dia.rotulo) + (ehHoje ? ' <small>HOJE</small>' : '') + '</h3>';
       dia.itens.forEach(function(it, i){
         var ini = coletivaMin(it.hora);
-        var fimSlot = (i + 1 < dia.itens.length) ? coletivaMin(dia.itens[i+1].hora) : (ini != null ? ini + 70 : null);
-        var passou = ehHoje && fimSlot != null && agora >= fimSlot;
+        var prox = (i + 1 < dia.itens.length) ? coletivaMin(dia.itens[i+1].hora) : null;
+        // proximo horario menor que o atual = passou da meia-noite
+        if(prox != null && ini != null && prox < ini) prox += 1440;
+        var fimSlot = (prox != null) ? prox : (ini != null ? ini + 70 : null);
+        var passou  = ehHoje && fimSlot != null && agora >= fimSlot;
         var rolando = ehHoje && ini != null && agora >= ini && (fimSlot == null || agora < fimSlot);
         html += '<div class="colrow' + (it.momento ? ' momento' : '') +
                 (passou ? ' passou' : '') + (rolando ? ' agora' : '') + '">' +
@@ -2002,6 +2040,16 @@
       html += '</div>';
     });
     box.innerHTML = html;
+  }
+
+  function renderColetivas(){
+    renderAgenda($("#coletivasBox"), COLETIVAS,
+      'Agenda oficial das coletivas de imprensa. Cada integrante da equipe precisa do próprio convite recebido por e-mail.');
+  }
+
+  function renderShows(){
+    renderAgenda($("#showsBox"), SHOWS,
+      'Line-up oficial dos shows da edição moto, alinhado com a produção.');
   }
 
   // troca entre Programacao e Coletivas dentro do Mural do Evento.
@@ -2016,12 +2064,15 @@
     });
     var wrapForm = $("#formMural") ? $("#formMural").parentNode : null;
     if(wrapForm) wrapForm.style.display = prog ? "" : "none";
-    var box = $("#coletivasBox");
-    if(box) box.style.display = prog ? "none" : "";
+    var boxShows = $("#showsBox");
+    var boxCol   = $("#coletivasBox");
+    if(boxShows) boxShows.style.display = (subMuralAtivo === "shows")     ? "" : "none";
+    if(boxCol)   boxCol.style.display   = (subMuralAtivo === "coletivas") ? "" : "none";
     document.querySelectorAll("#subMural .subtab").forEach(function(b){
       b.classList.toggle("active", b.dataset.sub === subMuralAtivo);
     });
-    if(!prog) renderColetivas();
+    if(subMuralAtivo === "shows")     renderShows();
+    if(subMuralAtivo === "coletivas") renderColetivas();
   }
 
   // ===== AVISOS (operacional) =====
