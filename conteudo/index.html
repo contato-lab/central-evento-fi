@@ -54,7 +54,8 @@
   .wrap{max-width:1240px;margin:0 auto;padding:0 20px}
 
   /* ---------- LOGIN ---------- */
-  #gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;
+  #gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;
+    padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
     background:radial-gradient(700px 400px at 50% 0%,rgba(166,236,77,.12),transparent 60%),var(--bg)}
   .gatecard{width:100%;max-width:380px;text-align:center}
   .gatecard img.marca{height:110px;width:auto;margin:0 auto 24px;display:block}
@@ -86,8 +87,12 @@
   .porlime img{height:26px;width:auto}
 
   /* ---------- TOPO ---------- */
+  /* safe-area: no iPhone com o app instalado a barra de status fica TRANSLUCIDA
+     por cima da pagina (apple-mobile-web-app-status-bar-style black-translucent).
+     Sem estes env() o relogio e a bateria cobrem os logos do topo. */
   header.top{position:sticky;top:0;z-index:30;background:linear-gradient(var(--bg),rgba(11,12,10,.82));
-    backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft)}
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft);
+    padding-top:env(safe-area-inset-top)}
   .top .bar{display:flex;align-items:center;gap:14px;height:74px}
   .top img.logo{height:46px;width:auto}
   .top .sep{width:1px;height:30px;background:var(--line)}
@@ -124,7 +129,7 @@
   .tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--lime);border-radius:2px}
   .tab.active .n{color:var(--lime);border-color:rgba(166,236,77,.35)}
 
-  main{padding:22px 0 100px}
+  main{padding:22px 0 calc(100px + env(safe-area-inset-bottom))}
 
   /* sub-abas (dias) */
   .subtabs{display:flex;gap:8px;margin:2px 0 16px;flex-wrap:wrap}
@@ -260,8 +265,13 @@
   .chkresp{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;color:var(--ink-3);
     margin-top:3px;display:block}
   .chkresp b{color:var(--ink-2);font-weight:600}
-  .chkdel{background:transparent;border:0;color:var(--ink-3);font-size:1rem;padding:2px 6px;flex:0 0 auto}
+  /* "definir responsável", "trocar" e o × são o fluxo mais usado pelo storymaker
+     andando pelo autódromo. Estavam com ~18px de altura: menos que a ponta do dedo. */
+  .chkdel{background:transparent;border:0;color:var(--ink-3);font-size:1rem;
+    padding:8px 10px;margin:-4px 0;min-height:36px;flex:0 0 auto}
   .chkdel:hover{color:var(--red)}
+  .chkresp .chkdel{color:var(--lime);text-decoration:underline;text-underline-offset:3px}
+  .chkresp .chkdel:hover{color:var(--lime-d)}
 
   /* ---------- ESTADOS ---------- */
   .vazio{text-align:center;padding:46px 20px;color:var(--ink-3)}
@@ -269,7 +279,7 @@
   .vazio .sm{font-size:.85rem;line-height:1.5;max-width:400px;margin:0 auto}
   #offline{background:rgba(251,191,36,.13);border-bottom:1px solid rgba(251,191,36,.4);
     color:var(--amber);font-size:.8rem;padding:9px 20px;text-align:center;font-weight:600}
-  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+  #toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
     background:var(--raise);border:1px solid var(--line);color:var(--ink);border-radius:11px;
     padding:12px 18px;font-size:.86rem;font-weight:600;opacity:0;pointer-events:none;
     transition:opacity .18s,transform .18s;z-index:80;max-width:88vw;text-align:center}
@@ -353,7 +363,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-11.1";
+  var VERSAO = "2026-08-11.2";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -414,6 +424,19 @@
 
   // Link so vira link se for http(s). Sem isso alguem cola "javascript:..." ou
   // um caminho relativo e o cartao passa a apontar pra qualquer coisa.
+  // Marcar/desmarcar rede sem corrida. Com Firestore usa o operador atomico do
+  // proprio banco; no modo local (sem Firebase) nao existe corrida, entao vale
+  // o array normal — o sentinel do FieldValue nao funciona no localStorage.
+  function setaRede(rede, jaTem, atual){
+    if(FB_ON){
+      return jaTem ? firebase.firestore.FieldValue.arrayRemove(rede)
+                   : firebase.firestore.FieldValue.arrayUnion(rede);
+    }
+    var r = (atual||[]).slice(), p = r.indexOf(rede);
+    if(p<0) r.push(rede); else r.splice(p,1);
+    return r;
+  }
+
   function linkSeguro(u){
     var s = String(u||"").trim();
     if(!s) return "";
@@ -468,7 +491,9 @@
       b.textContent = "O limite diário do banco foi atingido. A tela mostra a última versão salva. Fale com o Eric.";
       b.hidden = false; if(offTimer){ clearTimeout(offTimer); offTimer=null; }
     } else if(code === "permission-denied" || code === "unauthenticated"){
-      b.textContent = "O banco bloqueou o acesso. As regras do Firestore podem não ter sido publicadas. Fale com o Eric.";
+      // As regras JA estao publicadas (11/08/2026), entao hoje a causa mais
+      // provavel de recusa e texto acima do teto, nao regra faltando.
+      b.textContent = "O banco recusou a gravação. Pode ser texto longo demais num campo. Fale com o Eric.";
       b.hidden = false; if(offTimer){ clearTimeout(offTimer); offTimer=null; }
     }
     if(window.console) console.error("[conteudo] firestore", code, err);
@@ -578,6 +603,7 @@
   var abertos={};                      // id -> true (cartoes expandidos)
   var fBusca="", fTipo="todos", fStatus="todos", fDia="todos", fBoost=false;
   var editandoPeca=null;               // id da peca em edicao, ou "novo"
+  var criandoBloco=false;              // formulario de novo bloco do StoryMaker aberto
   var desligar=[];                     // funcoes que param as escutas
 
   // ---- permissoes: checadas ao DESENHAR e de novo ao EXECUTAR ----
@@ -712,7 +738,10 @@
     var seguro = linkSeguro(valor);
     return '<div class="campo">'+
       '<span class="cl">'+esc(rotulo)+'</span>'+
-      '<input type="url" inputmode="url" placeholder="'+esc(ph)+'" value="'+esc(valor||"")+'" '+
+      // maxlength espelha o teto da regra do Firestore (600). Sem ele o banco
+      // recusa a gravacao depois e a pessoa acha que salvou.
+      '<input type="url" inputmode="url" maxlength="600" autocapitalize="off" '+
+        'autocorrect="off" spellcheck="false" placeholder="'+esc(ph)+'" value="'+esc(valor||"")+'" '+
         'data-act="'+act+'" data-id="'+id+'" data-campo="'+campo+'">'+
       '<a class="abrir'+(seguro?"":" off")+'" '+(seguro?'href="'+esc(seguro)+'" target="_blank" rel="noopener noreferrer"':'href="#" tabindex="-1" aria-disabled="true"')+'>Abrir</a>'+
     '</div>';
@@ -787,10 +816,11 @@
     if(fStatus !== "todos" && p.status !== fStatus) return false;
     if(fDia    !== "todos" && p.dia    !== fDia)    return false;
     if(fBoost && !p.impulsionar) return false;
-    if(fBusca){
+    var q = fBusca.trim().toLowerCase();
+    if(q){
       var alvo = [p.marca,p.tema,p.formato,p.editor,p.quemGrava,p.referencia,p.roteiro,p.resumo]
         .join(" ").toLowerCase();
-      if(alvo.indexOf(fBusca.toLowerCase()) < 0) return false;
+      if(alvo.indexOf(q) < 0) return false;
     }
     return true;
   }
@@ -882,11 +912,11 @@
     h += '</datalist></div>';
 
     h += '<div class="fld full"><label>Tema</label><input id="f_tema" type="text" value="'+esc(p.tema||"")+'" placeholder="Do que é o conteúdo"></div>';
-    h += '<div class="fld full"><label>Referência</label><textarea id="f_referencia" placeholder="Link ou descrição da referência">'+esc(p.referencia||"")+'</textarea></div>';
-    h += '<div class="fld full"><label>Roteiro</label><textarea id="f_roteiro" placeholder="O que precisa acontecer no vídeo">'+esc(p.roteiro||"")+'</textarea></div>';
+    h += '<div class="fld full"><label>Referência</label><textarea id="f_referencia" maxlength="4000" placeholder="Link ou descrição da referência">'+esc(p.referencia||"")+'</textarea></div>';
+    h += '<div class="fld full"><label>Roteiro</label><textarea id="f_roteiro" maxlength="4000" placeholder="O que precisa acontecer no vídeo">'+esc(p.roteiro||"")+'</textarea></div>';
     h += '<div class="fld"><label>Quem grava</label><input id="f_quemGrava" type="text" value="'+esc(p.quemGrava||"")+'" placeholder="Nome de quem captou"></div>';
     h += '<div class="fld"><label>Editor</label><input id="f_editor" type="text" value="'+esc(p.editor||"")+'" placeholder="Quem edita"></div>';
-    h += '<div class="fld full"><label>Resumo da gravação</label><textarea id="f_resumo" placeholder="Observação de quem gravou">'+esc(p.resumo||"")+'</textarea></div>';
+    h += '<div class="fld full"><label>Resumo da gravação</label><textarea id="f_resumo" maxlength="4000" placeholder="Observação de quem gravou">'+esc(p.resumo||"")+'</textarea></div>';
     h += '<div class="fld"><label>Horário de veiculação</label><input id="f_horario" type="text" value="'+esc(p.horario||"")+'" placeholder="19h30"></div>';
 
     h += '<div class="fld"><label>Status</label><select id="f_status">';
@@ -955,7 +985,8 @@
     }
 
     if(podeGerenciar("story")){
-      h += '<div class="barrafiltro"><button class="btn" data-act="novobloco">+ Novo bloco</button></div>';
+      h += criandoBloco ? formBlocoHTML()
+         : '<div class="barrafiltro"><button class="btn" data-act="novobloco">+ Novo bloco</button></div>';
     }
 
     // agrupa por bloco, preservando a ordem de criacao do primeiro item
@@ -1035,6 +1066,15 @@
     $("#view-coletivas").hidden = t !== "coletivas";
     $("#view-pecas").hidden     = t !== "pecas";
     $("#view-story").hidden     = t !== "story";
+    // Redesenha a aba de destino. Os watchers so redesenham a aba ATIVA, entao
+    // sem isto a pessoa volta pra uma aba pintada com o dado de quando saiu (ou
+    // vazia, se o primeiro snapshot chegou depois do renderAll do login).
+    try{
+      if(t === "coletivas") renderColetivas();
+      else if(t === "pecas"){ if(!editandoPeca) renderPecas(); }
+      else { if(!criandoBloco) renderStory(); }
+      pendente[t] = false;
+    }catch(e){ if(window.console) console.error("[conteudo] render de aba", e); }
     ga("aba_conteudo", { aba:t, perfil: PERFIL || "desconhecido" });
   }
 
@@ -1083,9 +1123,12 @@
       } else if(act === "boostcol"){
         DBset("coletivas", id, { impulsionar: !st.impulsionar, em:Date.now(), por:quemSou() });
       } else {
-        var r = (st.redes||[]).slice(), p = r.indexOf(b.dataset.rede);
-        if(p<0) r.push(b.dataset.rede); else r.splice(p,1);
-        DBset("coletivas", id, { redes:r, em:Date.now(), por:quemSou() });
+        // arrayUnion/arrayRemove em vez de reescrever o array inteiro: dois
+        // toques rapidos (aqui ou de outra pessoa) liam o mesmo array antigo e
+        // o segundo apagava a marcacao do primeiro.
+        var jaTem = (st.redes||[]).indexOf(b.dataset.rede) >= 0;
+        DBset("coletivas", id, { redes: setaRede(b.dataset.rede, jaTem, st.redes),
+                                 em:Date.now(), por:quemSou() });
       }
       return;
     }
@@ -1121,9 +1164,9 @@
       } else if(act === "boostpeca"){
         DBupdate("pecas", id, { impulsionar: !pc.impulsionar, em:Date.now(), por:quemSou() });
       } else {
-        var rr=(pc.redes||[]).slice(), pp=rr.indexOf(b.dataset.rede);
-        if(pp<0) rr.push(b.dataset.rede); else rr.splice(pp,1);
-        DBupdate("pecas", id, { redes:rr, em:Date.now(), por:quemSou() });
+        var jaTinha = (pc.redes||[]).indexOf(b.dataset.rede) >= 0;
+        DBupdate("pecas", id, { redes: setaRede(b.dataset.rede, jaTinha, pc.redes),
+                                em:Date.now(), por:quemSou() });
       }
       return;
     }
@@ -1151,7 +1194,14 @@
     }
     if(act === "novobloco"){
       if(!podeGerenciar("story")){ toast("Seu acesso não cria blocos."); return; }
-      novoBloco(); return;
+      criandoBloco = true; renderStory();
+      var bn = $("#b_nome"); if(bn) bn.focus();
+      return;
+    }
+    if(act === "cancelarbloco"){ criandoBloco = false; renderStory(); return; }
+    if(act === "salvarbloco"){
+      if(!podeGerenciar("story")){ toast("Seu acesso não cria blocos."); return; }
+      salvarBloco(); return;
     }
     if(act === "additem"){
       if(!podeGerenciar("story")){ toast("Seu acesso não cria itens."); return; }
@@ -1164,27 +1214,49 @@
     }
   });
 
-  function novoBloco(){
-    var nome = prompt("Nome do bloco (ex: Show Matuê, Abertura dos portões)");
-    if(nome === null) return;
-    nome = String(nome).trim(); if(!nome) return;
+  // Formulario, nao prompt(). window.prompt e campo de UMA linha em todo
+  // navegador: Enter confirma o dialogo e texto colado perde as quebras. Pedir
+  // "um item por linha" ali dentro nunca ia funcionar, e montar os 5 dias item
+  // a item daria umas 60 caixinhas de dialogo. Com textarea a coordenacao cola
+  // o checklist inteiro de uma vez.
+  function formBlocoHTML(){
+    var i, h = '<div class="form"><h3>Novo bloco de '+esc(rotuloDia(diaStoryAtual()))+'</h3><div class="grid2">';
+    h += '<div class="fld"><label>Nome do bloco</label>'+
+         '<input id="b_nome" type="text" placeholder="Show Matuê, Abertura dos portões..."></div>';
+    h += '<div class="fld"><label>Área</label><select id="b_area"><option value="">Sem área</option>';
+    for(i=0;i<AREAS.length;i++) h += '<option value="'+esc(AREAS[i])+'">'+esc(AREAS[i])+'</option>';
+    h += '</select></div>';
+    h += '<div class="fld full"><label>Itens, um por linha</label>'+
+         '<textarea id="b_itens" rows="5" style="min-height:120px" placeholder="Story 1: mostrar o público&#10;Story 2: o show&#10;Story 3: a vibe da galera"></textarea>'+
+         '<span style="font-size:.7rem;color:var(--ink-3);margin-top:4px">Pode colar uma lista inteira. Cada linha vira um item para marcar.</span></div>';
+    h += '</div><div class="acoes">'+
+      '<button class="btn" data-act="salvarbloco">Criar bloco</button>'+
+      '<button class="btn ghost" data-act="cancelarbloco">Cancelar</button>'+
+    '</div></div>';
+    return h;
+  }
 
-    var area = prompt("Área? "+AREAS.join(" / ")+"\n(pode deixar em branco)", "");
-    if(area === null) area = "";
-    area = String(area).trim();
-
-    var linhas = prompt("Escreva UM ITEM POR LINHA.\n\nExemplo:\nStory 1: mostrar o público\nStory 2: o show\nStory 3: a vibe da galera");
-    if(linhas === null) return;
-    var lista = String(linhas).split("\n").map(function(x){ return x.trim(); }).filter(Boolean);
-    if(!lista.length){ toast("Nenhum item escrito."); return; }
-
+  function salvarBloco(){
+    var nome = String(($("#b_nome")||{}).value || "").trim();
+    var area = String(($("#b_area")||{}).value || "").trim();
+    var txt  = String(($("#b_itens")||{}).value || "");
+    if(!nome){ toast("Dê um nome ao bloco."); var n=$("#b_nome"); if(n) n.focus(); return; }
+    var lista = txt.split("\n").map(function(x){ return x.trim(); }).filter(Boolean);
+    if(!lista.length){ toast("Escreva ao menos um item."); var t=$("#b_itens"); if(t) t.focus(); return; }
+    // teto de 600 e o mesmo da regra do Firestore: melhor barrar aqui do que o
+    // banco recusar depois e a pessoa achar que salvou
+    for(var j=0;j<lista.length;j++){
+      if(lista[j].length > 600){ toast("Um dos itens passou de 600 caracteres. Encurte."); return; }
+    }
     var dia = diaStoryAtual(), base = Date.now();
     for(var i=0;i<lista.length;i++){
       // criadoEm com deslocamento pra lista sair na ordem que a pessoa escreveu
       DBadd("story", { dia:dia, grupo:nome, area:area, texto:lista[i], resp:"", feito:false,
                        criadoEm: base + i, por:quemSou() });
     }
+    criandoBloco = false;
     toast(lista.length + (lista.length===1 ? " item criado." : " itens criados."));
+    renderStory();
   }
 
   function salvarPeca(){
@@ -1232,10 +1304,21 @@
     }
   });
 
+  // No iPhone o "ok" do teclado nao tira o foco do campo, entao o "change" nunca
+  // dispara: a pessoa cola o link, fecha o teclado, sai da tela e o link se perde
+  // apesar do aviso "tudo salva sozinho". Enter forca o blur, que dispara o change.
+  document.addEventListener("keydown", function(ev){
+    if(ev.key !== "Enter") return;
+    var a = ev.target, act = a && a.dataset && a.dataset.act;
+    if(act === "stcol-link" || act === "peca-link"){ ev.preventDefault(); a.blur(); }
+  });
+
   // busca: filtra enquanto digita, sem perder o foco do campo
   document.addEventListener("input", function(ev){
     if(ev.target.id !== "buscaPeca") return;
-    fBusca = String(ev.target.value||"").trim();
+    // sem trim aqui: com trim, o espaco some a cada tecla e e impossivel
+    // digitar "Royal Enfield" ou "Fun Motors". O trim vai no passaFiltro.
+    fBusca = String(ev.target.value||"");
     var pos = ev.target.selectionStart;
     renderPecas();
     var novo = $("#buscaPeca");
@@ -1294,10 +1377,52 @@
   // ═══════════════════════════════════════════════════════════════
   // LOGIN E BOOT
   // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // NAO REDESENHAR POR CIMA DE QUEM ESTA DIGITANDO
+  //
+  // O render aqui e innerHTML da secao inteira. Se um colega gravar qualquer
+  // coisa enquanto a pessoa preenche os 12 campos de uma peca, a tela remonta
+  // com os valores SALVOS e tudo que estava digitado evapora sem aviso. Com
+  // includeMetadataChanges cada gravacao gera dois eventos (cache + servidor),
+  // entao ate o proprio toque da pessoa noutra peca dispara isso.
+  //
+  // Solucao: se tem campo em foco na secao (ou o formulario de peca aberto),
+  // o render fica PENDENTE e roda quando o foco sair.
+  // ═══════════════════════════════════════════════════════════════
+  var pendente = { coletivas:false, pecas:false, story:false };
+
+  function digitandoEm(sel){
+    var a = document.activeElement;
+    if(!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
+    if(a.id === "buscaPeca") return false;   // a busca tem restauracao propria
+    var sec = document.querySelector(sel);
+    return !!sec && sec.contains(a);
+  }
+
+  function renderOuAdiar(qual, fn, sel, travaExtra){
+    if(abaAtual !== qual) return;             // aba escondida: mostrarAba redesenha
+    if(travaExtra || digitandoEm(sel)){ pendente[qual] = true; return; }
+    pendente[qual] = false;
+    fn();
+  }
+
+  // setTimeout 0 de proposito: deixa o "change" do campo gravar antes, e da tempo
+  // do proximo campo pegar o foco (trocar de campo dentro da secao nao redesenha).
+  document.addEventListener("focusout", function(){
+    setTimeout(function(){
+      if(pendente.coletivas) renderOuAdiar("coletivas", renderColetivas, "#view-coletivas", false);
+      if(pendente.pecas)     renderOuAdiar("pecas",     renderPecas,     "#view-pecas", !!editandoPeca);
+      if(pendente.story)     renderOuAdiar("story",     renderStory,     "#view-story", !!criandoBloco);
+    }, 0);
+  });
+
   function ligarEscutas(){
-    desligar.push(DBwatch("coletivas", function(a){ coletivas=a; if(abaAtual==="coletivas") renderColetivas(); }));
-    desligar.push(DBwatch("pecas",     function(a){ pecas=a;     if(abaAtual==="pecas") renderPecas(); contadores(); }));
-    desligar.push(DBwatch("story",     function(a){ story=a;     if(abaAtual==="story") renderStory(); contadores(); }));
+    desligar.push(DBwatch("coletivas", function(a){ coletivas=a;
+      renderOuAdiar("coletivas", renderColetivas, "#view-coletivas", false); }));
+    desligar.push(DBwatch("pecas", function(a){ pecas=a;
+      renderOuAdiar("pecas", renderPecas, "#view-pecas", !!editandoPeca); contadores(); }));
+    desligar.push(DBwatch("story", function(a){ story=a;
+      renderOuAdiar("story", renderStory, "#view-story", !!criandoBloco); contadores(); }));
   }
 
   function openApp(){
