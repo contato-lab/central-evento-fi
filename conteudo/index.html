@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Conteúdo · Suhai Festival Interlagos</title>
+<!-- modo app: instalado na tela de inicio abre sem a barra do navegador -->
+<meta name="theme-color" content="#0B0C0A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Conteúdo FI">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Mesma propriedade GA4 da Central (ferramenta de equipe, nao site de venda).
+     O perfil entra como user_property, entao da pra separar conteudo de producao. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NRX7DEGC47"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-NRX7DEGC47');
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap">
+<style>
+  :root{
+    --bg:#0B0C0A; --panel:#141613; --panel-2:#1B1E18; --raise:#23271F;
+    --line:#2B3026; --line-soft:#232720;
+    --ink:#F4F6EF; --ink-2:#A9AFA2; --ink-3:#767C6E;
+    --lime:#A6EC4D; --lime-d:#8CD230; --lime-ink:#0B0C0A;
+    --cyan:#4CC3F0; --amber:#FBBF24; --red:#F5453F; --roxo:#B98BFF;
+    --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --display:'Barlow Condensed',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Segoe UI Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  /* NAO TIRAR. O atributo hidden do HTML vira display:none pela folha do
+     navegador, e QUALQUER display no CSS nosso ganha dele. O #gate usa
+     display:grid, entao sem esta linha a tela de senha continua cobrindo
+     tudo depois do login e o sistema fica inutilizavel. Pego no teste de
+     tela em 11/08/2026: o hidden marcava true e o login seguia na frente. */
+  [hidden]{display:none!important}
+  html{overflow-x:hidden;overscroll-behavior-x:none;-webkit-text-size-adjust:100%}
+  body{margin:0;overflow-x:hidden;overscroll-behavior-x:none}
+  .fi{background:radial-gradient(900px 500px at 85% -10%,rgba(166,236,77,.09),transparent 60%),var(--bg);
+    color:var(--ink);font-family:var(--font);min-height:100vh;-webkit-font-smoothing:antialiased}
+  .fi ::selection{background:var(--lime);color:var(--lime-ink)}
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit}
+  /* no celular, campo com fonte menor que 16px faz o iPhone dar zoom sozinho ao tocar */
+  @media(max-width:820px){ input,select,textarea{font-size:16px !important} }
+  .mono{font-family:var(--mono)}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+
+  /* ---------- LOGIN ---------- */
+  #gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;
+    background:radial-gradient(700px 400px at 50% 0%,rgba(166,236,77,.12),transparent 60%),var(--bg)}
+  .gatecard{width:100%;max-width:380px;text-align:center}
+  .gatecard img.marca{height:110px;width:auto;margin:0 auto 24px;display:block}
+  .gatecard .hi{font-family:var(--display);font-weight:700;font-size:1.7rem;letter-spacing:.01em}
+  .gatecard .sub{color:var(--ink-3);font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;margin-top:6px}
+  .gatecard form{margin-top:24px;display:flex;flex-direction:column;gap:10px}
+  .gatecard input{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:11px;
+    padding:14px 16px;font-size:1rem;text-align:center;letter-spacing:.05em}
+  .gatecard input:focus{outline:none;border-color:var(--lime);box-shadow:0 0 0 3px rgba(166,236,77,.15)}
+  .gatecard button[type=submit]{background:var(--lime);color:var(--lime-ink);border:0;border-radius:11px;padding:14px;
+    font-weight:700;font-size:1rem}
+  .gatecard button[type=submit]:hover{background:var(--lime-d)}
+  .gate-err{color:var(--red);font-size:.82rem;min-height:1.1em;font-weight:600}
+  .pwwrap{position:relative;display:block}
+  .pwwrap input{padding-right:96px !important;padding-left:96px !important}
+  .pweye{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    background:transparent;border:0;color:var(--ink-3);font-family:var(--mono);
+    font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;
+    min-height:44px;padding:0 10px;border-radius:9px}
+  .pweye:hover{color:var(--ink)}
+  .pweye:focus-visible{outline:2px solid var(--lime);outline-offset:2px;color:var(--ink)}
+  @media(max-width:420px){
+    .pwwrap input{padding-right:84px !important;padding-left:14px !important;text-align:left}
+    .pweye{font-size:.62rem}
+  }
+  .gate-note{color:var(--ink-3);font-size:.74rem;margin-top:18px;line-height:1.5}
+  .porlime{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:26px;
+    color:var(--ink-3);font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase}
+  .porlime img{height:26px;width:auto}
+
+  /* ---------- TOPO ---------- */
+  header.top{position:sticky;top:0;z-index:30;background:linear-gradient(var(--bg),rgba(11,12,10,.82));
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft)}
+  .top .bar{display:flex;align-items:center;gap:14px;height:74px}
+  .top img.logo{height:46px;width:auto}
+  .top .sep{width:1px;height:30px;background:var(--line)}
+  .top img.logolime{height:50px;width:auto;display:block}
+  @media(max-width:420px){ .top img.logolime{height:40px} .top img.logo{height:38px} }
+  .top .spacer{flex:1}
+  .top .out{background:transparent;border:1px solid var(--line);color:var(--ink-2);border-radius:9px;
+    padding:8px 12px;font-size:.78rem;font-weight:600}
+  .top .out:hover{color:var(--ink)}
+  .top .ajuda{background:transparent;border:1px solid var(--line);color:var(--ink-2);
+    border-radius:50%;width:36px;height:36px;font-size:.9rem;font-weight:700;flex-shrink:0;font-family:inherit}
+  .top .ajuda:hover{border-color:var(--lime);color:var(--lime)}
+  .quemsou{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line-soft);
+    padding:4px 10px;border-radius:99px;white-space:nowrap;max-width:34vw;overflow:hidden;text-overflow:ellipsis}
+  @media(max-width:620px){.quemsou{display:none}}
+  .syncdot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
+  .syncdot.on{background:var(--lime);box-shadow:0 0 0 3px rgba(166,236,77,.18)}
+  .syncdot.off{background:var(--ink-3);box-shadow:0 0 0 3px rgba(118,124,110,.15)}
+  .syncdot.warn{background:var(--amber);box-shadow:0 0 0 3px rgba(251,191,36,.2);animation:sdpulse 1s infinite}
+  @keyframes sdpulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* abas */
+  .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line-soft)}
+  .tabs .wrap2{display:flex;gap:6px;max-width:1240px;margin:0 auto;padding:0 20px;width:100%;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs .wrap2::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto;background:none;border:0;color:var(--ink-3);font-family:var(--display);
+    font-weight:700;font-size:1.12rem;padding:15px 6px;position:relative;letter-spacing:-.01em;
+    display:inline-flex;align-items:center;gap:9px}
+  .tab .n{font-family:var(--mono);font-size:.68rem;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--ink-3);padding:2px 7px;border-radius:100px}
+  .tab.active{color:var(--ink)}
+  .tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--lime);border-radius:2px}
+  .tab.active .n{color:var(--lime);border-color:rgba(166,236,77,.35)}
+
+  main{padding:22px 0 100px}
+
+  /* sub-abas (dias) */
+  .subtabs{display:flex;gap:8px;margin:2px 0 16px;flex-wrap:wrap}
+  .subtab{background:transparent;border:1px solid var(--line);color:var(--ink-2);
+    border-radius:20px;padding:8px 16px;font-size:.82rem;font-weight:600;min-height:38px}
+  .subtab.active{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .subtab:not(.active):hover{border-color:var(--lime);color:var(--ink)}
+
+  /* faixa de resumo no topo de cada modulo */
+  .resumo{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+  .rbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:10px 14px;min-width:104px}
+  .rbox .rk{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-3)}
+  .rbox .rv{font-family:var(--display);font-weight:700;font-size:1.5rem;line-height:1.1;margin-top:2px}
+  .rbox.destaque .rv{color:var(--lime)}
+  .rbox.alerta .rv{color:var(--amber)}
+
+  /* ---------- BLOCO (cartao dobravel) ---------- */
+  .bloco{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+  .bloco.completo{border-color:rgba(166,236,77,.32)}
+  .cabeca{display:flex;align-items:center;gap:12px;padding:13px 15px;width:100%;
+    background:transparent;border:0;color:var(--ink);text-align:left}
+  .cabeca:hover{background:var(--panel-2)}
+  .chora{font-family:var(--display);font-weight:700;font-size:1.05rem;color:var(--lime);
+    min-width:56px;flex:0 0 auto}
+  /* display:block obrigatorio: sao <span>, e sem isso marca e influenciador
+     saem grudados na mesma linha ("CFMOTOSeku Mello"). */
+  .cnome{display:block;font-weight:700;font-size:.96rem;line-height:1.3;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cinflu{display:block;font-size:.78rem;color:var(--ink-2);margin-top:1px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cmeio{flex:1;min-width:0}
+  .cprog{font-family:var(--mono);font-size:.64rem;letter-spacing:.06em;color:var(--ink-3);
+    white-space:nowrap;flex:0 0 auto}
+  .cprog.ok{color:var(--lime)}
+  .cmais{font-family:var(--mono);font-size:1rem;color:var(--ink-3);width:22px;text-align:center;flex:0 0 auto}
+  .corpo{padding:0 15px 14px;border-top:1px solid var(--line-soft)}
+
+  /* ---------- PECA DE CONTEUDO ---------- */
+  .peca{padding:13px 0;border-bottom:1px solid var(--line-soft)}
+  .peca:last-child{border-bottom:0}
+  .pnome{font-weight:700;font-size:.88rem;margin-bottom:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .stchips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+  /* 42px de altura: esses chips sao tocados de pe, no sol, com uma mao so.
+     Abaixo disso o dedo erra e marca o status errado. */
+  .stchip{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-3);
+    border-radius:8px;padding:9px 13px;font-size:.78rem;font-weight:600;min-height:42px}
+  .stchip:hover{color:var(--ink);border-color:var(--ink-3)}
+  .stchip.on{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .stchip.on[data-st=gravando]{background:var(--amber);border-color:var(--amber)}
+  .stchip.on[data-st=edicao]{background:var(--cyan);border-color:var(--cyan)}
+  .stchip.on[data-st=pronto]{background:var(--roxo);border-color:var(--roxo)}
+
+  .linhaflex{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+  .mini{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-3);
+    border-radius:8px;padding:8px 12px;font-size:.74rem;font-weight:600;min-height:40px}
+  .mini:hover{color:var(--ink)}
+  .mini.on{background:rgba(166,236,77,.14);border-color:rgba(166,236,77,.5);color:var(--lime)}
+  .mini.boost.on{background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.55);color:var(--amber)}
+
+  .campo{display:flex;gap:7px;align-items:center;margin-bottom:7px}
+  .campo input[type=text],.campo input[type=url],.campo input[type=time]{
+    flex:1;min-width:0;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:9px 11px;font-size:.82rem}
+  .campo input:focus{outline:none;border-color:var(--lime)}
+  .campo .cl{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-3);width:64px;flex:0 0 auto}
+  .abrir{background:var(--panel-2);border:1px solid var(--line);color:var(--lime);
+    border-radius:9px;padding:9px 11px;font-size:.72rem;font-weight:700;text-decoration:none;
+    display:inline-flex;align-items:center;min-height:36px;flex:0 0 auto}
+  .abrir:hover{border-color:var(--lime)}
+  .abrir.off{color:var(--ink-3);pointer-events:none;opacity:.4}
+
+  /* ---------- BUSCA E FILTRO ---------- */
+  .barrafiltro{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .busca{flex:1;min-width:190px;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    border-radius:11px;padding:11px 14px;font-size:.88rem}
+  .busca:focus{outline:none;border-color:var(--lime)}
+  .fchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .fchip{background:var(--panel);border:1px solid var(--line);color:var(--ink-3);
+    border-radius:20px;padding:7px 14px;font-size:.76rem;font-weight:600;min-height:36px}
+  .fchip.on{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .fchip:not(.on):hover{color:var(--ink);border-color:var(--ink-3)}
+
+  .btn{background:var(--lime);color:var(--lime-ink);border:0;border-radius:10px;
+    padding:11px 16px;font-weight:700;font-size:.86rem;min-height:42px}
+  .btn:hover{background:var(--lime-d)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink-2)}
+  .btn.ghost:hover{border-color:var(--lime);color:var(--lime)}
+  .btn.perigo{background:transparent;border:1px solid rgba(245,69,63,.4);color:var(--red)}
+  .btn.perigo:hover{background:rgba(245,69,63,.1)}
+
+  /* ---------- FORMULARIO ---------- */
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  .form h3{margin:0 0 14px;font-family:var(--display);font-weight:700;font-size:1.15rem;
+    letter-spacing:.02em;text-transform:uppercase}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:640px){ .grid2{grid-template-columns:1fr} }
+  .fld{display:flex;flex-direction:column;gap:5px}
+  .fld label{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .fld input,.fld select,.fld textarea{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:10px 12px;font-size:.86rem;width:100%}
+  .fld textarea{min-height:74px;resize:vertical;line-height:1.5}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--lime)}
+  .fld.full{grid-column:1/-1}
+  .acoes{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+
+  /* ---------- TAGS ---------- */
+  .tag{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
+    padding:3px 8px;border-radius:6px;white-space:nowrap;flex:0 0 auto}
+  .tag.organico{background:rgba(76,195,240,.14);color:var(--cyan);border:1px solid rgba(76,195,240,.35)}
+  .tag.pago{background:rgba(185,139,255,.14);color:var(--roxo);border:1px solid rgba(185,139,255,.35)}
+  .tag.st{background:var(--panel-2);color:var(--ink-3);border:1px solid var(--line)}
+  .tag.st[data-st=gravando]{color:var(--amber);border-color:rgba(251,191,36,.4)}
+  .tag.st[data-st=edicao]{color:var(--cyan);border-color:rgba(76,195,240,.4)}
+  .tag.st[data-st=pronto]{color:var(--roxo);border-color:rgba(185,139,255,.4)}
+  .tag.st[data-st=publicado]{color:var(--lime);border-color:rgba(166,236,77,.45)}
+  .tag.boost{background:rgba(251,191,36,.14);color:var(--amber);border:1px solid rgba(251,191,36,.4)}
+  .tag.area{background:var(--raise);color:var(--ink-2);border:1px solid var(--line)}
+
+  /* ---------- CHECKLIST ---------- */
+  .chk{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+  .chk:last-child{border-bottom:0}
+  /* o quadradinho e o controle mais tocado do StoryMaker, e quem toca esta
+     andando pelo autodromo. 34px e o minimo que o dedo acerta sem olhar. */
+  .chkbox{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);
+    background:var(--panel-2);color:transparent;font-size:1.05rem;font-weight:700;
+    flex:0 0 auto;display:grid;place-items:center;padding:0;line-height:1}
+  .chkbox.on{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .chktx{flex:1;min-width:0;font-size:.88rem;line-height:1.45}
+  .chk.feito .chktx{color:var(--ink-3);text-decoration:line-through}
+  .chkresp{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;color:var(--ink-3);
+    margin-top:3px;display:block}
+  .chkresp b{color:var(--ink-2);font-weight:600}
+  .chkdel{background:transparent;border:0;color:var(--ink-3);font-size:1rem;padding:2px 6px;flex:0 0 auto}
+  .chkdel:hover{color:var(--red)}
+
+  /* ---------- ESTADOS ---------- */
+  .vazio{text-align:center;padding:46px 20px;color:var(--ink-3)}
+  .vazio .big{font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--ink-2);margin-bottom:6px}
+  .vazio .sm{font-size:.85rem;line-height:1.5;max-width:400px;margin:0 auto}
+  #offline{background:rgba(251,191,36,.13);border-bottom:1px solid rgba(251,191,36,.4);
+    color:var(--amber);font-size:.8rem;padding:9px 20px;text-align:center;font-weight:600}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    background:var(--raise);border:1px solid var(--line);color:var(--ink);border-radius:11px;
+    padding:12px 18px;font-size:.86rem;font-weight:600;opacity:0;pointer-events:none;
+    transition:opacity .18s,transform .18s;z-index:80;max-width:88vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .rulebox{display:flex;gap:10px;align-items:flex-start;background:rgba(166,236,77,.07);
+    border:1px solid rgba(166,236,77,.28);border-radius:11px;padding:12px 14px;margin:0 0 14px}
+  .rulebox .ic{color:var(--lime);font-weight:700;flex:0 0 auto;line-height:1.45}
+  .rulebox .tx{font-size:.85rem;line-height:1.45;color:var(--ink-2)}
+  .rulebox .tx b{color:var(--ink)}
+
+  /* ---------- MINI GUIA ---------- */
+  #guiaOverlay{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:90;
+    display:flex;align-items:flex-end;justify-content:center;padding:14px}
+  .guiacard{background:var(--panel);border:1px solid var(--line);border-radius:18px;
+    padding:22px 20px;width:100%;max-width:420px;box-shadow:0 -8px 40px rgba(0,0,0,.5)}
+  .guiaquem{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+  .guiaperfil{font-family:var(--display);font-weight:700;font-size:1.7rem;color:var(--lime);margin:2px 0 12px}
+  .guialista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+  .guialista li{font-size:.9rem;line-height:1.5;color:var(--ink);padding-left:14px;border-left:2px solid var(--lime)}
+  .guiacard .btn{width:100%;margin-top:18px}
+  @media(min-width:560px){ #guiaOverlay{align-items:center} }
+</style>
+
+<body class="fi">
+
+<!-- LOGIN -->
+<div id="gate">
+  <div class="gatecard">
+    <img class="marca" src="logo.png" width="577" height="300" alt="Suhai Festival Interlagos">
+    <div class="hi">Conteúdo</div>
+    <div class="sub">Time de conteúdo e edição</div>
+    <form id="gateForm">
+      <div class="pwwrap">
+        <input id="pw" name="senha" type="password" placeholder="Senha de acesso" autocomplete="current-password" autofocus>
+        <button type="button" id="verSenha" class="pweye" aria-label="Mostrar senha">Mostrar</button>
+      </div>
+      <div class="gate-err" id="gateErr"></div>
+      <button type="submit">Entrar</button>
+    </form>
+    <div class="gate-note">Acesso restrito ao time de conteúdo. Peça a senha para a coordenação de conteúdo.</div>
+    <div class="porlime"><span>por</span><img src="logo-lime.png" width="763" height="703" alt="Lime"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" hidden>
+  <header class="top">
+    <div class="wrap bar">
+      <img class="logo" src="logo.png" width="577" height="300" alt="Suhai Festival Interlagos">
+      <div class="sep"></div>
+      <img class="logolime" src="logo-lime.png" width="763" height="703" alt="Lime">
+      <div class="spacer"></div>
+      <span class="quemsou" id="quemSou"></span>
+      <span class="syncdot off" id="syncDot" title=""></span>
+      <button class="ajuda" id="btnGuia" type="button" title="Como usar" aria-label="Como usar">?</button>
+      <button class="out" id="logout">Sair</button>
+    </div>
+  </header>
+
+  <div id="offline" hidden>Sem conexão com o servidor. A tela mostra a última informação salva.</div>
+
+  <nav class="tabs"><div class="wrap2">
+    <button class="tab active" data-tab="coletivas">Coletivas <span class="n" id="cColetivas">0</span></button>
+    <button class="tab" data-tab="pecas">Orgânicos e pagos <span class="n" id="cPecas">0</span></button>
+    <button class="tab" data-tab="story">StoryMaker <span class="n" id="cStory">0</span></button>
+  </div></nav>
+
+  <main class="wrap">
+    <section id="view-coletivas"></section>
+    <section id="view-pecas" hidden></section>
+    <section id="view-story" hidden></section>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var VERSAO = "2026-08-11.1";
+
+  // ═══════════════════════════════════════════════════════════════
+  // PERFIS
+  // A matriz de permissao vive AQUI, no codigo, nunca no banco. O banco
+  // so diz quem tem qual perfil; o codigo diz o que cada perfil pode.
+  //
+  // Dois niveis de proposito:
+  //   conteudo  = direcao e edicao (Nil, Isa, coordenacao, editores). Ve tudo.
+  //   story     = storymaker de campo. So o checklist do dia dele.
+  // O storymaker nao precisa (nem deve) mexer na grade das coletivas no
+  // meio do corre. Menos tela = menos engano.
+  // ═══════════════════════════════════════════════════════════════
+  var PERFIS = {
+    conteudo: { rotulo:"Conteúdo",   coletivas:"gerenciar", pecas:"gerenciar", story:"gerenciar" },
+    story:    { rotulo:"StoryMaker", coletivas:"nenhum",    pecas:"nenhum",    story:"gerenciar" }
+  };
+
+  // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com o banco
+  // fora do ar. Impede o time ficar trancado pra fora no dia do evento.
+  var ACESSOS_PADRAO = [
+    { nome:"Time de Conteúdo", senha:"conteudo2026", perfil:"conteudo" },
+    { nome:"StoryMaker",       senha:"story2026",    perfil:"story"    }
+  ];
+
+  // ═══════════════════════════════════════════════════════════════
+  // FIREBASE — mesmo projeto da Central do Evento, colecoes proprias.
+  // Arquivo separado de proposito: se este modulo quebrar no meio do
+  // evento, o mural do locutor e os avisos da imprensa continuam de pe.
+  // ═══════════════════════════════════════════════════════════════
+  var firebaseConfig = {
+    apiKey: "AIzaSyD1spoy847dEtccSGJflKtG4-EYZMe23OQ",
+    authDomain: "central-evento-fi.firebaseapp.com",
+    projectId: "central-evento-fi",
+    storageBucket: "central-evento-fi.firebasestorage.app",
+    messagingSenderId: "343908101394",
+    appId: "1:343908101394:web:ae260e08858b43e70dd7cb"
+  };
+  var FB_ON = !!(firebaseConfig.projectId && window.firebase);
+  var db = null;
+  if(FB_ON){
+    try{
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      // cache no aparelho: o autodromo cheio derruba dados de celular. Com isso
+      // a pessoa marca "publicado" sem sinal e sobe sozinho quando a rede volta.
+      try{ db.enablePersistence({ synchronizeTabs:true })["catch"](function(){}); }catch(e){}
+    }catch(e){ FB_ON = false; }
+  }
+
+  // ---- helpers ----
+  var $ = function(s,r){ return (r||document).querySelector(s); };
+  var $$ = function(s,r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+  var esc = function(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); };
+  var uid = function(){ return Math.random().toString(36).slice(2,9); };
+  function toast(msg){ var t=$("#toast"); t.textContent=msg; t.classList.add("show");
+    setTimeout(function(){ t.classList.remove("show"); },1800); }
+
+  // Link so vira link se for http(s). Sem isso alguem cola "javascript:..." ou
+  // um caminho relativo e o cartao passa a apontar pra qualquer coisa.
+  function linkSeguro(u){
+    var s = String(u||"").trim();
+    if(!s) return "";
+    if(!/^https?:\/\//i.test(s)) return "";
+    return s;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CAMADA DE DADOS
+  // TODAS as colecoes usam estrategia "collection": UM DOCUMENTO POR ITEM.
+  //
+  // Isso e diferente da Central, que guarda o mural inteiro num documento so.
+  // La funciona porque quem escreve e so a producao. Aqui vao ser Nil, Isa,
+  // coordenacao e os editores mexendo AO MESMO TEMPO durante o evento. Com
+  // documento unico, quem salva por ultimo apaga a edicao do outro sem avisar
+  // ninguem. Um documento por peca elimina isso na raiz.
+  // ═══════════════════════════════════════════════════════════════
+  var COL = { coletivas:"cont_coletivas", pecas:"cont_pecas", story:"cont_story" };
+
+  var watchers = {};
+  function lsGet(c){ try{ return JSON.parse(localStorage.getItem("cfi_"+c)) || []; }catch(e){ return []; } }
+  function lsSet(c,a){ try{ localStorage.setItem("cfi_"+c, JSON.stringify(a)); }catch(e){}
+    if(watchers[c]) watchers[c](a); }
+
+  var connState = FB_ON ? "on" : "off";
+  var offTimer = null;
+  function setStatus(st){
+    if(st) connState = st;
+    var s=$("#syncDot"); if(!s) return;
+    s.className = "syncdot " + connState;
+    s.title = (connState==="on" ? "Sincronizado em tempo real"
+            : connState==="warn" ? "Reconectando, mostrando a última informação"
+            : "Modo local (só neste aparelho)") + "  ·  versão " + VERSAO;
+    var b = $("#offline"); if(!b) return;
+    if(connState === "warn"){
+      // 4s de tolerancia: piscada de rede nao merece faixa amarela na tela
+      if(!offTimer && b.hidden){
+        offTimer = setTimeout(function(){ offTimer=null; if(connState==="warn") b.hidden=false; },4000);
+      }
+    } else {
+      if(offTimer){ clearTimeout(offTimer); offTimer=null; }
+      b.hidden = true;
+    }
+  }
+
+  // Erro que NAO e queda de rede precisa aparecer com todas as letras, senao o
+  // time fica achando que e sinal ruim enquanto o sistema esta fora do ar.
+  function avisoDeFalha(err){
+    var b = $("#offline"); if(!b) return;
+    var code = err && err.code ? String(err.code) : "";
+    if(code === "resource-exhausted"){
+      b.textContent = "O limite diário do banco foi atingido. A tela mostra a última versão salva. Fale com o Eric.";
+      b.hidden = false; if(offTimer){ clearTimeout(offTimer); offTimer=null; }
+    } else if(code === "permission-denied" || code === "unauthenticated"){
+      b.textContent = "O banco bloqueou o acesso. As regras do Firestore podem não ter sido publicadas. Fale com o Eric.";
+      b.hidden = false; if(offTimer){ clearTimeout(offTimer); offTimer=null; }
+    }
+    if(window.console) console.error("[conteudo] firestore", code, err);
+  }
+
+  function DBwatch(c, cb){
+    watchers[c] = cb;
+    if(!FB_ON){
+      cb(lsGet(c));
+      window.addEventListener("storage", function(ev){ if(ev.key==="cfi_"+c) cb(lsGet(c)); });
+      return function(){};
+    }
+    var onErr = function(err){ setStatus("warn"); avisoDeFalha(err); };
+    // includeMetadataChanges e obrigatorio: sem ele, quando o servidor confirma o
+    // MESMO dado que ja estava no cache nao chega aviso, e o amarelo fica preso.
+    return db.collection(COL[c]).onSnapshot({ includeMetadataChanges:true }, function(snap){
+      setStatus(snap.metadata && snap.metadata.fromCache ? "warn" : "on");
+      var a=[]; snap.forEach(function(d){ var o=d.data()||{}; o.id=d.id; a.push(o); });
+      cb(a);
+    }, onErr);
+  }
+
+  function DBadd(c, obj){
+    if(!FB_ON){ obj.id=uid(); var a=lsGet(c); a.push(obj); lsSet(c,a); return; }
+    db.collection(COL[c]).add(obj)["catch"](function(e){ avisoDeFalha(e); toast("Não deu para salvar."); });
+  }
+  function DBupdate(c, id, patch){
+    if(!FB_ON){
+      var a=lsGet(c), i;
+      for(i=0;i<a.length;i++){ if(a[i].id===id){ for(var k in patch) a[i][k]=patch[k]; } }
+      lsSet(c,a); return;
+    }
+    db.collection(COL[c]).doc(id).update(patch)["catch"](function(e){ avisoDeFalha(e); toast("Não deu para salvar."); });
+  }
+  // set com merge: usado pelas coletivas, que tem id fixo e podem nao existir ainda
+  function DBset(c, id, patch){
+    if(!FB_ON){
+      var a=lsGet(c), achou=false, i;
+      for(i=0;i<a.length;i++){ if(a[i].id===id){ achou=true; for(var k in patch) a[i][k]=patch[k]; } }
+      if(!achou){ var o={id:id}; for(var k2 in patch) o[k2]=patch[k2]; a.push(o); }
+      lsSet(c,a); return;
+    }
+    db.collection(COL[c]).doc(id).set(patch,{merge:true})["catch"](function(e){ avisoDeFalha(e); toast("Não deu para salvar."); });
+  }
+  function DBremove(c, id){
+    if(!FB_ON){ lsSet(c, lsGet(c).filter(function(x){ return x.id!==id; })); return; }
+    db.collection(COL[c]).doc(id).delete()["catch"](function(e){ avisoDeFalha(e); toast("Não deu para apagar."); });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DADOS FIXOS
+  // A grade de coletivas e a mesma da Central (agenda oficial), cruzada com
+  // a lista de influenciadores da coordenacao de conteudo (11/08/2026).
+  // E DADO NO CODIGO de proposito: agenda oficial nao pode ser editada por
+  // engano no meio do evento. Mudou a grade, edita aqui e sobe VERSAO nova.
+  // "Abertura oficial" e "Intervalo" nao entram: sao momentos, nao coletiva.
+  // ═══════════════════════════════════════════════════════════════
+  var FORMATOS_COLETIVA = ["Carrossel de fotos", "Vídeo edit", "Vídeo com influenciador"];
+
+  var COLETIVAS = [
+    { dia:"2026-08-12", rotulo:"Quarta-feira, 12/08", itens:[
+      { hora:"08h10", marca:"CFMOTO",        influ:"Seku Mello" },
+      { hora:"09h20", marca:"Shineray",      influ:"Eliana Malizia" },
+      { hora:"10h30", marca:"Yamaha",        influ:"David Jensen" },
+      { hora:"13h30", marca:"BMW Motorrad",  influ:"Durval Careca" },
+      { hora:"14h40", marca:"Bajaj",         influ:"Amanda Pagliari" },
+      { hora:"15h50", marca:"Voge",          influ:"Daiane Gaia" },
+      { hora:"17h00", marca:"Suzuki/JTZ",    influ:"Rodolfinho da Z" },
+      { hora:"18h00", marca:"Dafra",         influ:"Day Miguel" },
+      { hora:"19h00", marca:"Fun Motors",    influ:"Gisele Favaro" }
+    ]},
+    { dia:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
+      { hora:"07h00", marca:"Royal Enfield", influ:"Lucas Xaparral" },
+      { hora:"08h10", marca:"Triumph",       influ:"Vans Faria" },
+      { hora:"09h20", marca:"Moto Morini",   influ:"Daniel D2" },
+      { hora:"10h30", marca:"Kawasaki",      influ:"Rafael Togni" },
+      { hora:"11h40", marca:"Honda",         influ:"Libera Costabeber" }
+    ]}
+  ];
+
+  // O "Pronto" entrou no briefing por pedido do time de edicao: tem material
+  // que fica pronto e fica parado esperando a hora certa de subir.
+  var STATUS   = ["gravando","edicao","pronto","publicado"];
+  var ST_LABEL = { gravando:"Gravando", edicao:"Em edição", pronto:"Pronto", publicado:"Publicado" };
+  var ST_CURTO = { gravando:"Gravando", edicao:"Edição", pronto:"Pronto", publicado:"No ar" };
+
+  var REDES = [ {k:"ig",n:"Instagram"}, {k:"tt",n:"TikTok"}, {k:"yt",n:"YouTube"} ];
+  var AREAS = ["Arena","Boulevard","Pista"];
+
+  var DIAS_STORY = [
+    { dia:"2026-08-12", rotulo:"Qua 12/08" },
+    { dia:"2026-08-13", rotulo:"Qui 13/08" },
+    { dia:"2026-08-14", rotulo:"Sex 14/08" },
+    { dia:"2026-08-15", rotulo:"Sáb 15/08" },
+    { dia:"2026-08-16", rotulo:"Dom 16/08" }
+  ];
+  // Orgânico e pago comecam na quinta, quando o festival abre pro publico.
+  var DIAS_PECA = DIAS_STORY.slice(1);
+
+  var FORMATOS_SUGERIDOS = ["Reels","Carrossel","Story","Foto","Vídeo edit","Entrevista","Cobertura","YouTube"];
+
+  // ---- estado ----
+  var PERFIL=null, PERM=null;
+  var coletivas=[], pecas=[], story=[];
+  var abaAtual="coletivas";
+  var diaColetiva="2026-08-12", diaStory=null;
+  var abertos={};                      // id -> true (cartoes expandidos)
+  var fBusca="", fTipo="todos", fStatus="todos", fDia="todos", fBoost=false;
+  var editandoPeca=null;               // id da peca em edicao, ou "novo"
+  var desligar=[];                     // funcoes que param as escutas
+
+  // ---- permissoes: checadas ao DESENHAR e de novo ao EXECUTAR ----
+  function definirPerfil(p){ PERFIL = PERFIS[p] ? p : null; PERM = PERFIL ? PERFIS[PERFIL] : null; return !!PERM; }
+  function podeVer(m){       return !!PERM && PERM[m] && PERM[m] !== "nenhum"; }
+  function podeGerenciar(m){ return !!PERM && PERM[m] === "gerenciar"; }
+  function quemSou(){ return (PERM && PERM.rotulo) || "—"; }
+
+  function acharAcesso(senha){
+    var s = String(senha||"").trim();
+    if(!s) return null;
+    for(var i=0;i<ACESSOS_PADRAO.length;i++){ if(ACESSOS_PADRAO[i].senha === s) return ACESSOS_PADRAO[i]; }
+    return null;
+  }
+
+  function ga(evento, params){
+    try{ if(typeof gtag !== "function") return; gtag("event", evento, params||{}); }catch(e){}
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MODULO 1 — COLETIVAS
+  // A grade e fixa; o banco guarda so o que muda (status, links, impulsionar).
+  // O id do documento e derivado da grade, entao nada precisa ser semeado:
+  // o documento nasce na primeira vez que alguem toca naquela peca.
+  // ═══════════════════════════════════════════════════════════════
+  function slotId(dia, hora, idx){
+    return "c_" + dia.slice(5).replace("-","") + "_" + hora.replace(/[h:]/g,"") + "_" + idx;
+  }
+  function estadoDe(id){
+    for(var i=0;i<coletivas.length;i++){ if(coletivas[i].id===id) return coletivas[i]; }
+    return null;
+  }
+
+  function renderColetivas(){
+    var el = $("#view-coletivas");
+    if(!podeVer("coletivas")){
+      el.innerHTML = '<div class="vazio"><div class="big">Sem acesso a esta aba</div>'+
+        '<div class="sm">Seu login é de StoryMaker. Use a aba StoryMaker.</div></div>';
+      return;
+    }
+    var grade = null, i, j, k;
+    for(i=0;i<COLETIVAS.length;i++){ if(COLETIVAS[i].dia===diaColetiva) grade = COLETIVAS[i]; }
+    if(!grade) grade = COLETIVAS[0];
+
+    // resumo do dia
+    var total=0, publicados=0, boost=0, parados=0;
+    for(i=0;i<grade.itens.length;i++){
+      for(j=0;j<FORMATOS_COLETIVA.length;j++){
+        total++;
+        var e = estadoDe(slotId(grade.dia, grade.itens[i].hora, j)) || {};
+        if(e.status === "publicado") publicados++;
+        if(e.impulsionar) boost++;
+        if(e.status === "pronto") parados++;
+      }
+    }
+
+    var h = '';
+    h += '<div class="subtabs">';
+    for(i=0;i<COLETIVAS.length;i++){
+      h += '<button class="subtab'+(COLETIVAS[i].dia===diaColetiva?" active":"")+'" data-act="diacol" data-dia="'+COLETIVAS[i].dia+'">'+esc(COLETIVAS[i].rotulo)+'</button>';
+    }
+    h += '</div>';
+
+    h += '<div class="resumo">'+
+      '<div class="rbox"><div class="rk">Coletivas</div><div class="rv">'+grade.itens.length+'</div></div>'+
+      '<div class="rbox"><div class="rk">Peças</div><div class="rv">'+total+'</div></div>'+
+      '<div class="rbox destaque"><div class="rk">Publicadas</div><div class="rv">'+publicados+'</div></div>'+
+      '<div class="rbox'+(parados?" alerta":"")+'"><div class="rk">Prontas p/ subir</div><div class="rv">'+parados+'</div></div>'+
+      '<div class="rbox'+(boost?" alerta":"")+'"><div class="rk">Impulsionar</div><div class="rv">'+boost+'</div></div>'+
+    '</div>';
+
+    h += '<div class="rulebox"><div class="ic">&#9679;</div><div class="tx">'+
+      'A grade de marca, horário e influenciador é a agenda oficial e não se edita por aqui. '+
+      'O que você mexe é <b>status, links e se vai impulsionar</b>. Tudo salva sozinho.'+
+      '</div></div>';
+
+    for(i=0;i<grade.itens.length;i++){
+      var it = grade.itens[i];
+      var pub=0, pecasHtml='';
+      for(j=0;j<FORMATOS_COLETIVA.length;j++){
+        var id = slotId(grade.dia, it.hora, j);
+        var st = estadoDe(id) || {};
+        if(st.status === "publicado") pub++;
+        pecasHtml += pecaColetivaHTML(id, FORMATOS_COLETIVA[j], st);
+      }
+      var aberto = !!abertos[grade.dia+"_"+i];
+      var completo = pub === FORMATOS_COLETIVA.length;
+      h += '<div class="bloco'+(completo?" completo":"")+'">'+
+        '<button class="cabeca" data-act="abrircol" data-key="'+grade.dia+'_'+i+'">'+
+          '<span class="chora">'+esc(it.hora)+'</span>'+
+          '<span class="cmeio"><span class="cnome">'+esc(it.marca)+'</span>'+
+          '<span class="cinflu">'+esc(it.influ)+'</span></span>'+
+          '<span class="cprog'+(completo?" ok":"")+'">'+pub+'/'+FORMATOS_COLETIVA.length+'</span>'+
+          '<span class="cmais">'+(aberto?"&minus;":"+")+'</span>'+
+        '</button>'+
+        (aberto ? '<div class="corpo">'+pecasHtml+'</div>' : '')+
+      '</div>';
+    }
+    el.innerHTML = h;
+  }
+
+  function pecaColetivaHTML(id, formato, st){
+    var i, h='';
+    var status = st.status || "";
+    h += '<div class="peca">';
+    h += '<div class="pnome">'+esc(formato);
+    if(st.impulsionar) h += ' <span class="tag boost">Impulsionar</span>';
+    h += '</div>';
+
+    h += '<div class="stchips">';
+    for(i=0;i<STATUS.length;i++){
+      h += '<button class="stchip'+(status===STATUS[i]?" on":"")+'" data-st="'+STATUS[i]+'" '+
+           'data-act="stcol" data-id="'+id+'" title="'+esc(ST_LABEL[STATUS[i]])+'">'+esc(ST_CURTO[STATUS[i]])+'</button>';
+    }
+    h += '</div>';
+
+    h += '<div class="linhaflex">';
+    h += '<button class="mini boost'+(st.impulsionar?" on":"")+'" data-act="boostcol" data-id="'+id+'">Impulsionar</button>';
+    for(i=0;i<REDES.length;i++){
+      var on = st.redes && st.redes.indexOf(REDES[i].k) >= 0;
+      h += '<button class="mini'+(on?" on":"")+'" data-act="redecol" data-id="'+id+'" data-rede="'+REDES[i].k+'">'+esc(REDES[i].n)+'</button>';
+    }
+    h += '</div>';
+
+    h += campoLink("Pronto", id, "linkPronto", st.linkPronto, "stcol-link", "Link do Drive");
+    h += campoLink("No ar",  id, "linkPublicado", st.linkPublicado, "stcol-link", "Link do post publicado");
+    h += '</div>';
+    return h;
+  }
+
+  function campoLink(rotulo, id, campo, valor, act, ph){
+    var seguro = linkSeguro(valor);
+    return '<div class="campo">'+
+      '<span class="cl">'+esc(rotulo)+'</span>'+
+      '<input type="url" inputmode="url" placeholder="'+esc(ph)+'" value="'+esc(valor||"")+'" '+
+        'data-act="'+act+'" data-id="'+id+'" data-campo="'+campo+'">'+
+      '<a class="abrir'+(seguro?"":" off")+'" '+(seguro?'href="'+esc(seguro)+'" target="_blank" rel="noopener noreferrer"':'href="#" tabindex="-1" aria-disabled="true"')+'>Abrir</a>'+
+    '</div>';
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MODULO 2 — ORGANICOS E PAGOS
+  // Lista unica com filtro, como o time pediu (nao dois blocos separados).
+  // Ordem dos campos exatamente como fechada no briefing.
+  // ═══════════════════════════════════════════════════════════════
+  function renderPecas(){
+    var el = $("#view-pecas");
+    if(!podeVer("pecas")){
+      el.innerHTML = '<div class="vazio"><div class="big">Sem acesso a esta aba</div>'+
+        '<div class="sm">Seu login é de StoryMaker. Use a aba StoryMaker.</div></div>';
+      return;
+    }
+    var i, h='';
+
+    var vis = pecas.filter(passaFiltro);
+    var publicados = pecas.filter(function(p){ return p.status==="publicado"; }).length;
+    var prontos    = pecas.filter(function(p){ return p.status==="pronto"; }).length;
+
+    h += '<div class="resumo">'+
+      '<div class="rbox"><div class="rk">Total</div><div class="rv">'+pecas.length+'</div></div>'+
+      '<div class="rbox destaque"><div class="rk">Publicadas</div><div class="rv">'+publicados+'</div></div>'+
+      '<div class="rbox'+(prontos?" alerta":"")+'"><div class="rk">Prontas p/ subir</div><div class="rv">'+prontos+'</div></div>'+
+      '<div class="rbox"><div class="rk">Na lista</div><div class="rv">'+vis.length+'</div></div>'+
+    '</div>';
+
+    h += '<div class="barrafiltro">'+
+      '<input class="busca" id="buscaPeca" type="search" placeholder="Buscar por marca, tema, formato, editor..." value="'+esc(fBusca)+'">'+
+      (podeGerenciar("pecas") ? '<button class="btn" data-act="novapeca">+ Nova peça</button>' : '')+
+    '</div>';
+
+    h += '<div class="fchips">';
+    h += chip("tipo","todos","Todas", fTipo==="todos");
+    h += chip("tipo","organico","Orgânico", fTipo==="organico");
+    h += chip("tipo","pago","Pago", fTipo==="pago");
+    h += '</div><div class="fchips">';
+    h += chip("status","todos","Todos os status", fStatus==="todos");
+    for(i=0;i<STATUS.length;i++) h += chip("status",STATUS[i],ST_LABEL[STATUS[i]], fStatus===STATUS[i]);
+    h += '</div><div class="fchips">';
+    h += chip("dia","todos","Todos os dias", fDia==="todos");
+    for(i=0;i<DIAS_PECA.length;i++) h += chip("dia",DIAS_PECA[i].dia,DIAS_PECA[i].rotulo, fDia===DIAS_PECA[i].dia);
+    h += '<button class="fchip'+(fBoost?" on":"")+'" data-act="fboost">Só impulsionar</button>';
+    h += '</div>';
+
+    if(editandoPeca) h += formPecaHTML();
+
+    if(!vis.length){
+      h += '<div class="vazio"><div class="big">'+(pecas.length ? "Nada com esse filtro" : "Nenhuma peça ainda")+'</div>'+
+        '<div class="sm">'+(pecas.length
+          ? "Limpe a busca ou escolha outro filtro para ver o resto."
+          : "Toque em <b>+ Nova peça</b> para cadastrar o primeiro conteúdo orgânico ou pago.")+'</div></div>';
+    } else {
+      vis.sort(function(a,b){
+        if((a.dia||"") !== (b.dia||"")) return (a.dia||"") < (b.dia||"") ? -1 : 1;
+        return (a.criadoEm||0) - (b.criadoEm||0);
+      });
+      for(i=0;i<vis.length;i++) h += blocoPecaHTML(vis[i]);
+    }
+    el.innerHTML = h;
+  }
+
+  function chip(grupo, valor, rotulo, on){
+    return '<button class="fchip'+(on?" on":"")+'" data-act="filtro" data-grupo="'+grupo+'" data-valor="'+esc(valor)+'">'+esc(rotulo)+'</button>';
+  }
+
+  function passaFiltro(p){
+    if(fTipo   !== "todos" && p.tipo   !== fTipo)   return false;
+    if(fStatus !== "todos" && p.status !== fStatus) return false;
+    if(fDia    !== "todos" && p.dia    !== fDia)    return false;
+    if(fBoost && !p.impulsionar) return false;
+    if(fBusca){
+      var alvo = [p.marca,p.tema,p.formato,p.editor,p.quemGrava,p.referencia,p.roteiro,p.resumo]
+        .join(" ").toLowerCase();
+      if(alvo.indexOf(fBusca.toLowerCase()) < 0) return false;
+    }
+    return true;
+  }
+
+  function rotuloDia(d){
+    for(var i=0;i<DIAS_STORY.length;i++){ if(DIAS_STORY[i].dia===d) return DIAS_STORY[i].rotulo; }
+    return d ? d.slice(8)+"/"+d.slice(5,7) : "—";
+  }
+
+  function blocoPecaHTML(p){
+    var aberto = !!abertos["p_"+p.id];
+    var h = '<div class="bloco'+(p.status==="publicado"?" completo":"")+'">';
+    h += '<button class="cabeca" data-act="abrirpeca" data-id="'+p.id+'">'+
+      '<span class="chora">'+esc(rotuloDia(p.dia).replace(/^\S+\s/,""))+'</span>'+
+      '<span class="cmeio">'+
+        '<span class="cnome">'+esc(p.marca||"Sem marca")+'</span>'+
+        '<span class="cinflu">'+esc(p.formato||"—")+(p.tema?' · '+esc(p.tema):"")+'</span>'+
+      '</span>'+
+      '<span class="tag '+(p.tipo==="pago"?"pago":"organico")+'">'+(p.tipo==="pago"?"Pago":"Orgânico")+'</span>'+
+      (p.status ? '<span class="tag st" data-st="'+p.status+'">'+esc(ST_CURTO[p.status])+'</span>' : '')+
+      '<span class="cmais">'+(aberto?"&minus;":"+")+'</span>'+
+    '</button>';
+
+    if(aberto){
+      h += '<div class="corpo">';
+      h += '<div class="peca">';
+      h += '<div class="stchips">';
+      for(var i=0;i<STATUS.length;i++){
+        h += '<button class="stchip'+(p.status===STATUS[i]?" on":"")+'" data-st="'+STATUS[i]+'" '+
+             'data-act="stpeca" data-id="'+p.id+'">'+esc(ST_CURTO[STATUS[i]])+'</button>';
+      }
+      h += '</div>';
+
+      h += '<div class="linhaflex">';
+      h += '<button class="mini boost'+(p.impulsionar?" on":"")+'" data-act="boostpeca" data-id="'+p.id+'">Impulsionar</button>';
+      for(i=0;i<REDES.length;i++){
+        var on = p.redes && p.redes.indexOf(REDES[i].k) >= 0;
+        h += '<button class="mini'+(on?" on":"")+'" data-act="redepeca" data-id="'+p.id+'" data-rede="'+REDES[i].k+'">'+esc(REDES[i].n)+'</button>';
+      }
+      h += '</div>';
+
+      h += ficha("Referência", p.referencia);
+      h += ficha("Roteiro", p.roteiro);
+      h += ficha("Quem grava", p.quemGrava);
+      h += ficha("Resumo da gravação", p.resumo);
+      h += ficha("Editor", p.editor);
+      h += ficha("Horário de veiculação", p.horario);
+
+      h += campoLink("Pronto", p.id, "linkPronto", p.linkPronto, "peca-link", "Link do Drive");
+      h += campoLink("No ar",  p.id, "linkPublicado", p.linkPublicado, "peca-link", "Link do post publicado");
+
+      if(podeGerenciar("pecas")){
+        h += '<div class="acoes">'+
+          '<button class="btn ghost" data-act="editarpeca" data-id="'+p.id+'">Editar campos</button>'+
+          '<button class="btn perigo" data-act="apagarpeca" data-id="'+p.id+'">Apagar</button>'+
+        '</div>';
+      }
+      h += '</div></div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function ficha(rotulo, valor){
+    if(!valor) return "";
+    return '<div class="campo"><span class="cl">'+esc(rotulo)+'</span>'+
+      '<span style="flex:1;font-size:.84rem;line-height:1.5;color:var(--ink-2);white-space:pre-wrap">'+esc(valor)+'</span></div>';
+  }
+
+  function formPecaHTML(){
+    var p = editandoPeca === "novo" ? {} : (pecas.filter(function(x){ return x.id===editandoPeca; })[0] || {});
+    var novo = editandoPeca === "novo";
+    var i, h = '<div class="form"><h3>'+(novo?"Nova peça":"Editar peça")+'</h3><div class="grid2">';
+
+    h += '<div class="fld"><label>Dia</label><select id="f_dia">';
+    for(i=0;i<DIAS_PECA.length;i++){
+      h += '<option value="'+DIAS_PECA[i].dia+'"'+(p.dia===DIAS_PECA[i].dia?" selected":"")+'>'+esc(DIAS_PECA[i].rotulo)+'</option>';
+    }
+    h += '</select></div>';
+
+    h += '<div class="fld"><label>Orgânico ou pago</label><select id="f_tipo">'+
+      '<option value="organico"'+(p.tipo!=="pago"?" selected":"")+'>Orgânico</option>'+
+      '<option value="pago"'+(p.tipo==="pago"?" selected":"")+'>Pago</option></select></div>';
+
+    h += '<div class="fld"><label>Marca</label><input id="f_marca" type="text" value="'+esc(p.marca||"")+'" placeholder="Honda, Heineken, sem marca..."></div>';
+
+    h += '<div class="fld"><label>Formato</label><input id="f_formato" type="text" list="dlformatos" value="'+esc(p.formato||"")+'" placeholder="Reels, carrossel, foto..."><datalist id="dlformatos">';
+    for(i=0;i<FORMATOS_SUGERIDOS.length;i++) h += '<option value="'+esc(FORMATOS_SUGERIDOS[i])+'">';
+    h += '</datalist></div>';
+
+    h += '<div class="fld full"><label>Tema</label><input id="f_tema" type="text" value="'+esc(p.tema||"")+'" placeholder="Do que é o conteúdo"></div>';
+    h += '<div class="fld full"><label>Referência</label><textarea id="f_referencia" placeholder="Link ou descrição da referência">'+esc(p.referencia||"")+'</textarea></div>';
+    h += '<div class="fld full"><label>Roteiro</label><textarea id="f_roteiro" placeholder="O que precisa acontecer no vídeo">'+esc(p.roteiro||"")+'</textarea></div>';
+    h += '<div class="fld"><label>Quem grava</label><input id="f_quemGrava" type="text" value="'+esc(p.quemGrava||"")+'" placeholder="Nome de quem captou"></div>';
+    h += '<div class="fld"><label>Editor</label><input id="f_editor" type="text" value="'+esc(p.editor||"")+'" placeholder="Quem edita"></div>';
+    h += '<div class="fld full"><label>Resumo da gravação</label><textarea id="f_resumo" placeholder="Observação de quem gravou">'+esc(p.resumo||"")+'</textarea></div>';
+    h += '<div class="fld"><label>Horário de veiculação</label><input id="f_horario" type="text" value="'+esc(p.horario||"")+'" placeholder="19h30"></div>';
+
+    h += '<div class="fld"><label>Status</label><select id="f_status">';
+    for(i=0;i<STATUS.length;i++) h += '<option value="'+STATUS[i]+'"'+(p.status===STATUS[i]?" selected":"")+'>'+esc(ST_LABEL[STATUS[i]])+'</option>';
+    h += '</select></div>';
+
+    h += '</div><div class="acoes">'+
+      '<button class="btn" data-act="salvarpeca">Salvar</button>'+
+      '<button class="btn ghost" data-act="cancelarpeca">Cancelar</button>'+
+    '</div></div>';
+    return h;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MODULO 3 — STORYMAKER
+  // Checklist em dois niveis: bloco ("Show Matuê") e itens ("Story 1: público").
+  // UM DOCUMENTO POR ITEM, com o bloco como campo. Assim dois storymakers
+  // marcando itens do mesmo bloco ao mesmo tempo nao se atropelam.
+  // ═══════════════════════════════════════════════════════════════
+  function hojeISO(){
+    var d = new Date(), m = String(d.getMonth()+1).padStart(2,"0"), x = String(d.getDate()).padStart(2,"0");
+    return d.getFullYear()+"-"+m+"-"+x;
+  }
+  function diaStoryAtual(){
+    if(diaStory) return diaStory;
+    var hj = hojeISO(), i;
+    for(i=0;i<DIAS_STORY.length;i++){ if(DIAS_STORY[i].dia === hj) return hj; }
+    // fora dos 5 dias: antes do evento abre no primeiro, depois abre no ultimo
+    return hj < DIAS_STORY[0].dia ? DIAS_STORY[0].dia : DIAS_STORY[DIAS_STORY.length-1].dia;
+  }
+
+  function renderStory(){
+    var el = $("#view-story");
+    if(!podeVer("story")){
+      el.innerHTML = '<div class="vazio"><div class="big">Sem acesso a esta aba</div></div>';
+      return;
+    }
+    var dia = diaStoryAtual(), i, h='';
+    var doDia = story.filter(function(s){ return s.dia === dia; });
+    var feitos = doDia.filter(function(s){ return s.feito; }).length;
+
+    // quem ainda tem item em aberto: e pra isso que o campo responsavel existe
+    var abertosPor = {};
+    for(i=0;i<doDia.length;i++){
+      if(!doDia[i].feito && doDia[i].resp){
+        abertosPor[doDia[i].resp] = (abertosPor[doDia[i].resp]||0) + 1;
+      }
+    }
+    var nomes = Object.keys(abertosPor).sort();
+
+    h += '<div class="subtabs">';
+    for(i=0;i<DIAS_STORY.length;i++){
+      h += '<button class="subtab'+(DIAS_STORY[i].dia===dia?" active":"")+'" data-act="diastory" data-dia="'+DIAS_STORY[i].dia+'">'+esc(DIAS_STORY[i].rotulo)+'</button>';
+    }
+    h += '</div>';
+
+    h += '<div class="resumo">'+
+      '<div class="rbox"><div class="rk">Itens do dia</div><div class="rv">'+doDia.length+'</div></div>'+
+      '<div class="rbox destaque"><div class="rk">Feitos</div><div class="rv">'+feitos+'</div></div>'+
+      '<div class="rbox'+((doDia.length-feitos)?" alerta":"")+'"><div class="rk">Em aberto</div><div class="rv">'+(doDia.length-feitos)+'</div></div>'+
+    '</div>';
+
+    if(nomes.length){
+      var txt = nomes.map(function(n){ return esc(n)+" ("+abertosPor[n]+")"; }).join(" · ");
+      h += '<div class="rulebox"><div class="ic">&#9679;</div><div class="tx"><b>Ainda em aberto:</b> '+txt+'</div></div>';
+    }
+
+    if(podeGerenciar("story")){
+      h += '<div class="barrafiltro"><button class="btn" data-act="novobloco">+ Novo bloco</button></div>';
+    }
+
+    // agrupa por bloco, preservando a ordem de criacao do primeiro item
+    var ordem=[], grupos={};
+    doDia.sort(function(a,b){ return (a.criadoEm||0)-(b.criadoEm||0); });
+    for(i=0;i<doDia.length;i++){
+      var g = doDia[i].grupo || "Sem bloco";
+      if(!grupos[g]){ grupos[g]=[]; ordem.push(g); }
+      grupos[g].push(doDia[i]);
+    }
+
+    if(!ordem.length){
+      h += '<div class="vazio"><div class="big">Nenhum checklist para este dia</div>'+
+        '<div class="sm">'+(podeGerenciar("story")
+          ? "Toque em <b>+ Novo bloco</b>, dê um nome (por exemplo <b>Show Matuê</b>) e escreva um item por linha."
+          : "A coordenação ainda não montou o checklist deste dia.")+'</div></div>';
+    }
+
+    for(i=0;i<ordem.length;i++){
+      var nome = ordem[i], itens = grupos[nome];
+      var okG = itens.filter(function(s){ return s.feito; }).length;
+      var area = itens[0].area || "";
+      h += '<div class="bloco'+(okG===itens.length?" completo":"")+'">'+
+        '<div class="cabeca" style="cursor:default">'+
+          '<span class="cmeio"><span class="cnome">'+esc(nome)+'</span>'+
+          (area?'<span class="cinflu">'+esc(area)+'</span>':'')+'</span>'+
+          '<span class="cprog'+(okG===itens.length?" ok":"")+'">'+okG+'/'+itens.length+'</span>'+
+        '</div>'+
+        '<div class="corpo">';
+      for(var j=0;j<itens.length;j++){
+        var s = itens[j];
+        h += '<div class="chk'+(s.feito?" feito":"")+'">'+
+          '<button class="chkbox'+(s.feito?" on":"")+'" data-act="chk" data-id="'+s.id+'" '+
+            'aria-pressed="'+(s.feito?"true":"false")+'" aria-label="Marcar como feito">&#10003;</button>'+
+          '<span class="chktx">'+esc(s.texto||"")+
+            '<span class="chkresp">'+(s.resp?'<b>'+esc(s.resp)+'</b>':'<button class="chkdel" data-act="quem" data-id="'+s.id+'" style="font-size:.62rem;letter-spacing:.06em">definir responsável</button>')+
+            (s.resp?' · <button class="chkdel" data-act="quem" data-id="'+s.id+'" style="font-size:.62rem">trocar</button>':'')+
+            '</span>'+
+          '</span>'+
+          (podeGerenciar("story")?'<button class="chkdel" data-act="delstory" data-id="'+s.id+'" aria-label="Apagar item">&times;</button>':'')+
+        '</div>';
+      }
+      if(podeGerenciar("story")){
+        h += '<div class="acoes"><button class="btn ghost" data-act="additem" data-grupo="'+esc(nome)+'" data-area="'+esc(area)+'">+ Item neste bloco</button></div>';
+      }
+      h += '</div></div>';
+    }
+    el.innerHTML = h;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER GERAL
+  // ═══════════════════════════════════════════════════════════════
+  function contadores(){
+    var i, totalCol=0;
+    for(i=0;i<COLETIVAS.length;i++) totalCol += COLETIVAS[i].itens.length;
+    var el;
+    el=$("#cColetivas"); if(el) el.textContent = totalCol;
+    el=$("#cPecas");     if(el) el.textContent = pecas.length;
+    el=$("#cStory");     if(el){
+      var dia = diaStoryAtual();
+      el.textContent = story.filter(function(s){ return s.dia===dia && !s.feito; }).length;
+    }
+  }
+
+  function renderAll(){
+    try{ renderColetivas(); }catch(e){ if(window.console) console.error("[conteudo] coletivas", e); }
+    try{ renderPecas();     }catch(e){ if(window.console) console.error("[conteudo] pecas", e); }
+    try{ renderStory();     }catch(e){ if(window.console) console.error("[conteudo] story", e); }
+    try{ contadores();      }catch(e){}
+  }
+
+  function mostrarAba(t){
+    abaAtual = t;
+    $$(".tab").forEach(function(x){ x.classList.remove("active"); });
+    var b = document.querySelector('.tab[data-tab="'+t+'"]'); if(b) b.classList.add("active");
+    $("#view-coletivas").hidden = t !== "coletivas";
+    $("#view-pecas").hidden     = t !== "pecas";
+    $("#view-story").hidden     = t !== "story";
+    ga("aba_conteudo", { aba:t, perfil: PERFIL || "desconhecido" });
+  }
+
+  function aplicarInterface(){
+    if(!PERM) return;
+    var abas = { coletivas: podeVer("coletivas"), pecas: podeVer("pecas"), story: podeVer("story") };
+    var primeira = null;
+    $$(".tab").forEach(function(b){
+      var t = b.getAttribute("data-tab"), ok = !!abas[t];
+      b.hidden = !ok; b.style.display = ok ? "" : "none";
+      if(ok && !primeira) primeira = t;
+    });
+    var q = $("#quemSou"); if(q) q.textContent = quemSou();
+    mostrarAba(primeira || "story");
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ACOES (delegacao de evento)
+  // Toda acao que grava confere a permissao DE NOVO aqui. Esconder o botao
+  // organiza a tela; nao e controle de acesso.
+  // ═══════════════════════════════════════════════════════════════
+  document.addEventListener("click", function(ev){
+    var b = ev.target.closest("[data-act]"); if(!b) return;
+    var act = b.dataset.act, id = b.dataset.id;
+
+    // ---- navegacao (nao grava nada) ----
+    if(act === "diacol"){ diaColetiva = b.dataset.dia; renderColetivas(); return; }
+    if(act === "diastory"){ diaStory = b.dataset.dia; renderStory(); contadores(); return; }
+    if(act === "abrircol"){ var k=b.dataset.key; abertos[k] = !abertos[k]; renderColetivas(); return; }
+    if(act === "abrirpeca"){ abertos["p_"+id] = !abertos["p_"+id]; renderPecas(); return; }
+    if(act === "filtro"){
+      var g=b.dataset.grupo, v=b.dataset.valor;
+      if(g==="tipo") fTipo=v; else if(g==="status") fStatus=v; else if(g==="dia") fDia=v;
+      renderPecas(); return;
+    }
+    if(act === "fboost"){ fBoost = !fBoost; renderPecas(); return; }
+    if(act === "cancelarpeca"){ editandoPeca=null; renderPecas(); return; }
+
+    // ---- coletivas ----
+    if(act === "stcol" || act === "boostcol" || act === "redecol"){
+      if(!podeGerenciar("coletivas")){ toast("Seu acesso não edita as coletivas."); return; }
+      var st = estadoDe(id) || {};
+      if(act === "stcol"){
+        var novo = st.status === b.dataset.st ? "" : b.dataset.st;   // tocar de novo desmarca
+        DBset("coletivas", id, { status:novo, em:Date.now(), por:quemSou() });
+      } else if(act === "boostcol"){
+        DBset("coletivas", id, { impulsionar: !st.impulsionar, em:Date.now(), por:quemSou() });
+      } else {
+        var r = (st.redes||[]).slice(), p = r.indexOf(b.dataset.rede);
+        if(p<0) r.push(b.dataset.rede); else r.splice(p,1);
+        DBset("coletivas", id, { redes:r, em:Date.now(), por:quemSou() });
+      }
+      return;
+    }
+
+    // ---- pecas ----
+    if(act === "novapeca"){
+      if(!podeGerenciar("pecas")){ toast("Seu acesso não cria peças."); return; }
+      editandoPeca = "novo"; renderPecas();
+      var f=$("#f_marca"); if(f) f.focus();
+      return;
+    }
+    if(act === "editarpeca"){
+      if(!podeGerenciar("pecas")){ toast("Seu acesso não edita peças."); return; }
+      editandoPeca = id; renderPecas();
+      var fm=$("#f_marca"); if(fm) fm.focus();
+      return;
+    }
+    if(act === "salvarpeca"){
+      if(!podeGerenciar("pecas")){ toast("Seu acesso não salva peças."); return; }
+      salvarPeca(); return;
+    }
+    if(act === "apagarpeca"){
+      if(!podeGerenciar("pecas")){ toast("Seu acesso não apaga peças."); return; }
+      var alvo = pecas.filter(function(x){ return x.id===id; })[0] || {};
+      if(!confirm("Apagar esta peça?\n\n"+(alvo.marca||"Sem marca")+" · "+(alvo.tema||alvo.formato||"")+"\n\nIsso não volta.")) return;
+      DBremove("pecas", id); toast("Peça apagada."); return;
+    }
+    if(act === "stpeca" || act === "boostpeca" || act === "redepeca"){
+      if(!podeGerenciar("pecas")){ toast("Seu acesso não edita peças."); return; }
+      var pc = pecas.filter(function(x){ return x.id===id; })[0]; if(!pc) return;
+      if(act === "stpeca"){
+        DBupdate("pecas", id, { status: pc.status === b.dataset.st ? "" : b.dataset.st, em:Date.now(), por:quemSou() });
+      } else if(act === "boostpeca"){
+        DBupdate("pecas", id, { impulsionar: !pc.impulsionar, em:Date.now(), por:quemSou() });
+      } else {
+        var rr=(pc.redes||[]).slice(), pp=rr.indexOf(b.dataset.rede);
+        if(pp<0) rr.push(b.dataset.rede); else rr.splice(pp,1);
+        DBupdate("pecas", id, { redes:rr, em:Date.now(), por:quemSou() });
+      }
+      return;
+    }
+
+    // ---- storymaker ----
+    if(act === "chk"){
+      if(!podeGerenciar("story")){ toast("Seu acesso não marca o checklist."); return; }
+      var s = story.filter(function(x){ return x.id===id; })[0]; if(!s) return;
+      DBupdate("story", id, { feito: !s.feito, em:Date.now(), por:quemSou() });
+      return;
+    }
+    if(act === "quem"){
+      if(!podeGerenciar("story")){ toast("Seu acesso não altera o checklist."); return; }
+      var at = story.filter(function(x){ return x.id===id; })[0] || {};
+      var nome = prompt("Quem é o responsável por este item?", at.resp || "");
+      if(nome === null) return;
+      DBupdate("story", id, { resp: String(nome).trim(), em:Date.now(), por:quemSou() });
+      return;
+    }
+    if(act === "delstory"){
+      if(!podeGerenciar("story")){ toast("Seu acesso não apaga itens."); return; }
+      var si = story.filter(function(x){ return x.id===id; })[0] || {};
+      if(!confirm("Apagar este item?\n\n"+(si.texto||"")+"\n\nIsso não volta.")) return;
+      DBremove("story", id); return;
+    }
+    if(act === "novobloco"){
+      if(!podeGerenciar("story")){ toast("Seu acesso não cria blocos."); return; }
+      novoBloco(); return;
+    }
+    if(act === "additem"){
+      if(!podeGerenciar("story")){ toast("Seu acesso não cria itens."); return; }
+      var txt = prompt("O que precisa ser gravado?");
+      if(txt === null) return;
+      txt = String(txt).trim(); if(!txt) return;
+      DBadd("story", { dia:diaStoryAtual(), grupo:b.dataset.grupo, area:b.dataset.area||"",
+                       texto:txt, resp:"", feito:false, criadoEm:Date.now(), por:quemSou() });
+      return;
+    }
+  });
+
+  function novoBloco(){
+    var nome = prompt("Nome do bloco (ex: Show Matuê, Abertura dos portões)");
+    if(nome === null) return;
+    nome = String(nome).trim(); if(!nome) return;
+
+    var area = prompt("Área? "+AREAS.join(" / ")+"\n(pode deixar em branco)", "");
+    if(area === null) area = "";
+    area = String(area).trim();
+
+    var linhas = prompt("Escreva UM ITEM POR LINHA.\n\nExemplo:\nStory 1: mostrar o público\nStory 2: o show\nStory 3: a vibe da galera");
+    if(linhas === null) return;
+    var lista = String(linhas).split("\n").map(function(x){ return x.trim(); }).filter(Boolean);
+    if(!lista.length){ toast("Nenhum item escrito."); return; }
+
+    var dia = diaStoryAtual(), base = Date.now();
+    for(var i=0;i<lista.length;i++){
+      // criadoEm com deslocamento pra lista sair na ordem que a pessoa escreveu
+      DBadd("story", { dia:dia, grupo:nome, area:area, texto:lista[i], resp:"", feito:false,
+                       criadoEm: base + i, por:quemSou() });
+    }
+    toast(lista.length + (lista.length===1 ? " item criado." : " itens criados."));
+  }
+
+  function salvarPeca(){
+    var v = function(id){ var e=$("#"+id); return e ? String(e.value||"").trim() : ""; };
+    var dados = {
+      dia: v("f_dia"), tipo: v("f_tipo"), marca: v("f_marca"), formato: v("f_formato"),
+      tema: v("f_tema"), referencia: v("f_referencia"), roteiro: v("f_roteiro"),
+      quemGrava: v("f_quemGrava"), resumo: v("f_resumo"), editor: v("f_editor"),
+      horario: v("f_horario"), status: v("f_status"),
+      em: Date.now(), por: quemSou()
+    };
+    if(!dados.marca && !dados.tema && !dados.formato){
+      toast("Preencha ao menos marca, formato ou tema."); return;
+    }
+    if(editandoPeca === "novo"){
+      dados.criadoEm = Date.now();
+      dados.redes = []; dados.impulsionar = false;
+      dados.linkPronto = ""; dados.linkPublicado = "";
+      DBadd("pecas", dados);
+      toast("Peça criada.");
+    } else {
+      DBupdate("pecas", editandoPeca, dados);
+      toast("Peça salva.");
+    }
+    editandoPeca = null;
+    renderPecas();
+  }
+
+  // campos de link e busca: gravam ao sair do campo, nao a cada tecla
+  document.addEventListener("change", function(ev){
+    var el = ev.target, act = el.dataset && el.dataset.act;
+    if(act === "stcol-link"){
+      if(!podeGerenciar("coletivas")){ toast("Seu acesso não edita as coletivas."); return; }
+      var patch = {}; patch[el.dataset.campo] = String(el.value||"").trim();
+      patch.em = Date.now(); patch.por = quemSou();
+      DBset("coletivas", el.dataset.id, patch);
+      return;
+    }
+    if(act === "peca-link"){
+      if(!podeGerenciar("pecas")){ toast("Seu acesso não edita peças."); return; }
+      var p2 = {}; p2[el.dataset.campo] = String(el.value||"").trim();
+      p2.em = Date.now(); p2.por = quemSou();
+      DBupdate("pecas", el.dataset.id, p2);
+      return;
+    }
+  });
+
+  // busca: filtra enquanto digita, sem perder o foco do campo
+  document.addEventListener("input", function(ev){
+    if(ev.target.id !== "buscaPeca") return;
+    fBusca = String(ev.target.value||"").trim();
+    var pos = ev.target.selectionStart;
+    renderPecas();
+    var novo = $("#buscaPeca");
+    if(novo){ novo.focus(); try{ novo.setSelectionRange(pos,pos); }catch(e){} }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // MINI GUIA — uma unica vez por aparelho, e o "?" reabre quando quiser
+  // ═══════════════════════════════════════════════════════════════
+  var GUIA_KEY = "cfi_guia_v1";
+  function mostrarGuiaUmaVez(){
+    if(!PERFIL || !PERM) return;
+    try{
+      if(localStorage.getItem(GUIA_KEY) === "1") return;
+      localStorage.setItem(GUIA_KEY, "1");
+      if(localStorage.getItem(GUIA_KEY) !== "1") return;   // gravou mesmo?
+    }catch(e){ return; }   // sem armazenamento confiavel = nao mostra
+    abrirGuia();
+  }
+
+  function abrirGuia(){
+    if(!PERFIL || !PERM) return;
+    if(document.getElementById("guiaOverlay")) return;
+    var linhas;
+    if(PERFIL === "conteudo"){
+      linhas = [
+        "<b>Coletivas</b> já vem com marca, hora e influenciador prontos. Toque no cartão e mexa só em status e link.",
+        "<b>Orgânicos e pagos</b> é uma lista só. Use a busca para achar por marca, tema ou editor.",
+        "O status <b>Pronto</b> é o material parado esperando a hora de subir. Marque <b>Impulsionar</b> no que vira mídia paga."
+      ];
+    } else {
+      linhas = [
+        "Escolha o <b>dia</b> lá em cima. O checklist já abre no dia de hoje.",
+        "Toque no quadradinho para marcar o que já gravou.",
+        "Coloque seu nome em <b>definir responsável</b> para o time saber que o item é seu."
+      ];
+    }
+    var ov = document.createElement("div");
+    ov.id = "guiaOverlay";
+    ov.innerHTML = '<div class="guiacard" role="dialog" aria-modal="true" aria-label="Como usar">'+
+      '<div class="guiaquem">Você entrou como</div>'+
+      '<div class="guiaperfil">'+esc(quemSou())+'</div>'+
+      '<ul class="guialista"><li>'+linhas.join("</li><li>")+'</li></ul>'+
+      '<button class="btn" id="guiaOk">Entendi</button></div>';
+    document.body.appendChild(ov);
+    var fecha = function(){ var o=document.getElementById("guiaOverlay"); if(o) o.remove(); };
+    ov.addEventListener("click", function(e){ if(e.target === ov) fecha(); });
+    var ok = document.getElementById("guiaOk");
+    ok.addEventListener("click", fecha);
+    ok.focus();
+    document.addEventListener("keydown", function esc2(e){
+      if(e.key === "Escape"){ fecha(); document.removeEventListener("keydown", esc2); }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // LOGIN E BOOT
+  // ═══════════════════════════════════════════════════════════════
+  function ligarEscutas(){
+    desligar.push(DBwatch("coletivas", function(a){ coletivas=a; if(abaAtual==="coletivas") renderColetivas(); }));
+    desligar.push(DBwatch("pecas",     function(a){ pecas=a;     if(abaAtual==="pecas") renderPecas(); contadores(); }));
+    desligar.push(DBwatch("story",     function(a){ story=a;     if(abaAtual==="story") renderStory(); contadores(); }));
+  }
+
+  function openApp(){
+    $("#gate").hidden = true; $("#app").hidden = false;
+    try{ if(typeof gtag === "function" && PERFIL) gtag("set", "user_properties", { perfil:"cont_"+PERFIL }); }catch(e){}
+    ga("acesso_conteudo", { perfil: PERFIL || "desconhecido" });
+    // cada etapa isolada: desenhar a tela nunca pode depender do banco responder
+    try{ aplicarInterface(); }catch(e){ if(window.console) console.error("[conteudo] interface", e); }
+    try{ ligarEscutas();     }catch(e){ if(window.console) console.error("[conteudo] escutas", e); setStatus("warn"); }
+    renderAll();
+    try{ mostrarGuiaUmaVez(); }catch(e){}
+  }
+
+  $("#gateForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var ac = acharAcesso($("#pw").value);
+    if(!ac || !definirPerfil(ac.perfil)){
+      $("#gateErr").textContent = "Senha não confere.";
+      $("#pw").select();
+      return;
+    }
+    $("#gateErr").textContent = "";
+    try{ localStorage.setItem("cfi_sessao", ac.perfil); }catch(e){}
+    openApp();
+  });
+
+  $("#verSenha").addEventListener("click", function(){
+    var i = $("#pw"), most = i.type === "password";
+    i.type = most ? "text" : "password";
+    this.textContent = most ? "Ocultar" : "Mostrar";
+    this.setAttribute("aria-label", most ? "Ocultar senha" : "Mostrar senha");
+    i.focus();
+  });
+
+  $("#logout").addEventListener("click", function(){
+    try{ localStorage.removeItem("cfi_sessao"); }catch(e){}
+    for(var i=0;i<desligar.length;i++){ try{ desligar[i](); }catch(e){} }
+    location.reload();
+  });
+
+  $("#btnGuia").addEventListener("click", abrirGuia);
+
+  $$(".tab").forEach(function(b){
+    b.addEventListener("click", function(){ mostrarAba(b.getAttribute("data-tab")); });
+  });
+
+  // sessao salva no aparelho: quem ja entrou nao digita senha de novo
+  (function(){
+    var s = null;
+    try{ s = localStorage.getItem("cfi_sessao"); }catch(e){}
+    if(s && definirPerfil(s)) openApp();
+    setStatus();
+  })();
+
+})();
+</script>
+</body>
+</html>
