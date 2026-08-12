@@ -196,6 +196,11 @@
   /* ---------- BLOCO (cartao dobravel) ---------- */
   .bloco{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
   .bloco.completo{border-color:rgba(166,236,77,.32)}
+  /* bloco fechado fica mais apagado e ocupa uma linha: e trabalho concluido,
+     nao precisa competir por atencao com o que ainda falta */
+  .bloco.recolhido{background:var(--panel-2)}
+  .bloco.recolhido .cnome{font-size:.9rem;color:var(--ink-2)}
+  .bloco.completo.recolhido .cnome{color:var(--ink)}
   .cabeca{display:flex;align-items:center;gap:12px;padding:13px 15px;width:100%;
     background:transparent;border:0;color:var(--ink);text-align:left}
   .cabeca:hover{background:var(--panel-2)}
@@ -433,7 +438,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-11.5";
+  var VERSAO = "2026-08-11.6";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -743,6 +748,9 @@
   try{ meuNome = localStorage.getItem(MEU_KEY) || ""; }catch(e){}
   var editandoPeca=null;               // id da peca em edicao, ou "novo"
   var criandoBloco=false;              // formulario de novo bloco do StoryMaker aberto
+  var fMinhasStory=false;              // filtro "só as minhas" no checklist
+  var recolhidos={};                   // bloco EM ABERTO que a pessoa fechou na mao
+  var reabertos={};                    // bloco COMPLETO que a pessoa reabriu na mao
   var desligar=[];                     // funcoes que param as escutas
 
   // ---- permissoes: checadas ao DESENHAR e de novo ao EXECUTAR ----
@@ -1123,6 +1131,14 @@
   // UM DOCUMENTO POR ITEM, com o bloco como campo. Assim dois storymakers
   // marcando itens do mesmo bloco ao mesmo tempo nao se atropelam.
   // ═══════════════════════════════════════════════════════════════
+  // Casa por PEDACO do nome: "Michelly e Anna" conta pra Michelly e pra Anna,
+  // porque o item e das duas. Sem isso o filtro esconderia justo o trabalho
+  // compartilhado, que e o que mais se perde.
+  function ehMeuItem(s){
+    if(!meuNome) return true;
+    return String(s.resp||"").toLowerCase().indexOf(meuNome.toLowerCase()) >= 0;
+  }
+
   function hojeISO(){
     var d = new Date(), m = String(d.getMonth()+1).padStart(2,"0"), x = String(d.getDate()).padStart(2,"0");
     return d.getFullYear()+"-"+m+"-"+x;
@@ -1171,6 +1187,15 @@
       h += '<div class="rulebox"><div class="ic">&#9679;</div><div class="tx"><b>Ainda em aberto:</b> '+txt+'</div></div>';
     }
 
+    // "Só as minhas": com 24 itens em 4 blocos, quem esta em campo precisa achar
+    // os proprios sem ler a lista toda. Casa por pedaco do nome, entao
+    // "Michelly e Anna" aparece pra Michelly E pra Anna, que e o certo: e das duas.
+    h += '<div class="fchips">'+
+      '<button class="fchip destaque'+(fMinhasStory?" on":"")+'" data-act="fminhasstory">'+
+      (meuNome ? "Só as minhas ("+esc(meuNome.split(" ")[0])+")" : "Só as minhas")+'</button>'+
+      (fMinhasStory ? '<button class="fchip" data-act="fminhasstory">Ver todas</button>' : '')+
+    '</div>';
+
     if(podeGerenciar("story")){
       h += criandoBloco ? formBlocoHTML()
          : '<div class="barrafiltro"><button class="btn" data-act="novobloco">+ Novo bloco</button></div>';
@@ -1180,29 +1205,52 @@
     var ordem=[], grupos={};
     doDia.sort(function(a,b){ return (a.criadoEm||0)-(b.criadoEm||0); });
     for(i=0;i<doDia.length;i++){
+      if(fMinhasStory && !ehMeuItem(doDia[i])) continue;
       var g = doDia[i].grupo || "Sem bloco";
       if(!grupos[g]){ grupos[g]=[]; ordem.push(g); }
       grupos[g].push(doDia[i]);
     }
 
+    // "Pronto desce pro fim": bloco fechado sai da frente e o proximo em aberto
+    // sobe sozinho. Ordenacao por ESTADO, nao arrastada a mao de proposito: ordem
+    // salva no banco brigaria entre as 5-8 pessoas usando ao mesmo tempo.
+    ordem.sort(function(a,b){
+      var fa = grupos[a].every(function(s){ return s.feito; });
+      var fb = grupos[b].every(function(s){ return s.feito; });
+      if(fa !== fb) return fa ? 1 : -1;
+      return 0;   // dentro do mesmo estado, mantem a ordem do dia
+    });
+
     if(!ordem.length){
-      h += '<div class="vazio"><div class="big">Nenhum checklist para este dia</div>'+
-        '<div class="sm">'+(podeGerenciar("story")
-          ? "Toque em <b>+ Novo bloco</b>, dê um nome (por exemplo <b>Show Matuê</b>) e escreva um item por linha."
-          : "A coordenação ainda não montou o checklist deste dia.")+'</div></div>';
+      h += fMinhasStory
+        ? '<div class="vazio"><div class="big">Nada seu neste dia</div>'+
+          '<div class="sm">Nenhum item está no seu nome aqui. Toque em <b>Ver todas</b> para ver o checklist inteiro.</div></div>'
+        : '<div class="vazio"><div class="big">Nenhum checklist para este dia</div>'+
+          '<div class="sm">'+(podeGerenciar("story")
+            ? "Toque em <b>+ Novo bloco</b>, dê um nome (por exemplo <b>Show Matuê</b>) e escreva um item por linha."
+            : "A coordenação ainda não montou o checklist deste dia.")+'</div></div>';
     }
 
     for(i=0;i<ordem.length;i++){
       var nome = ordem[i], itens = grupos[nome];
       var okG = itens.filter(function(s){ return s.feito; }).length;
       var area = itens[0].area || "";
-      h += '<div class="bloco'+(okG===itens.length?" completo":"")+'">'+
-        '<div class="cabeca" style="cursor:default">'+
-          '<span class="cmeio"><span class="cnome">'+esc(nome)+'</span>'+
-          (area?'<span class="cinflu">'+esc(area)+'</span>':'')+'</span>'+
-          '<span class="cprog'+(okG===itens.length?" ok":"")+'">'+okG+'/'+itens.length+'</span>'+
-        '</div>'+
-        '<div class="corpo">';
+      var cheio = okG === itens.length;
+      // Recolhe SOZINHO quando fecha (ideia da Isa), e o toque no cabecalho
+      // abre e fecha qualquer bloco na mao. Quem reabriu um bloco fechado fica
+      // marcado em reabertos: o automatico nao insiste em fechar de novo.
+      var min = cheio ? !reabertos[nome] : !!recolhidos[nome];
+      h += '<div class="bloco'+(cheio?" completo":"")+(min?" recolhido":"")+'">'+
+        '<button class="cabeca" data-act="dobrar" data-bloco="'+esc(nome)+'" '+
+          'aria-expanded="'+(min?"false":"true")+'">'+
+          '<span class="cmeio"><span class="cnome">'+(cheio?"&#10003; ":"")+esc(nome)+'</span>'+
+          (area && !min ?'<span class="cinflu">'+esc(area)+'</span>':'')+'</span>'+
+          (cheio && min ? '<span class="tag st" data-st="publicado">Pronto</span>' : '')+
+          '<span class="cprog'+(cheio?" ok":"")+'">'+okG+'/'+itens.length+'</span>'+
+          '<span class="cmais">'+(min?"+":"&minus;")+'</span>'+
+        '</button>';
+      if(min){ h += '</div>'; continue; }
+      h += '<div class="corpo">';
       for(var j=0;j<itens.length;j++){
         var s = itens[j];
         h += '<div class="chk'+(s.feito?" feito":"")+'">'+
@@ -1307,6 +1355,20 @@
     if(act === "fminhas"){
       if(!meuNome){ pedirNome(true); return; }   // sem nome o filtro nao tem o que filtrar
       fMinhas = !fMinhas; renderPecas(); return;
+    }
+    if(act === "fminhasstory"){
+      if(!meuNome){ pedirNome(true); return; }
+      fMinhasStory = !fMinhasStory; renderStory(); return;
+    }
+    if(act === "dobrar"){
+      var bn = b.dataset.bloco;
+      var itensBl = story.filter(function(s){ return s.dia===diaStoryAtual() && (s.grupo||"Sem bloco")===bn; });
+      var chBl = itensBl.length && itensBl.every(function(s){ return s.feito; });
+      // bloco completo nasce fechado, entao o toque nele e "reabrir";
+      // bloco em aberto nasce aberto, e o toque e "recolher"
+      if(chBl){ if(reabertos[bn]) delete reabertos[bn]; else reabertos[bn] = true; }
+      else    { if(recolhidos[bn]) delete recolhidos[bn]; else recolhidos[bn] = true; }
+      renderStory(); return;
     }
     if(act === "meunome"){ pedirNome(false); return; }
     if(act === "cancelarpeca"){ editandoPeca=null; renderPecas(); return; }
