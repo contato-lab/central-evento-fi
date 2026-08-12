@@ -1095,7 +1095,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-12.2";
+  var VERSAO = "2026-08-12.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2242,7 +2242,11 @@
   function renderMeli(){
     var caixa = $("#meliBox"); if(!caixa) return;
     var ehHoje = (MELI_DATA && MELI_DATA === hojeISO()), agora = minutosAgora();
-    var html = '<p class="colnota">Evento do Mercado Livre no <b>Centro de Convenções na Torre</b>. '+
+    // "Programação extra" = acontece ALEM da programacao oficial do festival, nao
+    // no lugar dela. Escrito assim de proposito: "extraoficial" junto significaria
+    // nao oficial, e este evento e oficial do Mercado Livre com a Duas Rodas.
+    var html = '<p class="colnota"><b>Programação extra</b>, do Mercado Livre com a Revista Duas Rodas, '+
+      'além da programação oficial do festival. Acontece no <b>Centro de Convenções na Torre</b>.<br>'+
       'Ao longo da manhã há rodadas de quiz ao vivo às 10h, 11h15 e 11h50: os maiores pontuadores '+
       'concorrem a prêmios, incluindo uma volta de moto no circuito de Interlagos.</p>';
 
