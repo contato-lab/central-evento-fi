@@ -214,6 +214,12 @@
     color:var(--ink-3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cgente.vazia{font-style:italic;opacity:.65}
   .cgente .eu{color:var(--lime);font-weight:700}
+  .cbox{display:inline-block;font-family:var(--mono);font-size:.6rem;font-weight:700;
+    letter-spacing:.04em;color:var(--lime);background:rgba(166,236,77,.12);
+    border:1px solid rgba(166,236,77,.3);border-radius:5px;padding:1px 6px;
+    vertical-align:1px;flex:0 0 auto}
+  .cbox.pend{color:var(--ink-3);background:transparent;border-style:dashed;
+    border-color:var(--line);font-weight:400;text-transform:lowercase}
   .cprog{font-family:var(--mono);font-size:.64rem;letter-spacing:.06em;color:var(--ink-3);
     white-space:nowrap;flex:0 0 auto}
   .cprog.ok{color:var(--lime)}
@@ -426,7 +432,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-11.3";
+  var VERSAO = "2026-08-11.4";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -673,22 +679,22 @@
 
   var COLETIVAS = [
     { dia:"2026-08-12", rotulo:"Quarta-feira, 12/08", itens:[
-      { hora:"08h10", marca:"CFMOTO",        influ:"Seku Mello" },
-      { hora:"09h20", marca:"Shineray",      influ:"Eliana Malizia" },
-      { hora:"10h30", marca:"Yamaha",        influ:"David Jensen" },
-      { hora:"13h30", marca:"BMW Motorrad",  influ:"Durval Careca" },
-      { hora:"14h40", marca:"Bajaj",         influ:"Amanda Pagliari" },
-      { hora:"15h50", marca:"Voge",          influ:"Daiane Gaia" },
-      { hora:"17h00", marca:"Suzuki/JTZ",    influ:"Rodolfinho da Z" },
-      { hora:"18h00", marca:"Dafra",         influ:"Day Miguel" },
-      { hora:"19h00", marca:"Fun Motors",    influ:"Gisele Favaro" }
+      { hora:"08h10", marca:"CFMOTO",        influ:"Seku Mello",       box:"22/23" },
+      { hora:"09h20", marca:"Shineray",      influ:"Eliana Malizia",   box:"19/20" },
+      { hora:"10h30", marca:"Yamaha",        influ:"David Jensen",     box:"11/12" },
+      { hora:"13h30", marca:"BMW Motorrad",  influ:"Durval Careca",    box:"1/2"   },
+      { hora:"14h40", marca:"Bajaj",         influ:"Amanda Pagliari",  box:"10"    },
+      { hora:"15h50", marca:"Voge",          influ:"Daiane Gaia",      box:""      },
+      { hora:"17h00", marca:"Suzuki/JTZ",    influ:"Rodolfinho da Z",  box:"18"    },
+      { hora:"18h00", marca:"Dafra",         influ:"Day Miguel",       box:"17"    },
+      { hora:"19h00", marca:"Fun Motors",    influ:"Gisele Favaro",    box:""      }
     ]},
     { dia:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
-      { hora:"07h00", marca:"Royal Enfield", influ:"Lucas Xaparral" },
-      { hora:"08h10", marca:"Triumph",       influ:"Vans Faria" },
-      { hora:"09h20", marca:"Moto Morini",   influ:"Daniel D2" },
-      { hora:"10h30", marca:"Kawasaki",      influ:"Rafael Togni" },
-      { hora:"11h40", marca:"Honda",         influ:"Libera Costabeber" }
+      { hora:"07h00", marca:"Royal Enfield", influ:"Lucas Xaparral",   box:"3/4"   },
+      { hora:"08h10", marca:"Triumph",       influ:"Vans Faria",       box:"15/16" },
+      { hora:"09h20", marca:"Moto Morini",   influ:"Daniel D2",        box:"21"    },
+      { hora:"10h30", marca:"Kawasaki",      influ:"Rafael Togni",     box:"13/14" },
+      { hora:"11h40", marca:"Honda",         influ:"Libera Costabeber",box:"6/7/8" }
     ]}
   ];
 
@@ -816,8 +822,17 @@
       h += '<div class="bloco'+(completo?" completo":"")+'">'+
         '<button class="cabeca" data-act="abrircol" data-key="'+grade.dia+'_'+i+'">'+
           '<span class="chora">'+esc(it.hora)+'</span>'+
+          // O box vai na linha do influenciador, NAO na do nome da marca. Testei
+          // no celular com ele junto da marca: em "BMW Motorrad" e "Fun Motors"
+          // o .cnome (nowrap + ellipsis) cortava justo a etiqueta do box, que e o
+          // dado mais util do cartao pra quem esta indo gravar. E vem ANTES do
+          // nome do influenciador de proposito: se faltar espaco, quem encurta e
+          // o nome da pessoa, nao o numero do box.
           '<span class="cmeio"><span class="cnome">'+esc(it.marca)+'</span>'+
-          '<span class="cinflu">'+esc(it.influ)+'</span></span>'+
+          '<span class="cinflu">'+
+            (it.box ? '<span class="cbox">Box '+esc(it.box)+'</span> '
+                    : '<span class="cbox pend">box a definir</span> ')+
+            esc(it.influ)+'</span></span>'+
           '<span class="cprog'+(completo?" ok":"")+'">'+pub+'/'+FORMATOS_COLETIVA.length+'</span>'+
           '<span class="cmais">'+(aberto?"&minus;":"+")+'</span>'+
         '</button>'+

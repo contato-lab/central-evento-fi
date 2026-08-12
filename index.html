@@ -578,8 +578,24 @@
   .colrow.momento .colhora{color:var(--ink-2)}
   .colrow.passou{opacity:.4}
   .colrow.agora{background:rgba(166,236,77,.09);border:1px solid rgba(166,236,77,.35)}
-  .colagora{margin-left:auto;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;
-    color:var(--lime);border:1px solid rgba(166,236,77,.5);border-radius:6px;padding:2px 7px}
+  /* etiqueta do box: o jornalista precisa saber PARA ONDE ir, nao so a hora.
+     margin-left:auto empurra pra direita; quando o AGORA aparece, ele fica
+     depois do box e os dois convivem na mesma linha. */
+  .colbox{margin-left:auto;font-family:var(--mono);font-size:.6rem;letter-spacing:.06em;
+    font-weight:700;color:var(--ink);background:var(--raise);border:1px solid var(--line);
+    border-radius:6px;padding:3px 8px;white-space:nowrap;flex:0 0 auto}
+  .colbox.pend{color:var(--ink-3);font-weight:400;font-style:italic;border-style:dashed}
+  .colrow.passou .colbox{opacity:.7}
+  .colagora{margin-left:8px;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;
+    color:var(--lime);border:1px solid rgba(166,236,77,.5);border-radius:6px;padding:2px 7px;
+    flex:0 0 auto}
+  /* sem box (agenda de shows) o AGORA volta a ser o que empurra pra direita */
+  .colrow > .colnome + .colagora{margin-left:auto}
+  /* Tudo numa linha so, inclusive no celular. Tentei quebrar o box pra baixo
+     numa media query e o resultado foi pior: algumas linhas ficavam com 69px e
+     outras com 36px, e a lista parecia defeituosa. Aqui o nome encurta com "..."
+     e a etiqueta do box nunca e sacrificada, que e a ordem certa de prioridade. */
+  .colnome{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .colnota{font-size:.72rem;color:var(--ink-2);line-height:1.5;margin:2px 0 14px}
 
   /* ===== MINI GUIA (primeira visita, uma unica vez) =====
@@ -1059,7 +1075,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-11.1";
+  var VERSAO = "2026-08-11.2";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1984,24 +2000,24 @@
   // (abertura, intervalo) — aparece em italico, sem cara de atracao.
   var COLETIVAS = [
     { data:"2026-08-12", rotulo:"Quarta-feira, 12/08", itens:[
-      { hora:"08h10", nome:"CFMOTO" },
-      { hora:"09h20", nome:"Shineray" },
-      { hora:"10h30", nome:"Yamaha" },
+      { hora:"08h10", nome:"CFMOTO",       box:"22/23" },
+      { hora:"09h20", nome:"Shineray",     box:"19/20" },
+      { hora:"10h30", nome:"Yamaha",       box:"11/12" },
       { hora:"11h40", nome:"Abertura oficial", momento:true },
       { hora:"13h00", nome:"Intervalo", momento:true },
-      { hora:"13h30", nome:"BMW Motorrad" },
-      { hora:"14h40", nome:"Bajaj" },
-      { hora:"15h50", nome:"Voge" },
-      { hora:"17h00", nome:"Suzuki/JTZ" },
-      { hora:"18h00", nome:"Dafra" },
-      { hora:"19h00", nome:"Fun Motors" }
+      { hora:"13h30", nome:"BMW Motorrad", box:"1/2" },
+      { hora:"14h40", nome:"Bajaj",        box:"10" },
+      { hora:"15h50", nome:"Voge",         box:"" },
+      { hora:"17h00", nome:"Suzuki/JTZ",   box:"18" },
+      { hora:"18h00", nome:"Dafra",        box:"17" },
+      { hora:"19h00", nome:"Fun Motors",   box:"" }
     ]},
     { data:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
-      { hora:"07h00", nome:"Royal Enfield" },
-      { hora:"08h10", nome:"Triumph" },
-      { hora:"09h20", nome:"Moto Morini" },
-      { hora:"10h30", nome:"Kawasaki" },
-      { hora:"11h40", nome:"Honda" }
+      { hora:"07h00", nome:"Royal Enfield", box:"3/4" },
+      { hora:"08h10", nome:"Triumph",       box:"15/16" },
+      { hora:"09h20", nome:"Moto Morini",   box:"21" },
+      { hora:"10h30", nome:"Kawasaki",      box:"13/14" },
+      { hora:"11h40", nome:"Honda",         box:"6/7/8" }
     ]}
   ];
 
@@ -2065,6 +2081,14 @@
                 (passou ? ' passou' : '') + (rolando ? ' agora' : '') + '">' +
           '<span class="colhora">' + esc(it.hora) + '</span>' +
           '<span class="colnome">' + esc(it.nome) + '</span>' +
+          // box so existe nas coletivas; a agenda de shows nao tem a chave e passa batido.
+          // box:"" (chave presente e vazia) = coletiva que ainda nao recebeu numero:
+          // melhor dizer "a confirmar" do que deixar em branco e o jornalista achar
+          // que foi esquecimento nosso.
+          (it.box !== undefined
+            ? '<span class="colbox' + (it.box ? '' : ' pend') + '">' +
+              (it.box ? 'Box ' + esc(it.box) : 'Box a confirmar') + '</span>'
+            : '') +
           (rolando ? '<span class="colagora">AGORA</span>' : '') +
         '</div>';
       });
