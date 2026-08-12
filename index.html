@@ -584,6 +584,14 @@
   .colrow.meli .colhora{padding-top:1px}
   .colrow.meli .colnome{white-space:normal;line-height:1.4}
   .meldesc{display:block;font-size:.78rem;color:var(--ink-2);line-height:1.5;margin-top:3px;font-weight:400}
+  /* cada evento da categoria e um cartao com nome, data, local e de quem e */
+  .coldia.extra h3{color:var(--lime)}
+  .exmeta{font-size:.8rem;color:var(--ink);margin:-4px 0 8px;line-height:1.5}
+  .exmeta b{color:var(--ink)}
+  .exmeta span{display:block;font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ink-3);margin-top:3px}
+  .exnota{font-size:.78rem;color:var(--ink-2);line-height:1.5;margin:0 0 10px;
+    padding:9px 11px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);border-radius:9px}
   .colnome{font-size:.9rem;color:var(--ink);font-weight:600}
   .colrow.momento .colnome{color:var(--ink-2);font-weight:500;font-style:italic}
   .colrow.momento .colhora{color:var(--ink-2)}
@@ -826,9 +834,9 @@
           <button type="button" class="subtab active" data-sub="prog">Programação</button>
           <button type="button" class="subtab" data-sub="shows">Shows</button>
           <button type="button" class="subtab" data-sub="coletivas">Coletivas de imprensa</button>
-          <button type="button" class="subtab" data-sub="meli">Meli 2 Rodas</button>
+          <button type="button" class="subtab" data-sub="extras">Programação Extra Oficial</button>
         </div>
-        <div id="meliBox" style="display:none"></div>
+        <div id="extrasBox" style="display:none"></div>
         <!-- a grade oficial de atracoes fica ACIMA do mural do Firestore: quem
              abre "Programação" quer a agenda, e o mural embaixo continua sendo
              onde a producao posta mudanca de ultima hora -->
@@ -1095,7 +1103,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-12.3";
+  var VERSAO = "2026-08-12.4";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1595,7 +1603,7 @@
     // a programacao TAMBEM depende da hora agora (selo ABERTO nas atracoes),
     // por isso saiu da lista de excecoes deste timer
     if(subMuralAtivo === "prog")      renderProgramacao();
-    if(subMuralAtivo === "meli")      renderMeli();
+    if(subMuralAtivo === "extras")    renderExtras();
   }, 60000);
   $("#logout").addEventListener("click",function(){
     localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
@@ -2056,26 +2064,50 @@
   // e dado, nao HTML — mudou o line-up, edita aqui e sobe VERSAO nova.
   // "FIM" nao e atracao, e o encerramento: entra como momento (italico).
   // A quinta 13/08 nao tem show nesta grade; se entrar, e so acrescentar.
-  // ===== MELI 2 RODAS =====
-  // Agenda enviada pela coordenacao em 12/08/2026. Evento do Mercado Livre no
-  // Centro de Convencoes Paddock.
+  // ═══════════════════════════════════════════════════════════════
+  // PROGRAMACAO EXTRA OFICIAL
   //
-  // Data confirmada pela coordenacao: sexta 14/08. O local mudou de Paddock
-  // para a Torre entre duas mensagens no mesmo dia; vale conferir antes de
-  // divulgar de novo, porque local errado faz jornalista atravessar o autodromo.
-  // Se a data mudar, troca aqui e o cabecalho e o marcador AGORA acompanham.
-  var MELI_DATA = "2026-08-14";
-  var MELI = [
-    { de:"08:30", ate:"09:15", t:"Recepção e networking",
-      d:"Credenciamento, café da manhã para interação inicial e abertura oficial com um quiz interativo de aquecimento." },
-    { de:"09:30", ate:"10:00", t:"Visão de mercado e ecossistema",
-      d:"Palestras focadas no tamanho da oportunidade do mercado de motos no Brasil e em como o ecossistema do Mercado Livre conecta compradores, vendedores e peças." },
-    { de:"10:15", ate:"11:15", t:"Estratégia, vendas e ferramentas",
-      d:"Bloco prático focado em resultados. Cobre boas práticas de venda, o segredo do anúncio campeão (marcas e sellers) e soluções para turbinar a operação: MeliPro, Afiliados, B2B e Ads." },
-    { de:"11:20", ate:"11:50", t:"Painel interativo: bastidores do Meli 2 Rodas",
-      d:"Roda de conversa descontraída com especialistas, sellers de destaque e entusiastas, com espaço para perguntas do público em tempo real pelo celular." },
-    { de:"11:50", ate:"12:00", t:"Premiação e encerramento",
-      d:"Quiz final, entrega de kits exclusivos e encerramento do evento." }
+  // CATEGORIA, nao um evento so. Guarda a programacao dos parceiros que
+  // acontece ALEM da grade do festival. Hoje tem o Meli 2 Rodas; vao entrar
+  // outros, e por isso e uma LISTA de eventos, cada um com seus proprios
+  // horarios, local e nota.
+  //
+  // PRA ACRESCENTAR UM EVENTO NOVO: copia um bloco { ... } inteiro e edita.
+  // Nada mais precisa mudar, nem render nem sub-aba. Campos:
+  //   nome     titulo do evento
+  //   quem     de quem e (aparece como "por ...")
+  //   data     ISO, usada pro selo HOJE e pro marcador AGORA. Vazio = sem data.
+  //   rotulo   como a data aparece na tela
+  //   local    onde acontece
+  //   nota     linha extra opcional (premio, gamificacao, observacao)
+  //   itens    { de, ate, t, d } por bloco. Os intervalos podem ter buracos:
+  //            o fim vem no dado, nao do inicio do bloco seguinte.
+  //
+  // "Extra oficial" e SEPARADO de proposito: junto ("extraoficial") significaria
+  // nao oficial, e estes eventos tem chancela. Aqui extra = adicional a grade.
+  var EXTRAS = [
+    {
+      nome:"Meli 2 Rodas",
+      quem:"Mercado Livre com a Revista Duas Rodas",
+      data:"2026-08-14",
+      rotulo:"Sexta-feira, 14/08",
+      // o local mudou de Paddock pra Torre entre duas mensagens no mesmo dia;
+      // vale conferir antes de divulgar, local errado faz jornalista andar em vao
+      local:"Centro de Convenções na Torre",
+      nota:"Ao longo da manhã há rodadas de quiz ao vivo às 10h, 11h15 e 11h50. Os maiores pontuadores concorrem a prêmios especiais, incluindo uma volta de moto no circuito de Interlagos.",
+      itens:[
+        { de:"08:30", ate:"09:15", t:"Recepção e networking",
+          d:"Credenciamento, café da manhã para interação inicial e abertura oficial com um quiz interativo de aquecimento." },
+        { de:"09:30", ate:"10:00", t:"Visão de mercado e ecossistema",
+          d:"Palestras focadas no tamanho da oportunidade do mercado de motos no Brasil e em como o ecossistema do Mercado Livre conecta compradores, vendedores e peças." },
+        { de:"10:15", ate:"11:15", t:"Estratégia, vendas e ferramentas",
+          d:"Bloco prático focado em resultados. Cobre boas práticas de venda, o segredo do anúncio campeão (marcas e sellers) e soluções para turbinar a operação: MeliPro, Afiliados, B2B e Ads." },
+        { de:"11:20", ate:"11:50", t:"Painel interativo: bastidores do Meli 2 Rodas",
+          d:"Roda de conversa descontraída com especialistas, sellers de destaque e entusiastas, com espaço para perguntas do público em tempo real pelo celular." },
+        { de:"11:50", ate:"12:00", t:"Premiação e encerramento",
+          d:"Quiz final, entrega de kits exclusivos e encerramento do evento." }
+      ]
+    }
   ];
 
   // ===== PROGRAMACAO OFICIAL (atracoes) =====
@@ -2239,30 +2271,48 @@
   // renderAgenda das coletivas (que e hora + nome numa linha). Os intervalos aqui
   // tem buracos de proposito (09h15 -> 09h30), por isso o fim vem no dado e nao
   // do inicio do slot seguinte.
-  function renderMeli(){
-    var caixa = $("#meliBox"); if(!caixa) return;
-    var ehHoje = (MELI_DATA && MELI_DATA === hojeISO()), agora = minutosAgora();
-    // "Programação extra" = acontece ALEM da programacao oficial do festival, nao
-    // no lugar dela. Escrito assim de proposito: "extraoficial" junto significaria
-    // nao oficial, e este evento e oficial do Mercado Livre com a Duas Rodas.
-    var html = '<p class="colnota"><b>Programação extra</b>, do Mercado Livre com a Revista Duas Rodas, '+
-      'além da programação oficial do festival. Acontece no <b>Centro de Convenções na Torre</b>.<br>'+
-      'Ao longo da manhã há rodadas de quiz ao vivo às 10h, 11h15 e 11h50: os maiores pontuadores '+
-      'concorrem a prêmios, incluindo uma volta de moto no circuito de Interlagos.</p>';
+  // Desenha TODOS os eventos da categoria, um cartao por evento. Cada bloco tem
+  // titulo E descricao, entao nao cabe no renderAgenda das coletivas, que e
+  // hora + nome numa linha.
+  function renderExtras(){
+    var caixa = $("#extrasBox"); if(!caixa) return;
+    var hoje = hojeISO(), agora = minutosAgora();
 
-    html += '<div class="coldia"><h3>Sexta-feira, 14/08' + (ehHoje ? ' <small>HOJE</small>' : '') + '</h3>';
-    MELI.forEach(function(it){
-      var ini = coletivaMin(it.de), fim = coletivaMin(it.ate);
-      var rolando = ehHoje && ini != null && fim != null && agora >= ini && agora < fim;
-      var passou  = ehHoje && fim != null && agora >= fim;
-      html += '<div class="colrow meli' + (passou ? ' passou' : '') + (rolando ? ' agora' : '') + '">' +
-        '<span class="colhora prog">' + esc(hFmt(it.de)) + ' às ' + esc(hFmt(it.ate)) + '</span>' +
-        '<span class="colnome"><b>' + esc(it.t) + '</b>' +
-          '<span class="meldesc">' + esc(it.d) + '</span></span>' +
-        (rolando ? '<span class="colagora">AGORA</span>' : '') +
-      '</div>';
+    if(!EXTRAS.length){
+      caixa.innerHTML = '<div class="vazio"><div class="big">Nada por aqui ainda</div>'+
+        '<div class="sm">Quando entrar programação de parceiro, ela aparece nesta aba.</div></div>';
+      return;
+    }
+
+    var html = '<p class="colnota">Programação que acontece <b>além da grade oficial</b> do festival, '+
+      'organizada pelos parceiros. Todos os eventos abaixo têm chancela do festival.</p>';
+
+    EXTRAS.forEach(function(ev){
+      var ehHoje = (ev.data && ev.data === hoje);
+      html += '<div class="coldia extra">';
+      html += '<h3>' + esc(ev.nome) + (ehHoje ? ' <small>HOJE</small>' : '') + '</h3>';
+      html += '<p class="exmeta">' +
+        (ev.rotulo ? '<b>' + esc(ev.rotulo) + '</b>' : '<b>Data a confirmar</b>') +
+        (ev.local ? ' &middot; ' + esc(ev.local) : '') +
+        (ev.quem ? '<span>por ' + esc(ev.quem) + '</span>' : '') +
+      '</p>';
+      if(ev.nota) html += '<p class="exnota">' + esc(ev.nota) + '</p>';
+
+      (ev.itens || []).forEach(function(it){
+        var ini = coletivaMin(it.de), fim = coletivaMin(it.ate);
+        if(fim != null && ini != null && fim <= ini) fim += 1440;
+        var rolando = ehHoje && ini != null && fim != null && agora >= ini && agora < fim;
+        var passou  = ehHoje && fim != null && agora >= fim;
+        html += '<div class="colrow meli' + (passou ? ' passou' : '') + (rolando ? ' agora' : '') + '">' +
+          '<span class="colhora prog">' + esc(hFmt(it.de)) +
+            (it.ate ? ' às ' + esc(hFmt(it.ate)) : '') + '</span>' +
+          '<span class="colnome"><b>' + esc(it.t) + '</b>' +
+            (it.d ? '<span class="meldesc">' + esc(it.d) + '</span>' : '') + '</span>' +
+          (rolando ? '<span class="colagora">AGORA</span>' : '') +
+        '</div>';
+      });
+      html += '</div>';
     });
-    html += '</div>';
     caixa.innerHTML = html;
   }
 
@@ -2338,15 +2388,15 @@
     if(boxShows) boxShows.style.display = (subMuralAtivo === "shows")     ? "" : "none";
     if(boxCol)   boxCol.style.display   = (subMuralAtivo === "coletivas") ? "" : "none";
     if(boxProg)  boxProg.style.display  = (subMuralAtivo === "prog")      ? "" : "none";
-    var boxMeli = $("#meliBox");
-    if(boxMeli)  boxMeli.style.display  = (subMuralAtivo === "meli")      ? "" : "none";
+    var boxExtras = $("#extrasBox");
+    if(boxExtras) boxExtras.style.display = (subMuralAtivo === "extras")   ? "" : "none";
     document.querySelectorAll("#subMural .subtab").forEach(function(b){
       b.classList.toggle("active", b.dataset.sub === subMuralAtivo);
     });
     if(subMuralAtivo === "shows")     renderShows();
     if(subMuralAtivo === "coletivas") renderColetivas();
     if(subMuralAtivo === "prog")      renderProgramacao();
-    if(subMuralAtivo === "meli")      renderMeli();
+    if(subMuralAtivo === "extras")    renderExtras();
   }
 
   // ===== AVISOS (operacional) =====
