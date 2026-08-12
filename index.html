@@ -577,6 +577,13 @@
      unica das coletivas. Largura fixa alinha os nomes numa coluna so. */
   .colhora.prog{min-width:124px;font-size:.85rem;flex:0 0 auto}
   @media(max-width:400px){ .colhora.prog{min-width:104px;font-size:.78rem} }
+  /* Meli 2 Rodas: cada slot tem titulo E descricao, entao a linha respira mais e
+     alinha pelo topo, senao a faixa de horario ficaria centralizada num bloco
+     alto de texto e pareceria solta. */
+  .colrow.meli{align-items:flex-start;padding:11px 10px}
+  .colrow.meli .colhora{padding-top:1px}
+  .colrow.meli .colnome{white-space:normal;line-height:1.4}
+  .meldesc{display:block;font-size:.78rem;color:var(--ink-2);line-height:1.5;margin-top:3px;font-weight:400}
   .colnome{font-size:.9rem;color:var(--ink);font-weight:600}
   .colrow.momento .colnome{color:var(--ink-2);font-weight:500;font-style:italic}
   .colrow.momento .colhora{color:var(--ink-2)}
@@ -819,7 +826,9 @@
           <button type="button" class="subtab active" data-sub="prog">Programação</button>
           <button type="button" class="subtab" data-sub="shows">Shows</button>
           <button type="button" class="subtab" data-sub="coletivas">Coletivas de imprensa</button>
+          <button type="button" class="subtab" data-sub="meli">Meli 2 Rodas</button>
         </div>
+        <div id="meliBox" style="display:none"></div>
         <!-- a grade oficial de atracoes fica ACIMA do mural do Firestore: quem
              abre "Programação" quer a agenda, e o mural embaixo continua sendo
              onde a producao posta mudanca de ultima hora -->
@@ -1086,7 +1095,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-12.1";
+  var VERSAO = "2026-08-12.2";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1586,6 +1595,7 @@
     // a programacao TAMBEM depende da hora agora (selo ABERTO nas atracoes),
     // por isso saiu da lista de excecoes deste timer
     if(subMuralAtivo === "prog")      renderProgramacao();
+    if(subMuralAtivo === "meli")      renderMeli();
   }, 60000);
   $("#logout").addEventListener("click",function(){
     localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
@@ -2046,6 +2056,28 @@
   // e dado, nao HTML — mudou o line-up, edita aqui e sobe VERSAO nova.
   // "FIM" nao e atracao, e o encerramento: entra como momento (italico).
   // A quinta 13/08 nao tem show nesta grade; se entrar, e so acrescentar.
+  // ===== MELI 2 RODAS =====
+  // Agenda enviada pela coordenacao em 12/08/2026. Evento do Mercado Livre no
+  // Centro de Convencoes Paddock.
+  //
+  // Data confirmada pela coordenacao: sexta 14/08. O local mudou de Paddock
+  // para a Torre entre duas mensagens no mesmo dia; vale conferir antes de
+  // divulgar de novo, porque local errado faz jornalista atravessar o autodromo.
+  // Se a data mudar, troca aqui e o cabecalho e o marcador AGORA acompanham.
+  var MELI_DATA = "2026-08-14";
+  var MELI = [
+    { de:"08:30", ate:"09:15", t:"Recepção e networking",
+      d:"Credenciamento, café da manhã para interação inicial e abertura oficial com um quiz interativo de aquecimento." },
+    { de:"09:30", ate:"10:00", t:"Visão de mercado e ecossistema",
+      d:"Palestras focadas no tamanho da oportunidade do mercado de motos no Brasil e em como o ecossistema do Mercado Livre conecta compradores, vendedores e peças." },
+    { de:"10:15", ate:"11:15", t:"Estratégia, vendas e ferramentas",
+      d:"Bloco prático focado em resultados. Cobre boas práticas de venda, o segredo do anúncio campeão (marcas e sellers) e soluções para turbinar a operação: MeliPro, Afiliados, B2B e Ads." },
+    { de:"11:20", ate:"11:50", t:"Painel interativo: bastidores do Meli 2 Rodas",
+      d:"Roda de conversa descontraída com especialistas, sellers de destaque e entusiastas, com espaço para perguntas do público em tempo real pelo celular." },
+    { de:"11:50", ate:"12:00", t:"Premiação e encerramento",
+      d:"Quiz final, entrega de kits exclusivos e encerramento do evento." }
+  ];
+
   // ===== PROGRAMACAO OFICIAL (atracoes) =====
   // Transcrita do carrossel publicado no @festival.interlagos em 11/08/2026.
   // Dado fixo no codigo, igual COLETIVAS e SHOWS: e agenda oficial divulgada.
@@ -2203,6 +2235,33 @@
   // usa o formato com h, e nao vale mostrar dois padroes na mesma tela.
   function hFmt(s){ return String(s||"").replace(":", "h"); }
 
+  // Agenda do Meli 2 Rodas. Cada slot tem titulo E descricao, entao nao cabe no
+  // renderAgenda das coletivas (que e hora + nome numa linha). Os intervalos aqui
+  // tem buracos de proposito (09h15 -> 09h30), por isso o fim vem no dado e nao
+  // do inicio do slot seguinte.
+  function renderMeli(){
+    var caixa = $("#meliBox"); if(!caixa) return;
+    var ehHoje = (MELI_DATA && MELI_DATA === hojeISO()), agora = minutosAgora();
+    var html = '<p class="colnota">Evento do Mercado Livre no <b>Centro de Convenções na Torre</b>. '+
+      'Ao longo da manhã há rodadas de quiz ao vivo às 10h, 11h15 e 11h50: os maiores pontuadores '+
+      'concorrem a prêmios, incluindo uma volta de moto no circuito de Interlagos.</p>';
+
+    html += '<div class="coldia"><h3>Sexta-feira, 14/08' + (ehHoje ? ' <small>HOJE</small>' : '') + '</h3>';
+    MELI.forEach(function(it){
+      var ini = coletivaMin(it.de), fim = coletivaMin(it.ate);
+      var rolando = ehHoje && ini != null && fim != null && agora >= ini && agora < fim;
+      var passou  = ehHoje && fim != null && agora >= fim;
+      html += '<div class="colrow meli' + (passou ? ' passou' : '') + (rolando ? ' agora' : '') + '">' +
+        '<span class="colhora prog">' + esc(hFmt(it.de)) + ' às ' + esc(hFmt(it.ate)) + '</span>' +
+        '<span class="colnome"><b>' + esc(it.t) + '</b>' +
+          '<span class="meldesc">' + esc(it.d) + '</span></span>' +
+        (rolando ? '<span class="colagora">AGORA</span>' : '') +
+      '</div>';
+    });
+    html += '</div>';
+    caixa.innerHTML = html;
+  }
+
   function renderProgramacao(){
     var caixa = $("#progBox"); if(!caixa) return;
     var hoje = hojeISO(), agora = minutosAgora();
@@ -2275,12 +2334,15 @@
     if(boxShows) boxShows.style.display = (subMuralAtivo === "shows")     ? "" : "none";
     if(boxCol)   boxCol.style.display   = (subMuralAtivo === "coletivas") ? "" : "none";
     if(boxProg)  boxProg.style.display  = (subMuralAtivo === "prog")      ? "" : "none";
+    var boxMeli = $("#meliBox");
+    if(boxMeli)  boxMeli.style.display  = (subMuralAtivo === "meli")      ? "" : "none";
     document.querySelectorAll("#subMural .subtab").forEach(function(b){
       b.classList.toggle("active", b.dataset.sub === subMuralAtivo);
     });
     if(subMuralAtivo === "shows")     renderShows();
     if(subMuralAtivo === "coletivas") renderColetivas();
     if(subMuralAtivo === "prog")      renderProgramacao();
+    if(subMuralAtivo === "meli")      renderMeli();
   }
 
   // ===== AVISOS (operacional) =====
