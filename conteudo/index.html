@@ -54,8 +54,7 @@
   .wrap{max-width:1240px;margin:0 auto;padding:0 20px}
 
   /* ---------- LOGIN ---------- */
-  #gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;
-    padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+  #gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;
     background:radial-gradient(700px 400px at 50% 0%,rgba(166,236,77,.12),transparent 60%),var(--bg)}
   .gatecard{width:100%;max-width:380px;text-align:center}
   .gatecard img.marca{height:110px;width:auto;margin:0 auto 24px;display:block}
@@ -108,7 +107,13 @@
   .quemsou{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;
     color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line-soft);
     padding:4px 10px;border-radius:99px;white-space:nowrap;max-width:34vw;overflow:hidden;text-overflow:ellipsis}
-  @media(max-width:620px){.quemsou{display:none}}
+  /* o "quem sou" (perfil) some no celular; o "quem é você" (nome da pessoa) FICA,
+     porque e o que liga o filtro Minhas peças, que e justamente de quem esta em campo */
+  @media(max-width:620px){.quemsou{display:none} .quemsou.eununo{display:inline-block}}
+  .quemsou.eununo{cursor:pointer;border-color:var(--line);color:var(--lime);
+    min-height:34px;max-width:30vw}
+  .quemsou.eununo:hover{border-color:var(--lime)}
+  .fchip.destaque:not(.on){border-color:rgba(166,236,77,.4);color:var(--lime)}
   .syncdot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
   .syncdot.on{background:var(--lime);box-shadow:0 0 0 3px rgba(166,236,77,.18)}
   .syncdot.off{background:var(--ink-3);box-shadow:0 0 0 3px rgba(118,124,110,.15)}
@@ -121,7 +126,7 @@
     overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .tabs .wrap2::-webkit-scrollbar{display:none}
   .tab{flex:0 0 auto;background:none;border:0;color:var(--ink-3);font-family:var(--display);
-    font-weight:700;font-size:1.12rem;padding:15px 6px;position:relative;letter-spacing:-.01em;
+    font-weight:700;font-size:1.12rem;padding:13px 6px;position:relative;letter-spacing:-.01em;
     display:inline-flex;align-items:center;gap:9px}
   .tab .n{font-family:var(--mono);font-size:.68rem;background:var(--panel-2);border:1px solid var(--line);
     color:var(--ink-3);padding:2px 7px;border-radius:100px}
@@ -129,24 +134,64 @@
   .tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--lime);border-radius:2px}
   .tab.active .n{color:var(--lime);border-color:rgba(166,236,77,.35)}
 
-  main{padding:22px 0 calc(100px + env(safe-area-inset-bottom))}
+  /* ATENCAO: env() NAO pode ir dentro do atalho "padding". Se o navegador nao
+     entender o env(), ele joga fora a declaracao INTEIRA e o padding vira 0.
+     Aconteceu aqui: o topo colou na regua de abas. Valor normal primeiro,
+     safe-area so como acrescimo, em propriedade separada. */
+  /* PRECISA ser "main.wrap": o <main> tem class="wrap", e .wrap{padding:0 20px}
+     e seletor de classe, que ganha do seletor de tag. Escrito so como "main"
+     esta regra NUNCA valeu — o respiro do topo vinha por acidente da margem
+     das sub-abas, e sumiu quando eu ajustei ela. */
+  main.wrap{padding-top:16px;padding-bottom:100px}
+  @supports(padding:env(safe-area-inset-bottom)){
+    main.wrap{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+  }
 
   /* sub-abas (dias) */
-  .subtabs{display:flex;gap:8px;margin:2px 0 16px;flex-wrap:wrap}
+  .subtabs{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
   .subtab{background:transparent;border:1px solid var(--line);color:var(--ink-2);
     border-radius:20px;padding:8px 16px;font-size:.82rem;font-weight:600;min-height:38px}
   .subtab.active{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
   .subtab:not(.active):hover{border-color:var(--lime);color:var(--ink)}
 
   /* faixa de resumo no topo de cada modulo */
-  .resumo{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+  .resumo{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+  /* flex:1 com base pequena: as 3 caixas dividem a largura e cabem numa linha
+     so no celular, em vez de quebrar pra duas e empurrar o conteudo pra baixo */
   .rbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-    padding:10px 14px;min-width:104px}
+    padding:9px 12px;flex:1 1 90px;min-width:90px;max-width:200px}
   .rbox .rk{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;
     text-transform:uppercase;color:var(--ink-3)}
   .rbox .rv{font-family:var(--display);font-weight:700;font-size:1.5rem;line-height:1.1;margin-top:2px}
   .rbox.destaque .rv{color:var(--lime)}
   .rbox.alerta .rv{color:var(--amber)}
+
+  /* ===== PASTILHAS DE CONTAGEM =====
+     Os 3 numeros que mandam ficam em caixa grande; os outros 8 (status por
+     etapa, redes e impulsionamento) viram pastilha. Em caixa grande nao caberia
+     no celular sem virar parede de numeros. */
+  .tiras{display:flex;gap:5px;flex-wrap:wrap;margin:0 0 6px}
+  .tira{display:inline-flex;align-items:baseline;gap:5px;background:var(--panel);
+    border:1px solid var(--line);border-radius:9px;padding:5px 9px;white-space:nowrap}
+  .tira .tk{font-family:var(--mono);font-size:.55rem;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--ink-3)}
+  .tira .tv{font-family:var(--display);font-weight:700;font-size:.98rem;color:var(--ink)}
+  .tira[data-st=gravando] .tv{color:var(--amber)}
+  .tira[data-st=edicao] .tv{color:var(--cyan)}
+  .tira[data-st=pronto] .tv{color:var(--roxo)}
+  .tira[data-st=publicado] .tv{color:var(--lime)}
+  .tira.rede .tv{color:var(--ink-2)}
+  .tira.apagada{opacity:.55}
+  .tira.boostt{border-color:rgba(251,191,36,.3)}
+  .tira.boostt .tv{color:var(--amber)}
+  /* pendente = tem peca marcada pra impulsionar que ainda nao subiu */
+  .tira.boostt.pendente{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.5)}
+
+  .nalista{font-size:.76rem;color:var(--ink-3);margin:0 0 10px}
+  .nalista b{color:var(--lime)}
+  .dica{font-size:.75rem;color:var(--ink-3);line-height:1.45;
+    padding:9px 11px;background:var(--panel-2);border:1px dashed var(--line);
+    border-radius:9px;margin:2px 0 4px}
 
   /* ---------- BLOCO (cartao dobravel) ---------- */
   .bloco{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
@@ -163,6 +208,12 @@
   .cinflu{display:block;font-size:.78rem;color:var(--ink-2);margin-top:1px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cmeio{flex:1;min-width:0}
+  /* quem grava e quem edita no cartao FECHADO: e assim que o fotografo e o
+     editor acham a peca deles sem abrir uma por uma */
+  .cgente{display:block;font-family:var(--mono);font-size:.62rem;letter-spacing:.03em;
+    color:var(--ink-3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cgente.vazia{font-style:italic;opacity:.65}
+  .cgente .eu{color:var(--lime);font-weight:700}
   .cprog{font-family:var(--mono);font-size:.64rem;letter-spacing:.06em;color:var(--ink-3);
     white-space:nowrap;flex:0 0 auto}
   .cprog.ok{color:var(--lime)}
@@ -190,6 +241,11 @@
   .mini:hover{color:var(--ink)}
   .mini.on{background:rgba(166,236,77,.14);border-color:rgba(166,236,77,.5);color:var(--lime)}
   .mini.boost.on{background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.55);color:var(--amber)}
+  /* "já impulsionei": so aparece depois de marcar Impulsionar. Fica ambar
+     tracejado enquanto esta pendente pra puxar o olho de quem cuida da mídia. */
+  .mini.feito{border-style:dashed;border-color:rgba(251,191,36,.45);color:var(--amber)}
+  .mini.feito.on{background:rgba(251,191,36,.22);border-style:solid;
+    border-color:var(--amber);color:var(--amber);font-weight:700}
 
   .campo{display:flex;gap:7px;align-items:center;margin-bottom:7px}
   .campo input[type=text],.campo input[type=url],.campo input[type=time]{
@@ -205,11 +261,11 @@
   .abrir.off{color:var(--ink-3);pointer-events:none;opacity:.4}
 
   /* ---------- BUSCA E FILTRO ---------- */
-  .barrafiltro{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .barrafiltro{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   .busca{flex:1;min-width:190px;background:var(--panel);border:1px solid var(--line);color:var(--ink);
     border-radius:11px;padding:11px 14px;font-size:.88rem}
   .busca:focus{outline:none;border-color:var(--lime)}
-  .fchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .fchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px}
   .fchip{background:var(--panel);border:1px solid var(--line);color:var(--ink-3);
     border-radius:20px;padding:7px 14px;font-size:.76rem;font-weight:600;min-height:36px}
   .fchip.on{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
@@ -279,14 +335,20 @@
   .vazio .sm{font-size:.85rem;line-height:1.5;max-width:400px;margin:0 auto}
   #offline{background:rgba(251,191,36,.13);border-bottom:1px solid rgba(251,191,36,.4);
     color:var(--amber);font-size:.8rem;padding:9px 20px;text-align:center;font-weight:600}
-  #toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
     background:var(--raise);border:1px solid var(--line);color:var(--ink);border-radius:11px;
     padding:12px 18px;font-size:.86rem;font-weight:600;opacity:0;pointer-events:none;
     transition:opacity .18s,transform .18s;z-index:80;max-width:88vw;text-align:center}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* safe-area em propriedade separada, pelo mesmo motivo do main */
+  @supports(padding:env(safe-area-inset-bottom)){
+    #toast{bottom:calc(26px + env(safe-area-inset-bottom))}
+    #gate{padding-top:calc(24px + env(safe-area-inset-top));
+          padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+  }
 
   .rulebox{display:flex;gap:10px;align-items:flex-start;background:rgba(166,236,77,.07);
-    border:1px solid rgba(166,236,77,.28);border-radius:11px;padding:12px 14px;margin:0 0 14px}
+    border:1px solid rgba(166,236,77,.28);border-radius:11px;padding:11px 13px;margin:2px 0 12px}
   .rulebox .ic{color:var(--lime);font-weight:700;flex:0 0 auto;line-height:1.45}
   .rulebox .tx{font-size:.85rem;line-height:1.45;color:var(--ink-2)}
   .rulebox .tx b{color:var(--ink)}
@@ -334,6 +396,7 @@
       <img class="logolime" src="logo-lime.png" width="763" height="703" alt="Lime">
       <div class="spacer"></div>
       <span class="quemsou" id="quemSou"></span>
+      <button class="quemsou eununo" id="meuNome" data-act="meunome" type="button" title="Dizer quem eu sou">Quem é você?</button>
       <span class="syncdot off" id="syncDot" title=""></span>
       <button class="ajuda" id="btnGuia" type="button" title="Como usar" aria-label="Como usar">?</button>
       <button class="out" id="logout">Sair</button>
@@ -363,7 +426,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-11.2";
+  var VERSAO = "2026-08-11.3";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -435,6 +498,61 @@
     var r = (atual||[]).slice(), p = r.indexOf(rede);
     if(p<0) r.push(rede); else r.splice(p,1);
     return r;
+  }
+
+  // Conta tudo que a faixa de cima mostra. Serve pras duas abas porque slot de
+  // coletiva e peca avulsa tem os mesmos campos de status/redes/impulsionamento.
+  function contarPainel(lista){
+    var c = { total:lista.length, gravando:0, edicao:0, pronto:0, publicado:0,
+              semStatus:0, boost:0, boostFeito:0, ig:0, tt:0, yt:0 };
+    for(var i=0;i<lista.length;i++){
+      var x = lista[i] || {};
+      if(x.status && c[x.status] !== undefined) c[x.status]++;
+      else if(!x.status) c.semStatus++;
+      if(x.impulsionar){ c.boost++; if(x.impulsionado) c.boostFeito++; }
+      var r = x.redes || [];
+      if(r.indexOf("ig") >= 0) c.ig++;
+      if(r.indexOf("tt") >= 0) c.tt++;
+      if(r.indexOf("yt") >= 0) c.yt++;
+    }
+    return c;
+  }
+
+  // Faixa compacta com TODOS os numeros. Os 3 que mandam ficam em caixa grande;
+  // o resto vira pastilha, senao nao cabe no celular sem virar parede de numeros.
+  function painelHTML(c, rotuloTotal){
+    var h = '<div class="resumo">'+
+      '<div class="rbox"><div class="rk">'+esc(rotuloTotal)+'</div><div class="rv">'+c.total+'</div></div>'+
+      '<div class="rbox destaque"><div class="rk">Publicadas</div><div class="rv">'+c.publicado+'</div></div>'+
+      // rotulo curto de proposito: "Prontas p/ subir" fazia a caixa estourar a
+      // largura e as 3 caixas quebravam em duas linhas no celular
+      '<div class="rbox'+(c.pronto?" alerta":"")+'"><div class="rk">Prontas</div><div class="rv">'+c.pronto+'</div></div>'+
+    '</div>';
+
+    var pill = function(rot, val, st, extra){
+      return '<span class="tira'+(extra||"")+'"'+(st?' data-st="'+st+'"':'')+'>'+
+        '<span class="tk">'+esc(rot)+'</span><span class="tv">'+val+'</span></span>';
+    };
+    // ORDEM = a fila de producao: nao comecou -> gravando -> edicao -> pronto -> no ar.
+    // "Sem status" vem primeiro de proposito: alem de ser o inicio da fila, evita
+    // que ele sobre sozinho numa linha quando as pastilhas quebram no celular.
+    h += '<div class="tiras">';
+    if(c.semStatus) h += pill("Não começou", c.semStatus, "", " apagada");
+    h += pill("Gravando",  c.gravando,  "gravando");
+    h += pill("Em edição", c.edicao,    "edicao");
+    h += pill("Pronto",    c.pronto,    "pronto");
+    h += pill("No ar",     c.publicado, "publicado");
+    h += '</div>';
+    h += '<div class="tiras">';
+    h += pill("Instagram", c.ig, "", " rede");
+    h += pill("TikTok",    c.tt, "", " rede");
+    h += pill("YouTube",   c.yt, "", " rede");
+    // "2 de 5" e a leitura que o time pediu: quantos ja subiram do que foi marcado
+    h += '<span class="tira boostt'+(c.boost && c.boostFeito < c.boost ? " pendente":"")+'">'+
+         '<span class="tk">Impulso</span>'+
+         '<span class="tv">'+c.boostFeito+'/'+c.boost+'</span></span>';
+    h += '</div>';
+    return h;
   }
 
   function linkSeguro(u){
@@ -580,7 +698,14 @@
   var ST_LABEL = { gravando:"Gravando", edicao:"Em edição", pronto:"Pronto", publicado:"Publicado" };
   var ST_CURTO = { gravando:"Gravando", edicao:"Edição", pronto:"Pronto", publicado:"No ar" };
 
-  var REDES = [ {k:"ig",n:"Instagram"}, {k:"tt",n:"TikTok"}, {k:"yt",n:"YouTube"} ];
+  // Cada rede tem o campo de link DELA. Um campo unico de "link publicado" nao
+  // servia: a mesma peca vai pro Instagram e pro TikTok e ninguem sabia de qual
+  // rede era o link que estava ali.
+  var REDES = [
+    { k:"ig", n:"Instagram", campo:"linkIg" },
+    { k:"tt", n:"TikTok",    campo:"linkTt" },
+    { k:"yt", n:"YouTube",   campo:"linkYt" }
+  ];
   var AREAS = ["Arena","Boulevard","Pista"];
 
   var DIAS_STORY = [
@@ -601,7 +726,14 @@
   var abaAtual="coletivas";
   var diaColetiva="2026-08-12", diaStory=null;
   var abertos={};                      // id -> true (cartoes expandidos)
-  var fBusca="", fTipo="todos", fStatus="todos", fDia="todos", fBoost=false;
+  var fBusca="", fTipo="todos", fStatus="todos", fDia="todos", fBoost=false, fMinhas=false;
+
+  // O login e compartilhado (uma senha pro time inteiro), entao o sistema nao
+  // sabe quem esta do outro lado. A pessoa diz o nome uma vez e fica gravado no
+  // aparelho: e o que faz o "Minhas peças" e o destaque em lime funcionarem.
+  var MEU_KEY = "cfi_nome";
+  var meuNome = "";
+  try{ meuNome = localStorage.getItem(MEU_KEY) || ""; }catch(e){}
   var editandoPeca=null;               // id da peca em edicao, ou "novo"
   var criandoBloco=false;              // formulario de novo bloco do StoryMaker aberto
   var desligar=[];                     // funcoes que param as escutas
@@ -648,15 +780,11 @@
     for(i=0;i<COLETIVAS.length;i++){ if(COLETIVAS[i].dia===diaColetiva) grade = COLETIVAS[i]; }
     if(!grade) grade = COLETIVAS[0];
 
-    // resumo do dia
-    var total=0, publicados=0, boost=0, parados=0;
+    // junta o estado das 27 pecas do dia pra faixa de numeros do topo
+    var doDia = [];
     for(i=0;i<grade.itens.length;i++){
       for(j=0;j<FORMATOS_COLETIVA.length;j++){
-        total++;
-        var e = estadoDe(slotId(grade.dia, grade.itens[i].hora, j)) || {};
-        if(e.status === "publicado") publicados++;
-        if(e.impulsionar) boost++;
-        if(e.status === "pronto") parados++;
+        doDia.push(estadoDe(slotId(grade.dia, grade.itens[i].hora, j)) || {});
       }
     }
 
@@ -667,17 +795,11 @@
     }
     h += '</div>';
 
-    h += '<div class="resumo">'+
-      '<div class="rbox"><div class="rk">Coletivas</div><div class="rv">'+grade.itens.length+'</div></div>'+
-      '<div class="rbox"><div class="rk">Peças</div><div class="rv">'+total+'</div></div>'+
-      '<div class="rbox destaque"><div class="rk">Publicadas</div><div class="rv">'+publicados+'</div></div>'+
-      '<div class="rbox'+(parados?" alerta":"")+'"><div class="rk">Prontas p/ subir</div><div class="rv">'+parados+'</div></div>'+
-      '<div class="rbox'+(boost?" alerta":"")+'"><div class="rk">Impulsionar</div><div class="rv">'+boost+'</div></div>'+
-    '</div>';
+    h += painelHTML(contarPainel(doDia), "Peças do dia");
 
+    // texto curto: em tela de celular esse aviso comia 100px antes do primeiro cartao
     h += '<div class="rulebox"><div class="ic">&#9679;</div><div class="tx">'+
-      'A grade de marca, horário e influenciador é a agenda oficial e não se edita por aqui. '+
-      'O que você mexe é <b>status, links e se vai impulsionar</b>. Tudo salva sozinho.'+
+      'A grade é a agenda oficial. Você mexe em <b>status, links e impulsionamento</b>. Salva sozinho.'+
       '</div></div>';
 
     for(i=0;i<grade.itens.length;i++){
@@ -722,6 +844,12 @@
 
     h += '<div class="linhaflex">';
     h += '<button class="mini boost'+(st.impulsionar?" on":"")+'" data-act="boostcol" data-id="'+id+'">Impulsionar</button>';
+    // o "ja impulsionado" so aparece depois de marcar que VAI impulsionar:
+    // sem isso seriam dois botoes concorrentes pra quem nem vai usar mídia paga
+    if(st.impulsionar){
+      h += '<button class="mini feito'+(st.impulsionado?" on":"")+'" data-act="boostokcol" data-id="'+id+'">'+
+           (st.impulsionado ? "&#10003; Impulsionado" : "Já impulsionei")+'</button>';
+    }
     for(i=0;i<REDES.length;i++){
       var on = st.redes && st.redes.indexOf(REDES[i].k) >= 0;
       h += '<button class="mini'+(on?" on":"")+'" data-act="redecol" data-id="'+id+'" data-rede="'+REDES[i].k+'">'+esc(REDES[i].n)+'</button>';
@@ -729,8 +857,25 @@
     h += '</div>';
 
     h += campoLink("Pronto", id, "linkPronto", st.linkPronto, "stcol-link", "Link do Drive");
-    h += campoLink("No ar",  id, "linkPublicado", st.linkPublicado, "stcol-link", "Link do post publicado");
+    h += linksDeRedeHTML(id, st, "stcol-link");
     h += '</div>';
+    return h;
+  }
+
+  // Um campo de link POR REDE MARCADA. Abrir os tres sempre deixaria 9 campos
+  // por coletiva na tela; marcando a rede, aparece o campo dela e so.
+  function linksDeRedeHTML(id, st, act){
+    var i, h = '', marcadas = st.redes || [], achou = false;
+    for(i=0;i<REDES.length;i++){
+      if(marcadas.indexOf(REDES[i].k) < 0) continue;
+      achou = true;
+      h += campoLink(REDES[i].n, id, REDES[i].campo, st[REDES[i].campo], act, "Link no "+REDES[i].n);
+    }
+    if(!achou){
+      h += '<div class="dica">Marque acima em qual rede vai publicar e o campo do link dela aparece aqui.</div>';
+    }
+    // link salvo antes desta mudanca (campo unico): continua visivel pra ninguem perder nada
+    if(st.linkPublicado) h += campoLink("No ar", id, "linkPublicado", st.linkPublicado, act, "");
     return h;
   }
 
@@ -762,15 +907,7 @@
     var i, h='';
 
     var vis = pecas.filter(passaFiltro);
-    var publicados = pecas.filter(function(p){ return p.status==="publicado"; }).length;
-    var prontos    = pecas.filter(function(p){ return p.status==="pronto"; }).length;
-
-    h += '<div class="resumo">'+
-      '<div class="rbox"><div class="rk">Total</div><div class="rv">'+pecas.length+'</div></div>'+
-      '<div class="rbox destaque"><div class="rk">Publicadas</div><div class="rv">'+publicados+'</div></div>'+
-      '<div class="rbox'+(prontos?" alerta":"")+'"><div class="rk">Prontas p/ subir</div><div class="rv">'+prontos+'</div></div>'+
-      '<div class="rbox"><div class="rk">Na lista</div><div class="rv">'+vis.length+'</div></div>'+
-    '</div>';
+    h += painelHTML(contarPainel(pecas), "Total");
 
     h += '<div class="barrafiltro">'+
       '<input class="busca" id="buscaPeca" type="search" placeholder="Buscar por marca, tema, formato, editor..." value="'+esc(fBusca)+'">'+
@@ -781,6 +918,10 @@
     h += chip("tipo","todos","Todas", fTipo==="todos");
     h += chip("tipo","organico","Orgânico", fTipo==="organico");
     h += chip("tipo","pago","Pago", fTipo==="pago");
+    // "Minhas" e o atalho de quem grava e de quem edita: com dezenas de pecas
+    // cadastradas, o filmaker precisa achar a dele sem ler a lista inteira
+    h += '<button class="fchip destaque'+(fMinhas?" on":"")+'" data-act="fminhas">'+
+         (meuNome ? "Minhas ("+esc(meuNome.split(" ")[0])+")" : "Minhas peças")+'</button>';
     h += '</div><div class="fchips">';
     h += chip("status","todos","Todos os status", fStatus==="todos");
     for(i=0;i<STATUS.length;i++) h += chip("status",STATUS[i],ST_LABEL[STATUS[i]], fStatus===STATUS[i]);
@@ -789,6 +930,10 @@
     for(i=0;i<DIAS_PECA.length;i++) h += chip("dia",DIAS_PECA[i].dia,DIAS_PECA[i].rotulo, fDia===DIAS_PECA[i].dia);
     h += '<button class="fchip'+(fBoost?" on":"")+'" data-act="fboost">Só impulsionar</button>';
     h += '</div>';
+
+    if(vis.length !== pecas.length){
+      h += '<div class="nalista">Mostrando <b>'+vis.length+'</b> de '+pecas.length+' peças</div>';
+    }
 
     if(editandoPeca) h += formPecaHTML();
 
@@ -816,6 +961,11 @@
     if(fStatus !== "todos" && p.status !== fStatus) return false;
     if(fDia    !== "todos" && p.dia    !== fDia)    return false;
     if(fBoost && !p.impulsionar) return false;
+    if(fMinhas && meuNome){
+      var eu = meuNome.toLowerCase();
+      if(String(p.quemGrava||"").toLowerCase().indexOf(eu) < 0 &&
+         String(p.editor||"").toLowerCase().indexOf(eu) < 0) return false;
+    }
     var q = fBusca.trim().toLowerCase();
     if(q){
       var alvo = [p.marca,p.tema,p.formato,p.editor,p.quemGrava,p.referencia,p.roteiro,p.resumo]
@@ -830,6 +980,21 @@
     return d ? d.slice(8)+"/"+d.slice(5,7) : "—";
   }
 
+  // Quem gravou e quem edita ficam VISIVEIS no cartao fechado. Com dezenas de
+  // pecas, o fotografo e o editor tem que bater o olho e achar a dele sem abrir
+  // uma por uma. Se o nome bate com o de quem esta logado, acende em lime.
+  function gentePecaHTML(p){
+    var eu = meuNome ? meuNome.toLowerCase() : "";
+    var partes = [];
+    var meu = function(v){
+      return eu && String(v||"").toLowerCase().indexOf(eu) >= 0;
+    };
+    if(p.quemGrava) partes.push('<span class="'+(meu(p.quemGrava)?"eu":"")+'">Grava: '+esc(p.quemGrava)+'</span>');
+    if(p.editor)    partes.push('<span class="'+(meu(p.editor)?"eu":"")+'">Edita: '+esc(p.editor)+'</span>');
+    if(!partes.length) return '<span class="cgente vazia">Sem responsável definido</span>';
+    return '<span class="cgente">'+partes.join(' · ')+'</span>';
+  }
+
   function blocoPecaHTML(p){
     var aberto = !!abertos["p_"+p.id];
     var h = '<div class="bloco'+(p.status==="publicado"?" completo":"")+'">';
@@ -838,6 +1003,7 @@
       '<span class="cmeio">'+
         '<span class="cnome">'+esc(p.marca||"Sem marca")+'</span>'+
         '<span class="cinflu">'+esc(p.formato||"—")+(p.tema?' · '+esc(p.tema):"")+'</span>'+
+        gentePecaHTML(p)+
       '</span>'+
       '<span class="tag '+(p.tipo==="pago"?"pago":"organico")+'">'+(p.tipo==="pago"?"Pago":"Orgânico")+'</span>'+
       (p.status ? '<span class="tag st" data-st="'+p.status+'">'+esc(ST_CURTO[p.status])+'</span>' : '')+
@@ -856,6 +1022,10 @@
 
       h += '<div class="linhaflex">';
       h += '<button class="mini boost'+(p.impulsionar?" on":"")+'" data-act="boostpeca" data-id="'+p.id+'">Impulsionar</button>';
+      if(p.impulsionar){
+        h += '<button class="mini feito'+(p.impulsionado?" on":"")+'" data-act="boostokpeca" data-id="'+p.id+'">'+
+             (p.impulsionado ? "&#10003; Impulsionado" : "Já impulsionei")+'</button>';
+      }
       for(i=0;i<REDES.length;i++){
         var on = p.redes && p.redes.indexOf(REDES[i].k) >= 0;
         h += '<button class="mini'+(on?" on":"")+'" data-act="redepeca" data-id="'+p.id+'" data-rede="'+REDES[i].k+'">'+esc(REDES[i].n)+'</button>';
@@ -870,7 +1040,7 @@
       h += ficha("Horário de veiculação", p.horario);
 
       h += campoLink("Pronto", p.id, "linkPronto", p.linkPronto, "peca-link", "Link do Drive");
-      h += campoLink("No ar",  p.id, "linkPublicado", p.linkPublicado, "peca-link", "Link do post publicado");
+      h += linksDeRedeHTML(p.id, p, "peca-link");
 
       if(podeGerenciar("pecas")){
         h += '<div class="acoes">'+
@@ -1088,6 +1258,12 @@
       if(ok && !primeira) primeira = t;
     });
     var q = $("#quemSou"); if(q) q.textContent = quemSou();
+    var mn = $("#meuNome");
+    if(mn){
+      mn.textContent = meuNome ? meuNome.split(" ")[0] : "Quem é você?";
+      // storymaker nao tem lista de pecas pra filtrar; o botao so polui o topo dele
+      mn.hidden = !podeVer("pecas");
+    }
     mostrarAba(primeira || "story");
   }
 
@@ -1111,17 +1287,28 @@
       renderPecas(); return;
     }
     if(act === "fboost"){ fBoost = !fBoost; renderPecas(); return; }
+    if(act === "fminhas"){
+      if(!meuNome){ pedirNome(true); return; }   // sem nome o filtro nao tem o que filtrar
+      fMinhas = !fMinhas; renderPecas(); return;
+    }
+    if(act === "meunome"){ pedirNome(false); return; }
     if(act === "cancelarpeca"){ editandoPeca=null; renderPecas(); return; }
 
     // ---- coletivas ----
-    if(act === "stcol" || act === "boostcol" || act === "redecol"){
+    if(act === "stcol" || act === "boostcol" || act === "boostokcol" || act === "redecol"){
       if(!podeGerenciar("coletivas")){ toast("Seu acesso não edita as coletivas."); return; }
       var st = estadoDe(id) || {};
       if(act === "stcol"){
         var novo = st.status === b.dataset.st ? "" : b.dataset.st;   // tocar de novo desmarca
         DBset("coletivas", id, { status:novo, em:Date.now(), por:quemSou() });
       } else if(act === "boostcol"){
-        DBset("coletivas", id, { impulsionar: !st.impulsionar, em:Date.now(), por:quemSou() });
+        // desmarcar "vai impulsionar" tem que limpar o "ja impulsionei" junto,
+        // senao a peca sai da conta mas o feito continua gravado e o "2 de 5" mente
+        var lig = !st.impulsionar;
+        DBset("coletivas", id, { impulsionar: lig, impulsionado: lig ? !!st.impulsionado : false,
+                                 em:Date.now(), por:quemSou() });
+      } else if(act === "boostokcol"){
+        DBset("coletivas", id, { impulsionado: !st.impulsionado, em:Date.now(), por:quemSou() });
       } else {
         // arrayUnion/arrayRemove em vez de reescrever o array inteiro: dois
         // toques rapidos (aqui ou de outra pessoa) liam o mesmo array antigo e
@@ -1156,13 +1343,17 @@
       if(!confirm("Apagar esta peça?\n\n"+(alvo.marca||"Sem marca")+" · "+(alvo.tema||alvo.formato||"")+"\n\nIsso não volta.")) return;
       DBremove("pecas", id); toast("Peça apagada."); return;
     }
-    if(act === "stpeca" || act === "boostpeca" || act === "redepeca"){
+    if(act === "stpeca" || act === "boostpeca" || act === "boostokpeca" || act === "redepeca"){
       if(!podeGerenciar("pecas")){ toast("Seu acesso não edita peças."); return; }
       var pc = pecas.filter(function(x){ return x.id===id; })[0]; if(!pc) return;
       if(act === "stpeca"){
         DBupdate("pecas", id, { status: pc.status === b.dataset.st ? "" : b.dataset.st, em:Date.now(), por:quemSou() });
       } else if(act === "boostpeca"){
-        DBupdate("pecas", id, { impulsionar: !pc.impulsionar, em:Date.now(), por:quemSou() });
+        var lg = !pc.impulsionar;
+        DBupdate("pecas", id, { impulsionar: lg, impulsionado: lg ? !!pc.impulsionado : false,
+                                em:Date.now(), por:quemSou() });
+      } else if(act === "boostokpeca"){
+        DBupdate("pecas", id, { impulsionado: !pc.impulsionado, em:Date.now(), por:quemSou() });
       } else {
         var jaTinha = (pc.redes||[]).indexOf(b.dataset.rede) >= 0;
         DBupdate("pecas", id, { redes: setaRede(b.dataset.rede, jaTinha, pc.redes),
@@ -1257,6 +1448,18 @@
     criandoBloco = false;
     toast(lista.length + (lista.length===1 ? " item criado." : " itens criados."));
     renderStory();
+  }
+
+  function pedirNome(ligarFiltro){
+    var n = prompt("Qual o seu nome?\n\nEle serve pra você achar rápido as peças que você grava ou edita. Fica só neste aparelho.", meuNome);
+    if(n === null) return;
+    meuNome = String(n).trim();
+    try{ localStorage.setItem(MEU_KEY, meuNome); }catch(e){}
+    if(ligarFiltro && meuNome) fMinhas = true;
+    if(!meuNome) fMinhas = false;
+    var el = $("#meuNome");
+    if(el) el.textContent = meuNome ? meuNome.split(" ")[0] : "Quem é você?";
+    renderAll();
   }
 
   function salvarPeca(){
