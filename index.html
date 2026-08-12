@@ -573,6 +573,10 @@
   .colrow + .colrow{margin-top:2px}
   .colhora{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;
     color:var(--lime);min-width:52px}
+  /* a programacao usa faixa ("08h00 às 20h00"), que e bem mais larga que a hora
+     unica das coletivas. Largura fixa alinha os nomes numa coluna so. */
+  .colhora.prog{min-width:124px;font-size:.85rem;flex:0 0 auto}
+  @media(max-width:400px){ .colhora.prog{min-width:104px;font-size:.78rem} }
   .colnome{font-size:.9rem;color:var(--ink);font-weight:600}
   .colrow.momento .colnome{color:var(--ink-2);font-weight:500;font-style:italic}
   .colrow.momento .colhora{color:var(--ink-2)}
@@ -585,6 +589,9 @@
     font-weight:700;color:var(--ink);background:var(--raise);border:1px solid var(--line);
     border-radius:6px;padding:3px 8px;white-space:nowrap;flex:0 0 auto}
   .colbox.pend{color:var(--ink-3);font-weight:400;font-style:italic;border-style:dashed}
+  /* local com nome proprio (Arena) em vez de numero de box: cor diferente pra
+     ninguem ler "Arena" achando que e um numero que faltou */
+  .colbox.local{color:var(--cyan);background:rgba(76,195,240,.12);border-color:rgba(76,195,240,.35)}
   .colrow.passou .colbox{opacity:.7}
   .colagora{margin-left:8px;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;
     color:var(--lime);border:1px solid rgba(166,236,77,.5);border-radius:6px;padding:2px 7px;
@@ -813,6 +820,10 @@
           <button type="button" class="subtab" data-sub="shows">Shows</button>
           <button type="button" class="subtab" data-sub="coletivas">Coletivas de imprensa</button>
         </div>
+        <!-- a grade oficial de atracoes fica ACIMA do mural do Firestore: quem
+             abre "Programação" quer a agenda, e o mural embaixo continua sendo
+             onde a producao posta mudanca de ultima hora -->
+        <div id="progBox"></div>
         <div id="showsBox" style="display:none"></div>
         <div id="coletivasBox" style="display:none"></div>
         <div class="count" id="countMural"></div>
@@ -1075,7 +1086,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-11.2";
+  var VERSAO = "2026-08-11.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1362,6 +1373,10 @@
     try { aplicarInterface(); } catch(e){ if(window.console) console.error("[central] aplicarInterface", e); }
     try { ligarEscutas();     } catch(e){ if(window.console) console.error("[central] ligarEscutas", e); setStatus("warn"); }
     renderAll();
+    // aplicarSubMural roda no CLIQUE da sub-aba. Sem chamar aqui, a sub-aba
+    // "Programação" nasce ativa mas nunca e desenhada, e a grade oficial fica
+    // invisivel pra quem entra e nao clica em nada.
+    try { aplicarSubMural(); } catch(e){ if(window.console) console.error("[central] submural", e); }
     try { mostrarGuiaUmaVez(); } catch(e){ if(window.console) console.error("[central] guia", e); }
   }
 
@@ -1565,9 +1580,12 @@
   // agenda esta na tela — fora dela o timer nao faz nada)
   setInterval(function(){
     var v = document.getElementById("view-mural");
-    if(!v || v.hidden || subMuralAtivo === "prog") return;
+    if(!v || v.hidden) return;
     if(subMuralAtivo === "shows")     renderShows();
     if(subMuralAtivo === "coletivas") renderColetivas();
+    // a programacao TAMBEM depende da hora agora (selo ABERTO nas atracoes),
+    // por isso saiu da lista de excecoes deste timer
+    if(subMuralAtivo === "prog")      renderProgramacao();
   }, 60000);
   $("#logout").addEventListener("click",function(){
     localStorage.removeItem("fi_ok"); localStorage.removeItem("fi_perfil");
@@ -2007,7 +2025,7 @@
       { hora:"13h00", nome:"Intervalo", momento:true },
       { hora:"13h30", nome:"BMW Motorrad", box:"1/2" },
       { hora:"14h40", nome:"Bajaj",        box:"10" },
-      { hora:"15h50", nome:"Voge",         box:"" },
+      { hora:"15h50", nome:"Voge",         local:"Arena" },
       { hora:"17h00", nome:"Suzuki/JTZ",   box:"18" },
       { hora:"18h00", nome:"Dafra",        box:"17" },
       { hora:"19h00", nome:"Fun Motors",   box:"" }
@@ -2028,6 +2046,85 @@
   // e dado, nao HTML — mudou o line-up, edita aqui e sobe VERSAO nova.
   // "FIM" nao e atracao, e o encerramento: entra como momento (italico).
   // A quinta 13/08 nao tem show nesta grade; se entrar, e so acrescentar.
+  // ===== PROGRAMACAO OFICIAL (atracoes) =====
+  // Transcrita do carrossel publicado no @festival.interlagos em 11/08/2026.
+  // Dado fixo no codigo, igual COLETIVAS e SHOWS: e agenda oficial divulgada.
+  //
+  // Dois formatos, porque o post tem os dois e nao invento o que ele nao diz:
+  //   de + ate  -> atracao que fica ABERTA num intervalo ("08:00 às 20:00")
+  //   horas[]   -> apresentacao em horario marcado ("às 15:00", "11:00 e 15:00")
+  // Nao atribuo duracao a horario marcado: o post nao informa quanto dura, e
+  // chutar 40min faria a tela dizer "acontecendo agora" sem base.
+  //
+  // Quarta 12/08 NAO esta aqui: o carrossel comeca na quinta. Quarta e o dia de
+  // imprensa (coletivas), que tem sub-aba propria.
+  var PROGRAMACAO = [
+    { data:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
+      { nome:"Tirolesa",             de:"10:00", ate:"20:00" },
+      { nome:"Teste Ride",           de:"13:00", ate:"17:00" },
+      { nome:"Boulevard",            de:"13:00", ate:"20:00" },
+      { nome:"Arena",                de:"13:00", ate:"20:00" },
+      { nome:"Paddock",              de:"13:00", ate:"20:00" },
+      { nome:"Mobilidade Urbana",    de:"13:00", ate:"17:00" },
+      { nome:"Pista de Habilidade",  de:"13:00", ate:"17:00" },
+      { nome:"Arena Kids",           de:"13:00", ate:"20:00" },
+      { nome:"Bike Builder Circus",  de:"13:00", ate:"20:00" },
+      { nome:"Roda Gigante",         de:"10:00", ate:"20:00" },
+      { nome:"Globo da Morte",       horas:["15:00"] }
+    ]},
+    { data:"2026-08-14", rotulo:"Sexta-feira, 14/08", itens:[
+      { nome:"Teste Ride",           de:"08:00", ate:"17:00" },
+      { nome:"Boulevard",            de:"08:00", ate:"20:00" },
+      { nome:"Arena",                de:"08:00", ate:"20:00" },
+      { nome:"Paddock",              de:"08:00", ate:"20:00" },
+      { nome:"Pavilhão Mercado Livre", de:"08:00", ate:"20:00" },
+      { nome:"Mobilidade Urbana",    de:"08:00", ate:"17:00" },
+      { nome:"Pista de Habilidade",  de:"08:00", ate:"17:00" },
+      { nome:"Arena Kids",           de:"08:00", ate:"20:00" },
+      { nome:"Bike Builder Circus",  de:"08:00", ate:"20:00" },
+      { nome:"Tirolesa",             de:"10:00", ate:"20:00" },
+      { nome:"Roda Gigante",         de:"10:00", ate:"23:00" },
+      { nome:"Globo da Morte",       horas:["12:00","16:00"] },
+      { nome:"Fred Kyrillos",        horas:["15:00"] },
+      { nome:"Força e Ação",         horas:["17:30"] },
+      { nome:"Arena de Shows",       de:"17:00", ate:"00:00" }
+    ]},
+    { data:"2026-08-15", rotulo:"Sábado, 15/08", itens:[
+      { nome:"Teste Ride",           de:"08:00", ate:"17:00" },
+      { nome:"Boulevard",            de:"08:00", ate:"20:00" },
+      { nome:"Arena",                de:"08:00", ate:"20:00" },
+      { nome:"Paddock",              de:"08:00", ate:"20:00" },
+      { nome:"Pavilhão Mercado Livre", de:"08:00", ate:"20:00" },
+      { nome:"Mobilidade Urbana",    de:"08:00", ate:"17:00" },
+      { nome:"Pista de Habilidade",  de:"08:00", ate:"17:00" },
+      { nome:"Arena Kids",           de:"08:00", ate:"20:00" },
+      { nome:"Bike Builder Circus",  de:"08:00", ate:"20:00" },
+      { nome:"Tirolesa",             de:"10:00", ate:"20:00" },
+      { nome:"Roda Gigante",         de:"10:00", ate:"23:00" },
+      { nome:"Globo da Morte",       horas:["11:00","15:00"] },
+      { nome:"Fred Kyrillos",        horas:["12:00","16:00"] },
+      { nome:"Força e Ação",         horas:["14:00","18:00"] },
+      { nome:"Arena de Shows",       de:"17:00", ate:"00:00" }
+    ]},
+    { data:"2026-08-16", rotulo:"Domingo, 16/08", itens:[
+      { nome:"Teste Ride",           de:"08:00", ate:"17:00" },
+      { nome:"Boulevard",            de:"08:00", ate:"20:00" },
+      { nome:"Arena",                de:"08:00", ate:"20:00" },
+      { nome:"Paddock",              de:"08:00", ate:"20:00" },
+      { nome:"Pavilhão Mercado Livre", de:"08:00", ate:"20:00" },
+      { nome:"Mobilidade Urbana",    de:"08:00", ate:"17:00" },
+      { nome:"Pista de Habilidade",  de:"08:00", ate:"17:00" },
+      { nome:"Arena Kids",           de:"08:00", ate:"20:00" },
+      { nome:"Bike Builder Circus",  de:"08:00", ate:"20:00" },
+      { nome:"Tirolesa",             de:"10:00", ate:"20:00" },
+      { nome:"Roda Gigante",         de:"10:00", ate:"23:00" },
+      { nome:"Globo da Morte",       horas:["11:00","15:00"] },
+      { nome:"Fred Kyrillos",        horas:["12:00","16:00"] },
+      { nome:"Força e Ação",         horas:["14:00","18:00"] },
+      { nome:"Arena de Shows",       de:"17:00", ate:"00:00" }
+    ]}
+  ];
+
   var SHOWS = [
     { data:"2026-08-14", rotulo:"Sexta-feira, 14/08", itens:[
       { hora:"19h00", nome:"Cat Dealers" },
@@ -2081,20 +2178,73 @@
                 (passou ? ' passou' : '') + (rolando ? ' agora' : '') + '">' +
           '<span class="colhora">' + esc(it.hora) + '</span>' +
           '<span class="colnome">' + esc(it.nome) + '</span>' +
-          // box so existe nas coletivas; a agenda de shows nao tem a chave e passa batido.
-          // box:"" (chave presente e vazia) = coletiva que ainda nao recebeu numero:
-          // melhor dizer "a confirmar" do que deixar em branco e o jornalista achar
-          // que foi esquecimento nosso.
-          (it.box !== undefined
-            ? '<span class="colbox' + (it.box ? '' : ' pend') + '">' +
-              (it.box ? 'Box ' + esc(it.box) : 'Box a confirmar') + '</span>'
-            : '') +
+          // Onde acontece a coletiva. Tres casos:
+          //   local:"Arena" -> lugar com nome proprio, sai sem o prefixo "Box"
+          //   box:"22/23"   -> sai como "Box 22/23"
+          //   box:""        -> ainda nao definido, sai "Box a confirmar" tracejado.
+          //                    Melhor que branco: em branco o jornalista acha que
+          //                    a gente esqueceu de preencher.
+          // A agenda de shows nao tem nenhuma das duas chaves e passa batido.
+          (it.local
+            ? '<span class="colbox local">' + esc(it.local) + '</span>'
+            : it.box !== undefined
+              ? '<span class="colbox' + (it.box ? '' : ' pend') + '">' +
+                (it.box ? 'Box ' + esc(it.box) : 'Box a confirmar') + '</span>'
+              : '') +
           (rolando ? '<span class="colagora">AGORA</span>' : '') +
         '</div>';
       });
       html += '</div>';
     });
     box.innerHTML = html;
+  }
+
+  // "10:00" -> "10h00". A grade oficial vem com dois pontos; o resto da Central
+  // usa o formato com h, e nao vale mostrar dois padroes na mesma tela.
+  function hFmt(s){ return String(s||"").replace(":", "h"); }
+
+  function renderProgramacao(){
+    var caixa = $("#progBox"); if(!caixa) return;
+    var hoje = hojeISO(), agora = minutosAgora();
+    var html = '<p class="colnota">Programação oficial da edição moto, divulgada pelo festival. '+
+               'Quarta 12/08 é o dia de imprensa: a agenda dela está na aba Coletivas de imprensa.</p>';
+
+    PROGRAMACAO.forEach(function(dia){
+      var ehHoje = (dia.data === hoje);
+      html += '<div class="coldia"><h3>' + esc(dia.rotulo) + (ehHoje ? ' <small>HOJE</small>' : '') + '</h3>';
+      dia.itens.forEach(function(it){
+        var rotulo, aberto = false, passou = false;
+
+        if(it.de){
+          var ini = coletivaMin(it.de), fim = coletivaMin(it.ate);
+          // "17:00 às 00:00" atravessa a meia-noite: sem somar 24h o fim nasceria
+          // antes do inicio e a Arena de Shows apareceria como encerrada
+          if(fim != null && ini != null && fim <= ini) fim += 1440;
+          rotulo = hFmt(it.de) + ' às ' + hFmt(it.ate);
+          if(ehHoje && ini != null && fim != null){
+            aberto = agora >= ini && agora < fim;
+            passou = agora >= fim;
+          }
+        } else {
+          var lista = it.horas || [];
+          rotulo = lista.length > 1
+            ? lista.map(hFmt).join(' e ')
+            : 'às ' + hFmt(lista[0]);
+          // horario marcado nao tem duracao no post, entao nao existe "acontecendo
+          // agora" aqui: so marco como passado depois do ULTIMO horario do dia
+          var ult = coletivaMin(lista[lista.length - 1]);
+          if(ehHoje && ult != null) passou = agora >= ult;
+        }
+
+        html += '<div class="colrow' + (passou ? ' passou' : '') + (aberto ? ' agora' : '') + '">' +
+          '<span class="colhora prog">' + esc(rotulo) + '</span>' +
+          '<span class="colnome">' + esc(it.nome) + '</span>' +
+          (aberto ? '<span class="colagora">ABERTO</span>' : '') +
+        '</div>';
+      });
+      html += '</div>';
+    });
+    caixa.innerHTML = html;
   }
 
   function renderColetivas(){
@@ -2121,13 +2271,16 @@
     if(wrapForm) wrapForm.style.display = prog ? "" : "none";
     var boxShows = $("#showsBox");
     var boxCol   = $("#coletivasBox");
+    var boxProg  = $("#progBox");
     if(boxShows) boxShows.style.display = (subMuralAtivo === "shows")     ? "" : "none";
     if(boxCol)   boxCol.style.display   = (subMuralAtivo === "coletivas") ? "" : "none";
+    if(boxProg)  boxProg.style.display  = (subMuralAtivo === "prog")      ? "" : "none";
     document.querySelectorAll("#subMural .subtab").forEach(function(b){
       b.classList.toggle("active", b.dataset.sub === subMuralAtivo);
     });
     if(subMuralAtivo === "shows")     renderShows();
     if(subMuralAtivo === "coletivas") renderColetivas();
+    if(subMuralAtivo === "prog")      renderProgramacao();
   }
 
   // ===== AVISOS (operacional) =====
