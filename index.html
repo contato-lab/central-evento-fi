@@ -584,6 +584,31 @@
   .colrow.meli .colhora{padding-top:1px}
   .colrow.meli .colnome{white-space:normal;line-height:1.4}
   .meldesc{display:block;font-size:.78rem;color:var(--ink-2);line-height:1.5;margin-top:3px;font-weight:400}
+
+  /* ===== DESCRICAO DA ATRACAO =====
+     A linha vira botao quando tem descricao. Como .colrow tambem e usada pelas
+     coletivas e pelos shows, reseto aqui o que o navegador poe em <button>
+     (fonte, borda, fundo, alinhamento), senao a mesma classe renderiza
+     diferente em cada aba. */
+  button.colrow{width:100%;font:inherit;color:inherit;background:transparent;
+    border:0;text-align:left;cursor:pointer;font-family:inherit}
+  button.colrow:focus-visible{outline:2px solid var(--lime);outline-offset:-2px}
+  .colrow.temdesc:hover{background:rgba(166,236,77,.06)}
+  .atrmais{margin-left:8px;font-family:var(--mono);font-size:.9rem;color:var(--ink-3);
+    flex:0 0 auto;width:14px;text-align:center}
+  .colrow.temdesc:hover .atrmais{color:var(--lime)}
+
+  .atrdesc{display:none;padding:2px 10px 12px 62px;font-size:.82rem;line-height:1.55;
+    color:var(--ink-2)}
+  .atrdesc b{display:block;color:var(--lime);font-size:.74rem;letter-spacing:.02em;
+    text-transform:uppercase;margin-bottom:4px}
+  .atrdesc.on{display:block}
+  /* hover so em quem TEM mouse. No celular esta consulta nao casa, e o toque
+     continua sendo o unico jeito de abrir, sem descricao piscando ao rolar. */
+  @media(hover:hover) and (pointer:fine){
+    .colrow.temdesc:hover + .atrdesc{display:block}
+  }
+  @media(max-width:520px){ .atrdesc{padding-left:14px} }
   /* cada evento da categoria e um cartao com nome, data, local e de quem e */
   .coldia.extra h3{color:var(--lime)}
   .exmeta{font-size:.8rem;color:var(--ink);margin:-4px 0 8px;line-height:1.5}
@@ -1104,7 +1129,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-13.2";
+  var VERSAO = "2026-08-13.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1589,6 +1614,14 @@
   })();
 
   $("#btnGuia").addEventListener("click", function(){ try { abrirGuia(); } catch(e){} });
+  // toque no cartao da atracao abre e fecha a descricao
+  $("#progBox").addEventListener("click", function(e){
+    var b = e.target.closest("[data-atr]"); if(!b) return;
+    var k = b.dataset.atr;
+    if(progAberto[k]) delete progAberto[k]; else progAberto[k] = true;
+    renderProgramacao();
+  });
+
   $("#subMural").addEventListener("click", function(e){
     var b = e.target.closest(".subtab"); if(!b) return;
     subMuralAtivo = b.dataset.sub;
@@ -2168,6 +2201,50 @@
     }
   ];
 
+  // ===== DESCRICAO DAS ATRACOES =====
+  // Copiadas de moto.festivalinterlagos.com.br/atracoes em 13/08/2026, palavra
+  // por palavra. Ficam num MAPA por nome, nao dentro de PROGRAMACAO, porque a
+  // mesma atracao se repete nos quatro dias: no array seria o mesmo texto
+  // quatro vezes, e corrigir um erro exigiria lembrar de trocar em quatro lugares.
+  //
+  // A chave e o nome exato usado na grade. Atracao sem verbete aqui simplesmente
+  // nao mostra o "ver mais", sem quebrar nada.
+  //
+  // DUAS DA GRADE FICARAM DE FORA DE PROPOSITO, esperando confirmacao:
+  //   "Teste Ride"          o site nao tem esse nome. O mais parecido e "Pista de
+  //                         Interlagos", que fala em acelerar na pista.
+  //   "Bike Builder Circus" o site tem "Circo Lucky Friends". Os dois sao circo,
+  //                         mas o nome nao bate.
+  // Nao chutei: descricao errada num mural que a imprensa le vira materia errada.
+  var ATRACAO_INFO = {
+    "Tirolesa": { sub:"Aventura nas Alturas",
+      d:"Um voo sobre o Festival! Atravesse o evento em uma experiência de pura emoção, garantindo uma vista única e privilegiada de Interlagos." },
+    "Boulevard": { sub:"O Maior Salão de Exposições da América Latina",
+      d:"O coração do Festival reúne as gigantes do setor em uma exposição monumental. Conheça de perto as máquinas dos seus sonhos, acompanhe lançamentos mundiais e viva ativações exclusivas no palco principal do mundo das duas rodas." },
+    "Arena": { sub:"O Centro das Emoções Radicais",
+      d:"Onde o Festival pulsa mais forte! A Arena 2 Rodas concentra as atrações mais radicais e emocionantes do evento. Se você busca adrenalina pura e diversão sem limites, este é o seu lugar." },
+    "Paddock": { sub:"Inovação e Novidades",
+      d:"O Paddock Mall é o destino obrigatório para quem busca o que há de mais moderno no universo motociclístico. Reunindo expositores selecionados e lançamentos exclusivos, este espaço dita as tendências que movem o setor. É o ponto de encontro estratégico onde a indústria revela a força e a evolução do mercado em primeira mão." },
+    "Pavilhão Mercado Livre": { sub:"MotoMeli",
+      d:"O Mercado Livre chega ao Festival Interlagos para conectar você ao que há de melhor no mundo das duas rodas. No MotoMeli, você encontra uma curadoria de peças, acessórios e equipamentos com a conveniência de quem lidera o mercado. Aproveite benefícios exclusivos para membros Meli+ e turbine sua jornada." },
+    "Mobilidade Urbana": { sub:"Teste e Compare",
+      d:"A oportunidade perfeita para testar scooters e modelos de baixa cilindrada em um cenário que simula o trânsito real. Com curvas e obstáculos estratégicos, é o teste ideal para quem busca agilidade e precisão. Escolha aqui sua próxima moto!" },
+    "Pista de Habilidade": { sub:"Desafio em Duas Rodas",
+      d:"Onde o controle total é o protagonista. Teste sua precisão e domínio sobre duas rodas em um traçado técnico feito para desafiar seus limites. Prove que você tem as habilidades necessárias para superar cada curva e obstáculo!" },
+    "Arena Kids": { sub:"Diversão para Toda a Família",
+      d:"O espaço ideal para os pequenos viverem o Festival com total segurança. Com atividades e atrações exclusivas, é o lugar perfeito para os futuros pilotos darem seus primeiros passos na paixão pelas duas rodas." },
+    "Roda Gigante": { sub:"A melhor vista do Festival",
+      d:"Suba e contemple Interlagos de um ângulo único! Mais que uma atração, é a chance de ver toda a magnitude do Festival de uma perspectiva inesquecível. Garanta o melhor ponto de vista para quem ama velocidade." },
+    "Globo da Morte": { sub:"Desafiando a Gravidade",
+      d:"A emoção vai ao limite em um show de agilidade e ousadia. Assista a pilotos desafiando a gravidade em manobras de tirar o fôlego, onde a precisão e a coragem se encontram em cada giro." },
+    "Fred Kyrillos": { sub:"Freestyle: Espetáculo de Manobras e Adrenalina",
+      d:"Onde a gravidade é desafiada! Sinta a adrenalina pura com as manobras insanas do heptacampeão de FMX. Fred Kyrillos faz o impossível acontecer diante dos seus olhos em um show de tirar o fôlego." },
+    "Força e Ação": { sub:"Adrenalina e Emoção",
+      d:"A equipe lendária está de volta para desafiar o impossível! Veja os melhores pilotos em manobras incríveis que revelam a verdadeira essência do motociclismo radical. Prepare-se para um espetáculo de tirar o fôlego." },
+    "Arena de Shows": { sub:"Live Arena: Viva essa experiência",
+      d:"A Live Arena é o palco onde a música e a energia se encontram! Prepare-se para ver grandes shows de artistas que vão agitar a sua experiência no Festival." }
+  };
+
   // ===== PROGRAMACAO OFICIAL (atracoes) =====
   // Transcrita do carrossel publicado no @festival.interlagos em 11/08/2026.
   // Dado fixo no codigo, igual COLETIVAS e SHOWS: e agenda oficial divulgada.
@@ -2420,11 +2497,36 @@
           if(ehHoje && ult != null) passou = agora >= ult;
         }
 
-        html += '<div class="colrow' + (passou ? ' passou' : '') + (aberto ? ' agora' : '') + '">' +
+        var info = ATRACAO_INFO[it.nome];
+        // a mesma atracao aparece nos 4 dias; a chave inclui o dia pra abrir uma
+        // sem abrir as outras tres junto
+        var chave = dia.data + "|" + it.nome;
+        var aberta = !!progAberto[chave];
+
+        // O CARTAO INTEIRO abre a descricao, nao um "ver mais" pequeno ao lado.
+        // No celular o alvo vira a linha toda em vez de um texto de 60px, e a
+        // pessoa nao precisa mirar. Quem nao tem descricao continua como div
+        // simples, sem cursor de clique nem foco de teclado prometendo algo.
+        var cls = 'colrow' + (passou ? ' passou' : '') + (aberto ? ' agora' : '') + (info ? ' temdesc' : '');
+        var miolo =
           '<span class="colhora prog">' + esc(rotulo) + '</span>' +
           '<span class="colnome">' + esc(it.nome) + '</span>' +
           (aberto ? '<span class="colagora">ABERTO</span>' : '') +
-        '</div>';
+          (info ? '<span class="atrmais">' + (aberta ? '&minus;' : '+') + '</span>' : '');
+
+        html += info
+          ? '<button class="' + cls + '" type="button" data-atr="' + esc(chave) + '" ' +
+            'aria-expanded="' + (aberta ? 'true' : 'false') + '">' + miolo + '</button>'
+          : '<div class="' + cls + '">' + miolo + '</div>';
+
+        // A descricao vai SEMPRE pro HTML, escondida por CSS. Assim o hover do
+        // desktop revela sem depender de JS, e o toque continua abrindo e
+        // FIXANDO no celular, onde hover nao existe.
+        if(info){
+          html += '<div class="atrdesc' + (aberta ? ' on' : '') + '">' +
+            (info.sub ? '<b>' + esc(info.sub) + '</b>' : '') +
+            '<span>' + esc(info.d) + '</span></div>';
+        }
       });
       html += '</div>';
     });
@@ -2444,6 +2546,11 @@
   // troca entre Programacao e Coletivas dentro do Mural do Evento.
   // Sub-aba usa style.display; o "hidden" continua sendo so da permissao,
   // assim um nunca atropela o outro.
+  // Cartoes de atracao abertos no toque. Guardado FORA do render porque a
+  // programacao se redesenha a cada 60s pro selo ABERTO acompanhar o relogio:
+  // sem isso, a descricao que a pessoa abriu fecharia sozinha no meio da leitura.
+  var progAberto = {};
+
   var subMuralAtivo = "prog";
   function aplicarSubMural(){
     var prog = (subMuralAtivo === "prog");
