@@ -479,7 +479,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-13.6";
+  var VERSAO = "2026-08-13.7";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1390,9 +1390,21 @@
     try{ var v = parseInt(localStorage.getItem(VISTO + aba), 10); return isNaN(v) ? null : v; }
     catch(e){ return null; }
   }
+  // Nunca anda pra tras. Se alguem apaga a peca mais nova, o maior carimbo da
+  // lista cai, e sem esta trava o "visto" cairia junto e itens ja lidos
+  // voltariam a ser novidade.
   function marcarVisto(aba, quando){
-    try{ localStorage.setItem(VISTO + aba, String(quando || Date.now())); }catch(e){}
+    var q = parseInt(quando, 10); if(isNaN(q) || q <= 0) q = Date.now();
+    try{
+      var atual = vistoDe(aba);
+      if(atual !== null && atual >= q) return;
+      localStorage.setItem(VISTO + aba, String(q));
+    }catch(e){}
   }
+
+  // Eu mesmo acabei de publicar: nao faz sentido a faixa me avisar do que eu
+  // digitei. Marca so este item como lido, sem mexer no resto.
+  function naoAlertarProprio(aba, ts){ marcarVisto(aba, ts); }
 
   function listaDaAba(aba){
     if(aba === "pecas"     && podeVer("pecas"))     return pecas;
@@ -1401,12 +1413,19 @@
     return null;
   }
 
-  // Peca usa criadoEm quando nasce e em quando muda; coletiva e checklist so
-  // tem em/criadoEm. Pego o MAIOR dos dois: assim "mudou" tambem conta como
-  // novidade, que e o que o time quer saber num evento ao vivo.
+  // NOVIDADE = NASCEU, nao "mudou". Por isso criadoEm manda, e em/ts so entram
+  // quando o item nao tem criadoEm (registro antigo).
+  //
+  // Eu tinha feito o contrario, pegando o maior dos dois, com a ideia de que
+  // "mudou tambem interessa". Nao interessa: peca leva dezenas de toques por
+  // dia (status, link, editor), e cada toque reescreve em. A faixa acenderia o
+  // tempo todo, inclusive pra quem acabou de mexer, e faixa que acende sempre
+  // a pessoa para de ler.
   function carimbo(it){
+    var n = parseInt(it.criadoEm, 10);
+    if(!isNaN(n) && n > 0) return n;
     var maior = 0;
-    ["criadoEm","em","ts"].forEach(function(c){
+    ["em","ts"].forEach(function(c){
       var v = parseInt(it[c], 10);
       if(!isNaN(v) && v > maior) maior = v;
     });
@@ -1439,10 +1458,13 @@
     // todo vira decoracao: a pessoa para de olhar e perde a que importava.
     // Aqui novidade = conteudo que NASCEU, nao andamento de trabalho.
     ["pecas","story"].forEach(function(aba){
-      // a aba aberta nunca e novidade (a pessoa esta lendo), mas o toggle da
-      // bolinha roda igual pras duas, senao a bolinha da aba que voce acabou
-      // de abrir fica acesa pra sempre
-      var n = (aba === abaAtual) ? 0 : contarNovos(aba);
+      // A ABA ABERTA TAMBEM AVISA. Eu tinha zerado a contagem dela achando que
+      // quem esta com a aba na frente ja ve o item chegar. Testei e e falso: a
+      // peca nova entra no meio de uma lista longa, muitas vezes fora da tela,
+      // e ninguem percebe. Pior: Organicos e pagos e justamente a tela onde o
+      // time fica o dia inteiro, ou seja, o alerta morria bem em quem mais
+      // precisa dele. Agora a faixa aparece, e some quando a pessoa clica.
+      var n = contarNovos(aba);
       if(n > 0){
         total += n;
         if(!primeira) primeira = aba;
@@ -1666,8 +1688,10 @@
       var txt = prompt("O que precisa ser gravado?");
       if(txt === null) return;
       txt = String(txt).trim(); if(!txt) return;
+      var nasceu = Date.now();
       DBadd("story", { dia:diaStoryAtual(), grupo:b.dataset.grupo, area:b.dataset.area||"",
-                       texto:txt, resp:"", feito:false, criadoEm:Date.now(), por:quemSou() });
+                       texto:txt, resp:"", feito:false, criadoEm:nasceu, por:quemSou() });
+      naoAlertarProprio("story", nasceu);
       return;
     }
   });
@@ -1712,6 +1736,7 @@
       DBadd("story", { dia:dia, grupo:nome, area:area, texto:lista[i], resp:"", feito:false,
                        criadoEm: base + i, por:quemSou() });
     }
+    naoAlertarProprio("story", base + lista.length);
     criandoBloco = false;
     toast(lista.length + (lista.length===1 ? " item criado." : " itens criados."));
     renderStory();
@@ -1746,6 +1771,7 @@
       dados.redes = []; dados.impulsionar = false;
       dados.linkPronto = ""; dados.linkPublicado = "";
       DBadd("pecas", dados);
+      naoAlertarProprio("pecas", dados.criadoEm);
       toast("Peça criada.");
     } else {
       DBupdate("pecas", editandoPeca, dados);
