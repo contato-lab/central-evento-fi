@@ -266,6 +266,22 @@
   .campo input:focus{outline:none;border-color:var(--lime)}
   .campo .cl{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
     color:var(--ink-3);width:64px;flex:0 0 auto}
+
+  /* ---------- LEGENDA DO POST ---------- */
+  .legbox{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;
+    padding:10px 12px;margin:8px 0}
+  .legtop{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+  .legtit{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-3);flex:1}
+  .legcopy{background:var(--raise);border:1px solid var(--line);color:var(--lime);
+    border-radius:8px;padding:7px 13px;font:inherit;font-size:.72rem;font-weight:700;
+    min-height:36px;flex:0 0 auto}
+  .legcopy:hover{border-color:var(--lime)}
+  /* pre-wrap preserva as quebras de linha da legenda como foram escritas:
+     legenda de Instagram tem paragrafo e bloco de hashtag, e virar texto
+     corrido faria a pessoa colar errado */
+  .legtx{white-space:pre-wrap;word-break:break-word;font-size:.84rem;line-height:1.55;
+    color:var(--ink)}
   .abrir{background:var(--panel-2);border:1px solid var(--line);color:var(--lime);
     border-radius:9px;padding:9px 11px;font-size:.72rem;font-weight:700;text-decoration:none;
     display:inline-flex;align-items:center;min-height:36px;flex:0 0 auto}
@@ -565,6 +581,23 @@
          '<span class="tv">'+c.boostFeito+'/'+c.boost+'</span></span>';
     h += '</div>';
     return h;
+  }
+
+  // Plano B de copia pra quando o navegador nao dá clipboard. Precisa estar no
+  // DOM e visível o suficiente pro execCommand funcionar em iOS, por isso o
+  // textarea fica fora da tela em vez de display:none.
+  function copiaNaMarra(txt, ok){
+    var t = document.createElement("textarea");
+    t.value = txt;
+    t.setAttribute("readonly", "");
+    t.style.cssText = "position:fixed;top:0;left:-9999px;opacity:0";
+    document.body.appendChild(t);
+    t.select(); t.setSelectionRange(0, txt.length);
+    var deu = false;
+    try{ deu = document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(t);
+    if(deu && ok) ok();
+    else toast("Não consegui copiar. Selecione o texto e copie na mão.");
   }
 
   function linkSeguro(u){
@@ -993,7 +1026,7 @@
     }
     var q = fBusca.trim().toLowerCase();
     if(q){
-      var alvo = [p.marca,p.tema,p.formato,p.editor,p.quemGrava,p.referencia,p.roteiro,p.resumo]
+      var alvo = [p.marca,p.tema,p.formato,p.editor,p.quemGrava,p.referencia,p.roteiro,p.resumo,p.legenda]
         .join(" ").toLowerCase();
       if(alvo.indexOf(q) < 0) return false;
     }
@@ -1061,6 +1094,17 @@
       h += ficha("Roteiro", p.roteiro);
       h += ficha("Quem grava", p.quemGrava);
       h += ficha("Resumo da gravação", p.resumo);
+      // A legenda tem tratamento proprio, nao entra no ficha() generico: ela
+      // existe pra ser COLADA no Instagram. Texto corrido pre-formatado preserva
+      // as quebras de linha como foram escritas, e o botao copia sem a pessoa
+      // ter que selecionar com o dedo num paragrafo de 15 linhas.
+      if(p.legenda){
+        h += '<div class="legbox">'+
+          '<div class="legtop"><span class="legtit">Legenda do post</span>'+
+            '<button class="legcopy" data-act="copialeg" data-id="'+p.id+'">Copiar</button></div>'+
+          '<div class="legtx">'+esc(p.legenda)+'</div>'+
+        '</div>';
+      }
       h += ficha("Editor", p.editor);
       h += ficha("Horário de veiculação", p.horario);
 
@@ -1112,6 +1156,12 @@
     h += '<div class="fld"><label>Quem grava</label><input id="f_quemGrava" type="text" value="'+esc(p.quemGrava||"")+'" placeholder="Nome de quem captou"></div>';
     h += '<div class="fld"><label>Editor</label><input id="f_editor" type="text" value="'+esc(p.editor||"")+'" placeholder="Quem edita"></div>';
     h += '<div class="fld full"><label>Resumo da gravação</label><textarea id="f_resumo" maxlength="4000" placeholder="Observação de quem gravou">'+esc(p.resumo||"")+'</textarea></div>';
+    // Legenda vem DEPOIS do resumo e ANTES do horario, seguindo a ordem em que o
+    // trabalho acontece: grava, edita, escreve a legenda, agenda, publica.
+    h += '<div class="fld full"><label>Legenda (copy da postagem)</label>'+
+      '<textarea id="f_legenda" maxlength="4000" rows="4" style="min-height:110px" '+
+      'placeholder="Texto do post, com hashtags e arrobas, do jeito que vai no ar">'+esc(p.legenda||"")+'</textarea>'+
+      '<span style="font-size:.68rem;color:var(--ink-3);margin-top:4px">Escreva já com hashtag e @, pra quem publicar só copiar e colar.</span></div>';
     h += '<div class="fld"><label>Horário de veiculação</label><input id="f_horario" type="text" value="'+esc(p.horario||"")+'" placeholder="19h30"></div>';
 
     h += '<div class="fld"><label>Status</label><select id="f_status">';
@@ -1372,6 +1422,18 @@
     }
     if(act === "meunome"){ pedirNome(false); return; }
     if(act === "cancelarpeca"){ editandoPeca=null; renderPecas(); return; }
+    if(act === "copialeg"){
+      var pl = pecas.filter(function(x){ return x.id===id; })[0];
+      if(!pl || !pl.legenda) return;
+      var txt = pl.legenda;
+      var ok = function(){ toast("Legenda copiada."); };
+      // navigator.clipboard so existe em https (ou localhost) e pode estar
+      // bloqueado; o textarea escondido e o plano B que funciona em tudo
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(ok)["catch"](function(){ copiaNaMarra(txt, ok); });
+      } else { copiaNaMarra(txt, ok); }
+      return;
+    }
 
     // ---- coletivas ----
     if(act === "stcol" || act === "boostcol" || act === "boostokcol" || act === "redecol"){
@@ -1547,7 +1609,7 @@
       dia: v("f_dia"), tipo: v("f_tipo"), marca: v("f_marca"), formato: v("f_formato"),
       tema: v("f_tema"), referencia: v("f_referencia"), roteiro: v("f_roteiro"),
       quemGrava: v("f_quemGrava"), resumo: v("f_resumo"), editor: v("f_editor"),
-      horario: v("f_horario"), status: v("f_status"),
+      legenda: v("f_legenda"), horario: v("f_horario"), status: v("f_status"),
       em: Date.now(), por: quemSou()
     };
     if(!dados.marca && !dados.tema && !dados.formato){
