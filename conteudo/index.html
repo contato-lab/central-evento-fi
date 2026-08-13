@@ -155,6 +155,35 @@
     color:var(--lime);border:1px solid rgba(166,236,77,.5);border-radius:7px;padding:4px 10px;flex:0 0 auto}
   @media(prefers-reduced-motion:reduce){ .novpt{animation:none} }
 
+  /* painel que desce: empurra a pagina, nao cobre. Camada flutuante no celular
+     e ruim de fechar com uma mao so, e o time usa isso andando pelo autodromo */
+  .novpanel{border:1px solid rgba(166,236,77,.35);border-top:none;
+    border-radius:0 0 12px 12px;background:rgba(166,236,77,.05);overflow:hidden}
+  .novbar.aberta{border-radius:12px 12px 0 0}
+  .novrow{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
+    border-top:1px solid rgba(166,236,77,.16);padding:10px 14px;text-align:left;
+    color:var(--ink);font-family:inherit;font-size:.82rem;cursor:pointer;min-height:46px}
+  .novrow:hover{background:rgba(166,236,77,.1)}
+  .novrow:focus-visible{outline:2px solid var(--lime);outline-offset:-2px}
+  .novrow .nq{flex:1;min-width:0}
+  .novrow .nn{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .novrow .ns{display:block;font-size:.72rem;color:var(--ink-3);margin-top:1px}
+  .novrow .nseta{color:var(--lime);flex:0 0 auto;font-size:1rem}
+  .novfoot{display:flex;justify-content:flex-end;padding:8px 10px;
+    border-top:1px solid rgba(166,236,77,.16)}
+  .novfoot button{background:none;border:1px solid var(--line);border-radius:8px;
+    color:var(--ink-2);font-family:inherit;font-size:.72rem;padding:7px 12px;cursor:pointer;min-height:38px}
+  .novfoot button:hover{color:var(--ink);border-color:var(--ink-3)}
+
+  /* opcao 5: a peca nova continua marcada DENTRO da lista. Sem isto a pessoa
+     chega na aba e perde de vista qual era a nova no meio de dezenas */
+  .bloco.ehnovo{border-color:rgba(166,236,77,.55)}
+  .tagnova{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;background:var(--lime);
+    color:#0b0f06;border-radius:5px;padding:2px 6px;flex:0 0 auto;align-self:center}
+  .bloco.piscando{animation:novflash 2.4s ease-out 1}
+  @keyframes novflash{0%,22%{box-shadow:0 0 0 3px rgba(166,236,77,.55)}100%{box-shadow:0 0 0 3px rgba(166,236,77,0)}}
+  @media(prefers-reduced-motion:reduce){ .bloco.piscando{animation:none;box-shadow:0 0 0 3px rgba(166,236,77,.55)} }
+
   /* ATENCAO: env() NAO pode ir dentro do atalho "padding". Se o navegador nao
      entender o env(), ele joga fora a declaracao INTEIRA e o padding vira 0.
      Aconteceu aqui: o topo colou na regua de abas. Valor normal primeiro,
@@ -479,7 +508,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-13.7";
+  var VERSAO = "2026-08-13.8";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1080,8 +1109,11 @@
 
   function blocoPecaHTML(p){
     var aberto = !!abertos["p_"+p.id];
-    var h = '<div class="bloco'+(p.status==="publicado"?" completo":"")+'">';
+    var nova = ehNovo("pecas", p);
+    var h = '<div class="bloco'+(p.status==="publicado"?" completo":"")+(nova?" ehnovo":"")+
+            '" id="pc_'+esc(p.id)+'">';
     h += '<button class="cabeca" data-act="abrirpeca" data-id="'+p.id+'">'+
+      (nova ? '<span class="tagnova">NOVA</span>' : '')+
       '<span class="chora">'+esc(rotuloDia(p.dia).replace(/^\S+\s/,""))+'</span>'+
       '<span class="cmeio">'+
         '<span class="cnome">'+esc(p.marca||"Sem marca")+'</span>'+
@@ -1432,14 +1464,60 @@
     return maior;
   }
 
-  function contarNovos(aba){
+  // Ja cliquei neste item pelo painel. Fica na memoria da aba, nao no aparelho:
+  // e so pra sumir da lista do painel enquanto a pessoa vai clicando um a um.
+  var LIDOS = { pecas:{}, story:{} };
+  var painelNov = false;
+
+  // Os itens que entraram depois do ultimo "visto", do mais novo pro mais velho.
+  function novosDe(aba){
     var lista = listaDaAba(aba);
-    if(!lista || !lista.length) return 0;
+    if(!lista || !lista.length) return [];
     var visto = vistoDe(aba);
-    if(visto === null){ marcarVisto(aba, maiorCarimbo(lista)); return 0; }
-    var n = 0;
-    for(var i=0;i<lista.length;i++){ if(carimbo(lista[i]) > visto) n++; }
-    return n;
+    // Primeiro acesso deste aparelho: so grava o marco. Sem isto o time inteiro
+    // abriria a Central com "48 novidades", que e o historico, nao novidade.
+    if(visto === null){ marcarVisto(aba, maiorCarimbo(lista)); return []; }
+    var out = [];
+    for(var i=0;i<lista.length;i++){ if(carimbo(lista[i]) > visto) out.push(lista[i]); }
+    out.sort(function(a,b){ return carimbo(b) - carimbo(a); });
+    return out;
+  }
+  // O que ainda esta pendente no painel (tirando o que a pessoa ja abriu).
+  function pendentesDe(aba){
+    return novosDe(aba).filter(function(it){ return !LIDOS[aba][it.id]; });
+  }
+  function ehNovo(aba, it){
+    var visto = vistoDe(aba);
+    return visto !== null && carimbo(it) > visto;
+  }
+  function contarNovos(aba){ return pendentesDe(aba).length; }
+
+  // Marca a aba inteira como lida e apaga os destaques dela.
+  function limparNov(aba){
+    var lista = listaDaAba(aba);
+    marcarVisto(aba, lista && lista.length ? maiorCarimbo(lista) : Date.now());
+    LIDOS[aba] = {};
+  }
+
+  function horaCurta(ms){
+    var d = new Date(ms);
+    if(isNaN(d.getTime())) return "";
+    return ("0"+d.getHours()).slice(-2) + "h" + ("0"+d.getMinutes()).slice(-2);
+  }
+
+  // Como o item aparece na lista do painel.
+  function tituloNov(aba, it){
+    if(aba === "pecas"){
+      return (it.marca || it.tema || "Sem marca") +
+             (it.formato ? " · " + it.formato : "");
+    }
+    return (it.grupo || "Checklist") + (it.texto ? " · " + it.texto : "");
+  }
+  function subNov(aba, it){
+    var quem = it.por ? String(it.por) : "";
+    var h = horaCurta(carimbo(it));
+    var onde = aba === "pecas" ? "Orgânicos e pagos" : "StoryMaker";
+    return [onde, quem, h].filter(Boolean).join(" · ");
   }
 
   function maiorCarimbo(lista){
@@ -1474,15 +1552,72 @@
       if(b) b.classList.toggle("temnovo", n > 0);
     });
 
-    if(!total){ faixa.hidden = true; faixa.innerHTML = ""; return; }
+    if(!total){ faixa.hidden = true; faixa.innerHTML = ""; painelNov = false; return; }
     faixa.hidden = false;
-    faixa.innerHTML =
-      '<button class="novbar" type="button" data-act="irnov" data-ir="' + primeira + '">' +
+
+    var h =
+      '<button class="novbar' + (painelNov ? ' aberta' : '') + '" type="button" data-act="novtoggle"' +
+        ' aria-expanded="' + (painelNov ? 'true' : 'false') + '">' +
         '<span class="novpt"></span>' +
         '<span class="novtx"><b>' + total + (total === 1 ? ' novidade' : ' novidades') + '</b> ' +
           esc(partes.join(" · ")) + '</span>' +
-        '<span class="novir">ver</span>' +
+        '<span class="novir">' + (painelNov ? 'fechar' : 'ver') + '</span>' +
       '</button>';
+
+    if(painelNov){
+      h += '<div class="novpanel">';
+      // Teto de 8 por aba. Mais que isso vira rolagem no topo da pagina e
+      // esconde o proprio conteudo; quem quiser o resto usa "marcar tudo".
+      ["pecas","story"].forEach(function(aba){
+        var lst = pendentesDe(aba).slice(0, 8);
+        for(var i=0;i<lst.length;i++){
+          var it = lst[i];
+          h += '<button class="novrow" type="button" data-act="nov1"' +
+                 ' data-aba="' + aba + '" data-id="' + esc(it.id) + '">' +
+                 '<span class="nq">' +
+                   '<span class="nn">' + esc(tituloNov(aba, it)) + '</span>' +
+                   '<span class="ns">' + esc(subNov(aba, it)) + '</span>' +
+                 '</span>' +
+                 '<span class="nseta">&rsaquo;</span>' +
+               '</button>';
+        }
+      });
+      h += '<div class="novfoot"><button type="button" data-act="novtudo">' +
+             'Marcar tudo como visto</button></div></div>';
+    }
+    faixa.innerHTML = h;
+  }
+
+  // Leva ate a peca (ou o bloco do checklist) e deixa ela piscando, senao a
+  // pessoa cai numa lista de dezenas de cartoes sem saber qual era a nova.
+  function irAteNovidade(aba, id){
+    LIDOS[aba][id] = true;
+    var lista = listaDaAba(aba) || [];
+    var alvo = null;
+    for(var i=0;i<lista.length;i++){ if(lista[i].id === id){ alvo = lista[i]; break; } }
+
+    if(!pendentesDe("pecas").length && !pendentesDe("story").length){
+      painelNov = false;
+      limparNov("pecas"); limparNov("story");
+    }
+    mostrarAba(aba);
+
+    // O desenho da aba acontece dentro do mostrarAba; o scroll precisa esperar
+    // o navegador terminar de pintar, senao mede a posicao do layout antigo.
+    var seletor = (aba === "pecas")
+      ? '#pc_' + (window.CSS && CSS.escape ? CSS.escape(id) : id)
+      : (alvo && alvo.grupo ? '[data-bloco="' + (window.CSS && CSS.escape ? CSS.escape(alvo.grupo) : alvo.grupo) + '"]' : null);
+    setTimeout(function(){
+      if(!seletor) return;
+      var el;
+      try{ el = document.querySelector(seletor); }catch(e){ return; }
+      if(!el) return;
+      var cartao = el.closest ? (el.closest(".bloco") || el) : el;
+      try{ cartao.scrollIntoView({ behavior:"smooth", block:"center" }); }
+      catch(e){ cartao.scrollIntoView(); }
+      cartao.classList.add("piscando");
+      setTimeout(function(){ cartao.classList.remove("piscando"); }, 2600);
+    }, 60);
   }
 
   function mostrarAba(t){
@@ -1492,11 +1627,10 @@
     $("#view-coletivas").hidden = t !== "coletivas";
     $("#view-pecas").hidden     = t !== "pecas";
     $("#view-story").hidden     = t !== "story";
-    // abriu a aba = leu. Marca com o carimbo do item mais novo, nao com "agora":
-    // se um item chegar entre o desenho da tela e o clique, "agora" o engoliria
-    // e a pessoa nunca saberia que ele entrou.
-    var lst = listaDaAba(t);
-    if(lst && lst.length) marcarVisto(t, maiorCarimbo(lst));
+    // NAO marca como visto so por abrir a aba. Antes marcava, e isso apagava o
+    // aviso antes da pessoa ter visto qual peca era nova: bastava passar pela
+    // aba pra perder a informacao. Agora quem apaga e a pessoa, clicando no
+    // item dentro do painel ou em "marcar tudo como visto".
     // Redesenha a aba de destino. Os watchers so redesenham a aba ATIVA, entao
     // sem isto a pessoa volta pra uma aba pintada com o dado de quando saiu (ou
     // vazia, se o primeiro snapshot chegou depois do renderAll do login).
@@ -1677,7 +1811,17 @@
       var bn = $("#b_nome"); if(bn) bn.focus();
       return;
     }
-    if(act === "irnov"){ mostrarAba(b.dataset.ir); return; }
+    if(act === "novtoggle"){ painelNov = !painelNov; renderNovidades(); return; }
+    if(act === "nov1"){ irAteNovidade(b.dataset.aba, b.dataset.id); return; }
+    if(act === "novtudo"){
+      painelNov = false; limparNov("pecas"); limparNov("story");
+      renderNovidades();
+      // redesenha pra tirar os selos NOVA; o storymaker nao tem a aba de pecas,
+      // entao cada um por si e sem derrubar a tela se um deles reclamar
+      try{ if(podeVer("pecas") && !editandoPeca) renderPecas(); }catch(e){}
+      try{ if(podeVer("story")) renderStory(); }catch(e){}
+      return;
+    }
     if(act === "cancelarbloco"){ criandoBloco = false; renderStory(); return; }
     if(act === "salvarbloco"){
       if(!podeGerenciar("story")){ toast("Seu acesso não cria blocos."); return; }
