@@ -135,6 +135,27 @@
   .tab.active{color:var(--ink)}
   .tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--lime);border-radius:2px}
   .tab.active .n{color:var(--lime);border-color:rgba(166,236,77,.35)}
+  /* bolinha de novidade na aba: fica visivel de qualquer aba, entao a pessoa
+     sabe que tem coisa nova em outro lugar sem precisar sair de onde esta */
+  .tab.temnovo{position:relative}
+  .tab.temnovo::before{content:"";position:absolute;top:9px;right:-2px;width:7px;height:7px;
+    border-radius:50%;background:var(--lime);box-shadow:0 0 0 2px var(--bg)}
+
+  /* ---------- FAIXA DE NOVIDADE ---------- */
+  .novbar{display:flex;align-items:center;gap:10px;width:100%;margin:10px 0 0;
+    background:rgba(166,236,77,.09);border:1px solid rgba(166,236,77,.35);
+    border-radius:12px;padding:11px 14px;color:var(--ink);font-family:inherit;
+    font-size:.86rem;text-align:left;cursor:pointer;min-height:46px}
+  .novbar:hover{background:rgba(166,236,77,.15)}
+  .novbar:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .novpt{width:9px;height:9px;border-radius:50%;background:var(--lime);flex:0 0 auto;
+    animation:novpulse 1.8s ease-in-out infinite}
+  @keyframes novpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.8)}}
+  .novtx{flex:1;min-width:0;line-height:1.4}
+  .novtx b{color:var(--lime)}
+  .novir{font-family:var(--mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--lime);border:1px solid rgba(166,236,77,.5);border-radius:7px;padding:4px 10px;flex:0 0 auto}
+  @media(prefers-reduced-motion:reduce){ .novpt{animation:none} }
 
   /* ---------- CONTENT ---------- */
   main{padding:26px 0 90px}
@@ -831,6 +852,11 @@
       <button class="tab" data-tab="acessos" hidden>Acessos <span class="n" id="cAcess">0</span></button>
     </div></nav>
 
+    <!-- faixa de novidade: aparece sozinha quando entra conteudo novo em
+         qualquer aba que a pessoa enxerga. Fica FORA do main pra ser vista
+         de qualquer aba, nao so da que tem a novidade. -->
+    <div class="wrap"><div id="novidades" hidden></div></div>
+
     <main class="wrap">
 
       <!-- ===== MURAL ===== -->
@@ -855,7 +881,6 @@
         <!-- sub-abas do mural: a programacao geral e a agenda de coletivas de
              imprensa (12 e 13/08). A agenda e OFICIAL e fixa no codigo, em
              COLETIVAS — mudou a grade, edita la e sobe versao nova. -->
-        <div id="progUpdate" hidden></div>
         <div class="subtabs" id="subMural">
           <button type="button" class="subtab active" data-sub="prog">Programação</button>
           <button type="button" class="subtab" data-sub="shows">Shows</button>
@@ -1129,7 +1154,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-13.3";
+  var VERSAO = "2026-08-13.4";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1622,6 +1647,12 @@
     renderProgramacao();
   });
 
+  // clique na faixa leva pra aba que tem a novidade
+  $("#novidades").addEventListener("click", function(e){
+    var b = e.target.closest("[data-ir]"); if(!b) return;
+    mostrarAba(b.dataset.ir);
+  });
+
   $("#subMural").addEventListener("click", function(e){
     var b = e.target.closest(".subtab"); if(!b) return;
     subMuralAtivo = b.dataset.sub;
@@ -1801,7 +1832,10 @@
       ' falas por dia</b>, renovadas a cada dia. Até 200 caracteres por recado.</span>';
   }
 
+  var abaAtual = "mural";
+
   function mostrarAba(t){
+    abaAtual = t;
     document.querySelectorAll(".tab").forEach(function(x){ x.classList.remove("active"); });
     var b = document.querySelector('.tab[data-tab="' + t + '"]'); if(b) b.classList.add("active");
     $("#view-mural").hidden   = t !== "mural";
@@ -1809,6 +1843,15 @@
     $("#view-interno").hidden = t !== "interno";
     $("#view-recados").hidden = t !== "recados";
     $("#view-acessos").hidden = t !== "acessos";
+    // abriu a aba = leu. Marca com o carimbo do item mais novo, nao com "agora":
+    // se um item chegar entre o render e o clique, "agora" o engoliria sem avisar.
+    var lista = itensDaAba(t);
+    if(lista){
+      var maior = 0;
+      for(var i=0;i<lista.length;i++){ var x=parseInt(lista[i].ts,10); if(!isNaN(x) && x>maior) maior=x; }
+      marcarVisto(t, maior || now());
+    }
+    try{ renderNovidades(); }catch(e){}
     ga("aba_aberta", { aba: t, perfil: PERFIL || "desconhecido" });
   }
 
@@ -2985,6 +3028,81 @@
     protegido("interno", renderInterno, "#listInterno");
     protegido("fila",    renderRec,     "#listRec");
     protegido("acessos", renderAcessos, "#listAcess");
+    try{ renderNovidades(); }catch(e){ if(window.console) console.error("[central] novidades", e); }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FAIXA DE NOVIDADE
+  //
+  // Detecta sozinha, comparando o carimbo de tempo de cada item com a ultima
+  // vez que ESTA PESSOA abriu aquela aba. Nao existe constante pra alguem
+  // lembrar de atualizar a cada publicacao: quem publica so publica, e quem
+  // le e avisado. Constante manual seria esquecida no primeiro dia corrido.
+  //
+  // O "visto" e por aba e por aparelho. Quem nunca entrou nao ve tudo marcado
+  // como novo: na primeira visita a Central grava o momento atual como visto,
+  // senao a pessoa abriria com 40 novidades e ignoraria a faixa pra sempre.
+  // ═══════════════════════════════════════════════════════════════
+  var VISTO = "fi_visto_";
+  var ROTULO_ABA = { mural:"no Mural do Evento", avisos:"em Avisos",
+                     interno:"no Mural interno", recados:"na fila do locutor" };
+
+  function vistoDe(aba){
+    try{ var v = parseInt(localStorage.getItem(VISTO + aba), 10); return isNaN(v) ? null : v; }
+    catch(e){ return null; }
+  }
+  function marcarVisto(aba, quando){
+    try{ localStorage.setItem(VISTO + aba, String(quando || now())); }catch(e){}
+  }
+
+  // itens de cada aba, ja filtrados pelo que este perfil pode ver
+  function itensDaAba(aba){
+    if(aba === "mural"   && podeVerMural())   return mural;
+    if(aba === "avisos"  && podeVerAvisos())  return avisos;
+    if(aba === "interno" && podeVerInterno()) return interno;
+    if(aba === "recados" && podeVerFila())    return recados;
+    return null;
+  }
+
+  function contarNovos(aba){
+    var lista = itensDaAba(aba);
+    if(!lista) return 0;
+    var visto = vistoDe(aba);
+    if(visto === null){ marcarVisto(aba); return 0; }   // primeira visita: nada e novidade
+    var n = 0;
+    for(var i=0;i<lista.length;i++){
+      var t = parseInt(lista[i].ts, 10);
+      if(!isNaN(t) && t > visto) n++;
+    }
+    return n;
+  }
+
+  function renderNovidades(){
+    var faixa = $("#novidades"); if(!faixa || !PERM) return;
+    var partes = [], total = 0, primeira = null;
+    ["mural","avisos","interno","recados"].forEach(function(aba){
+      // a aba aberta nunca conta como novidade: a pessoa esta lendo agora.
+      // Mas o toggle da bolinha roda IGUAL pras duas, senao a bolinha da aba
+      // que voce acabou de abrir fica acesa pra sempre.
+      var n = (aba === abaAtual) ? 0 : contarNovos(aba);
+      if(n > 0){
+        total += n;
+        if(!primeira) primeira = aba;
+        partes.push(n + " " + (ROTULO_ABA[aba] || aba));
+      }
+      var b = document.querySelector('.tab[data-tab="' + aba + '"]');
+      if(b) b.classList.toggle("temnovo", n > 0);
+    });
+
+    if(!total){ faixa.hidden = true; faixa.innerHTML = ""; return; }
+    faixa.hidden = false;
+    faixa.innerHTML =
+      '<button class="novbar" type="button" data-ir="' + primeira + '">' +
+        '<span class="novpt"></span>' +
+        '<span class="novtx"><b>' + total + (total === 1 ? ' novidade' : ' novidades') + '</b> ' +
+          esc(partes.join(" · ")) + '</span>' +
+        '<span class="novir">ver</span>' +
+      '</button>';
   }
 
   // ---- ACESSOS (so producao) ----
