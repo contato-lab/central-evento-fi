@@ -830,6 +830,7 @@
         <!-- sub-abas do mural: a programacao geral e a agenda de coletivas de
              imprensa (12 e 13/08). A agenda e OFICIAL e fixa no codigo, em
              COLETIVAS — mudou a grade, edita la e sobe versao nova. -->
+        <div id="progUpdate" hidden></div>
         <div class="subtabs" id="subMural">
           <button type="button" class="subtab active" data-sub="prog">Programação</button>
           <button type="button" class="subtab" data-sub="shows">Shows</button>
@@ -1103,7 +1104,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-12.4";
+  var VERSAO = "2026-08-13.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2085,7 +2086,64 @@
   //
   // "Extra oficial" e SEPARADO de proposito: junto ("extraoficial") significaria
   // nao oficial, e estes eventos tem chancela. Aqui extra = adicional a grade.
+  // ═══════════════════════════════════════════════════════════════
+  // AVISO DE PROGRAMACAO ATUALIZADA
+  //
+  // A CADA PUBLICACAO DE CONTEUDO NOVO, MUDE O "id" AQUI. E o que faz a
+  // tarja aparecer pra quem ja tinha entrado antes. Quem ja viu ESTE id nao
+  // ve de novo; quem nunca entrou tambem nao ve (nao e novidade pra ele).
+  //
+  // aba: pra onde o botao "Ver" leva. Valores: prog, shows, coletivas, extras.
+  var PROG_UPDATE = {
+    id:    "2026-08-13-coletivas-extra",
+    texto: "Entraram três coletivas de hoje na Programação Extra Oficial: Brizze Motos às 15h, AIMA às 16h e MXF Group às 16h, 17h e 18h.",
+    aba:   "extras"
+  };
+
   var EXTRAS = [
+    {
+      // ATENCAO NO NOME: a Paty (imprensa) escreveu "Brizze"; a lista de marcas
+      // do proprio festival, mais acima neste arquivo, traz "Brizzo". As duas
+      // fontes sao internas e discordam. Ficou o da Paty por ser a fonte desta
+      // coletiva. Confirmado o certo, troca aqui.
+      nome:"Coletiva Brizze Motos",
+      quem:"Brizze Motos",
+      data:"2026-08-13",
+      rotulo:"Quinta-feira, 13/08",
+      local:"Arena",
+      itens:[
+        { de:"15:00", t:"Lançamento de marca",
+          d:"Coletiva de lançamento da marca, com moto elétrica. Horário de Brasília." }
+      ]
+    },
+    {
+      nome:"Coletiva MXF Group",
+      quem:"MXF Group",
+      data:"2026-08-13",
+      rotulo:"Quinta-feira, 13/08",
+      local:"Arena",
+      nota:"São três sessões da mesma apresentação, às 16h, 17h e 18h. Horário de Brasília.",
+      itens:[
+        { de:"16:00", t:"Lançamento MXF Group",
+          d:"Moto elétrica, protótipo off road 2 tempos injetada, linha 2027 e os novos quadros Loncin." },
+        { de:"17:00", t:"Lançamento MXF Group", d:"Mesma apresentação, nova sessão." },
+        { de:"18:00", t:"Lançamento MXF Group", d:"Mesma apresentação, nova sessão." }
+      ]
+    },
+    {
+      nome:"Coletiva AIMA",
+      quem:"AIMA",
+      data:"2026-08-13",
+      rotulo:"Quinta-feira, 13/08",
+      local:"Boulevard, em frente ao Stand 20",
+      nota:"Será sorteada uma moto AIMA entre os jornalistas que comparecerem à coletiva. Os dados de quem participar são coletados no local. O ganhador será anunciado em uma live no último dia do festival, e o processo todo será publicado no Instagram. A moto é exclusiva para imprensa.",
+      // sem "ate": a coordenacao passou so o horario de inicio, e nao invento
+      // duracao. O render aceita item sem fim e mostra so "16h00".
+      itens:[
+        { de:"16:00", t:"Coletiva de imprensa AIMA",
+          d:"Horário de Brasília. Coletiva fora da grade oficial de imprensa de quinta." }
+      ]
+    },
     {
       nome:"Meli 2 Rodas",
       quem:"Mercado Livre com a Revista Duas Rodas",
@@ -2287,7 +2345,20 @@
     var html = '<p class="colnota">Programação que acontece <b>além da grade oficial</b> do festival, '+
       'organizada pelos parceiros. Todos os eventos abaixo têm chancela do festival.</p>';
 
-    EXTRAS.forEach(function(ev){
+    // ordena por data pra nao depender de quem escreveu o array na ordem certa.
+    // Evento sem data vai pro fim: "a confirmar" nao disputa lugar com data firme.
+    // desempata pelo horario do primeiro bloco: com tres coletivas no mesmo dia,
+    // a ordem da tela tem que ser a ordem em que a pessoa vai correr atras delas
+    var chave = function(ev){
+      var t = (ev.itens && ev.itens[0]) ? coletivaMin(ev.itens[0].de) : null;
+      return (ev.data || "9999-99-99") + "_" + String(t == null ? 9999 : t).padStart(4, "0");
+    };
+    var lista = EXTRAS.slice().sort(function(a,b){
+      var ka = chave(a), kb = chave(b);
+      return ka < kb ? -1 : (ka > kb ? 1 : 0);
+    });
+
+    lista.forEach(function(ev){
       var ehHoje = (ev.data && ev.data === hoje);
       html += '<div class="coldia extra">';
       html += '<h3>' + esc(ev.nome) + (ehHoje ? ' <small>HOJE</small>' : '') + '</h3>';
