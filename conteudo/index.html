@@ -384,19 +384,32 @@
   .sg:not(.on):hover{color:var(--ink)}
   .sgn{font-family:var(--mono);font-weight:400;font-size:.7rem;opacity:.75}
 
+  /* ---------- LINHA DE ACOES: lupa, filtros, nova peca ---------- */
+  .acoes1{display:flex;gap:7px;margin:0 0 8px;align-items:stretch}
+  .lupa{flex:0 0 auto;width:46px;min-height:46px;background:transparent;
+    border:1px solid var(--line);border-radius:12px;color:var(--ink-2);
+    display:inline-flex;align-items:center;justify-content:center;padding:0}
+  .lupa:hover{border-color:var(--ink-3);color:var(--ink)}
+  .lupa.aberta{border-color:rgba(166,236,77,.5);color:var(--lime)}
+  /* buscando: a lupa fica acesa, senao a pessoa esquece que a lista esta cortada */
+  .lupa.tem{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .acoes1 .btn.nova{flex:0 0 auto;border-radius:12px;min-height:46px;white-space:nowrap}
+  .buscabox{display:flex;gap:7px;margin:0 0 8px}
+  .buscabox .busca{flex:1;min-width:0}
+  .buscabox .btn{flex:0 0 auto;min-height:46px;border-radius:12px}
+
   /* ---------- FILTROS RECOLHIDOS ---------- */
-  .filtrobtn{display:flex;align-items:center;gap:8px;width:100%;background:transparent;
-    border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin:0 0 8px;
+  .filtrobtn{display:flex;align-items:center;gap:8px;flex:1;min-width:0;background:transparent;
+    border:1px solid var(--line);border-radius:12px;padding:10px 13px;
     color:var(--ink-2);font-family:inherit;font-size:.82rem;font-weight:600;
-    text-align:left;min-height:44px}
+    text-align:left;min-height:46px}
   .filtrobtn:hover{border-color:var(--ink-3);color:var(--ink)}
-  .filtrobtn.aberto{border-color:rgba(166,236,77,.4);color:var(--ink);
-    margin-bottom:0;border-radius:12px 12px 0 0}
+  .filtrobtn.aberto{border-color:rgba(166,236,77,.5);color:var(--ink)}
   .fbr{flex:1}
   .fbn{font-family:var(--mono);font-size:.66rem;background:var(--lime);color:var(--lime-ink);
     border-radius:100px;padding:2px 8px;font-weight:700}
   .fbseta{font-family:var(--mono);font-size:1rem;color:var(--ink-3);width:18px;text-align:center}
-  .fbox{border:1px solid rgba(166,236,77,.4);border-top:none;border-radius:0 0 12px 12px;
+  .fbox{border:1px solid rgba(166,236,77,.4);border-radius:12px;
     padding:10px 12px 4px;margin:0 0 8px;background:var(--panel-2)}
   .fgr{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
     color:var(--ink-3);margin:2px 0 5px}
@@ -702,7 +715,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-14.4";
+  var VERSAO = "2026-08-14.5";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1026,6 +1039,7 @@
   // rolagem, e quem esta em campo liga o celular pra ver peca, nao painel.
   var statsAbertas = false;
   var filtrosAbertos = false;
+  var buscaAberta = false;
   // "No ar" ja foi feito. Comeca fechado pra nao enterrar o que ainda da trabalho:
   // num dia normal sao 26 publicadas contra 3 gravando.
   var etapaFechada = { publicado:true };
@@ -1267,11 +1281,6 @@
     h += resumoLinhaHTML(cTudo);
     if(statsAbertas) h += painelHTML(cTudo, "Total");
 
-    h += '<div class="barrafiltro">'+
-      '<input class="busca" id="buscaPeca" type="search" placeholder="Buscar marca, tema, editor..." value="'+esc(fBusca)+'">'+
-      (podeGerenciar("pecas") ? '<button class="btn" data-act="novapeca">+ Nova peça</button>' : '')+
-    '</div>';
-
     // MINHAS / TODAS vira chave de duas posicoes em vez de mais um chip solto.
     // E a escolha que a pessoa mais faz no dia, e estava perdida na quarta
     // posicao da primeira fileira, com a mesma cara dos outros seis filtros.
@@ -1282,15 +1291,37 @@
         'Todas <span class="sgn">'+pecas.length+'</span></button>'+
     '</div>';
 
-    // Os outros filtros somem atras de um botao com o numero dos que estao
-    // ligados. Eram 3 fileiras de pastilha permanentes na frente do trabalho,
-    // e na maior parte do dia nenhuma delas esta em uso.
+    // UMA LINHA SO PRA TUDO QUE E ACAO: buscar, filtrar, criar.
+    // A busca era uma caixa larga parada na tela o dia inteiro, e o time quase
+    // nunca busca: quando busca, sabe o que quer. Virou lupa. Junto com isso os
+    // filtros sairam da propria fileira e vieram pra ca, o que apagou uma faixa
+    // inteira antes da lista.
     var nAtivos = filtrosAtivos();
-    h += '<button class="filtrobtn'+(filtrosAbertos?" aberto":"")+'" data-act="abrirfiltros"'+
-         ' aria-expanded="'+(filtrosAbertos?"true":"false")+'">'+
-      '<span class="fbr">Filtros</span>'+
-      (nAtivos ? '<span class="fbn">'+nAtivos+'</span>' : '')+
-      '<span class="fbseta">'+(filtrosAbertos?"&minus;":"+")+'</span></button>';
+    var temBusca = !!fBusca.trim();
+    h += '<div class="acoes1">'+
+      '<button class="lupa'+(temBusca?" tem":"")+(buscaAberta?" aberta":"")+'" data-act="abrirbusca"'+
+        ' aria-label="Buscar peça" aria-expanded="'+(buscaAberta?"true":"false")+'">'+
+        '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"'+
+          ' stroke-width="2.1" stroke-linecap="round" aria-hidden="true">'+
+          '<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M20 20l-4.7-4.7"></path></svg>'+
+      '</button>'+
+      '<button class="filtrobtn'+(filtrosAbertos?" aberto":"")+'" data-act="abrirfiltros"'+
+        ' aria-expanded="'+(filtrosAbertos?"true":"false")+'">'+
+        '<span class="fbr">Filtros</span>'+
+        (nAtivos ? '<span class="fbn">'+nAtivos+'</span>' : '')+
+        '<span class="fbseta">'+(filtrosAbertos?"&minus;":"+")+'</span></button>'+
+      (podeGerenciar("pecas") ? '<button class="btn nova" data-act="novapeca">+ Nova peça</button>' : '')+
+    '</div>';
+
+    // A caixa aparece aberta tambem quando ha termo digitado: lista filtrada
+    // por um campo invisivel e o tipo de coisa que faz a pessoa achar que a
+    // peca dela sumiu do sistema.
+    if(buscaAberta || temBusca){
+      h += '<div class="buscabox">'+
+        '<input class="busca" id="buscaPeca" type="search" placeholder="Marca, tema, editor..." value="'+esc(fBusca)+'">'+
+        (temBusca ? '<button class="btn ghost" data-act="limparbusca">Limpar</button>' : '')+
+      '</div>';
+    }
 
     if(filtrosAbertos){
       h += '<div class="fbox">';
@@ -2046,6 +2077,20 @@
       fMinhas = quer; renderPecas(); return;
     }
     if(act === "abrirstats"){ statsAbertas = !statsAbertas; renderPecas(); return; }
+    if(act === "abrirbusca"){
+      buscaAberta = !buscaAberta;
+      // fechar a lupa limpa o termo de proposito: caixa escondida com busca
+      // ativa deixaria a lista filtrada por um campo que ninguem ve
+      if(!buscaAberta) fBusca = "";
+      renderPecas();
+      if(buscaAberta){ var cb = $("#buscaPeca"); if(cb) cb.focus(); }
+      return;
+    }
+    if(act === "limparbusca"){
+      fBusca = ""; buscaAberta = true; renderPecas();
+      var cb2 = $("#buscaPeca"); if(cb2) cb2.focus();
+      return;
+    }
     if(act === "abrirfiltros"){ filtrosAbertos = !filtrosAbertos; renderPecas(); return; }
     if(act === "limparfiltros"){
       fTipo="todos"; fStatus="todos"; fDia="todos"; fBoost=false;
