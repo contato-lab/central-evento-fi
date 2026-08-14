@@ -362,6 +362,15 @@
      o texto saia da linha e ficava cortado sem jeito de ler. */
   .fval{flex:1;min-width:0;font-size:.84rem;line-height:1.5;color:var(--ink-2);
     white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+  /* link dentro de texto digitado. Alvo generoso no vertical (padding + margem
+     negativa) porque endereco quebra em duas linhas no celular e a linha nua
+     de texto e fina demais pro dedo acertar. */
+  .lk{color:var(--lime);text-decoration:underline;text-underline-offset:2px;
+    overflow-wrap:anywhere;word-break:break-word;
+    padding:3px 0;margin:-3px 0;display:inline}
+  .lk:hover{color:var(--lime-d)}
+  .lk:active{opacity:.7}
+  .lk:focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:3px}
   .abrir{background:var(--panel-2);border:1px solid var(--line);color:var(--lime);
     border-radius:9px;padding:9px 11px;font-size:.72rem;font-weight:700;text-decoration:none;
     display:inline-flex;align-items:center;min-height:36px;flex:0 0 auto}
@@ -739,7 +748,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-14.8";
+  var VERSAO = "2026-08-14.9";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -794,6 +803,26 @@
   var $$ = function(s,r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
   var esc = function(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
     return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); };
+  // ENDERECO DIGITADO VIRA LINK CLICAVEL.
+  // O time cola link de referencia do Instagram, de Drive, de pasta, dentro de
+  // campos de texto. Antes ficava so escrito: a pessoa tinha que selecionar a
+  // mao, no celular, um endereco que quebra em duas linhas. Praticamente
+  // ninguem conseguia.
+  //
+  // ESCAPA PRIMEIRO, PROCURA O ENDERECO DEPOIS. Na ordem contraria, qualquer
+  // um poderia colar HTML num campo e ele viraria marcacao de verdade na tela
+  // de todo mundo. Por isso tambem so http e https viram link: javascript: e
+  // data: ficam como texto morto.
+  var linkar = function(s){
+    return esc(s).replace(/https?:\/\/[^\s<]+/g, function(u){
+      // pontuacao no fim quase sempre e da frase, nao do endereco. Sem isto o
+      // "Veja aqui: https://site.com." levaria pra uma pagina com ponto no fim.
+      var fim = "", m = u.match(/[.,;:!?)\]}>]+$/);
+      if(m){ fim = m[0]; u = u.slice(0, u.length - fim.length); }
+      if(!u) return fim;
+      return '<a class="lk" href="'+u+'" target="_blank" rel="noopener noreferrer">'+u+'</a>'+fim;
+    });
+  };
   var uid = function(){ return Math.random().toString(36).slice(2,9); };
   function toast(msg){ var t=$("#toast"); t.textContent=msg; t.classList.add("show");
     setTimeout(function(){ t.classList.remove("show"); },1800); }
@@ -1669,7 +1698,7 @@
         h += '<div class="legbox">'+
           '<div class="legtop"><span class="legtit">Legenda do post</span>'+
             '<button class="legcopy" data-act="copialeg" data-id="'+p.id+'">Copiar</button></div>'+
-          '<div class="legtx">'+esc(p.legenda)+'</div>'+
+          '<div class="legtx">'+linkar(p.legenda)+'</div>'+
         '</div>';
       }
       h += ficha("Editor", p.editor);
@@ -1690,10 +1719,13 @@
     return h;
   }
 
+  // ficha e por onde passam Referencia, Roteiro, Resumo, Editor e afins. Ligar
+  // o linkar aqui resolve todos de uma vez, e resolve tambem os campos que
+  // vierem depois: quem acrescentar um ficha() novo ganha o link de graca.
   function ficha(rotulo, valor){
     if(!valor) return "";
     return '<div class="campo"><span class="cl">'+esc(rotulo)+'</span>'+
-      '<span class="fval">'+esc(valor)+'</span></div>';
+      '<span class="fval">'+linkar(valor)+'</span></div>';
   }
 
   function formPecaHTML(){
@@ -1887,7 +1919,8 @@
         h += '<div class="chk'+(s.feito?" feito":"")+'">'+
           '<button class="chkbox'+(s.feito?" on":"")+'" data-act="chk" data-id="'+s.id+'" '+
             'aria-pressed="'+(s.feito?"true":"false")+'" aria-label="Marcar como feito">&#10003;</button>'+
-          '<span class="chktx">'+esc(s.texto||"")+
+          // o item do checklist tambem leva link colado (pasta do dia, referencia)
+          '<span class="chktx">'+linkar(s.texto||"")+
             '<span class="chkresp">'+(s.resp?'<b>'+esc(s.resp)+'</b>':'<button class="chkdel" data-act="quem" data-id="'+s.id+'" style="font-size:.62rem;letter-spacing:.06em">definir responsável</button>')+
             (s.resp?' · <button class="chkdel" data-act="quem" data-id="'+s.id+'" style="font-size:.62rem">trocar</button>':'')+
             '</span>'+
