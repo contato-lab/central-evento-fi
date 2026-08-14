@@ -521,6 +521,17 @@
   .rulebox .tx{font-size:.85rem;line-height:1.45;color:var(--ink-2)}
   .rulebox .tx b{color:var(--ink)}
 
+  /* convite pra ligar a notificacao no celular */
+  .pushbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0 0;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:11px 13px;font-size:.82rem;line-height:1.45;color:var(--ink-2)}
+  .pushtx{flex:1;min-width:150px}
+  .pushtx b{color:var(--ink)}
+  .pushbar .btn.pushok{flex:0 0 auto;min-height:42px;border-radius:10px;font-size:.8rem}
+  .pushx{flex:0 0 auto;background:transparent;border:0;color:var(--ink-3);
+    font-size:1.3rem;line-height:1;width:36px;height:36px;border-radius:9px}
+  .pushx:hover{color:var(--ink)}
+
   /* aviso de versao nova: rodape, acima do risco de gesto do iPhone */
   #novaVersao{position:fixed;left:0;right:0;bottom:0;z-index:95;display:flex;
     align-items:center;gap:10px;background:var(--lime);color:var(--lime-ink);
@@ -699,6 +710,7 @@
   <!-- faixa de novidade: fica FORA do main pra ser vista de qualquer aba,
        nao so da aba onde a coisa nova entrou -->
   <div class="wrap"><div id="novidades" hidden></div></div>
+  <div class="wrap"><div id="pushbar" hidden></div></div>
 
   <main class="wrap">
     <section id="view-coletivas"></section>
@@ -715,7 +727,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-14.5";
+  var VERSAO = "2026-08-14.6";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -2076,6 +2088,11 @@
       padraoMinhasFeito = true;
       fMinhas = quer; renderPecas(); return;
     }
+    if(act === "ativarpush"){ ativarPush(); return; }
+    if(act === "dispensarpush"){
+      try{ localStorage.setItem(PUSH_OFF, "1"); }catch(e){}
+      renderPushbar(); return;
+    }
     if(act === "abrirstats"){ statsAbertas = !statsAbertas; renderPecas(); return; }
     if(act === "abrirbusca"){
       buscaAberta = !buscaAberta;
@@ -2384,6 +2401,134 @@
   // MINI GUIA — uma unica vez por aparelho, e o "?" reabre quando quiser
   // ═══════════════════════════════════════════════════════════════
   // ═══════════════════════════════════════════════════════════════
+  // AVISO NO CELULAR (Web Push)
+  //
+  // Sem Telegram, sem app de loja: e a propria Central instalada na tela de
+  // inicio mandando notificacao, igual app.
+  //
+  // AS REGRAS DO IPHONE, que mandam no projeto porque o time e quase todo iOS:
+  //   1. So funciona com a Central ADICIONADA A TELA DE INICIO. No Safari
+  //      normal nao existe, nem aparece a opcao.
+  //   2. O pedido de permissao tem que sair de um TOQUE da pessoa dentro do
+  //      app instalado. Pedir sozinho ao abrir e ignorado pelo sistema.
+  //   3. Se a pessoa recusar, acabou: nao da pra perguntar de novo. Ela teria
+  //      que apagar o app da tela de inicio e adicionar outra vez.
+  // Por isso a barra explica ANTES o que vai acontecer, em vez de disparar o
+  // pedido no primeiro toque: com uma chance so, vale gastar uma frase.
+  // ═══════════════════════════════════════════════════════════════
+  // Chave publica VAPID. Publica mesmo, pode ficar no codigo: ela so serve pra
+  // o navegador amarrar a inscricao a este remetente. Quem assina o envio e a
+  // privada, que vive como secret na Cloudflare e nunca entra no repositorio.
+  var VAPID_PUB = "BGpVLKMV09mK8-elVjc7xgDKZVvwZAgZc1t_fVDGtNIHks_dE6On1zvRELrAlXaykrJnLD4qJrsH26IUjr8q73Q";
+  var PUSH_OFF  = "cfi_push_off";     // pessoa dispensou a barra
+  var swReg = null;
+
+  function pushSuportado(){
+    return !!(window.navigator && "serviceWorker" in navigator &&
+              "PushManager" in window && "Notification" in window);
+  }
+  function ehIOS(){
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+  function instaladoNaTela(){
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+           navigator.standalone === true;
+  }
+  function pushDispensado(){
+    try{ return localStorage.getItem(PUSH_OFF) === "1"; }catch(e){ return false; }
+  }
+
+  function registrarSW(){
+    if(!pushSuportado()) return Promise.resolve(null);
+    return navigator.serviceWorker.register("sw.js")
+      .then(function(r){ swReg = r; return r; })
+      ["catch"](function(){ return null; });
+  }
+
+  // a chave vai pro navegador como bytes, nao como texto
+  function chaveEmBytes(b64){
+    var s = (b64 + "=".repeat((4 - b64.length % 4) % 4)).replace(/-/g,"+").replace(/_/g,"/");
+    var bin = atob(s), arr = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  }
+
+  // id fixo por aparelho: sem ele, cada vez que a pessoa reativasse entraria uma
+  // inscricao nova e o mesmo celular receberia o aviso repetido
+  function idDaInscricao(endpoint){
+    var h = 5381;
+    for(var i=0;i<endpoint.length;i++){ h = ((h*33) ^ endpoint.charCodeAt(i)) >>> 0; }
+    return "s" + h.toString(36) + endpoint.length.toString(36);
+  }
+
+  function salvarInscricao(sub){
+    if(!FB_ON || !sub) return;
+    var j = sub.toJSON ? sub.toJSON() : sub;
+    var k = j.keys || {};
+    db.collection("cont_push").doc(idDaInscricao(j.endpoint)).set({
+      endpoint: j.endpoint,
+      p256dh: k.p256dh || "",
+      auth:   k.auth   || "",
+      quem:   meuNome || quemSou(),
+      perfil: PERFIL || "",
+      em:     Date.now()
+    })["catch"](function(e){ avisoDeFalha(e); });
+  }
+
+  function ativarPush(){
+    if(!pushSuportado()){ toast("Este navegador não faz notificação."); return; }
+    registrarSW().then(function(reg){
+      if(!reg){ toast("Não deu para preparar a notificação."); return; }
+      return Notification.requestPermission().then(function(p){
+        if(p !== "granted"){
+          toast(p === "denied"
+            ? "Notificação bloqueada nas configurações do aparelho."
+            : "Notificação não foi ativada.");
+          renderPushbar(); return;
+        }
+        return reg.pushManager.getSubscription().then(function(s){
+          return s || reg.pushManager.subscribe({
+            userVisibleOnly: true,                       // exigido no iOS
+            applicationServerKey: chaveEmBytes(VAPID_PUB)
+          });
+        }).then(function(sub){
+          salvarInscricao(sub);
+          toast("Pronto. Você vai receber aviso de peça nova.");
+          renderPushbar();
+        });
+      });
+    })["catch"](function(){ toast("Não deu para ativar a notificação."); });
+  }
+
+  function renderPushbar(){
+    var bar = $("#pushbar"); if(!bar || !PERM) return;
+    var esconder = function(){ bar.hidden = true; bar.innerHTML = ""; };
+
+    if(!pushSuportado() || pushDispensado()) return esconder();
+    if(window.Notification && Notification.permission === "granted") return esconder();
+    if(window.Notification && Notification.permission === "denied") return esconder();
+
+    var texto, botao;
+    if(ehIOS() && !instaladoNaTela()){
+      // No iPhone nao adianta oferecer o botao: o pedido nem aparece fora do
+      // app instalado. Melhor ensinar o caminho do que dar um botao que falha.
+      texto = "Para receber aviso de peça nova no celular, toque em Compartilhar e depois em <b>Adicionar à Tela de Início</b>. Abra a Central por lá e ative aqui.";
+      botao = "";
+    } else {
+      texto = "Quer receber aviso no celular quando entrar peça nova?";
+      botao = '<button class="btn pushok" data-act="ativarpush">Ativar</button>';
+    }
+
+    bar.hidden = false;
+    bar.innerHTML = '<div class="pushbar">'+
+      '<span class="pushtx">'+texto+'</span>'+
+      botao+
+      '<button class="pushx" data-act="dispensarpush" aria-label="Dispensar">&times;</button>'+
+    '</div>';
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // AVISO DE VERSAO NOVA
   // O celular guarda a pagina em cache, e no iPhone salvo na tela de inicio ele
   // segura por muito mais que os 10 minutos que o servidor pede. Isso ja deu
@@ -2518,6 +2663,11 @@
     try{ aplicarInterface(); }catch(e){ if(window.console) console.error("[conteudo] interface", e); }
     try{ ligarEscutas();     }catch(e){ if(window.console) console.error("[conteudo] escutas", e); setStatus("warn"); }
     renderAll();
+    try{
+      // registra o service worker sempre; a barra so aparece pra quem ainda
+      // nao ligou o aviso
+      registrarSW().then(function(){ try{ renderPushbar(); }catch(e){} });
+    }catch(e){}
     try{
       checarVersao();
       setInterval(checarVersao, 5*60*1000);
