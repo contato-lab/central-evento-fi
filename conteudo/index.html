@@ -442,6 +442,81 @@
   .guialista li{font-size:.9rem;line-height:1.5;color:var(--ink);padding-left:14px;border-left:2px solid var(--lime)}
   .guiacard .btn{width:100%;margin-top:18px}
   @media(min-width:560px){ #guiaOverlay{align-items:center} }
+
+  /* ═══════════ CELULAR ═══════════
+     O time usa isto de pe, andando pelo autodromo, com uma mao so. O problema
+     que o Eric pegou na tela dele: antes da PRIMEIRA peca aparecer, a pessoa
+     rolava topo + abas + 3 caixas de numero + 8 pastilhas + busca + 3 fileiras
+     de filtro. Quase uma tela inteira de enfeite antes do trabalho.
+
+     A regra aqui: numero e filtro viram UMA linha que desliza pro lado. O chip
+     cortado na borda direita ja avisa sozinho que tem mais coisa, entao nao
+     precisa de seta nem de instrucao. */
+  @media(max-width:620px){
+    /* --- topo ---
+       Eram 8 itens disputando 350px de largura util. O flex espremia o chip do
+       nome ate sobrar "Q...", justo o botao que liga o filtro Minhas pecas.
+       Tirando o risquinho separador e apertando os vaos, o nome volta a caber. */
+    .top .bar{height:60px;gap:7px}
+    .top .sep{display:none}
+    .top img.logo{height:32px}
+    .top img.logolime{height:34px}
+    .top .ajuda{width:32px;height:32px;font-size:.82rem}
+    .top .out{padding:7px 10px;font-size:.72rem}
+    .quemsou.eununo{max-width:none;flex:0 1 auto;min-width:0}
+
+    /* abas: as tres cabem sem precisar arrastar */
+    .tab{font-size:1rem;padding:12px 5px;gap:7px}
+
+    /* --- numeros ---
+       As 3 caixas continuam grandes porque sao as que mandam. As outras 8
+       viram uma fileira unica que desliza, em vez de tres fileiras empilhadas. */
+    .resumo{gap:6px;margin-bottom:6px}
+    .rbox{padding:7px 10px;flex:1 1 0;min-width:0;max-width:none}
+    .rbox .rk{font-size:.54rem;letter-spacing:.08em;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rbox .rv{font-size:1.3rem}
+
+    .tiras{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+      scrollbar-width:none;padding-bottom:2px;margin-bottom:8px}
+    .tiras::-webkit-scrollbar{display:none}
+    .tira{flex:0 0 auto;border-radius:10px}
+
+    /* --- filtros ---
+       Cada grupo numa linha so. Antes viravam sete fileiras somadas. */
+    .fchips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+      scrollbar-width:none;margin-bottom:6px;padding-bottom:2px}
+    .fchips::-webkit-scrollbar{display:none}
+    .fchip{flex:0 0 auto}
+    .subtabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+      scrollbar-width:none;padding-bottom:2px}
+    .subtabs::-webkit-scrollbar{display:none}
+    .subtab{flex:0 0 auto}
+
+    /* busca e Nova peca na mesma linha, sem a busca encolher a ponto de sumir */
+    .barrafiltro{gap:7px;margin-bottom:8px}
+    .busca{min-width:0;flex:1 1 140px;padding:10px 12px}
+    .barrafiltro .btn{flex:0 0 auto;padding:10px 13px;font-size:.8rem}
+
+    /* --- cartoes ---
+       Canto mais macio e menos respiro interno: cabe mais peca na tela sem
+       apertar o alvo do dedo, que continua acima de 44px pela altura do texto. */
+    .bloco{border-radius:14px;margin-bottom:8px}
+    .cabeca{padding:12px 13px;gap:10px}
+    .chora{min-width:44px;font-size:.98rem}
+    .stchip{border-radius:10px;padding:9px 12px}
+    .abrir{border-radius:10px}
+    .dica{border-radius:10px}
+    .novbar{padding:11px 12px;font-size:.82rem}
+    .novrow{padding:11px 12px}
+  }
+
+  /* telas bem estreitas (iPhone SE e afins) */
+  @media(max-width:380px){
+    .top .out{padding:7px 8px}
+    .rbox .rv{font-size:1.18rem}
+    .tab{font-size:.94rem}
+  }
 </style>
 
 <body class="fi">
@@ -508,7 +583,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-13.8";
+  var VERSAO = "2026-08-13.9";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
