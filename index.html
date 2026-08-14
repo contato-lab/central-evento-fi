@@ -591,6 +591,24 @@
     display:flex;align-items:baseline;gap:8px}
   .coldia h3 small{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;color:var(--ink-2)}
 
+  /* ---- proximas atracoes (faixa do locutor) ---- */
+  .proxbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:9px 12px 10px;margin:0 0 12px}
+  .proxtit{font-family:var(--mono);font-size:.56rem;letter-spacing:.16em;
+    color:var(--ink-3);margin-bottom:6px}
+  .proxlin{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:.9rem}
+  .proxlin + .proxlin{border-top:1px solid var(--line-soft)}
+  .proxh{font-family:var(--display);font-weight:700;font-size:1.05rem;
+    color:var(--ink-3);flex:0 0 auto;min-width:52px}
+  .proxn{flex:1;min-width:0;color:var(--ink-2);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .proxf{font-family:var(--mono);font-size:.66rem;color:var(--ink-3);flex:0 0 auto}
+  /* a primeira e a deixa que vem: so ela acende */
+  .proxlin.ja .proxh{color:var(--lime)}
+  .proxlin.ja .proxn{color:var(--ink);font-weight:600}
+  .proxlin.ja .proxf{color:var(--amber)}
+  .proxvazio{font-size:.84rem;color:var(--ink-3)}
+
   /* ---- dia que ja passou ---- */
   .coldia.passado{background:var(--panel-2);border-color:var(--line-soft)}
   /* fechado: uma linha so, com a contagem do que tem guardado ali dentro */
@@ -1058,6 +1076,11 @@
             </button>
           </div>
         </div>
+        <!-- proximas atracoes: fica ACIMA da fila de propósito. O locutor rola
+             a lista de recados o tempo todo; se isso ficasse embaixo ele nunca
+             veria a deixa chegando. -->
+        <div id="proxAtr" hidden></div>
+
         <div class="count" id="countRec"></div>
         <div class="list" id="listRec"></div>
 
@@ -1171,7 +1194,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-14.1";
+  var VERSAO = "2026-08-14.2";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2614,6 +2637,91 @@
     caixa.innerHTML = html;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // PROXIMAS ATRACOES (faixa acima da fila do locutor)
+  //
+  // Junta o que TEM HORA DE COMEÇO hoje: a programacao oficial e os shows.
+  // Coletiva de imprensa fica de fora porque nao e coisa que o locutor anuncia
+  // no palco, e entupiria a faixa nos dias de agenda cheia.
+  //
+  // Item de programacao com faixa ("08h00 às 20h00") entra pelo HORARIO DE
+  // ABERTURA. De manha isso e util ("Boulevard abre 08h"); depois que abriu ele
+  // sai sozinho da faixa, porque so mostramos o que ainda vai comecar.
+  // ═══════════════════════════════════════════════════════════════
+  function proximasAtracoes(quantas){
+    var hoje = hojeISO(), agora = minutosAgora(), lista = [];
+
+    PROGRAMACAO.forEach(function(dia){
+      if(dia.data !== hoje) return;
+      dia.itens.forEach(function(it){
+        if(it.de){
+          var m = coletivaMin(it.de);
+          if(m !== null) lista.push({ min:m, nome:it.nome });
+        } else {
+          (it.horas || []).forEach(function(h){
+            var mm = coletivaMin(h);
+            if(mm !== null) lista.push({ min:mm, nome:it.nome });
+          });
+        }
+      });
+    });
+
+    SHOWS.forEach(function(dia){
+      if(dia.data !== hoje) return;
+      dia.itens.forEach(function(it){
+        // "00h00 Fim" e marcador de encerramento, nao atracao pra anunciar
+        if(it.momento) return;
+        var m = coletivaMin(it.hora);
+        if(m !== null) lista.push({ min:m, nome:it.nome });
+      });
+    });
+
+    return lista
+      .filter(function(x){ return x.min > agora; })
+      .sort(function(a,b){ return a.min - b.min; })
+      .slice(0, quantas || 2);
+  }
+
+  function hhmm(min){
+    return ("0"+Math.floor(min/60)).slice(-2) + ":" + ("0"+(min%60)).slice(-2);
+  }
+  function faltaMin(min, agora){
+    var d = min - agora;
+    if(d <= 0) return "agora";
+    if(d < 60) return "em " + d + " min";
+    var h = Math.floor(d/60), m = d % 60;
+    return "em " + h + "h" + (m ? ("0"+m).slice(-2) : "");
+  }
+
+  function renderProxAtr(){
+    var box = $("#proxAtr"); if(!box) return;
+    // so quem le a fila precisa disso. A marca que manda recado nao anuncia nada.
+    if(!PERM || !podeVerFila()){ box.hidden = true; box.innerHTML = ""; return; }
+
+    var prox = proximasAtracoes(2), agora = minutosAgora();
+
+    // Sem nada pela frente, DIZ que acabou em vez de sumir calado: faixa que
+    // desaparece parece defeito, e as 23h o locutor ficaria na duvida se e
+    // fim de programacao ou tela quebrada.
+    if(!prox.length){
+      box.hidden = false;
+      box.innerHTML = '<div class="proxbox"><div class="proxtit">A SEGUIR</div>' +
+        '<div class="proxvazio">Programação de hoje encerrada.</div></div>';
+      return;
+    }
+
+    var linhas = prox.map(function(p, i){
+      return '<div class="proxlin' + (i === 0 ? ' ja' : '') + '">' +
+               '<span class="proxh">' + esc(hhmm(p.min)) + '</span>' +
+               '<span class="proxn">' + esc(p.nome) + '</span>' +
+               '<span class="proxf">' + esc(faltaMin(p.min, agora)) + '</span>' +
+             '</div>';
+    }).join("");
+
+    box.hidden = false;
+    box.innerHTML = '<div class="proxbox"><div class="proxtit">A SEGUIR</div>' + linhas + '</div>';
+  }
+
   function renderColetivas(){
     renderAgenda($("#coletivasBox"), COLETIVAS,
       'Agenda oficial das coletivas de imprensa. Cada integrante da equipe precisa do próprio convite recebido por e-mail.');
@@ -3090,8 +3198,14 @@
     protegido("interno", renderInterno, "#listInterno");
     protegido("fila",    renderRec,     "#listRec");
     protegido("acessos", renderAcessos, "#listAcess");
+    try{ renderProxAtr(); }catch(e){ if(window.console) console.error("[central] proximas", e); }
     try{ renderNovidades(); }catch(e){ if(window.console) console.error("[central] novidades", e); }
   }
+
+  // "em 12 min" vira mentira em 12 minutos. Redesenho so a faixa, de minuto em
+  // minuto: ela nao tem campo de digitacao nem nada que a pessoa esteja usando,
+  // entao nao rouba foco nem posicao de rolagem de ninguem.
+  setInterval(function(){ try{ renderProxAtr(); }catch(e){} }, 60*1000);
 
   // ═══════════════════════════════════════════════════════════════
   // FAIXA DE NOVIDADE
