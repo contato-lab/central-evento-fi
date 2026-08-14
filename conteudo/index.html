@@ -1,7 +1,12 @@
 <!doctype html>
 <html lang="pt-BR">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<!-- maximum-scale=1 foi tirado de proposito: ele bloqueia o zoom de pinca, e
+     boa parte desta tela e texto de 9 a 11px lido no sol, no meio do autodromo.
+     Quem nao consegue ler nao tem como aumentar. O zoom automatico do iPhone ao
+     tocar num campo, que era o motivo de estar ali, ja e resolvido pelos 16px
+     de fonte nos campos (regra la embaixo no CSS). -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Conteúdo · Suhai Festival Interlagos</title>
 <!-- modo app: instalado na tela de inicio abre sem a barra do navegador -->
 <meta name="theme-color" content="#0B0C0A">
@@ -54,7 +59,13 @@
   .wrap{max-width:1240px;margin:0 auto;padding:0 20px}
 
   /* ---------- LOGIN ---------- */
-  #gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;
+  /* place-items:center travava a tela de senha: com o teclado aberto no celular
+     a area visivel encolhe pra menos da metade, e o botao Entrar (e a mensagem
+     de senha errada) ficavam por baixo do teclado, sem rolagem nenhuma pra
+     alcancar. Agora rola, e o alinhamento so centraliza quando cabe. */
+  #gate{position:fixed;inset:0;z-index:100;display:grid;justify-items:center;
+    align-content:safe center;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));
     background:radial-gradient(700px 400px at 50% 0%,rgba(166,236,77,.12),transparent 60%),var(--bg)}
   .gatecard{width:100%;max-width:380px;text-align:center}
   .gatecard img.marca{height:110px;width:auto;margin:0 auto 24px;display:block}
@@ -157,8 +168,12 @@
 
   /* painel que desce: empurra a pagina, nao cobre. Camada flutuante no celular
      e ruim de fechar com uma mao so, e o time usa isso andando pelo autodromo */
+  /* O teto de 8 itens e POR ABA, entao com pendencia nas duas o painel chegava
+     a 16 linhas, quase 930px: numa tela de 780px abrir a faixa jogava a lista
+     inteira pra fora da vista. O teto de altura resolve independente da conta. */
   .novpanel{border:1px solid rgba(166,236,77,.35);border-top:none;
-    border-radius:0 0 12px 12px;background:rgba(166,236,77,.05);overflow:hidden}
+    border-radius:0 0 12px 12px;background:rgba(166,236,77,.05);
+    overflow-y:auto;max-height:46vh;-webkit-overflow-scrolling:touch}
   .novbar.aberta{border-radius:12px 12px 0 0}
   .novrow{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
     border-top:1px solid rgba(166,236,77,.16);padding:10px 14px;text-align:left;
@@ -332,6 +347,11 @@
      corrido faria a pessoa colar errado */
   .legtx{white-space:pre-wrap;word-break:break-word;font-size:.84rem;line-height:1.55;
     color:var(--ink)}
+  /* Referencia e Roteiro quase sempre levam um link colado. Sem min-width:0 o
+     item flex nao encolhe, e sem overflow-wrap a URL e uma "palavra" gigante:
+     o texto saia da linha e ficava cortado sem jeito de ler. */
+  .fval{flex:1;min-width:0;font-size:.84rem;line-height:1.5;color:var(--ink-2);
+    white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
   .abrir{background:var(--panel-2);border:1px solid var(--line);color:var(--lime);
     border-radius:9px;padding:9px 11px;font-size:.72rem;font-weight:700;text-decoration:none;
     display:inline-flex;align-items:center;min-height:36px;flex:0 0 auto}
@@ -513,9 +533,31 @@
        Canto mais macio e menos respiro interno: cabe mais peca na tela sem
        apertar o alvo do dedo, que continua acima de 44px pela altura do texto. */
     .bloco{border-radius:14px;margin-bottom:8px}
-    .cabeca{padding:12px 13px;gap:10px}
+
+    /* O CARTAO FECHADO EM DUAS LINHAS.
+       Era o pior problema da tela: na .cabeca so o .cmeio encolhe, e hora,
+       selo NOVA, tag de tipo, tag de status e o "+" sao todos rigidos. Em
+       390px sobravam 90px pro nome da marca, em 360px sobravam 12px. Resultado
+       medido: "CFMOTO Brasil" virava "CF…" e, com o selo NOVA junto, o nome
+       sumia inteiro. E o "Grava: / Edita:" NUNCA cabia em largura nenhuma de
+       celular, sendo que ele so existe pra o fotografo e o editor acharem a
+       peca deles sem abrir uma por uma.
+       Agora hora e etiquetas ficam na primeira linha e o nome ocupa a largura
+       toda na segunda. Nada foi escondido: o status continua a um relance. */
+    .cabeca{padding:12px 13px;gap:9px;flex-wrap:wrap;row-gap:7px}
+    .cabeca > .cmeio{flex:1 1 100%;order:2}
+    .cabeca > .chora,.cabeca > .tag,.cabeca > .tagnova,
+    .cabeca > .cbox,.cabeca > .cprog{order:1}
+    .cabeca > .cmais{order:1;margin-left:auto}
     .chora{min-width:44px;font-size:.98rem}
+    .cnome{white-space:normal;font-size:1rem;line-height:1.25}
+    .cinflu{white-space:normal}
+    .cgente{white-space:normal;line-height:1.4}
     .stchip{border-radius:10px;padding:9px 12px}
+    /* desmarcar uma rede sem querer esconde o campo com o link ja colado, entao
+       este chip merece alvo maior e mais folga entre um e outro */
+    .mini{min-height:46px;padding:11px 14px;border-radius:10px}
+    .linhaflex{gap:10px}
     .abrir{border-radius:10px}
     .dica{border-radius:10px}
     .novbar{padding:11px 12px;font-size:.82rem}
@@ -594,7 +636,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-13.10";
+  var VERSAO = "2026-08-14.1";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1095,8 +1137,34 @@
   // Lista unica com filtro, como o time pediu (nao dois blocos separados).
   // Ordem dos campos exatamente como fechada no briefing.
   // ═══════════════════════════════════════════════════════════════
+  // O QUE A PESSOA DIGITOU E AINDA NAO SALVOU.
+  // renderPecas redesenha a secao inteira por innerHTML, e o formulario mora
+  // dentro dela. Entao qualquer toque em filtro, em chip de dia ou em cartao
+  // apagava a peca inteira que estava sendo escrita, inclusive a legenda, sem
+  // aviso nenhum. No celular isso e facil demais de acontecer: a pessoa esbarra
+  // num chip com o polegar e perde o texto todo.
+  // Guardar o rascunho e melhor que travar os filtros: ninguem fica preso e
+  // nada se perde. O rascunho vive so na tela, nao vai pro banco.
+  var rascunhoPeca = null;
+  var CAMPOS_PECA = ["dia","tipo","marca","formato","tema","referencia","roteiro",
+                     "quemGrava","resumo","editor","legenda","horario","status"];
+
+  function guardarRascunho(){
+    if(!editandoPeca){ return; }
+    var r = null;
+    for(var i=0;i<CAMPOS_PECA.length;i++){
+      var e = $("#f_" + CAMPOS_PECA[i]);
+      if(e){ (r = r || {})[CAMPOS_PECA[i]] = String(e.value || ""); }
+    }
+    // so troca se realmente havia formulario na tela; senao um redesenho com o
+    // form ainda nao montado zeraria o que ja estava guardado
+    if(r) rascunhoPeca = r;
+  }
+  function limparRascunho(){ rascunhoPeca = null; }
+
   function renderPecas(){
     var el = $("#view-pecas");
+    guardarRascunho();
     if(!podeVer("pecas")){
       el.innerHTML = '<div class="vazio"><div class="big">Sem acesso a esta aba</div>'+
         '<div class="sm">Seu login é de StoryMaker. Use a aba StoryMaker.</div></div>';
@@ -1269,12 +1337,20 @@
   function ficha(rotulo, valor){
     if(!valor) return "";
     return '<div class="campo"><span class="cl">'+esc(rotulo)+'</span>'+
-      '<span style="flex:1;font-size:.84rem;line-height:1.5;color:var(--ink-2);white-space:pre-wrap">'+esc(valor)+'</span></div>';
+      '<span class="fval">'+esc(valor)+'</span></div>';
   }
 
   function formPecaHTML(){
     var p = editandoPeca === "novo" ? {} : (pecas.filter(function(x){ return x.id===editandoPeca; })[0] || {});
     var novo = editandoPeca === "novo";
+    // o que a pessoa digitou vence o que esta no banco: e o rascunho que
+    // sobrevive ao redesenho da lista
+    if(rascunhoPeca){
+      var base = {}, k;
+      for(k in p){ if(Object.prototype.hasOwnProperty.call(p,k)) base[k] = p[k]; }
+      for(k in rascunhoPeca){ if(Object.prototype.hasOwnProperty.call(rascunhoPeca,k)) base[k] = rascunhoPeca[k]; }
+      p = base;
+    }
     var i, h = '<div class="form"><h3>'+(novo?"Nova peça":"Editar peça")+'</h3><div class="grid2">';
 
     h += '<div class="fld"><label>Dia</label><select id="f_dia">';
@@ -1788,7 +1864,7 @@
       renderStory(); return;
     }
     if(act === "meunome"){ pedirNome(false); return; }
-    if(act === "cancelarpeca"){ editandoPeca=null; renderPecas(); return; }
+    if(act === "cancelarpeca"){ editandoPeca=null; limparRascunho(); renderPecas(); return; }
     if(act === "copialeg"){
       var pl = pecas.filter(function(x){ return x.id===id; })[0];
       if(!pl || !pl.legenda) return;
@@ -1831,13 +1907,13 @@
     // ---- pecas ----
     if(act === "novapeca"){
       if(!podeGerenciar("pecas")){ toast("Seu acesso não cria peças."); return; }
-      editandoPeca = "novo"; renderPecas();
+      editandoPeca = "novo"; limparRascunho(); renderPecas();
       var f=$("#f_marca"); if(f) f.focus();
       return;
     }
     if(act === "editarpeca"){
       if(!podeGerenciar("pecas")){ toast("Seu acesso não edita peças."); return; }
-      editandoPeca = id; renderPecas();
+      editandoPeca = id; limparRascunho(); renderPecas();
       var fm=$("#f_marca"); if(fm) fm.focus();
       return;
     }
@@ -2008,6 +2084,7 @@
       toast("Peça salva.");
     }
     editandoPeca = null;
+    limparRascunho();
     renderPecas();
   }
 
