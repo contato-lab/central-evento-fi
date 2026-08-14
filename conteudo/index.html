@@ -271,6 +271,16 @@
   .cabeca:hover{background:var(--panel-2)}
   .chora{font-family:var(--display);font-weight:700;font-size:1.05rem;color:var(--lime);
     min-width:56px;flex:0 0 auto}
+  /* QUANTO FALTA. Vem antes de tudo no cartao porque e a unica informacao que
+     responde "faco isso agora?". A hora exata fica do lado, menor, pra quem
+     precisa do numero. */
+  .cfalta{font-family:var(--display);font-weight:700;font-size:.95rem;
+    color:var(--ink-2);flex:0 0 auto;white-space:nowrap}
+  .cfalta.perto{color:var(--amber)}
+  .cfalta.atraso{color:var(--red)}
+  .cquando{font-family:var(--mono);font-size:.66rem;color:var(--ink-3);
+    flex:0 0 auto;white-space:nowrap}
+  .bloco.atrasada{border-color:rgba(245,69,63,.45)}
   /* display:block obrigatorio: sao <span>, e sem isso marca e influenciador
      saem grudados na mesma linha ("CFMOTOSeku Mello"). */
   .cnome{display:block;font-weight:700;font-size:.96rem;line-height:1.3;
@@ -372,6 +382,7 @@
   .r1t b{font-family:var(--display);font-size:1.15rem;color:var(--lime)}
   .r1s{flex:1;min-width:0;color:var(--ink-2);font-size:.76rem;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .r1atraso{color:var(--red)}
   .r1seta{font-family:var(--mono);font-size:1rem;color:var(--ink-3);flex:0 0 auto;width:18px;text-align:center}
 
   /* ---------- CHAVE MINHAS / TODAS ---------- */
@@ -637,6 +648,7 @@
     .cabeca{padding:12px 13px;gap:9px;flex-wrap:wrap;row-gap:7px}
     .cabeca > .cmeio{flex:1 1 100%;order:2}
     .cabeca > .chora,.cabeca > .tag,.cabeca > .tagnova,
+    .cabeca > .cfalta,.cabeca > .cquando,
     .cabeca > .cbox,.cabeca > .cprog{order:1}
     .cabeca > .cmais{order:1;margin-left:auto}
     .chora{min-width:44px;font-size:.98rem}
@@ -727,7 +739,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-14.6";
+  var VERSAO = "2026-08-14.7";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1368,8 +1380,18 @@
           ? "Limpe a busca ou escolha outro filtro para ver o resto."
           : "Toque em <b>+ Nova peça</b> para cadastrar o primeiro conteúdo orgânico ou pago.")+'</div></div>';
     } else {
+      // ORDEM = QUANDO VAI AO AR, nao quando foi cadastrada.
+      // Antes era dia + ordem de cadastro, entao a peca das 15h aparecia antes
+      // da de 13h so por ter sido criada primeiro. Quem esta em campo abre a
+      // lista pra saber o que e agora, nao quem chegou antes.
+      // Sem hora vai pro fim do dia: nao da pra afirmar que e urgente, e chutar
+      // 00:00 colocaria ela em cima de tudo.
       vis.sort(function(a,b){
         if((a.dia||"") !== (b.dia||"")) return (a.dia||"") < (b.dia||"") ? -1 : 1;
+        var ma = minutosDe(a.horario), mb = minutosDe(b.horario);
+        if(ma === null && mb !== null) return 1;
+        if(mb === null && ma !== null) return -1;
+        if(ma !== null && mb !== null && ma !== mb) return ma - mb;
         return (a.criadoEm||0) - (b.criadoEm||0);
       });
       h += listaPorEtapaHTML(vis);
@@ -1401,16 +1423,24 @@
 
   function resumoLinhaHTML(c){
     var p = [];
-    if(c.semStatus) p.push(c.semStatus + " sem status");
-    if(c.gravando)  p.push(c.gravando + " gravando");
-    if(c.edicao)    p.push(c.edicao + " em edição");
-    if(c.pronto)    p.push(c.pronto + (c.pronto === 1 ? " pronta" : " prontas"));
-    if(c.publicado) p.push(c.publicado + " no ar");
+    // atrasada vem PRIMEIRO e em vermelho: e a unica linha do resumo que pede
+    // acao agora. O resto e retrato da situacao.
+    var nAtraso = 0;
+    for(var i=0;i<pecas.length;i++){ if(atrasada(pecas[i])) nAtraso++; }
+    // as partes ja entram como HTML pronto e escapado uma a uma; nao da pra
+    // escapar o join inteiro, senao a marcacao do atraso viraria texto na tela
+    if(nAtraso) p.push('<b class="r1atraso">' + nAtraso +
+      (nAtraso === 1 ? " atrasada" : " atrasadas") + '</b>');
+    if(c.semStatus) p.push(esc(c.semStatus + " sem status"));
+    if(c.gravando)  p.push(esc(c.gravando + " gravando"));
+    if(c.edicao)    p.push(esc(c.edicao + " em edição"));
+    if(c.pronto)    p.push(esc(c.pronto + (c.pronto === 1 ? " pronta" : " prontas")));
+    if(c.publicado) p.push(esc(c.publicado + " no ar"));
     if(!p.length)   p.push("nenhuma cadastrada ainda");
     return '<button class="resumo1'+(statsAbertas?" aberto":"")+'" data-act="abrirstats"'+
       ' aria-expanded="'+(statsAbertas?"true":"false")+'">'+
       '<span class="r1t"><b>'+c.total+'</b> '+(c.total===1?"peça":"peças")+'</span>'+
-      '<span class="r1s">'+esc(p.join(" · "))+'</span>'+
+      '<span class="r1s">'+p.join(" · ")+'</span>'+
       '<span class="r1seta">'+(statsAbertas?"&minus;":"+")+'</span></button>';
   }
 
@@ -1470,6 +1500,85 @@
     return true;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // HORA DA PECA
+  // O campo era texto livre com exemplo "19h30", e o time digitou "13:00".
+  // Os dois formatos convivem no banco, entao qualquer coisa que dependa da
+  // hora (ordem, atraso) precisa entender os dois. Le "13:00", "13h30", "13h",
+  // "1330" e "9h5". Devolve minutos desde a meia-noite, ou null quando nao da
+  // pra ter certeza: chutar 00:00 jogaria a peca pro topo da fila como se
+  // fosse a mais urgente do dia.
+  // ═══════════════════════════════════════════════════════════════
+  function minutosDe(horario){
+    var s = String(horario || "").trim();
+    if(!s) return null;
+    var m = s.match(/^(\d{1,2})\s*[:hH]\s*(\d{1,2})?/);
+    if(!m){
+      m = s.match(/^(\d{2})(\d{2})$/);        // "1330"
+      if(!m) return null;
+      return parseInt(m[1],10)*60 + parseInt(m[2],10);
+    }
+    var hh = parseInt(m[1],10), mm = m[2] ? parseInt(m[2],10) : 0;
+    if(isNaN(hh) || hh > 23 || mm > 59) return null;
+    return hh*60 + mm;
+  }
+
+  // Sempre HH:MM na tela, venha como vier do banco.
+  function horaBonita(horario){
+    var min = minutosDe(horario);
+    if(min === null) return String(horario || "").trim();
+    return ("0"+Math.floor(min/60)).slice(-2) + ":" + ("0"+(min%60)).slice(-2);
+  }
+
+  // Passou da hora e ainda nao esta no ar. E ESTE o sinal de prioridade que o
+  // time precisa: a ordem por horario ja bota o mais proximo em cima, mas quem
+  // esta em cima nao necessariamente esta atrasado.
+  // Momento exato em que a peca deveria ir ao ar. Monto com new Date(ano, mes,
+  // dia, h, m) em vez de new Date("2026-08-14T13:00") porque a string com T e
+  // interpretada como UTC por alguns navegadores, e o time todo estaria vendo
+  // "3h atrasada" no lugar de "no horario".
+  function quandoVaiAoAr(p){
+    var min = minutosDe(p && p.horario);
+    if(min === null || !p.dia) return null;
+    var d = String(p.dia).split("-");
+    if(d.length !== 3) return null;
+    var q = new Date(+d[0], +d[1]-1, +d[2], Math.floor(min/60), min%60, 0, 0);
+    return isNaN(q.getTime()) ? null : q;
+  }
+
+  function atrasada(p){
+    if(!p || p.status === "publicado") return false;
+    var q = quandoVaiAoAr(p);
+    return !!q && q.getTime() < Date.now();
+  }
+
+  // "2h atrasada", "em 40 min", "em 4h". O time esta correndo pelo autodromo e
+  // nao vai comparar "13:00" com o relogio do celular pra descobrir se ja
+  // passou. Peca publicada nao mostra nada: ja foi, tempo perdeu a graca.
+  function faltaQuanto(p){
+    var vazio = { texto:"", nivel:"" };
+    if(!p || p.status === "publicado") return vazio;
+    var q = quandoVaiAoAr(p);
+    if(!q) return vazio;
+
+    var diff = Math.round((q.getTime() - Date.now()) / 60000);   // em minutos
+    var abs = Math.abs(diff), txt;
+    if(abs < 60){
+      txt = abs + " min";
+    } else if(abs < 60*24){
+      var hh = Math.floor(abs/60), mm = abs%60;
+      txt = hh + "h" + (mm ? ("0"+mm).slice(-2) : "");
+    } else {
+      var dias = Math.round(abs/(60*24));
+      txt = dias + (dias === 1 ? " dia" : " dias");
+    }
+
+    if(abs <= 1)  return { texto:"agora",             nivel:"perto"  };
+    if(diff < 0)  return { texto:txt + " atrasada",   nivel:"atraso" };
+    if(diff <= 60)return { texto:"em " + txt,         nivel:"perto"  };
+    return          { texto:"em " + txt,              nivel:""       };
+  }
+
   function rotuloDia(d){
     for(var i=0;i<DIAS_STORY.length;i++){ if(DIAS_STORY[i].dia===d) return DIAS_STORY[i].rotulo; }
     return d ? d.slice(8)+"/"+d.slice(5,7) : "—";
@@ -1493,11 +1602,19 @@
   function blocoPecaHTML(p){
     var aberto = !!abertos["p_"+p.id];
     var nova = ehNovo("pecas", p);
+    var late = atrasada(p);
+    var hora = horaBonita(p.horario);
+    var q    = faltaQuanto(p);
     var h = '<div class="bloco'+(p.status==="publicado"?" completo":"")+(nova?" ehnovo":"")+
-            '" id="pc_'+esc(p.id)+'">';
+            (late?" atrasada":"")+'" id="pc_'+esc(p.id)+'">';
     h += '<button class="cabeca" data-act="abrirpeca" data-id="'+p.id+'">'+
       (nova ? '<span class="tagnova">NOVA</span>' : '')+
-      '<span class="chora">'+esc(rotuloDia(p.dia).replace(/^\S+\s/,""))+'</span>'+
+      // QUANTO FALTA na frente, hora exata do lado. A hora ja estava no banco
+      // e nunca aparecia: o time preenchia e nunca via de volta.
+      (q.texto ? '<span class="cfalta '+q.nivel+'">'+esc(q.texto)+'</span>' : '')+
+      '<span class="cquando">'+
+        (hora ? esc(hora)+' · ' : '')+
+        esc(rotuloDia(p.dia).replace(/^\S+\s/,""))+'</span>'+
       '<span class="cmeio">'+
         '<span class="cnome">'+esc(p.marca||"Sem marca")+'</span>'+
         '<span class="cinflu">'+esc(p.formato||"—")+(p.tema?' · '+esc(p.tema):"")+'</span>'+
@@ -1610,7 +1727,13 @@
       '<textarea id="f_legenda" maxlength="4000" rows="4" style="min-height:110px" '+
       'placeholder="Texto do post, com hashtags e arrobas, do jeito que vai no ar">'+esc(p.legenda||"")+'</textarea>'+
       '<span style="font-size:.68rem;color:var(--ink-3);margin-top:4px">Escreva já com hashtag e @, pra quem publicar só copiar e colar.</span></div>';
-    h += '<div class="fld"><label>Horário de veiculação</label><input id="f_horario" type="text" value="'+esc(p.horario||"")+'" placeholder="19h30"></div>';
+    // type="time" abre o relogio nativo no celular e devolve sempre HH:MM.
+    // O campo era texto livre com exemplo "19h30" e o time digitou "13:00":
+    // dois formatos no mesmo banco, e a ordenacao por hora depende disso.
+    // horaBonita normaliza o que ja foi gravado antes, senao o valor antigo
+    // chegaria num campo de hora que nao aceita "19h30" e apareceria vazio.
+    h += '<div class="fld"><label>Horário de veiculação</label>'+
+         '<input id="f_horario" type="time" value="'+esc(horaBonita(p.horario))+'"></div>';
 
     h += '<div class="fld"><label>Status</label><select id="f_status">';
     for(i=0;i<STATUS.length;i++) h += '<option value="'+STATUS[i]+'"'+(p.status===STATUS[i]?" selected":"")+'>'+esc(ST_LABEL[STATUS[i]])+'</option>';
@@ -2667,6 +2790,16 @@
       // registra o service worker sempre; a barra so aparece pra quem ainda
       // nao ligou o aviso
       registrarSW().then(function(){ try{ renderPushbar(); }catch(e){} });
+    }catch(e){}
+    // "em 40 min" vira mentira sozinho se ninguem redesenhar. De minuto em
+     // minuto, e so quando a aba de pecas esta na frente e ninguem esta
+     // digitando: redesenhar por baixo de quem escreve rouba foco e rolagem.
+    try{
+      setInterval(function(){
+        if(abaAtual !== "pecas" || editandoPeca) return;
+        if(digitandoEm("#view-pecas")) return;
+        try{ renderPecas(); }catch(e){}
+      }, 60*1000);
     }catch(e){}
     try{
       checarVersao();
