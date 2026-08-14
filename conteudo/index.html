@@ -363,6 +363,63 @@
   .busca{flex:1;min-width:190px;background:var(--panel);border:1px solid var(--line);color:var(--ink);
     border-radius:11px;padding:11px 14px;font-size:.88rem}
   .busca:focus{outline:none;border-color:var(--lime)}
+  /* ---------- RESUMO EM UMA LINHA ---------- */
+  .resumo1{display:flex;align-items:center;gap:10px;width:100%;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin:0 0 8px;
+    color:var(--ink);font-family:inherit;font-size:.82rem;text-align:left;min-height:46px}
+  .resumo1:hover{border-color:var(--ink-3)}
+  .r1t{flex:0 0 auto}
+  .r1t b{font-family:var(--display);font-size:1.15rem;color:var(--lime)}
+  .r1s{flex:1;min-width:0;color:var(--ink-2);font-size:.76rem;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .r1seta{font-family:var(--mono);font-size:1rem;color:var(--ink-3);flex:0 0 auto;width:18px;text-align:center}
+
+  /* ---------- CHAVE MINHAS / TODAS ---------- */
+  .segm{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:4px;margin:0 0 8px}
+  .sg{flex:1;background:transparent;border:0;border-radius:9px;color:var(--ink-3);
+    font-family:inherit;font-weight:700;font-size:.82rem;padding:9px 6px;min-height:42px;
+    display:inline-flex;align-items:center;justify-content:center;gap:7px}
+  .sg.on{background:var(--lime);color:var(--lime-ink)}
+  .sg:not(.on):hover{color:var(--ink)}
+  .sgn{font-family:var(--mono);font-weight:400;font-size:.7rem;opacity:.75}
+
+  /* ---------- FILTROS RECOLHIDOS ---------- */
+  .filtrobtn{display:flex;align-items:center;gap:8px;width:100%;background:transparent;
+    border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin:0 0 8px;
+    color:var(--ink-2);font-family:inherit;font-size:.82rem;font-weight:600;
+    text-align:left;min-height:44px}
+  .filtrobtn:hover{border-color:var(--ink-3);color:var(--ink)}
+  .filtrobtn.aberto{border-color:rgba(166,236,77,.4);color:var(--ink);
+    margin-bottom:0;border-radius:12px 12px 0 0}
+  .fbr{flex:1}
+  .fbn{font-family:var(--mono);font-size:.66rem;background:var(--lime);color:var(--lime-ink);
+    border-radius:100px;padding:2px 8px;font-weight:700}
+  .fbseta{font-family:var(--mono);font-size:1rem;color:var(--ink-3);width:18px;text-align:center}
+  .fbox{border:1px solid rgba(166,236,77,.4);border-top:none;border-radius:0 0 12px 12px;
+    padding:10px 12px 4px;margin:0 0 8px;background:var(--panel-2)}
+  .fgr{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-3);margin:2px 0 5px}
+  .fchip.lim{border-style:dashed;color:var(--ink-3)}
+  .fchip.lim:hover{color:var(--red);border-color:rgba(245,69,63,.5)}
+
+  /* ---------- CABECALHO DE ETAPA ---------- */
+  .etapa{display:flex;align-items:center;gap:9px;width:100%;background:transparent;border:0;
+    border-bottom:1px solid var(--line-soft);color:var(--ink-2);font-family:var(--display);
+    font-weight:700;font-size:1.02rem;letter-spacing:-.01em;padding:14px 2px 8px;
+    margin-top:6px;text-align:left;min-height:44px}
+  .etapa:hover{color:var(--ink)}
+  .etapa.fechada{color:var(--ink-3)}
+  .etp{width:8px;height:8px;border-radius:50%;background:var(--ink-3);flex:0 0 auto}
+  .etapa[data-st=gravando] .etp{background:var(--amber)}
+  .etapa[data-st=edicao] .etp{background:var(--cyan)}
+  .etapa[data-st=pronto] .etp{background:var(--roxo)}
+  .etapa[data-st=publicado] .etp{background:var(--lime)}
+  .etr{flex:1;min-width:0}
+  .etn{font-family:var(--mono);font-weight:400;font-size:.68rem;color:var(--ink-3);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:100px;padding:2px 8px}
+  .etseta{font-family:var(--mono);font-size:1rem;color:var(--ink-3);width:20px;text-align:center}
+
   .fchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px}
   .fchip{background:var(--panel);border:1px solid var(--line);color:var(--ink-3);
     border-radius:20px;padding:7px 14px;font-size:.76rem;font-weight:600;min-height:36px}
@@ -450,6 +507,15 @@
   .rulebox .ic{color:var(--lime);font-weight:700;flex:0 0 auto;line-height:1.45}
   .rulebox .tx{font-size:.85rem;line-height:1.45;color:var(--ink-2)}
   .rulebox .tx b{color:var(--ink)}
+
+  /* aviso de versao nova: rodape, acima do risco de gesto do iPhone */
+  #novaVersao{position:fixed;left:0;right:0;bottom:0;z-index:95;display:flex;
+    align-items:center;gap:10px;background:var(--lime);color:var(--lime-ink);
+    font-size:.84rem;font-weight:700;padding:12px 16px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+  #novaVersao span{flex:1;min-width:0}
+  #novaVersao button{background:var(--lime-ink);color:var(--lime);border:0;border-radius:9px;
+    padding:9px 14px;font-family:inherit;font-weight:700;font-size:.8rem;min-height:42px;flex:0 0 auto}
 
   /* ---------- MINI GUIA ---------- */
   #guiaOverlay{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:90;
@@ -636,7 +702,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-14.2";
+  var VERSAO = "2026-08-14.3";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -955,6 +1021,16 @@
   var abertos={};                      // id -> true (cartoes expandidos)
   var fBusca="", fTipo="todos", fStatus="todos", fDia="todos", fBoost=false, fMinhas=false;
 
+  // A tela abre RECOLHIDA. Os numeros e os filtros continuam todos ali, a um
+  // toque, mas fora do caminho: eles empurravam a primeira peca pra 455px de
+  // rolagem, e quem esta em campo liga o celular pra ver peca, nao painel.
+  var statsAbertas = false;
+  var filtrosAbertos = false;
+  // "No ar" ja foi feito. Comeca fechado pra nao enterrar o que ainda da trabalho:
+  // num dia normal sao 26 publicadas contra 3 gravando.
+  var etapaFechada = { publicado:true };
+  var padraoMinhasFeito = false;
+
   // O login e compartilhado (uma senha pro time inteiro), entao o sistema nao
   // sabe quem esta do outro lado. A pessoa diz o nome uma vez e fica gravado no
   // aparelho: e o que faz o "Minhas peças" e o destaque em lime funcionarem.
@@ -1172,30 +1248,65 @@
     }
     var i, h='';
 
+    // ABRE JA NO NOME DA PESSOA. Quem esta em campo liga o celular pra ver o
+    // que e DELA, nao a lista das 27 do time. So liga se ela realmente tiver
+    // peca no nome: abrir vazio faria parecer que o sistema perdeu tudo.
+    if(!padraoMinhasFeito && meuNome){
+      padraoMinhasFeito = true;
+      if(contarMinhas(pecas) > 0) fMinhas = true;
+    }
+
     var vis = pecas.filter(passaFiltro);
-    h += painelHTML(contarPainel(pecas), "Total");
+    var cTudo = contarPainel(pecas);
+
+    h += resumoLinhaHTML(cTudo);
+    if(statsAbertas) h += painelHTML(cTudo, "Total");
 
     h += '<div class="barrafiltro">'+
-      '<input class="busca" id="buscaPeca" type="search" placeholder="Buscar por marca, tema, formato, editor..." value="'+esc(fBusca)+'">'+
+      '<input class="busca" id="buscaPeca" type="search" placeholder="Buscar marca, tema, editor..." value="'+esc(fBusca)+'">'+
       (podeGerenciar("pecas") ? '<button class="btn" data-act="novapeca">+ Nova peça</button>' : '')+
     '</div>';
 
-    h += '<div class="fchips">';
-    h += chip("tipo","todos","Todas", fTipo==="todos");
-    h += chip("tipo","organico","Orgânico", fTipo==="organico");
-    h += chip("tipo","pago","Pago", fTipo==="pago");
-    // "Minhas" e o atalho de quem grava e de quem edita: com dezenas de pecas
-    // cadastradas, o filmaker precisa achar a dele sem ler a lista inteira
-    h += '<button class="fchip destaque'+(fMinhas?" on":"")+'" data-act="fminhas">'+
-         (meuNome ? "Minhas ("+esc(meuNome.split(" ")[0])+")" : "Minhas peças")+'</button>';
-    h += '</div><div class="fchips">';
-    h += chip("status","todos","Todos os status", fStatus==="todos");
-    for(i=0;i<STATUS.length;i++) h += chip("status",STATUS[i],ST_LABEL[STATUS[i]], fStatus===STATUS[i]);
-    h += '</div><div class="fchips">';
-    h += chip("dia","todos","Todos os dias", fDia==="todos");
-    for(i=0;i<DIAS_PECA.length;i++) h += chip("dia",DIAS_PECA[i].dia,DIAS_PECA[i].rotulo, fDia===DIAS_PECA[i].dia);
-    h += '<button class="fchip'+(fBoost?" on":"")+'" data-act="fboost">Só impulsionar</button>';
-    h += '</div>';
+    // MINHAS / TODAS vira chave de duas posicoes em vez de mais um chip solto.
+    // E a escolha que a pessoa mais faz no dia, e estava perdida na quarta
+    // posicao da primeira fileira, com a mesma cara dos outros seis filtros.
+    h += '<div class="segm">'+
+      '<button class="sg'+(fMinhas?" on":"")+'" data-act="segm" data-v="minhas">'+
+        'Minhas <span class="sgn">'+contarMinhas(pecas)+'</span></button>'+
+      '<button class="sg'+(fMinhas?"":" on")+'" data-act="segm" data-v="todas">'+
+        'Todas <span class="sgn">'+pecas.length+'</span></button>'+
+    '</div>';
+
+    // Os outros filtros somem atras de um botao com o numero dos que estao
+    // ligados. Eram 3 fileiras de pastilha permanentes na frente do trabalho,
+    // e na maior parte do dia nenhuma delas esta em uso.
+    var nAtivos = filtrosAtivos();
+    h += '<button class="filtrobtn'+(filtrosAbertos?" aberto":"")+'" data-act="abrirfiltros"'+
+         ' aria-expanded="'+(filtrosAbertos?"true":"false")+'">'+
+      '<span class="fbr">Filtros</span>'+
+      (nAtivos ? '<span class="fbn">'+nAtivos+'</span>' : '')+
+      '<span class="fbseta">'+(filtrosAbertos?"&minus;":"+")+'</span></button>';
+
+    if(filtrosAbertos){
+      h += '<div class="fbox">';
+      h += '<div class="fgr">Tipo</div><div class="fchips">';
+      h += chip("tipo","todos","Todas", fTipo==="todos");
+      h += chip("tipo","organico","Orgânico", fTipo==="organico");
+      h += chip("tipo","pago","Pago", fTipo==="pago");
+      h += '</div>';
+      h += '<div class="fgr">Etapa</div><div class="fchips">';
+      h += chip("status","todos","Todas", fStatus==="todos");
+      for(i=0;i<STATUS.length;i++) h += chip("status",STATUS[i],ST_LABEL[STATUS[i]], fStatus===STATUS[i]);
+      h += '</div>';
+      h += '<div class="fgr">Dia</div><div class="fchips">';
+      h += chip("dia","todos","Todos", fDia==="todos");
+      for(i=0;i<DIAS_PECA.length;i++) h += chip("dia",DIAS_PECA[i].dia,DIAS_PECA[i].rotulo, fDia===DIAS_PECA[i].dia);
+      h += '</div>';
+      h += '<div class="fchips">'+
+        '<button class="fchip'+(fBoost?" on":"")+'" data-act="fboost">Só impulsionar</button>'+
+        (nAtivos ? '<button class="fchip lim" data-act="limparfiltros">Limpar filtros</button>' : '')+
+      '</div></div>';
+    }
 
     if(vis.length !== pecas.length){
       h += '<div class="nalista">Mostrando <b>'+vis.length+'</b> de '+pecas.length+' peças</div>';
@@ -1213,9 +1324,79 @@
         if((a.dia||"") !== (b.dia||"")) return (a.dia||"") < (b.dia||"") ? -1 : 1;
         return (a.criadoEm||0) - (b.criadoEm||0);
       });
-      for(i=0;i<vis.length;i++) h += blocoPecaHTML(vis[i]);
+      h += listaPorEtapaHTML(vis);
     }
     el.innerHTML = h;
+  }
+
+  function contarMinhas(lista){
+    if(!meuNome) return 0;
+    var eu = meuNome.toLowerCase(), n = 0;
+    for(var i=0;i<lista.length;i++){
+      var p = lista[i] || {};
+      if(String(p.quemGrava||"").toLowerCase().indexOf(eu) >= 0 ||
+         String(p.editor||"").toLowerCase().indexOf(eu) >= 0) n++;
+    }
+    return n;
+  }
+
+  // Minhas/Todas NAO entra na conta: ela tem chave propria na tela, e contar
+  // ali faria o botao dizer "Filtros 1" com nenhum filtro escolhido.
+  function filtrosAtivos(){
+    var n = 0;
+    if(fTipo   !== "todos") n++;
+    if(fStatus !== "todos") n++;
+    if(fDia    !== "todos") n++;
+    if(fBoost) n++;
+    return n;
+  }
+
+  function resumoLinhaHTML(c){
+    var p = [];
+    if(c.semStatus) p.push(c.semStatus + " sem status");
+    if(c.gravando)  p.push(c.gravando + " gravando");
+    if(c.edicao)    p.push(c.edicao + " em edição");
+    if(c.pronto)    p.push(c.pronto + (c.pronto === 1 ? " pronta" : " prontas"));
+    if(c.publicado) p.push(c.publicado + " no ar");
+    if(!p.length)   p.push("nenhuma cadastrada ainda");
+    return '<button class="resumo1'+(statsAbertas?" aberto":"")+'" data-act="abrirstats"'+
+      ' aria-expanded="'+(statsAbertas?"true":"false")+'">'+
+      '<span class="r1t"><b>'+c.total+'</b> '+(c.total===1?"peça":"peças")+'</span>'+
+      '<span class="r1s">'+esc(p.join(" · "))+'</span>'+
+      '<span class="r1seta">'+(statsAbertas?"&minus;":"+")+'</span></button>';
+  }
+
+  // ORDEM = a fila de producao. O que ainda da trabalho fica em cima; "No ar"
+  // e trabalho concluido e comeca fechado, senao 26 publicadas enterrariam as
+  // 3 que ainda precisam de alguem.
+  var ETAPAS = [
+    { k:"",          rot:"Não começou" },
+    { k:"gravando",  rot:"Gravando" },
+    { k:"edicao",    rot:"Em edição" },
+    { k:"pronto",    rot:"Pronto para subir" },
+    { k:"publicado", rot:"No ar" }
+  ];
+
+  function listaPorEtapaHTML(vis){
+    var h = "", i, j;
+    for(i=0;i<ETAPAS.length;i++){
+      var et = ETAPAS[i], chave = et.k || "sem";
+      var doGrupo = vis.filter(function(p){ return (p.status||"") === et.k; });
+      // grupo vazio nao vira cabecalho: linha de titulo sem nada embaixo so
+      // ocupa tela e faz a pessoa achar que perdeu alguma coisa
+      if(!doGrupo.length) continue;
+      var fechado = !!etapaFechada[chave];
+      h += '<button class="etapa'+(fechado?" fechada":"")+'" data-act="etapa" data-etapa="'+chave+'"'+
+             (et.k ? ' data-st="'+et.k+'"' : '')+' aria-expanded="'+(fechado?"false":"true")+'">'+
+             '<span class="etp"></span>'+
+             '<span class="etr">'+esc(et.rot)+'</span>'+
+             '<span class="etn">'+doGrupo.length+'</span>'+
+             '<span class="etseta">'+(fechado?"+":"&minus;")+'</span>'+
+           '</button>';
+      if(fechado) continue;
+      for(j=0;j<doGrupo.length;j++) h += blocoPecaHTML(doGrupo[j]);
+    }
+    return h;
   }
 
   function chip(grupo, valor, rotulo, on){
@@ -1849,6 +2030,24 @@
       if(!meuNome){ pedirNome(true); return; }   // sem nome o filtro nao tem o que filtrar
       fMinhas = !fMinhas; renderPecas(); return;
     }
+    if(act === "segm"){
+      var quer = b.dataset.v === "minhas";
+      // sem nome nao da pra saber o que e "minhas": pergunta antes em vez de
+      // ligar um filtro que devolveria lista vazia
+      if(quer && !meuNome){ pedirNome(true); return; }
+      fMinhas = quer; renderPecas(); return;
+    }
+    if(act === "abrirstats"){ statsAbertas = !statsAbertas; renderPecas(); return; }
+    if(act === "abrirfiltros"){ filtrosAbertos = !filtrosAbertos; renderPecas(); return; }
+    if(act === "limparfiltros"){
+      fTipo="todos"; fStatus="todos"; fDia="todos"; fBoost=false;
+      renderPecas(); toast("Filtros limpos."); return;
+    }
+    if(act === "etapa"){
+      var ek = b.dataset.etapa;
+      etapaFechada[ek] = !etapaFechada[ek];
+      renderPecas(); return;
+    }
     if(act === "fminhasstory"){
       if(!meuNome){ pedirNome(true); return; }
       fMinhasStory = !fMinhasStory; renderStory(); return;
@@ -2131,6 +2330,40 @@
   // ═══════════════════════════════════════════════════════════════
   // MINI GUIA — uma unica vez por aparelho, e o "?" reabre quando quiser
   // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // AVISO DE VERSAO NOVA
+  // O celular guarda a pagina em cache, e no iPhone salvo na tela de inicio ele
+  // segura por muito mais que os 10 minutos que o servidor pede. Isso ja deu
+  // confusao no meio do evento: correcao publicada e funcionando no computador,
+  // e o time no celular jurando que nada mudou, cada um numa versao diferente.
+  // Ninguem vai lembrar de "limpar o cache" com o festival rodando, entao a
+  // propria tela avisa e atualiza no toque.
+  // ═══════════════════════════════════════════════════════════════
+  function checarVersao(){
+    if(navigator.onLine === false || !window.fetch) return;
+    var base = location.pathname.replace(/[^/]*$/, "");
+    fetch(base + "index.html?v=" + Date.now(), { cache:"no-store" })
+      .then(function(r){ return r.ok ? r.text() : null; })
+      .then(function(txt){
+        if(!txt) return;
+        var m = txt.match(/var VERSAO = "([^"]+)"/);
+        if(m && m[1] && m[1] !== VERSAO) mostrarAvisoVersao();
+      })["catch"](function(){});   // sem rede nao e erro, e so nao checar agora
+  }
+
+  function mostrarAvisoVersao(){
+    if(document.getElementById("novaVersao")) return;
+    var d = document.createElement("div");
+    d.id = "novaVersao";
+    d.innerHTML = '<span>Saiu uma versão mais nova desta tela.</span>'+
+                  '<button type="button">Atualizar</button>';
+    document.body.appendChild(d);
+    d.querySelector("button").addEventListener("click", function(){
+      // o ?v= e o que obriga o celular a buscar de novo em vez de servir o cache
+      location.replace(location.pathname + "?v=" + Date.now());
+    });
+  }
+
   function abrirGuia(){
     if(!PERFIL || !PERM) return;
     if(document.getElementById("guiaOverlay")) return;
@@ -2232,6 +2465,14 @@
     try{ aplicarInterface(); }catch(e){ if(window.console) console.error("[conteudo] interface", e); }
     try{ ligarEscutas();     }catch(e){ if(window.console) console.error("[conteudo] escutas", e); setStatus("warn"); }
     renderAll();
+    try{
+      checarVersao();
+      setInterval(checarVersao, 5*60*1000);
+      // volta do bolso: e o momento mais provavel de existir versao nova
+      document.addEventListener("visibilitychange", function(){
+        if(!document.hidden) checarVersao();
+      });
+    }catch(e){}
     // O guia NAO abre mais sozinho. Ele fazia sentido na estreia, quando
     // ninguem conhecia a tela; agora o time ja usa isto todo dia e a caixa so
     // aparecia na frente do trabalho, ainda por cima em quem trocou de aparelho
