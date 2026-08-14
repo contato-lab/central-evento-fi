@@ -590,6 +590,23 @@
     font-size:1.05rem;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);
     display:flex;align-items:baseline;gap:8px}
   .coldia h3 small{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;color:var(--ink-2)}
+
+  /* ---- dia que ja passou ---- */
+  .coldia.passado{background:var(--panel-2);border-color:var(--line-soft)}
+  /* fechado: uma linha so, com a contagem do que tem guardado ali dentro */
+  .diafechado{display:flex;align-items:center;gap:10px;width:100%;background:transparent;
+    border:0;padding:2px 0;color:var(--ink-3);font-family:'Barlow Condensed',sans-serif;
+    font-weight:700;font-size:1.15rem;letter-spacing:-.01em;text-align:left;min-height:44px}
+  .diafechado:hover{color:var(--ink-2)}
+  .dfr{flex:1;min-width:0}
+  .dfq{font-family:var(--mono);font-weight:400;font-size:.62rem;letter-spacing:.06em;
+    color:var(--ink-3);border:1px solid var(--line);border-radius:99px;padding:3px 9px;flex:0 0 auto}
+  .dfs{font-family:var(--mono);font-size:1rem;width:20px;text-align:center;flex:0 0 auto}
+  /* aberto de novo: o botao de recolher fica discreto do lado do titulo */
+  .diadobra{background:transparent;border:1px solid var(--line);border-radius:8px;
+    color:var(--ink-3);font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;
+    text-transform:uppercase;padding:5px 9px;margin-left:8px;vertical-align:2px;min-height:32px}
+  .diadobra:hover{color:var(--ink);border-color:var(--ink-3)}
   .colrow{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:9px}
   .colrow + .colrow{margin-top:2px}
   .colhora{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;
@@ -1154,7 +1171,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-13.4";
+  var VERSAO = "2026-08-14.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1640,12 +1657,27 @@
 
   $("#btnGuia").addEventListener("click", function(){ try { abrirGuia(); } catch(e){} });
   // toque no cartao da atracao abre e fecha a descricao
+  // abre e fecha um dia inteiro que ja passou. Vale nas tres agendas, entao a
+  // funcao e a mesma e so o redesenho muda.
+  function ligarDobraDeDia(box, redesenha){
+    if(!box) return;
+    box.addEventListener("click", function(e){
+      var b = e.target.closest("[data-dia]"); if(!b) return;
+      var d = b.dataset.dia;
+      if(diaAberto[d]) delete diaAberto[d]; else diaAberto[d] = true;
+      redesenha();
+    });
+  }
+
   $("#progBox").addEventListener("click", function(e){
     var b = e.target.closest("[data-atr]"); if(!b) return;
     var k = b.dataset.atr;
     if(progAberto[k]) delete progAberto[k]; else progAberto[k] = true;
     renderProgramacao();
   });
+  ligarDobraDeDia($("#progBox"),      function(){ renderProgramacao(); });
+  ligarDobraDeDia($("#coletivasBox"), function(){ renderColetivas(); });
+  ligarDobraDeDia($("#showsBox"),     function(){ renderShows(); });
 
   // clique na faixa leva pra aba que tem a novidade
   $("#novidades").addEventListener("click", function(e){
@@ -2407,7 +2439,10 @@
     var html = nota ? '<p class="colnota">' + nota + '</p>' : '';
     dados.forEach(function(dia){
       var ehHoje = (dia.data === hoje);
-      html += '<div class="coldia"><h3>' + esc(dia.rotulo) + (ehHoje ? ' <small>HOJE</small>' : '') + '</h3>';
+      var recolhido = diaPassou(dia.data) && !diaAberto[dia.data];
+      html += '<div class="coldia' + (diaPassou(dia.data) ? ' passado' : '') + '">' +
+              cabecaDia(dia.data, dia.rotulo, ehHoje, dia.itens.length);
+      if(recolhido){ html += '</div>'; return; }
       dia.itens.forEach(function(it, i){
         var ini = coletivaMin(it.hora);
         var prox = (i + 1 < dia.itens.length) ? coletivaMin(dia.itens[i+1].hora) : null;
@@ -2515,7 +2550,10 @@
 
     PROGRAMACAO.forEach(function(dia){
       var ehHoje = (dia.data === hoje);
-      html += '<div class="coldia"><h3>' + esc(dia.rotulo) + (ehHoje ? ' <small>HOJE</small>' : '') + '</h3>';
+      var recolhido = diaPassou(dia.data) && !diaAberto[dia.data];
+      html += '<div class="coldia' + (diaPassou(dia.data) ? ' passado' : '') + '">' +
+              cabecaDia(dia.data, dia.rotulo, ehHoje, dia.itens.length);
+      if(recolhido){ html += '</div>'; return; }
       dia.itens.forEach(function(it){
         var rotulo, aberto = false, passou = false;
 
@@ -2593,6 +2631,30 @@
   // programacao se redesenha a cada 60s pro selo ABERTO acompanhar o relogio:
   // sem isso, a descricao que a pessoa abriu fecharia sozinha no meio da leitura.
   var progAberto = {};
+
+  // DIA QUE JA PASSOU NASCE RECOLHIDO.
+  // Na sexta de manha a quinta inteira ainda ocupava a primeira tela: onze
+  // atracoes de um dia que acabou, empurrando o dia de hoje pra baixo da dobra.
+  // Quem abre a Central quer saber o que esta aberto AGORA.
+  // Recolher e nao apagar de proposito: jornalista consulta o que rolou ontem
+  // pra escrever materia, e apagar tiraria isso dele.
+  var diaAberto = {};
+  function diaPassou(data){ return !!data && data < hojeISO(); }
+
+  // Cabecalho do dia: <h3> normal quando o dia importa, botao quando ja passou.
+  function cabecaDia(data, rotulo, ehHoje, qtd){
+    if(!diaPassou(data) || diaAberto[data]){
+      return '<h3>' + esc(rotulo) + (ehHoje ? ' <small>HOJE</small>' : '') +
+             (diaPassou(data)
+               ? ' <button class="diadobra" data-dia="' + esc(data) + '" aria-expanded="true">recolher</button>'
+               : '') + '</h3>';
+    }
+    return '<button class="diafechado" data-dia="' + esc(data) + '" aria-expanded="false">' +
+             '<span class="dfr">' + esc(rotulo) + '</span>' +
+             '<span class="dfq">' + qtd + (qtd === 1 ? ' item' : ' itens') + '</span>' +
+             '<span class="dfs">+</span>' +
+           '</button>';
+  }
 
   var subMuralAtivo = "prog";
   function aplicarSubMural(){
