@@ -393,9 +393,19 @@
   .row .h{font-family:var(--mono);font-size:.72rem;color:var(--ink-2);flex:0 0 auto;
     font-variant-numeric:tabular-nums}
   .row .h.vaga{color:var(--ink-3);font-size:.6rem;letter-spacing:.08em}
-  .row .corpo{flex:1;min-width:0}
+  /* o corpo virou botao: reseta a aparencia de botao e mantem o alvo grande,
+     porque e ele que abre o recado pra leitura */
+  .row .corpo{flex:1;min-width:0;background:transparent;border:0;padding:4px 0;margin:0;
+    color:inherit;font:inherit;text-align:left;cursor:pointer;display:block;min-height:44px}
+  .row .corpo:focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:8px}
   .row .m{display:block;font-family:var(--display);font-size:1rem;font-weight:700;line-height:1.2}
   .row .t{display:block;font-size:.8rem;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* aberto pra ler: texto inteiro, um pouco maior e com mais respiro entre as
+     linhas. O locutor le isso em voz alta, com o celular na mao e o microfone
+     na outra, entao a linha apertada atrapalha de verdade */
+  .row.aberto .t{white-space:pre-wrap;overflow:visible;text-overflow:clip;word-break:break-word;
+    font-size:.95rem;line-height:1.55;color:var(--ink);margin-top:4px}
+  .row.aberto{align-items:flex-start;border-color:rgba(166,236,77,.3)}
   .row .pips{display:inline-flex;gap:4px;flex:0 0 auto}
   .row .pip{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink-3);background:transparent}
   .row .pip.on{background:var(--lime);border-color:var(--lime)}
@@ -1194,7 +1204,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-14.2";
+  var VERSAO = "2026-08-14.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -3006,16 +3016,28 @@
 
   function quandoDe(it){ return esc((fmtData(it.data)+" "+(it.hora||"")).trim()); }
 
+  // quais recados estao abertos pra leitura. Fica so na tela: e escolha do
+  // momento, nao estado do recado, e nao tem por que atravessar o Firestore
+  // nem aparecer no celular dos outros.
+  var recAberto = {};
+
   // linha fina da fila (pendentes e gaveta)
   function linhaRec(it, gerencia){
     if(editing[it.id]) return '<div class="item" data-id="'+it.id+'">'+cardEdicao(it)+'</div>';
     var vz = vezesDe(it), alvo = repeticoesDe(it), cheio = vz>=alvo;
-    return '<div class="row'+(cheio?" pronto":"")+'" data-id="'+it.id+'">'+
+    // O CORPO E BOTAO: toca e o recado abre inteiro pra ler.
+    // Antes o texto vinha cortado com reticencia e so o "proximo a falar"
+    // mostrava a mensagem completa. Quem nao tinha horario nunca chegava
+    // naquele destaque, entao o locutor simplesmente NAO CONSEGUIA ler aquele
+    // recado em lugar nenhum da tela. Agora qualquer um abre no toque.
+    var aberto = !!recAberto[it.id];
+    return '<div class="row'+(cheio?" pronto":"")+(aberto?" aberto":"")+'" data-id="'+it.id+'">'+
       ((it.data||it.hora) ? '<span class="h">'+quandoDe(it)+'</span>' : '<span class="h vaga">S/H</span>')+
-      '<span class="corpo"><span class="m">'+esc(it.marca)+
+      '<button class="corpo" type="button" data-act="abrirrec" aria-expanded="'+(aberto?"true":"false")+'">'+
+        '<span class="m">'+esc(it.marca)+
           (parseInt(it.partes,10)>1 ? ' <span class="parteRot">'+(parseInt(it.parte,10)||1)+'ª de '+it.partes+'</span>' : '')+
         '</span>'+
-        '<span class="t">'+esc(it.msg)+'</span></span>'+
+        '<span class="t">'+esc(it.msg)+'</span></button>'+
       '<span class="pips">'+pipsHtml(vz, alvo)+'</span>'+
       (gerencia ? (
         (!cheio ? '<button class="mini anunciar" data-act="anunciei" title="Falei no ar">Anunciei</button>' : '')+
@@ -3437,6 +3459,11 @@
     if(act==="gaveta"){ e.preventDefault(); gavetaAberta=!gavetaAberta; renderRec(); return; }
     var row=e.target.closest("[data-id]"); if(!row)return;
     var id=row.dataset.id;
+    // abrir e fechar o texto do recado nao mexe em nada no banco
+    if(act==="abrirrec"){
+      if(recAberto[id]) delete recAberto[id]; else recAberto[id]=true;
+      renderRec(); return;
+    }
     var it=recados.find(function(x){return x.id===id;}); if(!it&&act!=="cancel")return;
     // o contador manda no status: encheu as 3 bolinhas, virou anunciado sozinho
     if(act==="anunciei"){
