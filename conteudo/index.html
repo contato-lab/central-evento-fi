@@ -636,7 +636,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-14.1";
+  var VERSAO = "2026-08-14.2";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -2131,17 +2131,6 @@
   // ═══════════════════════════════════════════════════════════════
   // MINI GUIA — uma unica vez por aparelho, e o "?" reabre quando quiser
   // ═══════════════════════════════════════════════════════════════
-  var GUIA_KEY = "cfi_guia_v1";
-  function mostrarGuiaUmaVez(){
-    if(!PERFIL || !PERM) return;
-    try{
-      if(localStorage.getItem(GUIA_KEY) === "1") return;
-      localStorage.setItem(GUIA_KEY, "1");
-      if(localStorage.getItem(GUIA_KEY) !== "1") return;   // gravou mesmo?
-    }catch(e){ return; }   // sem armazenamento confiavel = nao mostra
-    abrirGuia();
-  }
-
   function abrirGuia(){
     if(!PERFIL || !PERM) return;
     if(document.getElementById("guiaOverlay")) return;
@@ -2243,7 +2232,11 @@
     try{ aplicarInterface(); }catch(e){ if(window.console) console.error("[conteudo] interface", e); }
     try{ ligarEscutas();     }catch(e){ if(window.console) console.error("[conteudo] escutas", e); setStatus("warn"); }
     renderAll();
-    try{ mostrarGuiaUmaVez(); }catch(e){}
+    // O guia NAO abre mais sozinho. Ele fazia sentido na estreia, quando
+    // ninguem conhecia a tela; agora o time ja usa isto todo dia e a caixa so
+    // aparecia na frente do trabalho, ainda por cima em quem trocou de aparelho
+    // ou limpou o navegador no meio do evento. Continua no "?" do topo pra quem
+    // quiser rever ou pra quem entrar novo na equipe.
   }
 
   $("#gateForm").addEventListener("submit", function(e){
