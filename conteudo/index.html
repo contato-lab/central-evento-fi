@@ -739,7 +739,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-14.7";
+  var VERSAO = "2026-08-14.8";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1562,21 +1562,31 @@
     if(!q) return vazio;
 
     var diff = Math.round((q.getTime() - Date.now()) / 60000);   // em minutos
-    var abs = Math.abs(diff), txt;
-    if(abs < 60){
-      txt = abs + " min";
-    } else if(abs < 60*24){
-      var hh = Math.floor(abs/60), mm = abs%60;
-      txt = hh + "h" + (mm ? ("0"+mm).slice(-2) : "");
-    } else {
-      var dias = Math.round(abs/(60*24));
-      txt = dias + (dias === 1 ? " dia" : " dias");
+    var abs = Math.abs(diff);
+
+    if(abs <= 1) return { texto:"agora", nivel:"perto" };
+
+    // ATRASO LONGO FALA A DATA, NAO A DURACAO.
+    // A primeira versao mostrava "19h30 atrasada" pra uma peca de ontem as 16h.
+    // Esta certo na conta e horrivel de ler: parece o HORARIO 19:30, ainda mais
+    // numa tela onde tudo mais e "13:00". Passando de 12h a pessoa nao quer a
+    // conta, quer saber de quando era.
+    if(diff < 0 && abs >= 12*60){
+      return { texto:"atrasada de " + rotuloDia(p.dia).replace(/^\S+\s/,""),
+               nivel:"atraso" };
     }
 
-    if(abs <= 1)  return { texto:"agora",             nivel:"perto"  };
-    if(diff < 0)  return { texto:txt + " atrasada",   nivel:"atraso" };
-    if(diff <= 60)return { texto:"em " + txt,         nivel:"perto"  };
-    return          { texto:"em " + txt,              nivel:""       };
+    var txt;
+    if(abs < 60){
+      txt = abs + " min";
+    } else {
+      var hh = Math.floor(abs/60), mm = abs%60;
+      txt = hh + "h" + (mm ? ("0"+mm).slice(-2) : "");
+    }
+
+    if(diff < 0)   return { texto:txt + " atrasada", nivel:"atraso" };
+    if(diff <= 60) return { texto:"em " + txt,       nivel:"perto"  };
+    return           { texto:"em " + txt,            nivel:""       };
   }
 
   function rotuloDia(d){
