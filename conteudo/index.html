@@ -702,7 +702,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-14.3";
+  var VERSAO = "2026-08-14.4";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1251,7 +1251,12 @@
     // ABRE JA NO NOME DA PESSOA. Quem esta em campo liga o celular pra ver o
     // que e DELA, nao a lista das 27 do time. So liga se ela realmente tiver
     // peca no nome: abrir vazio faria parecer que o sistema perdeu tudo.
-    if(!padraoMinhasFeito && meuNome){
+    // pecas.length no teste NAO e detalhe: o primeiro desenho da tela acontece
+    // ANTES do Firestore responder, com a lista vazia. Sem essa condicao o
+    // "abre no meu nome" era decidido contra lista vazia, dava zero, gastava a
+    // unica chance e a pessoa caia em "Todas" pra sempre. Peguei no teste com
+    // uma peca no nome e a chave abrindo do lado errado.
+    if(!padraoMinhasFeito && meuNome && pecas.length){
       padraoMinhasFeito = true;
       if(contarMinhas(pecas) > 0) fMinhas = true;
     }
@@ -2035,6 +2040,9 @@
       // sem nome nao da pra saber o que e "minhas": pergunta antes em vez de
       // ligar um filtro que devolveria lista vazia
       if(quer && !meuNome){ pedirNome(true); return; }
+      // escolha da pessoa manda: sem isto, o dado chegando depois do toque
+      // ainda aplicaria o padrao e viraria a chave na cara dela
+      padraoMinhasFeito = true;
       fMinhas = quer; renderPecas(); return;
     }
     if(act === "abrirstats"){ statsAbertas = !statsAbertas; renderPecas(); return; }
