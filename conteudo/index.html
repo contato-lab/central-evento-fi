@@ -457,13 +457,22 @@
        Eram 8 itens disputando 350px de largura util. O flex espremia o chip do
        nome ate sobrar "Q...", justo o botao que liga o filtro Minhas pecas.
        Tirando o risquinho separador e apertando os vaos, o nome volta a caber. */
+    /* 14px de margem em vez de 20px: no celular esses 12px de largura fazem
+       falta de verdade, e sao eles que fazem as 3 abas caberem sem arrastar */
+    .wrap{padding:0 14px}
+    .tabs .wrap2{padding:0 14px}
+
     .top .bar{height:60px;gap:7px}
     .top .sep{display:none}
     .top img.logo{height:32px}
     .top img.logolime{height:34px}
-    .top .ajuda{width:32px;height:32px;font-size:.82rem}
-    .top .out{padding:7px 10px;font-size:.72rem}
-    .quemsou.eununo{max-width:none;flex:0 1 auto;min-width:0}
+    /* 36px e o piso de alvo de dedo aqui. Cheguei a deixar 32 pra ganhar
+       largura e voltei atras: botao de 32px na mao de quem esta em pe, no sol,
+       com o celular numa mao so, e toque errado na certa. A largura veio da
+       margem da pagina, nao do tamanho do alvo. */
+    .top .ajuda{width:36px;height:36px;font-size:.84rem}
+    .top .out{padding:8px 10px;font-size:.74rem;min-height:36px}
+    .quemsou.eununo{max-width:none;flex:0 1 auto;min-width:0;min-height:36px}
 
     /* abas: as tres cabem sem precisar arrastar */
     .tab{font-size:1rem;padding:12px 5px;gap:7px}
@@ -487,7 +496,9 @@
     .fchips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
       scrollbar-width:none;margin-bottom:6px;padding-bottom:2px}
     .fchips::-webkit-scrollbar{display:none}
-    .fchip{flex:0 0 auto}
+    /* 40px: filtro errado no celular custa caro, a pessoa acha que a peca dela
+       sumiu. Os 4px a mais por fileira sao baratos perto disso. */
+    .fchip{flex:0 0 auto;min-height:40px;padding:8px 14px}
     .subtabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
       scrollbar-width:none;padding-bottom:2px}
     .subtabs::-webkit-scrollbar{display:none}
@@ -583,7 +594,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-13.9";
+  var VERSAO = "2026-08-13.10";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
