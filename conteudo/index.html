@@ -726,6 +726,7 @@
     <button class="tab active" data-tab="coletivas">Coletivas <span class="n" id="cColetivas">0</span></button>
     <button class="tab" data-tab="pecas">Orgânicos e pagos <span class="n" id="cPecas">0</span></button>
     <button class="tab" data-tab="story">StoryMaker <span class="n" id="cStory">0</span></button>
+    <button class="tab" data-tab="fotos">Fotos <span class="n" id="cFotos">0</span></button>
   </div></nav>
 
   <!-- faixa de novidade: fica FORA do main pra ser vista de qualquer aba,
@@ -737,6 +738,7 @@
     <section id="view-coletivas"></section>
     <section id="view-pecas" hidden></section>
     <section id="view-story" hidden></section>
+    <section id="view-fotos" hidden></section>
   </main>
 </div>
 
@@ -748,7 +750,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-14.9";
+  var VERSAO = "2026-08-16.1";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -762,8 +764,10 @@
   // meio do corre. Menos tela = menos engano.
   // ═══════════════════════════════════════════════════════════════
   var PERFIS = {
-    conteudo: { rotulo:"Conteúdo",   coletivas:"gerenciar", pecas:"gerenciar", story:"gerenciar" },
-    story:    { rotulo:"StoryMaker", coletivas:"nenhum",    pecas:"nenhum",    story:"gerenciar" }
+    conteudo: { rotulo:"Conteúdo",   coletivas:"gerenciar", pecas:"gerenciar", story:"gerenciar", fotos:"gerenciar" },
+    // o storymaker de campo tambem entrega foto, entao a aba Fotos entra pra ele.
+    // Se a coordenacao quiser fechar depois, e trocar "gerenciar" por "nenhum".
+    story:    { rotulo:"StoryMaker", coletivas:"nenhum",    pecas:"nenhum",    story:"gerenciar", fotos:"gerenciar" }
   };
 
   // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com o banco
@@ -931,7 +935,8 @@
   // documento unico, quem salva por ultimo apaga a edicao do outro sem avisar
   // ninguem. Um documento por peca elimina isso na raiz.
   // ═══════════════════════════════════════════════════════════════
-  var COL = { coletivas:"cont_coletivas", pecas:"cont_pecas", story:"cont_story" };
+  var COL = { coletivas:"cont_coletivas", pecas:"cont_pecas", story:"cont_story",
+              fotos:"cont_fotos" };
 
   var watchers = {};
   function lsGet(c){ try{ return JSON.parse(localStorage.getItem("cfi_"+c)) || []; }catch(e){ return []; } }
@@ -1140,6 +1145,156 @@
   function estadoDe(id){
     for(var i=0;i<coletivas.length;i++){ if(coletivas[i].id===id) return coletivas[i]; }
     return null;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MODULO 4 — FOTOS
+  //
+  // Entrega de foto e diferente de peca: nao tem hora de veiculacao, tem PASTA.
+  // E pasta e o pior tipo de entrega pra acompanhar, porque o link existe desde
+  // o inicio e nao diz nada sobre o que tem dentro. Por isso a aba pede tres
+  // coisas alem do link:
+  //   momento  -> "Coletiva Honda", "Show Matue". Sem isso viram 20 links iguais
+  //               e ninguem lembra qual e qual dois dias depois.
+  //   qtd      -> sem numero, "pronto" pode ser 5 ou 500 fotos.
+  //   DOIS checks -> enviado (subiu pro Drive) e tratado (da pra publicar).
+  //               Com um check so, o editor nao sabe se pode usar.
+  // ═══════════════════════════════════════════════════════════════
+  var fotos = [];
+  var criandoFoto = false;
+
+  function fotosDoDia(){
+    var d = diaStoryAtual();
+    return fotos.filter(function(f){ return (f.dia || "") === d; })
+                .sort(function(a,b){ return (a.criadoEm||0) - (b.criadoEm||0); });
+  }
+
+  function formFotoHTML(){
+    var i, h = '<div class="form"><h3>Nova entrega de fotos</h3><div class="grid2">';
+    h += '<div class="fld"><label>Momento</label>'+
+         '<input id="ft_momento" type="text" placeholder="Coletiva Honda, Show Matuê, público no portão..."></div>';
+    h += '<div class="fld"><label>Responsável</label>'+
+         '<input id="ft_resp" type="text" placeholder="Quem fotografou"></div>';
+    h += '<div class="fld full"><label>Link da pasta no Drive</label>'+
+         '<input id="ft_link" type="url" inputmode="url" autocapitalize="off" autocorrect="off" '+
+         'spellcheck="false" maxlength="600" placeholder="https://drive.google.com/..."></div>';
+    h += '<div class="fld"><label>Quantas fotos</label>'+
+         '<input id="ft_qtd" type="number" inputmode="numeric" min="0" placeholder="0"></div>';
+    h += '<div class="fld"><label>Dia</label><select id="ft_dia">';
+    for(i=0;i<DIAS_STORY.length;i++){
+      h += '<option value="'+DIAS_STORY[i].dia+'"'+(DIAS_STORY[i].dia===diaStoryAtual()?" selected":"")+'>'+
+           esc(DIAS_STORY[i].rotulo)+'</option>';
+    }
+    h += '</select></div>';
+    h += '</div><div class="acoes">'+
+      '<button class="btn" data-act="salvarfoto">Criar entrega</button>'+
+      '<button class="btn ghost" data-act="cancelarfoto">Cancelar</button>'+
+    '</div></div>';
+    return h;
+  }
+
+  function salvarFoto(){
+    var v = function(id){ var e=$("#"+id); return e ? String(e.value||"").trim() : ""; };
+    var momento = v("ft_momento");
+    if(!momento){ toast("Diga o momento, senão vira link sem nome."); var m=$("#ft_momento"); if(m) m.focus(); return; }
+    var n = parseInt(v("ft_qtd"), 10);
+    DBadd("fotos", {
+      dia: v("ft_dia") || diaStoryAtual(),
+      momento: momento,
+      resp: v("ft_resp"),
+      link: v("ft_link"),
+      qtd: isNaN(n) ? 0 : n,
+      enviado: false, tratado: false,
+      criadoEm: Date.now(), em: Date.now(), por: quemSou()
+    });
+    naoAlertarProprio("fotos", Date.now());
+    criandoFoto = false;
+    toast("Entrega criada.");
+    renderFotos();
+  }
+
+  function blocoFotoHTML(f){
+    var pronto = !!f.tratado;
+    var nova = ehNovo("fotos", f);
+    var link = String(f.link || "").trim();
+    var seguro = /^https?:\/\//i.test(link) ? link : "";
+    return '<div class="bloco'+(pronto?" completo":"")+(nova?" ehnovo":"")+'" id="ft_'+esc(f.id)+'">'+
+      '<div class="cabeca" style="cursor:default">'+
+        (nova ? '<span class="tagnova">NOVA</span>' : '')+
+        '<span class="cmeio">'+
+          '<span class="cnome">'+esc(f.momento || "Sem momento")+'</span>'+
+          '<span class="cinflu">'+
+            (f.resp ? esc(f.resp) : "Sem responsável")+
+            (f.qtd ? ' · '+f.qtd+(f.qtd===1?" foto":" fotos") : "")+
+          '</span>'+
+        '</span>'+
+        '<span class="cprog'+(pronto?" ok":"")+'">'+((f.enviado?1:0)+(f.tratado?1:0))+'/2</span>'+
+      '</div>'+
+      '<div class="corpo">'+
+        '<div class="stchips">'+
+          '<button class="stchip'+(f.enviado?" on":"")+'" data-act="ftenviado" data-id="'+f.id+'">'+
+            (f.enviado?"✓ ":"")+'Enviado</button>'+
+          '<button class="stchip'+(f.tratado?" on":"")+'" data-act="fttratado" data-id="'+f.id+'">'+
+            (f.tratado?"✓ ":"")+'Tratado</button>'+
+        '</div>'+
+        '<div class="campo"><span class="cl">Link da pasta</span>'+
+          '<input type="url" inputmode="url" maxlength="600" autocapitalize="off" autocorrect="off" '+
+            'spellcheck="false" placeholder="Cole o link do Drive" value="'+esc(link)+'" '+
+            'data-act="ftlink" data-id="'+f.id+'">'+
+          '<a class="abrir'+(seguro?"":" off")+'" '+(seguro
+              ? 'href="'+esc(seguro)+'" target="_blank" rel="noopener noreferrer"'
+              : 'href="#" tabindex="-1" aria-disabled="true"')+'>Abrir</a>'+
+        '</div>'+
+        '<div class="linhaflex">'+
+          '<input class="busca" style="flex:1 1 140px" type="text" placeholder="Responsável" '+
+            'value="'+esc(f.resp||"")+'" data-act="ftresp" data-id="'+f.id+'">'+
+          '<input class="busca" style="flex:0 0 110px" type="number" inputmode="numeric" min="0" '+
+            'placeholder="Qtd" value="'+(f.qtd||"")+'" data-act="ftqtd" data-id="'+f.id+'">'+
+          '<button class="btn perigo" data-act="ftdel" data-id="'+f.id+'">Apagar</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
+
+  function renderFotos(){
+    var el = $("#view-fotos"); if(!el) return;
+    if(!podeVer("fotos")){
+      el.innerHTML = '<div class="vazio"><div class="big">Sem acesso a esta aba</div></div>';
+      return;
+    }
+    var lista = fotosDoDia(), h = "", i;
+
+    h += '<div class="subtabs">';
+    for(i=0;i<DIAS_STORY.length;i++){
+      h += '<button class="subtab'+(DIAS_STORY[i].dia===diaStoryAtual()?" active":"")+
+           '" data-act="diafoto" data-dia="'+DIAS_STORY[i].dia+'">'+esc(DIAS_STORY[i].rotulo)+'</button>';
+    }
+    h += '</div>';
+
+    var enviadas = lista.filter(function(f){ return f.enviado; }).length;
+    var tratadas = lista.filter(function(f){ return f.tratado; }).length;
+    var totalFotos = lista.reduce(function(s,f){ return s + (parseInt(f.qtd,10) || 0); }, 0);
+    h += '<div class="resumo">'+
+      '<div class="rbox"><div class="rk">Entregas</div><div class="rv">'+lista.length+'</div></div>'+
+      '<div class="rbox"><div class="rk">Enviadas</div><div class="rv">'+enviadas+'</div></div>'+
+      '<div class="rbox destaque"><div class="rk">Tratadas</div><div class="rv">'+tratadas+'</div></div>'+
+      '<div class="rbox"><div class="rk">Fotos</div><div class="rv">'+totalFotos+'</div></div>'+
+    '</div>';
+
+    if(podeGerenciar("fotos")){
+      h += '<div class="barrafiltro">'+
+        '<button class="btn" data-act="novafoto">+ Nova entrega</button>'+
+      '</div>';
+    }
+    if(criandoFoto) h += formFotoHTML();
+
+    if(!lista.length){
+      h += '<div class="vazio"><div class="big">Nenhuma entrega neste dia</div>'+
+        '<div class="sm">Toque em <b>+ Nova entrega</b>, diga o momento e cole o link da pasta.</div></div>';
+    } else {
+      for(i=0;i<lista.length;i++) h += blocoFotoHTML(lista[i]);
+    }
+    el.innerHTML = h;
   }
 
   function renderColetivas(){
@@ -1945,6 +2100,11 @@
     var el;
     el=$("#cColetivas"); if(el) el.textContent = totalCol;
     el=$("#cPecas");     if(el) el.textContent = pecas.length;
+    el=$("#cFotos"); if(el){
+      var dF = diaStoryAtual();
+      // conta o que AINDA NAO esta tratado: e o que falta, nao o que ja foi
+      el.textContent = fotos.filter(function(f){ return f.dia===dF && !f.tratado; }).length;
+    }
     el=$("#cStory");     if(el){
       var dia = diaStoryAtual();
       el.textContent = story.filter(function(s){ return s.dia===dia && !s.feito; }).length;
@@ -1955,6 +2115,7 @@
     try{ renderColetivas(); }catch(e){ if(window.console) console.error("[conteudo] coletivas", e); }
     try{ renderPecas();     }catch(e){ if(window.console) console.error("[conteudo] pecas", e); }
     try{ renderStory();     }catch(e){ if(window.console) console.error("[conteudo] story", e); }
+    try{ renderFotos();     }catch(e){ if(window.console) console.error("[conteudo] fotos", e); }
     try{ contadores();      }catch(e){}
     try{ renderNovidades(); }catch(e){ if(window.console) console.error("[conteudo] novidades", e); }
   }
@@ -1973,7 +2134,7 @@
   // ═══════════════════════════════════════════════════════════════
   var VISTO = "cfi_visto_";
   var ROTULO_NOV = { pecas:"em Orgânicos e pagos", story:"no StoryMaker",
-                     coletivas:"nas Coletivas" };
+                     fotos:"em Fotos", coletivas:"nas Coletivas" };
 
   function vistoDe(aba){
     try{ var v = parseInt(localStorage.getItem(VISTO + aba), 10); return isNaN(v) ? null : v; }
@@ -1998,6 +2159,7 @@
   function listaDaAba(aba){
     if(aba === "pecas"     && podeVer("pecas"))     return pecas;
     if(aba === "story"     && podeVer("story"))     return story;
+    if(aba === "fotos"     && podeVer("fotos"))     return fotos;
     if(aba === "coletivas" && podeVer("coletivas")) return coletivas;
     return null;
   }
@@ -2023,7 +2185,7 @@
 
   // Ja cliquei neste item pelo painel. Fica na memoria da aba, nao no aparelho:
   // e so pra sumir da lista do painel enquanto a pessoa vai clicando um a um.
-  var LIDOS = { pecas:{}, story:{} };
+  var LIDOS = { pecas:{}, story:{}, fotos:{} };
   var painelNov = false;
 
   // Os itens que entraram depois do ultimo "visto", do mais novo pro mais velho.
@@ -2092,7 +2254,7 @@
     // Num teste isso gerou 42 "novidades" numa tarde. Faixa que acende o tempo
     // todo vira decoracao: a pessoa para de olhar e perde a que importava.
     // Aqui novidade = conteudo que NASCEU, nao andamento de trabalho.
-    ["pecas","story"].forEach(function(aba){
+    ["pecas","story","fotos"].forEach(function(aba){
       // A ABA ABERTA TAMBEM AVISA. Eu tinha zerado a contagem dela achando que
       // quem esta com a aba na frente ja ve o item chegar. Testei e e falso: a
       // peca nova entra no meio de uma lista longa, muitas vezes fora da tela,
@@ -2125,7 +2287,7 @@
       h += '<div class="novpanel">';
       // Teto de 8 por aba. Mais que isso vira rolagem no topo da pagina e
       // esconde o proprio conteudo; quem quiser o resto usa "marcar tudo".
-      ["pecas","story"].forEach(function(aba){
+      ["pecas","story","fotos"].forEach(function(aba){
         var lst = pendentesDe(aba).slice(0, 8);
         for(var i=0;i<lst.length;i++){
           var it = lst[i];
@@ -2153,9 +2315,9 @@
     var alvo = null;
     for(var i=0;i<lista.length;i++){ if(lista[i].id === id){ alvo = lista[i]; break; } }
 
-    if(!pendentesDe("pecas").length && !pendentesDe("story").length){
+    if(!pendentesDe("pecas").length && !pendentesDe("story").length && !pendentesDe("fotos").length){
       painelNov = false;
-      limparNov("pecas"); limparNov("story");
+      limparNov("pecas"); limparNov("story"); limparNov("fotos");
     }
     mostrarAba(aba);
 
@@ -2184,6 +2346,7 @@
     $("#view-coletivas").hidden = t !== "coletivas";
     $("#view-pecas").hidden     = t !== "pecas";
     $("#view-story").hidden     = t !== "story";
+    $("#view-fotos").hidden     = t !== "fotos";
     // NAO marca como visto so por abrir a aba. Antes marcava, e isso apagava o
     // aviso antes da pessoa ter visto qual peca era nova: bastava passar pela
     // aba pra perder a informacao. Agora quem apaga e a pessoa, clicando no
@@ -2194,6 +2357,7 @@
     try{
       if(t === "coletivas") renderColetivas();
       else if(t === "pecas"){ if(!editandoPeca) renderPecas(); }
+      else if(t === "fotos") renderFotos();
       else { if(!criandoBloco) renderStory(); }
       pendente[t] = false;
       renderNovidades();
@@ -2203,7 +2367,8 @@
 
   function aplicarInterface(){
     if(!PERM) return;
-    var abas = { coletivas: podeVer("coletivas"), pecas: podeVer("pecas"), story: podeVer("story") };
+    var abas = { coletivas: podeVer("coletivas"), pecas: podeVer("pecas"),
+                 story: podeVer("story"), fotos: podeVer("fotos") };
     var primeira = null;
     $$(".tab").forEach(function(b){
       var t = b.getAttribute("data-tab"), ok = !!abas[t];
@@ -2340,6 +2505,31 @@
     }
 
     // ---- pecas ----
+    if(act === "novafoto"){
+      if(!podeGerenciar("fotos")){ toast("Seu acesso nao cria entrega."); return; }
+      criandoFoto = true; renderFotos(); var fm=$("#ft_momento"); if(fm) fm.focus(); return;
+    }
+    if(act === "cancelarfoto"){ criandoFoto = false; renderFotos(); return; }
+    if(act === "salvarfoto"){
+      if(!podeGerenciar("fotos")){ toast("Seu acesso nao cria entrega."); return; }
+      salvarFoto(); return;
+    }
+    if(act === "diafoto"){ diaStory = b.dataset.dia; renderFotos(); contadores(); return; }
+    if(act === "ftenviado" || act === "fttratado"){
+      if(!podeGerenciar("fotos")){ toast("Seu acesso nao edita fotos."); return; }
+      var alvoF = fotos.filter(function(x){ return x.id===id; })[0] || {};
+      var campoF = (act === "ftenviado") ? "enviado" : "tratado";
+      var patchF = { em:Date.now(), por:quemSou() };
+      patchF[campoF] = !alvoF[campoF];
+      DBupdate("fotos", id, patchF);
+      return;
+    }
+    if(act === "ftdel"){
+      if(!podeGerenciar("fotos")){ toast("Seu acesso nao apaga."); return; }
+      var f2 = fotos.filter(function(x){ return x.id===id; })[0] || {};
+      if(confirm("Apagar a entrega \"" + (f2.momento||"sem momento") + "\"?")) DBremove("fotos", id);
+      return;
+    }
     if(act === "novapeca"){
       if(!podeGerenciar("pecas")){ toast("Seu acesso não cria peças."); return; }
       editandoPeca = "novo"; limparRascunho(); renderPecas();
@@ -2411,7 +2601,7 @@
     if(act === "novtoggle"){ painelNov = !painelNov; renderNovidades(); return; }
     if(act === "nov1"){ irAteNovidade(b.dataset.aba, b.dataset.id); return; }
     if(act === "novtudo"){
-      painelNov = false; limparNov("pecas"); limparNov("story");
+      painelNov = false; limparNov("pecas"); limparNov("story"); limparNov("fotos");
       renderNovidades();
       // redesenha pra tirar os selos NOVA; o storymaker nao tem a aba de pecas,
       // entao cada um por si e sem derrubar a tela se um deles reclamar
@@ -2531,6 +2721,20 @@
       var patch = {}; patch[el.dataset.campo] = String(el.value||"").trim();
       patch.em = Date.now(); patch.por = quemSou();
       DBset("coletivas", el.dataset.id, patch);
+      return;
+    }
+    // link, responsavel e quantidade da entrega de fotos: gravam ao sair do
+    // campo, nao a cada tecla, senao cada letra vira uma escrita no banco
+    if(act === "ftlink" || act === "ftresp" || act === "ftqtd"){
+      if(!podeGerenciar("fotos")){ toast("Seu acesso não edita fotos."); return; }
+      var pf = { em: Date.now(), por: quemSou() };
+      if(act === "ftlink")      pf.link = String(el.value||"").trim();
+      else if(act === "ftresp") pf.resp = String(el.value||"").trim();
+      else {
+        var nq = parseInt(el.value, 10);
+        pf.qtd = isNaN(nq) || nq < 0 ? 0 : nq;
+      }
+      DBupdate("fotos", el.dataset.id, pf);
       return;
     }
     if(act === "peca-link"){
@@ -2818,6 +3022,9 @@
       try{ renderNovidades(); }catch(e){} }));
     desligar.push(DBwatch("story", function(a){ story=a;
       renderOuAdiar("story", renderStory, "#view-story", !!criandoBloco); contadores();
+      try{ renderNovidades(); }catch(e){} }));
+    desligar.push(DBwatch("fotos", function(a){ fotos=a;
+      renderOuAdiar("fotos", renderFotos, "#view-fotos", !!criandoFoto); contadores();
       try{ renderNovidades(); }catch(e){} }));
   }
 
