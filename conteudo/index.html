@@ -750,7 +750,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-16.1";
+  var VERSAO = "2026-08-16.2";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1237,7 +1237,15 @@
           '<button class="stchip'+(f.tratado?" on":"")+'" data-act="fttratado" data-id="'+f.id+'">'+
             (f.tratado?"✓ ":"")+'Tratado</button>'+
         '</div>'+
-        '<div class="campo"><span class="cl">Link da pasta</span>'+
+        // O ENDERECO EM SI, CLICAVEL. So o botao "Abrir" nao bastava: o time
+        // olha a linha do link procurando onde tocar, e campo de texto nao
+        // parece link nenhum. Aqui o proprio endereco vira link, e o botao
+        // continua como alvo grande pra quem esta com o celular na mao.
+        (seguro
+          ? '<div class="campo"><span class="cl">Pasta</span>'+
+              '<span class="fval">'+linkar(seguro)+'</span></div>'
+          : '')+
+        '<div class="campo"><span class="cl">'+(seguro?"Trocar link":"Link da pasta")+'</span>'+
           '<input type="url" inputmode="url" maxlength="600" autocapitalize="off" autocorrect="off" '+
             'spellcheck="false" placeholder="Cole o link do Drive" value="'+esc(link)+'" '+
             'data-act="ftlink" data-id="'+f.id+'">'+
