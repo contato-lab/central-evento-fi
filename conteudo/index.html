@@ -14,6 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Conteúdo FI">
+<link rel="icon" type="image/png" href="favicon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Mesma propriedade GA4 da Central (ferramenta de equipe, nao site de venda).
@@ -1035,8 +1036,14 @@
   // ═══════════════════════════════════════════════════════════════
   var FORMATOS_COLETIVA = ["Carrossel de fotos", "Vídeo edit", "Vídeo com influenciador"];
 
+  // Quando a grade da auto chegar, acrescente entradas com edicao:"auto".
+  // ATENCAO, e a armadilha mais cara desta aba: o id de cada coletiva e
+  // (dia + hora), sem o ano. Duas coletivas no MESMO horario do mesmo dia
+  // viram O MESMO documento e passam a dividir status, links e impulsionamento.
+  // Na moto isso nunca aconteceu porque as horas sao unicas dentro de cada dia.
+  // A grade da auto precisa manter hora unica por dia.
   var COLETIVAS = [
-    { dia:"2026-08-12", rotulo:"Quarta-feira, 12/08", itens:[
+    { edicao:"moto", dia:"2026-08-12", rotulo:"Quarta-feira, 12/08", itens:[
       { hora:"08h10", marca:"CFMOTO",        influ:"Seku Mello",       box:"22/23" },
       { hora:"09h20", marca:"Shineray",      influ:"Eliana Malizia",   box:"19/20" },
       { hora:"10h30", marca:"Yamaha",        influ:"David Jensen",     box:"11/12" },
@@ -1047,7 +1054,7 @@
       { hora:"18h00", marca:"Dafra",         influ:"Day Miguel",       box:"17"    },
       { hora:"19h00", marca:"Fun Motors",    influ:"Gisele Favaro",    local:"Sala de vidro 01" }
     ]},
-    { dia:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
+    { edicao:"moto", dia:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
       { hora:"07h00", marca:"Royal Enfield", influ:"Lucas Xaparral",   box:"3/4"   },
       { hora:"08h10", marca:"Triumph",       influ:"Vans Faria",       box:"15/16" },
       { hora:"09h20", marca:"Moto Morini",   influ:"Daniel D2",        box:"21"    },
@@ -1072,15 +1079,106 @@
   ];
   var AREAS = ["Arena","Boulevard","Pista"];
 
-  var DIAS_STORY = [
-    { dia:"2026-08-12", rotulo:"Qua 12/08" },
-    { dia:"2026-08-13", rotulo:"Qui 13/08" },
-    { dia:"2026-08-14", rotulo:"Sex 14/08" },
-    { dia:"2026-08-15", rotulo:"Sáb 15/08" },
-    { dia:"2026-08-16", rotulo:"Dom 16/08" }
+  // ═══════════════════════════════════════════════════════════════
+  // AS DUAS EDICOES DO FESTIVAL
+  // ═══════════════════════════════════════════════════════════════
+  // A edicao de um documento e DEDUZIDA do campo "dia" na leitura, nunca
+  // gravada. Assim os 189 documentos que ja existem entram na separacao sem
+  // precisar de migracao, sem escrita nova e sem republicar regra do Firestore
+  // a poucos dias do evento.
+  //
+  // "semPeca" marca o dia de imprensa: existe pra coletiva e story, mas nao
+  // recebe peca de organico/pago. Antes isso era um slice(1) posicional, que
+  // so funcionava por sorte enquanto existia uma edicao so.
+  var EDICOES = [
+    { id:"moto", rotulo:"Edição Moto", dias:[
+      { dia:"2026-08-12", rotulo:"Qua 12/08", semPeca:true },
+      { dia:"2026-08-13", rotulo:"Qui 13/08" },
+      { dia:"2026-08-14", rotulo:"Sex 14/08" },
+      { dia:"2026-08-15", rotulo:"Sáb 15/08" },
+      { dia:"2026-08-16", rotulo:"Dom 16/08" }
+    ]},
+    { id:"auto", rotulo:"Edição Auto", dias:[
+      { dia:"2026-08-27", rotulo:"Qui 27/08" },
+      { dia:"2026-08-28", rotulo:"Sex 28/08" },
+      { dia:"2026-08-29", rotulo:"Sáb 29/08" },
+      { dia:"2026-08-30", rotulo:"Dom 30/08" }
+    ]}
   ];
-  // Orgânico e pago comecam na quinta, quando o festival abre pro publico.
-  var DIAS_PECA = DIAS_STORY.slice(1);
+
+  function edicaoPorId(id){ for(var i=0;i<EDICOES.length;i++){ if(EDICOES[i].id===id) return EDICOES[i]; } return null; }
+  function diasDaEdicao(ed){ return (ed && ed.dias) ? ed.dias : []; }
+  function diasPecaDaEdicao(ed){ return diasDaEdicao(ed).filter(function(d){ return !d.semPeca; }); }
+  function edicaoDoDia(iso){
+    for(var i=0;i<EDICOES.length;i++){
+      for(var j=0;j<EDICOES[i].dias.length;j++){ if(EDICOES[i].dias[j].dia===iso) return EDICOES[i]; }
+    }
+    return null;   // dia fora das duas grades (dado de teste, erro de digitacao)
+  }
+  function primeiroDia(ed){ var d=diasDaEdicao(ed); return d.length ? d[0].dia : ""; }
+  function ultimoDia(ed){ var d=diasDaEdicao(ed); return d.length ? d[d.length-1].dia : ""; }
+  function faixaDe(ed){
+    var a=primeiroDia(ed), b=ultimoDia(ed);
+    return a && b ? (a.slice(8)+"/"+a.slice(5,7)+" a "+b.slice(8)+"/"+b.slice(5,7)) : "";
+  }
+  // A que esta acontecendo, ou a proxima. Depois que tudo passou, fica na ultima.
+  function edicaoCorrente(){
+    var h = hojeISO();
+    for(var i=0;i<EDICOES.length;i++){
+      if(h >= primeiroDia(EDICOES[i]) && h <= ultimoDia(EDICOES[i])) return EDICOES[i];
+    }
+    for(var j=0;j<EDICOES.length;j++){ if(h < primeiroDia(EDICOES[j])) return EDICOES[j]; }
+    return EDICOES[EDICOES.length-1];
+  }
+  function edicaoEncerrada(ed){ return !!ed && ultimoDia(ed) < hojeISO(); }
+
+  // A TRAVA. Edicao que ja aconteceu e ACERVO: abre, le, copia link, e so.
+  // Sem isso o caminho mais comum do evento vira acidente: a pessoa troca pra
+  // moto pra conferir um link, esquece de voltar, cria peca nova e ela nasce
+  // em agosto. Toda funcao que grava confere isto ANTES, e a tela tambem
+  // esconde os botoes — as duas checagens, como no resto do sistema.
+  function soLeitura(){ return edicaoEncerrada(edicaoPorId(edicaoVista)); }
+  function bloqueiaSeArquivo(){
+    if(!soLeitura()) return false;
+    toast("Edição encerrada: aqui só dá para consultar. Volte para a " + edicaoCorrente().rotulo + " para editar.");
+    return true;
+  }
+
+  // Todos os dias das duas edicoes, pra rotular cartao antigo e pros seletores
+  // de dia dos formularios, que precisam enxergar as duas (senao abrir uma peca
+  // de moto estando na auto reescreve a data dela sozinho ao salvar).
+  function todosOsDias(){
+    var out=[];
+    EDICOES.forEach(function(e){ e.dias.forEach(function(d){ out.push(d); }); });
+    return out;
+  }
+  // compatibilidade: o codigo antigo usa estes dois nomes em varios lugares
+  var DIAS_STORY = todosOsDias();
+  var DIAS_PECA  = DIAS_STORY.filter(function(d){ return !d.semPeca; });
+
+  // Seletor de dia dos FORMULARIOS: sempre as duas edicoes, em grupos com o
+  // nome de cada uma. Se o dia que ja esta gravado nao existir em grade nenhuma
+  // (dado antigo, erro de digitacao), ele entra num grupo "Fora das grades" em
+  // vez de sumir — sumir e o que fazia o navegador escolher outro dia sozinho.
+  // "quaisDias" e diasDaEdicao ou diasPecaDaEdicao, conforme o formulario.
+  function optgroupDias(quaisDias, diaAtual){
+    var h = "", achou = false;
+    EDICOES.forEach(function(e){
+      var dias = quaisDias(e);
+      if(!dias.length) return;
+      h += '<optgroup label="'+esc(e.rotulo)+'">';
+      dias.forEach(function(d){
+        var sel = (d.dia === diaAtual);
+        if(sel) achou = true;
+        h += '<option value="'+d.dia+'"'+(sel?' selected':'')+'>'+esc(d.rotulo)+'</option>';
+      });
+      h += '</optgroup>';
+    });
+    if(diaAtual && !achou){
+      h += '<optgroup label="Fora das grades"><option value="'+esc(diaAtual)+'" selected>'+esc(diaAtual)+'</option></optgroup>';
+    }
+    return h;
+  }
 
   var FORMATOS_SUGERIDOS = ["Reels","Carrossel","Story","Foto","Vídeo edit","Entrevista","Cobertura","YouTube"];
 
@@ -1088,7 +1186,13 @@
   var PERFIL=null, PERM=null;
   var coletivas=[], pecas=[], story=[];
   var abaAtual="coletivas";
-  var diaColetiva="2026-08-12", diaStory=null;
+  // Qual edicao a tela esta mostrando. Vale para as QUATRO abas ao mesmo tempo:
+  // trocar de aba nao pode trocar de edicao no meio do caminho. Nasce na que
+  // esta em cartaz, entao em 27/08 o sistema vira auto sozinho.
+  var edicaoVista = edicaoCorrente().id;
+  // diaColetiva deixa de nascer com data escrita na mao: com duas edicoes, o
+  // literal "2026-08-12" prenderia a tela na moto pra sempre.
+  var diaColetiva = null, diaStory = null;
   var abertos={};                      // id -> true (cartoes expandidos)
   var fBusca="", fTipo="todos", fStatus="todos", fDia="todos", fBoost=false, fMinhas=false;
 
@@ -1180,12 +1284,10 @@
          'spellcheck="false" maxlength="600" placeholder="https://drive.google.com/..."></div>';
     h += '<div class="fld"><label>Quantas fotos</label>'+
          '<input id="ft_qtd" type="number" inputmode="numeric" min="0" placeholder="0"></div>';
-    h += '<div class="fld"><label>Dia</label><select id="ft_dia">';
-    for(i=0;i<DIAS_STORY.length;i++){
-      h += '<option value="'+DIAS_STORY[i].dia+'"'+(DIAS_STORY[i].dia===diaStoryAtual()?" selected":"")+'>'+
-           esc(DIAS_STORY[i].rotulo)+'</option>';
-    }
-    h += '</select></div>';
+    // Duas edicoes agrupadas, mesma razao do formulario de peca: a data que ja
+    // esta gravada tem que continuar na lista, senao salvar reescreve ela.
+    h += '<div class="fld"><label>Dia</label><select id="ft_dia">'+
+         optgroupDias(diasDaEdicao, diaStoryAtual())+'</select></div>';
     h += '</div><div class="acoes">'+
       '<button class="btn" data-act="salvarfoto">Criar entrega</button>'+
       '<button class="btn ghost" data-act="cancelarfoto">Cancelar</button>'+
@@ -1904,11 +2006,12 @@
     }
     var i, h = '<div class="form"><h3>'+(novo?"Nova peça":"Editar peça")+'</h3><div class="grid2">';
 
-    h += '<div class="fld"><label>Dia</label><select id="f_dia">';
-    for(i=0;i<DIAS_PECA.length;i++){
-      h += '<option value="'+DIAS_PECA[i].dia+'"'+(p.dia===DIAS_PECA[i].dia?" selected":"")+'>'+esc(DIAS_PECA[i].rotulo)+'</option>';
-    }
-    h += '</select></div>';
+    // AS DUAS EDICOES, agrupadas. Nao pode mostrar so os dias da edicao aberta:
+    // sem a data original na lista, abrir uma peca de moto estando na auto faz
+    // o navegador marcar a primeira opcao e o salvar reescreve o campo "dia".
+    // A peca migrava de edicao sozinha, sem aviso, so por ter sido aberta.
+    h += '<div class="fld"><label>Dia</label><select id="f_dia">'+
+         optgroupDias(diasPecaDaEdicao, p.dia)+'</select></div>';
 
     h += '<div class="fld"><label>Orgânico ou pago</label><select id="f_tipo">'+
       '<option value="organico"'+(p.tipo!=="pago"?" selected":"")+'>Orgânico</option>'+
