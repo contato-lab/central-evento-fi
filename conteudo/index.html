@@ -773,7 +773,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-18.1";
+  var VERSAO = "2026-08-18.2";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1454,9 +1454,10 @@
     // grade da outra edicao. O fallback mudo pra COLETIVAS[0] fazia a aba abrir
     // na moto sem ninguem entender por que.
     if(!gradesDaEd.length){
-      el.innerHTML = barraEdicaoHTML(function(e){
-          return COLETIVAS.filter(function(g){ return (g.edicao||"moto") === e.id; }).length;
-        }) +
+      // conta COLETIVAS, nao dias de grade: o outro ramo desta mesma aba conta
+      // itens, e os dois numeros apareciam no mesmo botao querendo dizer coisas
+      // diferentes (2 dias virava "Moto · 2" onde o normal diz "Moto · 14")
+      el.innerHTML = barraEdicaoHTML(contaColetivasDaEdicao) +
         '<div class="vazio"><div class="big">Grade da '+esc(edAtual.rotulo)+' ainda não publicada</div>'+
         '<div class="sm">A agenda oficial de coletivas é digitada no código. Assim que a produção mandar a da auto, ela aparece aqui.</div></div>';
       return;
@@ -1475,10 +1476,7 @@
       }
     }
 
-    var h = barraEdicaoHTML(function(e){
-      return COLETIVAS.filter(function(g){ return (g.edicao||"moto") === e.id; })
-                      .reduce(function(s,g){ return s + g.itens.length; }, 0);
-    });
+    var h = barraEdicaoHTML(contaColetivasDaEdicao);
     h += '<div class="subtabs">';
     for(i=0;i<gradesDaEd.length;i++){
       h += '<button class="subtab'+(gradesDaEd[i].dia===diaColetiva?" active":"")+'" data-act="diacol" data-dia="'+gradesDaEd[i].dia+'">'+esc(gradesDaEd[i].rotulo)+'</button>';
@@ -2186,6 +2184,12 @@
   }
   function daEdicaoVista(lista){
     return daEdicaoVistaDe(lista, edicaoPorId(edicaoVista));
+  }
+  // uma so definicao de "quantas coletivas tem a edicao X", usada pelos dois
+  // ramos da aba (grade existe / grade ainda nao digitada)
+  function contaColetivasDaEdicao(e){
+    return COLETIVAS.filter(function(g){ return (g.edicao||"moto") === e.id; })
+                    .reduce(function(s,g){ return s + g.itens.length; }, 0);
   }
   function daEdicaoVistaDe(lista, ed){
     if(!ed) return [];
