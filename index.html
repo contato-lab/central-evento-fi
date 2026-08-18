@@ -1204,7 +1204,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-14.3";
+  var VERSAO = "2026-08-18.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1765,10 +1765,13 @@
   // ---- grade do evento: as duas edicoes e seus 4 dias ----
   // A marca escolhida ja diz a edicao, entao o formulario mostra so os 4 dias dela
   // em vez dos 8. Quem nao pertence a uma edicao (patrocinador) troca na mao.
+  // A moto FICA na lista mesmo depois de acontecer: os recados dela ja estao no banco
+  // com essas datas, e tirar a edicao faria cada um deles cair no caso "dia fora da
+  // grade". O sistema escolhe sozinho onde abrir por edicaoCorrente(), entao a partir
+  // de 17/08 tudo aponta pra auto sem ninguem precisar trocar nada na mao.
   var EDICOES = [
-    { id:"moto", rotulo:"Edição Moto", dias:["2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16"] }
-    // Quando a edicao auto entrar, e so descomentar a linha abaixo (com a virgula acima):
-    // { id:"auto", rotulo:"Edição Auto", dias:["2026-08-27","2026-08-28","2026-08-29","2026-08-30"] }
+    { id:"moto", rotulo:"Edição Moto", dias:["2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16"] },
+    { id:"auto", rotulo:"Edição Auto", dias:["2026-08-27","2026-08-28","2026-08-29","2026-08-30"] }
   ];
   var DIA_EXTENSO = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
 
@@ -3100,14 +3103,24 @@
     var sorted = sortItems(recados,"prioridade");
 
     // filtro de dia: cada dia do evento e uma fila propria.
-    // recado sem data aparece em todos os dias (anuncia quando der).
+    // recado sem data aparece nos dias da edicao da propria marca.
     var hoje = hojeISO();
-    // A barra de dias e a GRADE DO EVENTO, nunca a lista de datas que aparecem no banco.
-    // Assim data errada de teste nao cria dia na tela do locutor.
-    var todosDias = EDICOES.reduce(function(a,e){ return a.concat(e.dias); },[]);
+    // A barra de dias e a GRADE DO EVENTO, nunca a lista de datas que aparecem no
+    // banco: assim data errada de teste nao cria dia na tela do locutor. E a grade
+    // que vale e a da edicao CORRENTE, nao a soma das duas (ver o fallback abaixo).
 
     function noDia(it, d){
-      if(!it.data) return true;   // sem data: pode ser anunciado em qualquer dia
+      // Sem data: vale pra qualquer dia DA PROPRIA EDICAO da marca. Sem esse
+      // recorte, uma sobra sem data da moto reaparecia nos 4 dias da auto, entrava
+      // no destaque "Proximo a falar" e ainda somava no contador dos 4 chips.
+      // Patrocinador que nao pertence a edicao nenhuma (Suhai, Mercado Livre)
+      // continua caindo em qualquer dia, que e o certo pra eles.
+      if(!it.data){
+        var em = edicaoDaMarca(it.marca);
+        if(!em) return true;
+        var ed = edicaoDoDia(d);
+        return !ed || em === ed.id;
+      }
       return it.data === d;
     }
     var pendNoDia = function(d){
@@ -3120,7 +3133,12 @@
       var edC = edicaoCorrente();
       if(edC.dias.indexOf(hoje) >= 0){ dia = hoje; }
       else {
-        var comRecado = todosDias.filter(function(d){ return pendNoDia(d) > 0; });
+        // So os dias da edicao CORRENTE, nunca a grade inteira. Varrer os 9 dias
+        // fazia a tela abrir em 12/08 sempre que sobrasse um recado da moto sem
+        // "Anunciei" — e como a fileira de chips so desenha os dias da edicao do
+        // dia aberto, o locutor ficava trancado numa edicao encerrada, sem nenhum
+        // botao que levasse a 27-30/08.
+        var comRecado = edC.dias.filter(function(d){ return pendNoDia(d) > 0; });
         var futuros = comRecado.filter(function(d){ return d >= hoje; });
         dia = futuros[0] || comRecado[0] || edC.dias[0];
       }
@@ -4049,7 +4067,11 @@
     $("#wrapFormRec").hidden = true;      // o formulario antigo sai de cena
     pdMontarSelect();
     var salva = localStorage.getItem("fi_marca");
-    pdDia = pdDia || pdDiaSugerido(EDICOES[0]);
+    // edicaoCorrente(), nao EDICOES[0]: com duas edicoes na lista, o indice 0 e a
+    // moto pra sempre, entao o palpite inicial cairia num dia que ja passou. Quem
+    // escolhe marca logo em seguida nao chega a ver (pdTrocarMarca corrige), mas
+    // deixar o palpite certo desde o inicio evita a tela piscar no dia errado.
+    pdDia = pdDia || pdDiaSugerido(edicaoCorrente());
     if(salva){ pdTrocarMarca(salva); } else { pdPedirMarca(); }
   }
 
