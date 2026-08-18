@@ -214,6 +214,28 @@
   }
 
   /* sub-abas (dias) */
+  /* barra de edicao: mesma linguagem da Central das marcas, pra quem usa os
+     dois sistemas nao ter que aprender duas gramaticas */
+  .edbar{display:flex;align-items:baseline;gap:9px;margin:0 0 10px;flex-wrap:wrap}
+  .edbar .espaco{flex:1 1 auto}
+  .edtitulo{font-family:var(--display);font-size:1.05rem;font-weight:700;color:var(--lime)}
+  .edfaixa{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .edtrocar{min-height:36px;padding:0 12px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--line);background:transparent;color:var(--ink-2);
+    font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+  .edtrocar:hover{border-color:var(--ink-3);color:var(--ink)}
+  .edtrocar:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  /* edicao encerrada: apagada de proposito, pra nao convidar ao toque no meio
+     do evento. Quem procura acervo acha; quem esta com pressa nao esbarra */
+  .edtrocar.encerrada{border-style:dashed;color:var(--ink-3);opacity:.72}
+  .edtrocar.encerrada:hover{opacity:1;color:var(--ink-2)}
+  .avisoed{display:flex;align-items:center;gap:9px;margin:0 0 10px;padding:8px 11px;
+    border:1px dashed var(--line);border-radius:10px;background:transparent}
+  .avisoed .txt{flex:1;min-width:0;font-size:.82rem;color:var(--ink-2)}
+  .avisoed button{min-height:36px;padding:0 12px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--lime);background:transparent;color:var(--lime);
+    font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+
   .subtabs{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
   .subtab{background:transparent;border:1px solid var(--line);color:var(--ink-2);
     border-radius:20px;padding:8px 16px;font-size:.82rem;font-weight:600;min-height:38px}
@@ -751,7 +773,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-16.2";
+  var VERSAO = "2026-08-18.1";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -999,11 +1021,18 @@
     }, onErr);
   }
 
+  // A TRAVA DO ARQUIVO fica aqui, no ponto unico por onde TUDO grava, e nao
+  // espalhada por quinze botoes: edicao encerrada e acervo, abre e le, nao
+  // escreve. Sem isso o acidente mais comum do evento seria trocar pra moto pra
+  // conferir um link, esquecer de voltar, e criar peca nova nascendo em agosto.
+  // A tela tambem esconde os botoes; sao as duas checagens de sempre.
   function DBadd(c, obj){
+    if(bloqueiaSeArquivo()) return;
     if(!FB_ON){ obj.id=uid(); var a=lsGet(c); a.push(obj); lsSet(c,a); return; }
     db.collection(COL[c]).add(obj)["catch"](function(e){ avisoDeFalha(e); toast("Não deu para salvar."); });
   }
   function DBupdate(c, id, patch){
+    if(bloqueiaSeArquivo()) return;
     if(!FB_ON){
       var a=lsGet(c), i;
       for(i=0;i<a.length;i++){ if(a[i].id===id){ for(var k in patch) a[i][k]=patch[k]; } }
@@ -1013,6 +1042,7 @@
   }
   // set com merge: usado pelas coletivas, que tem id fixo e podem nao existir ainda
   function DBset(c, id, patch){
+    if(bloqueiaSeArquivo()) return;
     if(!FB_ON){
       var a=lsGet(c), achou=false, i;
       for(i=0;i<a.length;i++){ if(a[i].id===id){ achou=true; for(var k in patch) a[i][k]=patch[k]; } }
@@ -1022,6 +1052,7 @@
     db.collection(COL[c]).doc(id).set(patch,{merge:true})["catch"](function(e){ avisoDeFalha(e); toast("Não deu para salvar."); });
   }
   function DBremove(c, id){
+    if(bloqueiaSeArquivo()) return;
     if(!FB_ON){ lsSet(c, lsGet(c).filter(function(x){ return x.id!==id; })); return; }
     db.collection(COL[c]).doc(id).delete()["catch"](function(e){ avisoDeFalha(e); toast("Não deu para apagar."); });
   }
@@ -1374,10 +1405,12 @@
     }
     var lista = fotosDoDia(), h = "", i;
 
+    h += barraEdicaoHTML(function(e){ return daEdicaoVistaDe(fotos, e).length; });
     h += '<div class="subtabs">';
-    for(i=0;i<DIAS_STORY.length;i++){
-      h += '<button class="subtab'+(DIAS_STORY[i].dia===diaStoryAtual()?" active":"")+
-           '" data-act="diafoto" data-dia="'+DIAS_STORY[i].dia+'">'+esc(DIAS_STORY[i].rotulo)+'</button>';
+    var diasF = diasDaEdicao(edicaoPorId(edicaoVista));
+    for(i=0;i<diasF.length;i++){
+      h += '<button class="subtab'+(diasF[i].dia===diaStoryAtual()?" active":"")+
+           '" data-act="diafoto" data-dia="'+diasF[i].dia+'">'+esc(diasF[i].rotulo)+'</button>';
     }
     h += '</div>';
 
@@ -1414,9 +1447,25 @@
         '<div class="sm">Seu login é de StoryMaker. Use a aba StoryMaker.</div></div>';
       return;
     }
-    var grade = null, i, j, k;
-    for(i=0;i<COLETIVAS.length;i++){ if(COLETIVAS[i].dia===diaColetiva) grade = COLETIVAS[i]; }
-    if(!grade) grade = COLETIVAS[0];
+    var i, j, k;
+    var edAtual = edicaoPorId(edicaoVista) || edicaoCorrente();
+    var gradesDaEd = COLETIVAS.filter(function(g){ return (g.edicao||"moto") === edAtual.id; });
+    // Grade da edicao ainda nao digitada no codigo: diz isso, em vez de cair na
+    // grade da outra edicao. O fallback mudo pra COLETIVAS[0] fazia a aba abrir
+    // na moto sem ninguem entender por que.
+    if(!gradesDaEd.length){
+      el.innerHTML = barraEdicaoHTML(function(e){
+          return COLETIVAS.filter(function(g){ return (g.edicao||"moto") === e.id; }).length;
+        }) +
+        '<div class="vazio"><div class="big">Grade da '+esc(edAtual.rotulo)+' ainda não publicada</div>'+
+        '<div class="sm">A agenda oficial de coletivas é digitada no código. Assim que a produção mandar a da auto, ela aparece aqui.</div></div>';
+      return;
+    }
+    var diaAtivo = diaColetivaAtual();
+    var grade = null;
+    for(i=0;i<gradesDaEd.length;i++){ if(gradesDaEd[i].dia===diaAtivo) grade = gradesDaEd[i]; }
+    if(!grade) grade = gradesDaEd[0];
+    diaColetiva = grade.dia;
 
     // junta o estado das 27 pecas do dia pra faixa de numeros do topo
     var doDia = [];
@@ -1426,10 +1475,13 @@
       }
     }
 
-    var h = '';
+    var h = barraEdicaoHTML(function(e){
+      return COLETIVAS.filter(function(g){ return (g.edicao||"moto") === e.id; })
+                      .reduce(function(s,g){ return s + g.itens.length; }, 0);
+    });
     h += '<div class="subtabs">';
-    for(i=0;i<COLETIVAS.length;i++){
-      h += '<button class="subtab'+(COLETIVAS[i].dia===diaColetiva?" active":"")+'" data-act="diacol" data-dia="'+COLETIVAS[i].dia+'">'+esc(COLETIVAS[i].rotulo)+'</button>';
+    for(i=0;i<gradesDaEd.length;i++){
+      h += '<button class="subtab'+(gradesDaEd[i].dia===diaColetiva?" active":"")+'" data-act="diacol" data-dia="'+gradesDaEd[i].dia+'">'+esc(gradesDaEd[i].rotulo)+'</button>';
     }
     h += '</div>';
 
@@ -1593,8 +1645,12 @@
       if(contarMinhas(pecas) > 0) fMinhas = true;
     }
 
-    var vis = pecas.filter(passaFiltro);
-    var cTudo = contarPainel(pecas);
+    // So as pecas da edicao aberta. Sem este recorte a lista, os contadores e o
+    // "Mostrando X de Y" misturavam as duas edicoes.
+    var pecasDaEd = daEdicaoVista(pecas);
+    var vis = pecasDaEd.filter(passaFiltro);
+    h += barraEdicaoHTML(function(e){ return daEdicaoVistaDe(pecas, e).length; });
+    var cTudo = contarPainel(pecasDaEd);
 
     h += resumoLinhaHTML(cTudo);
     if(statsAbertas) h += painelHTML(cTudo, "Total");
@@ -1604,9 +1660,9 @@
     // posicao da primeira fileira, com a mesma cara dos outros seis filtros.
     h += '<div class="segm">'+
       '<button class="sg'+(fMinhas?" on":"")+'" data-act="segm" data-v="minhas">'+
-        'Minhas <span class="sgn">'+contarMinhas(pecas)+'</span></button>'+
+        'Minhas <span class="sgn">'+contarMinhas(pecasDaEd)+'</span></button>'+
       '<button class="sg'+(fMinhas?"":" on")+'" data-act="segm" data-v="todas">'+
-        'Todas <span class="sgn">'+pecas.length+'</span></button>'+
+        'Todas <span class="sgn">'+pecasDaEd.length+'</span></button>'+
     '</div>';
 
     // UMA LINHA SO PRA TUDO QUE E ACAO: buscar, filtrar, criar.
@@ -1654,7 +1710,8 @@
       h += '</div>';
       h += '<div class="fgr">Dia</div><div class="fchips">';
       h += chip("dia","todos","Todos", fDia==="todos");
-      for(i=0;i<DIAS_PECA.length;i++) h += chip("dia",DIAS_PECA[i].dia,DIAS_PECA[i].rotulo, fDia===DIAS_PECA[i].dia);
+      var diasFiltro = diasPecaDaEdicao(edicaoPorId(edicaoVista));
+      for(i=0;i<diasFiltro.length;i++) h += chip("dia",diasFiltro[i].dia,diasFiltro[i].rotulo, fDia===diasFiltro[i].dia);
       h += '</div>';
       h += '<div class="fchips">'+
         '<button class="fchip'+(fBoost?" on":"")+'" data-act="fboost">Só impulsionar</button>'+
@@ -1662,14 +1719,14 @@
       '</div></div>';
     }
 
-    if(vis.length !== pecas.length){
-      h += '<div class="nalista">Mostrando <b>'+vis.length+'</b> de '+pecas.length+' peças</div>';
+    if(vis.length !== pecasDaEd.length){
+      h += '<div class="nalista">Mostrando <b>'+vis.length+'</b> de '+pecasDaEd.length+' peças</div>';
     }
 
     if(editandoPeca) h += formPecaHTML();
 
     if(!vis.length){
-      h += '<div class="vazio"><div class="big">'+(pecas.length ? "Nada com esse filtro" : "Nenhuma peça ainda")+'</div>'+
+      h += '<div class="vazio"><div class="big">'+(pecasDaEd.length ? "Nada com esse filtro" : "Nenhuma peça ainda")+'</div>'+
         '<div class="sm">'+(pecas.length
           ? "Limpe a busca ou escolha outro filtro para ver o resto."
           : "Toque em <b>+ Nova peça</b> para cadastrar o primeiro conteúdo orgânico ou pago.")+'</div></div>';
@@ -2072,12 +2129,67 @@
     var d = new Date(), m = String(d.getMonth()+1).padStart(2,"0"), x = String(d.getDate()).padStart(2,"0");
     return d.getFullYear()+"-"+m+"-"+x;
   }
+  // Ancorado na edicao ABERTA, nunca na lista dos nove dias. Se ficasse na lista
+  // inteira, trocar pra auto com "2026-08-16" guardado deixava StoryMaker e
+  // Fotos desenhando vazio, com a fita sem nenhum dia aceso — e o time em campo
+  // le isso como "o sistema perdeu tudo".
   function diaStoryAtual(){
-    if(diaStory) return diaStory;
-    var hj = hojeISO(), i;
-    for(i=0;i<DIAS_STORY.length;i++){ if(DIAS_STORY[i].dia === hj) return hj; }
-    // fora dos 5 dias: antes do evento abre no primeiro, depois abre no ultimo
-    return hj < DIAS_STORY[0].dia ? DIAS_STORY[0].dia : DIAS_STORY[DIAS_STORY.length-1].dia;
+    var dias = diasDaEdicao(edicaoPorId(edicaoVista));
+    if(!dias.length) return "";
+    var i;
+    if(diaStory){
+      for(i=0;i<dias.length;i++){ if(dias[i].dia === diaStory) return diaStory; }
+      diaStory = null;   // era de outra edicao: esquece em vez de mostrar vazio
+    }
+    var hj = hojeISO();
+    for(i=0;i<dias.length;i++){ if(dias[i].dia === hj) return hj; }
+    // fora dos dias da edicao: antes dela abre no primeiro, depois no ultimo
+    return hj < dias[0].dia ? dias[0].dia : dias[dias.length-1].dia;
+  }
+  function diaColetivaAtual(){
+    var daEd = COLETIVAS.filter(function(g){ return (g.edicao||"moto") === edicaoVista; });
+    if(!daEd.length) return null;              // grade da edicao ainda nao digitada
+    var i;
+    if(diaColetiva){
+      for(i=0;i<daEd.length;i++){ if(daEd[i].dia === diaColetiva) return diaColetiva; }
+    }
+    var hj = hojeISO();
+    for(i=0;i<daEd.length;i++){ if(daEd[i].dia === hj) return hj; }
+    return daEd[0].dia;
+  }
+  // A barra de edicao, igual em todas as abas. Mostra a que esta na tela, a
+  // faixa de datas, e um atalho apagado pra cada outra. A encerrada vem com
+  // borda pontilhada pra nao convidar ao toque no meio do evento.
+  function barraEdicaoHTML(contaPorEdicao){
+    var atual = edicaoPorId(edicaoVista) || edicaoCorrente();
+    var h = '';
+    if(edicaoEncerrada(atual)){
+      h += '<div class="avisoed"><span class="txt">Você está vendo a '+esc(atual.rotulo)+
+        ', que já aconteceu. Aqui só dá para consultar.</span>'+
+        '<button type="button" data-act="edicao" data-ed="'+edicaoCorrente().id+'">Voltar</button></div>';
+    }
+    h += '<div class="edbar"><span class="edtitulo">'+esc(atual.rotulo)+'</span>'+
+         '<span class="edfaixa">'+faixaDe(atual)+'</span><span class="espaco"></span>';
+    EDICOES.forEach(function(e){
+      if(e.id === atual.id) return;
+      var n = contaPorEdicao ? contaPorEdicao(e) : null;
+      h += '<button type="button" class="edtrocar'+(edicaoEncerrada(e)?' encerrada':'')+'" '+
+           'data-act="edicao" data-ed="'+e.id+'">'+esc(e.rotulo.replace("Edição ",""))+
+           (edicaoEncerrada(e)?' · encerrada':'')+(n===null?'':' · '+n)+'</button>';
+    });
+    return h + '</div>';
+  }
+  // De que edicao e um documento, pelo campo dia. Nunca gravado, sempre deduzido.
+  function edicaoDoItem(it){
+    var ed = edicaoDoDia(it && it.dia);
+    return ed ? ed.id : null;
+  }
+  function daEdicaoVista(lista){
+    return daEdicaoVistaDe(lista, edicaoPorId(edicaoVista));
+  }
+  function daEdicaoVistaDe(lista, ed){
+    if(!ed) return [];
+    return (lista||[]).filter(function(it){ return edicaoDoItem(it) === ed.id; });
   }
 
   function renderStory(){
@@ -2099,9 +2211,13 @@
     }
     var nomes = Object.keys(abertosPor).sort();
 
+    h = barraEdicaoHTML(function(e){
+      return daEdicaoVistaDe(story, e).length;
+    }) + h;
     h += '<div class="subtabs">';
-    for(i=0;i<DIAS_STORY.length;i++){
-      h += '<button class="subtab'+(DIAS_STORY[i].dia===dia?" active":"")+'" data-act="diastory" data-dia="'+DIAS_STORY[i].dia+'">'+esc(DIAS_STORY[i].rotulo)+'</button>';
+    var diasEd = diasDaEdicao(edicaoPorId(edicaoVista));
+    for(i=0;i<diasEd.length;i++){
+      h += '<button class="subtab'+(diasEd[i].dia===dia?" active":"")+'" data-act="diastory" data-dia="'+diasEd[i].dia+'">'+esc(diasEd[i].rotulo)+'</button>';
     }
     h += '</div>';
 
@@ -2206,11 +2322,16 @@
   // RENDER GERAL
   // ═══════════════════════════════════════════════════════════════
   function contadores(){
+    // Os quatro numeros do topo passam a contar SO a edicao aberta. Antes o
+    // badge dizia 23 pecas enquanto a tela mostrava outro conjunto, e ninguem
+    // sabia de onde vinha a diferenca.
     var i, totalCol=0;
-    for(i=0;i<COLETIVAS.length;i++) totalCol += COLETIVAS[i].itens.length;
+    for(i=0;i<COLETIVAS.length;i++){
+      if((COLETIVAS[i].edicao||"moto") === edicaoVista) totalCol += COLETIVAS[i].itens.length;
+    }
     var el;
     el=$("#cColetivas"); if(el) el.textContent = totalCol;
-    el=$("#cPecas");     if(el) el.textContent = pecas.length;
+    el=$("#cPecas");     if(el) el.textContent = daEdicaoVista(pecas).length;
     el=$("#cFotos"); if(el){
       var dF = diaStoryAtual();
       // conta o que AINDA NAO esta tratado: e o que falta, nao o que ja foi
@@ -2506,6 +2627,21 @@
     var act = b.dataset.act, id = b.dataset.id;
 
     // ---- navegacao (nao grava nada) ----
+    // TROCAR DE EDICAO. Vale pras quatro abas de uma vez: trocar de aba nao pode
+    // trocar de edicao no meio do caminho. Zera diaStory e diaColetiva de
+    // proposito — eles guardam data da OUTRA edicao e, sem zerar, StoryMaker e
+    // Fotos desenhavam vazio com a fita sem nenhum dia aceso.
+    if(act === "edicao"){
+      var alvo = edicaoPorId(b.dataset.ed);
+      if(alvo){
+        edicaoVista = alvo.id;
+        diaStory = null;
+        diaColetiva = null;
+        fDia = "todos";        // filtro de dia guardava data da outra edicao
+        renderAll();
+      }
+      return;
+    }
     if(act === "diacol"){ diaColetiva = b.dataset.dia; renderColetivas(); return; }
     if(act === "diastory"){ diaStory = b.dataset.dia; renderStory(); contadores(); return; }
     if(act === "abrircol"){ var k=b.dataset.key; abertos[k] = !abertos[k]; renderColetivas(); return; }
