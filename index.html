@@ -1215,7 +1215,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-18.4";
+  var VERSAO = "2026-08-18.5";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2239,27 +2239,9 @@
   // Grade dos dias de imprensa. E dado, nao HTML: mudou a agenda, edita aqui
   // e sobe VERSAO nova. "momento" marca o que nao e coletiva de marca
   // (abertura, intervalo) — aparece em italico, sem cara de atracao.
+  // Esvaziada em 18/08/2026: a agenda de coletivas era da edicao moto.
+  // A da auto (27 a 30/08) entra aqui quando a producao mandar.
   var COLETIVAS = [
-    { data:"2026-08-12", rotulo:"Quarta-feira, 12/08", itens:[
-      { hora:"08h10", nome:"CFMOTO",       box:"22/23" },
-      { hora:"09h20", nome:"Shineray",     box:"19/20" },
-      { hora:"10h30", nome:"Yamaha",       box:"11/12" },
-      { hora:"11h40", nome:"Abertura oficial", momento:true },
-      { hora:"13h00", nome:"Intervalo", momento:true },
-      { hora:"13h30", nome:"BMW Motorrad", box:"1/2" },
-      { hora:"14h40", nome:"Bajaj",        box:"10" },
-      { hora:"15h50", nome:"Voge",         local:"Arena" },
-      { hora:"17h00", nome:"Suzuki/JTZ",   box:"18" },
-      { hora:"18h00", nome:"Dafra",        box:"17" },
-      { hora:"19h00", nome:"Fun Motors",   local:"Sala de vidro 01" }
-    ]},
-    { data:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
-      { hora:"07h00", nome:"Royal Enfield", box:"3/4" },
-      { hora:"08h10", nome:"Triumph",       box:"15/16" },
-      { hora:"09h20", nome:"Moto Morini",   box:"21" },
-      { hora:"10h30", nome:"Kawasaki",      box:"13/14" },
-      { hora:"11h40", nome:"Honda",         local:"Convention Center" }
-    ]}
   ];
 
   // aceita "08h10" e "19:00" — a agenda de coletivas usa o primeiro formato,
@@ -2298,78 +2280,12 @@
   // ve de novo; quem nunca entrou tambem nao ve (nao e novidade pra ele).
   //
   // aba: pra onde o botao "Ver" leva. Valores: prog, shows, coletivas, extras.
-  var PROG_UPDATE = {
-    id:    "2026-08-13-coletivas-extra",
-    texto: "Entraram três coletivas de hoje na Programação Extra Oficial: Brizze Motos às 15h, AIMA às 16h e MXF Group às 16h, 17h e 18h.",
-    aba:   "extras"
-  };
+  // PROG_UPDATE saiu em 18/08/2026. Era codigo morto: ninguem lia essa variavel
+  // (a faixa de novidade e toda por carimbo de tempo), e o texto ainda anunciava
+  // coletivas de 13/08 como se fossem "de hoje".
 
+  // Esvaziada em 18/08/2026 junto com o resto da grade de moto.
   var EXTRAS = [
-    {
-      // ATENCAO NO NOME: a Paty (imprensa) escreveu "Brizze"; a lista de marcas
-      // do proprio festival, mais acima neste arquivo, traz "Brizzo". As duas
-      // fontes sao internas e discordam. Ficou o da Paty por ser a fonte desta
-      // coletiva. Confirmado o certo, troca aqui.
-      nome:"Coletiva Brizze Motos",
-      quem:"Brizze Motos",
-      data:"2026-08-13",
-      rotulo:"Quinta-feira, 13/08",
-      local:"Arena",
-      itens:[
-        { de:"15:00", t:"Lançamento de marca",
-          d:"Coletiva de lançamento da marca, com moto elétrica. Horário de Brasília." }
-      ]
-    },
-    {
-      nome:"Coletiva MXF Group",
-      quem:"MXF Group",
-      data:"2026-08-13",
-      rotulo:"Quinta-feira, 13/08",
-      local:"Arena",
-      nota:"São três sessões da mesma apresentação, às 16h, 17h e 18h. Horário de Brasília.",
-      itens:[
-        { de:"16:00", t:"Lançamento MXF Group",
-          d:"Moto elétrica, protótipo off road 2 tempos injetada, linha 2027 e os novos quadros Loncin." },
-        { de:"17:00", t:"Lançamento MXF Group", d:"Mesma apresentação, nova sessão." },
-        { de:"18:00", t:"Lançamento MXF Group", d:"Mesma apresentação, nova sessão." }
-      ]
-    },
-    {
-      nome:"Coletiva AIMA",
-      quem:"AIMA",
-      data:"2026-08-13",
-      rotulo:"Quinta-feira, 13/08",
-      local:"Boulevard, em frente ao Stand 20",
-      nota:"Será sorteada uma moto AIMA entre os jornalistas que comparecerem à coletiva. Os dados de quem participar são coletados no local. O ganhador será anunciado em uma live no último dia do festival, e o processo todo será publicado no Instagram. A moto é exclusiva para imprensa.",
-      // sem "ate": a coordenacao passou so o horario de inicio, e nao invento
-      // duracao. O render aceita item sem fim e mostra so "16h00".
-      itens:[
-        { de:"16:00", t:"Coletiva de imprensa AIMA",
-          d:"Horário de Brasília. Coletiva fora da grade oficial de imprensa de quinta." }
-      ]
-    },
-    {
-      nome:"Meli 2 Rodas",
-      quem:"Mercado Livre com a Revista Duas Rodas",
-      data:"2026-08-14",
-      rotulo:"Sexta-feira, 14/08",
-      // o local mudou de Paddock pra Torre entre duas mensagens no mesmo dia;
-      // vale conferir antes de divulgar, local errado faz jornalista andar em vao
-      local:"Centro de Convenções na Torre",
-      nota:"Ao longo da manhã há rodadas de quiz ao vivo às 10h, 11h15 e 11h50. Os maiores pontuadores concorrem a prêmios especiais, incluindo uma volta de moto no circuito de Interlagos.",
-      itens:[
-        { de:"08:30", ate:"09:15", t:"Recepção e networking",
-          d:"Credenciamento, café da manhã para interação inicial e abertura oficial com um quiz interativo de aquecimento." },
-        { de:"09:30", ate:"10:00", t:"Visão de mercado e ecossistema",
-          d:"Palestras focadas no tamanho da oportunidade do mercado de motos no Brasil e em como o ecossistema do Mercado Livre conecta compradores, vendedores e peças." },
-        { de:"10:15", ate:"11:15", t:"Estratégia, vendas e ferramentas",
-          d:"Bloco prático focado em resultados. Cobre boas práticas de venda, o segredo do anúncio campeão (marcas e sellers) e soluções para turbinar a operação: MeliPro, Afiliados, B2B e Ads." },
-        { de:"11:20", ate:"11:50", t:"Painel interativo: bastidores do Meli 2 Rodas",
-          d:"Roda de conversa descontraída com especialistas, sellers de destaque e entusiastas, com espaço para perguntas do público em tempo real pelo celular." },
-        { de:"11:50", ate:"12:00", t:"Premiação e encerramento",
-          d:"Quiz final, entrega de kits exclusivos e encerramento do evento." }
-      ]
-    }
   ];
 
   // ===== DESCRICAO DAS ATRACOES =====
@@ -2428,92 +2344,15 @@
   //
   // Quarta 12/08 NAO esta aqui: o carrossel comeca na quinta. Quarta e o dia de
   // imprensa (coletivas), que tem sub-aba propria.
+  // Esvaziada em 18/08/2026: era a grade da edicao moto, que ja aconteceu.
+  // Deixar no ar durante a auto faria o mural anunciar atracao de agosto como
+  // se fosse a de hoje. Copia integral em
+  // _backup-central-evento/programacao-MOTO-2026-arquivada.txt e no git.
   var PROGRAMACAO = [
-    { data:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
-      { nome:"Tirolesa",             de:"10:00", ate:"20:00" },
-      { nome:"Teste Ride",           de:"13:00", ate:"17:00" },
-      { nome:"Boulevard",            de:"13:00", ate:"20:00" },
-      { nome:"Arena",                de:"13:00", ate:"20:00" },
-      { nome:"Paddock",              de:"13:00", ate:"20:00" },
-      { nome:"Mobilidade Urbana",    de:"13:00", ate:"17:00" },
-      { nome:"Pista de Habilidade",  de:"13:00", ate:"17:00" },
-      { nome:"Arena Kids",           de:"13:00", ate:"20:00" },
-      { nome:"Bike Builder Circus",  de:"13:00", ate:"20:00" },
-      { nome:"Roda Gigante",         de:"10:00", ate:"20:00" },
-      { nome:"Globo da Morte",       horas:["15:00"] }
-    ]},
-    { data:"2026-08-14", rotulo:"Sexta-feira, 14/08", itens:[
-      { nome:"Teste Ride",           de:"08:00", ate:"17:00" },
-      { nome:"Boulevard",            de:"08:00", ate:"20:00" },
-      { nome:"Arena",                de:"08:00", ate:"20:00" },
-      { nome:"Paddock",              de:"08:00", ate:"20:00" },
-      { nome:"Pavilhão Mercado Livre", de:"08:00", ate:"20:00" },
-      { nome:"Mobilidade Urbana",    de:"08:00", ate:"17:00" },
-      { nome:"Pista de Habilidade",  de:"08:00", ate:"17:00" },
-      { nome:"Arena Kids",           de:"08:00", ate:"20:00" },
-      { nome:"Bike Builder Circus",  de:"08:00", ate:"20:00" },
-      { nome:"Tirolesa",             de:"10:00", ate:"20:00" },
-      { nome:"Roda Gigante",         de:"10:00", ate:"23:00" },
-      { nome:"Globo da Morte",       horas:["12:00","16:00"] },
-      { nome:"Fred Kyrillos",        horas:["15:00"] },
-      { nome:"Força e Ação",         horas:["17:30"] },
-      { nome:"Arena de Shows",       de:"17:00", ate:"00:00" }
-    ]},
-    { data:"2026-08-15", rotulo:"Sábado, 15/08", itens:[
-      { nome:"Teste Ride",           de:"08:00", ate:"17:00" },
-      { nome:"Boulevard",            de:"08:00", ate:"20:00" },
-      { nome:"Arena",                de:"08:00", ate:"20:00" },
-      { nome:"Paddock",              de:"08:00", ate:"20:00" },
-      { nome:"Pavilhão Mercado Livre", de:"08:00", ate:"20:00" },
-      { nome:"Mobilidade Urbana",    de:"08:00", ate:"17:00" },
-      { nome:"Pista de Habilidade",  de:"08:00", ate:"17:00" },
-      { nome:"Arena Kids",           de:"08:00", ate:"20:00" },
-      { nome:"Bike Builder Circus",  de:"08:00", ate:"20:00" },
-      { nome:"Tirolesa",             de:"10:00", ate:"20:00" },
-      { nome:"Roda Gigante",         de:"10:00", ate:"23:00" },
-      { nome:"Globo da Morte",       horas:["11:00","15:00"] },
-      { nome:"Fred Kyrillos",        horas:["12:00","16:00"] },
-      { nome:"Força e Ação",         horas:["14:00","18:00"] },
-      { nome:"Arena de Shows",       de:"17:00", ate:"00:00" }
-    ]},
-    { data:"2026-08-16", rotulo:"Domingo, 16/08", itens:[
-      { nome:"Teste Ride",           de:"08:00", ate:"17:00" },
-      { nome:"Boulevard",            de:"08:00", ate:"20:00" },
-      { nome:"Arena",                de:"08:00", ate:"20:00" },
-      { nome:"Paddock",              de:"08:00", ate:"20:00" },
-      { nome:"Pavilhão Mercado Livre", de:"08:00", ate:"20:00" },
-      { nome:"Mobilidade Urbana",    de:"08:00", ate:"17:00" },
-      { nome:"Pista de Habilidade",  de:"08:00", ate:"17:00" },
-      { nome:"Arena Kids",           de:"08:00", ate:"20:00" },
-      { nome:"Bike Builder Circus",  de:"08:00", ate:"20:00" },
-      { nome:"Tirolesa",             de:"10:00", ate:"20:00" },
-      { nome:"Roda Gigante",         de:"10:00", ate:"23:00" },
-      { nome:"Globo da Morte",       horas:["11:00","15:00"] },
-      { nome:"Fred Kyrillos",        horas:["12:00","16:00"] },
-      { nome:"Força e Ação",         horas:["14:00","18:00"] },
-      { nome:"Arena de Shows",       de:"17:00", ate:"00:00" }
-    ]}
   ];
 
+  // Esvaziada em 18/08/2026 junto com o resto da grade de moto.
   var SHOWS = [
-    { data:"2026-08-14", rotulo:"Sexta-feira, 14/08", itens:[
-      { hora:"19h00", nome:"Cat Dealers" },
-      { hora:"20h30", nome:"Filipe Ret" },
-      { hora:"22h30", nome:"Pedro Sampaio" },
-      { hora:"00h00", nome:"Fim", momento:true }
-    ]},
-    { data:"2026-08-15", rotulo:"Sábado, 15/08", itens:[
-      { hora:"19h00", nome:"Marcelo D2" },
-      { hora:"20h30", nome:"Ludmilla" },
-      { hora:"22h30", nome:"Matheus e Kauan" },
-      { hora:"00h00", nome:"Fim", momento:true }
-    ]},
-    { data:"2026-08-16", rotulo:"Domingo, 16/08", itens:[
-      { hora:"18h00", nome:"Benzadeus" },
-      { hora:"20h00", nome:"Ferrugem" },
-      { hora:"21h30", nome:"Thiaguinho" },
-      { hora:"23h00", nome:"Fim", momento:true }
-    ]}
   ];
 
   function coletivaMin(h){
@@ -2529,9 +2368,17 @@
   // Trata a VIRADA DA MEIA-NOITE: o show das 22h30 termina no "00h00 FIM", e
   // 0 min e menor que 1350 min. Sem somar 24h nesse caso, o slot da madrugada
   // nasceria como "ja passou" e o AGORA nunca apareceria no ultimo show.
-  function renderAgenda(box, dados, nota){
+  function renderAgenda(box, dados, nota, vazioTitulo){
     if(!box) return;
     var hoje = hojeISO(), agora = minutosAgora();
+    // Mesma razao do renderProgramacao: entre uma edicao e outra a lista fica
+    // vazia, e sem isso a aba mostrava so a nota, sem dizer o que houve.
+    if(!dados.length){
+      box.innerHTML = '<div class="vazio"><div class="big">'+esc(vazioTitulo || "Nada publicado ainda")+'</div>'+
+        '<div class="sm">O que era da edição moto saiu daqui porque já aconteceu. '+
+        'Assim que a produção divulgar a da auto, aparece nesta aba.</div></div>';
+      return;
+    }
     var html = nota ? '<p class="colnota">' + nota + '</p>' : '';
     dados.forEach(function(dia){
       var ehHoje = (dia.data === hoje);
@@ -2641,8 +2488,17 @@
   function renderProgramacao(){
     var caixa = $("#progBox"); if(!caixa) return;
     var hoje = hojeISO(), agora = minutosAgora();
-    var html = '<p class="colnota">Programação oficial da edição moto, divulgada pelo festival. '+
-               'Quarta 12/08 é o dia de imprensa: a agenda dela está na aba Coletivas de imprensa.</p>';
+    // Grade vazia entre uma edicao e outra. Sem este bloco a aba mostrava so a
+    // nota solta e parecia que a tela tinha quebrado.
+    if(!PROGRAMACAO.length){
+      caixa.innerHTML = '<div class="vazio"><div class="big">Programação da '+
+        esc(edicaoCorrente().rotulo)+' ainda não publicada</div>'+
+        '<div class="sm">A grade da edição moto saiu daqui porque já aconteceu. '+
+        'Assim que a produção divulgar a da auto, ela aparece nesta aba.</div></div>';
+      return;
+    }
+    var html = '<p class="colnota">Programação oficial da '+esc(edicaoCorrente().rotulo)+
+               ', divulgada pelo festival.</p>';
 
     PROGRAMACAO.forEach(function(dia){
       var ehHoje = (dia.data === hoje);
@@ -2797,12 +2653,14 @@
 
   function renderColetivas(){
     renderAgenda($("#coletivasBox"), COLETIVAS,
-      'Agenda oficial das coletivas de imprensa. Cada integrante da equipe precisa do próprio convite recebido por e-mail.');
+      'Agenda oficial das coletivas de imprensa. Cada integrante da equipe precisa do próprio convite recebido por e-mail.',
+      'Coletivas da ' + edicaoCorrente().rotulo + ' ainda não publicadas');
   }
 
   function renderShows(){
     renderAgenda($("#showsBox"), SHOWS,
-      'Line-up oficial dos shows da edição moto, alinhado com a produção.');
+      'Line-up oficial dos shows da ' + edicaoCorrente().rotulo + ', alinhado com a produção.',
+      'Line-up da ' + edicaoCorrente().rotulo + ' ainda não publicado');
   }
 
   // troca entre Programacao e Coletivas dentro do Mural do Evento.
