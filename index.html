@@ -1215,7 +1215,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-18.3";
+  var VERSAO = "2026-08-18.4";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1384,23 +1384,51 @@
         items = fn(items) || items;
         tx.set(ref, { items: items });
       });
-    }).catch(function(){});
+    }).catch(function(err){
+      // PLANO B, e ele existe por um motivo medido em 18/08/2026.
+      //
+      // Transacao e obrigada a ler DO SERVIDOR antes de escrever. Leitura e a
+      // primeira cota a estourar (50 mil/dia no plano gratis; a de escrita e
+      // 20 mil e mal se usa). Quando a leitura caiu, TODA gravacao parou junto:
+      // a producao clicava pra apagar um aviso, confirmava, e nada acontecia.
+      // Pior, o catch aqui era vazio, entao nem a tela nem o console diziam
+      // nada. Levou horas pra descobrir que nao era o botao, era a cota.
+      //
+      // Aqui a gravacao e refeita SEM transacao: le a lista do cache do
+      // aparelho e grava direto. So gasta escrita, que sobra.
+      //
+      // O que se perde: a protecao contra dois editores mexendo ao mesmo
+      // tempo, que e justamente pra que serve a transacao. Vale a troca porque
+      // a alternativa nao e "gravar com seguranca", e "nao gravar nada".
+      return ref.get({ source: "cache" }).then(function(snap){
+        var items = (snap.exists && snap.data() && snap.data().items) ? snap.data().items.slice() : [];
+        items = fn(items) || items;
+        return ref.set({ items: items });
+      }).then(function(){
+        avisoDeFalha(err);   // funcionou, mas o banco esta no limite: avisa mesmo assim
+      })["catch"](function(err2){
+        avisoDeFalha(err2);
+        toast("Não deu para salvar. Tente de novo.");
+      });
+    });
   }
 
   function DBadd(c,obj){
     if(!FB_ON){ obj.id=uid(); var a=lsGet(c); a.push(obj); lsSet(c,a); return; }
     if(STRATEGY[c]==="doc"){ obj.id=uid(); docTx(c, function(items){ items.push(obj); return items; }); }
-    else { db.collection(c).add(obj); }
+    // sem catch, a falha virava rejeicao silenciosa: o card sumia da tela por
+    // um instante e voltava, sem ninguem entender por que
+    else { db.collection(c).add(obj)["catch"](function(e){ avisoDeFalha(e); toast("Não deu para salvar."); }); }
   }
   function DBupdate(c,id,patch){
     if(!FB_ON){ var a=lsGet(c); var it=a.find(function(x){return x.id===id;}); if(it){ for(var k in patch) it[k]=patch[k]; } lsSet(c,a); return; }
     if(STRATEGY[c]==="doc"){ docTx(c, function(items){ for(var i=0;i<items.length;i++){ if(items[i].id===id){ for(var k in patch) items[i][k]=patch[k]; } } return items; }); }
-    else { db.collection(c).doc(id).update(patch); }
+    else { db.collection(c).doc(id).update(patch)["catch"](function(e){ avisoDeFalha(e); toast("Não deu para salvar."); }); }
   }
   function DBremove(c,id){
     if(!FB_ON){ lsSet(c, lsGet(c).filter(function(x){return x.id!==id;})); return; }
     if(STRATEGY[c]==="doc"){ docTx(c, function(items){ return items.filter(function(x){return x.id!==id;}); }); }
-    else { db.collection(c).doc(id).delete(); }
+    else { db.collection(c).doc(id).delete()["catch"](function(e){ avisoDeFalha(e); toast("Não deu para apagar."); }); }
   }
 
   // ---- state ----
