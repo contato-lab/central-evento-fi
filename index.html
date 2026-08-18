@@ -1204,7 +1204,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-18.1";
+  var VERSAO = "2026-08-18.2";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1781,6 +1781,15 @@
     if(MARCAS_MOTO.indexOf(nome)>=0) return "moto";
     if(MARCAS_AUTO.indexOf(nome)>=0) return "auto";
     return null; // patrocinador ou marca digitada: nao da pra deduzir
+  }
+  var MARCAS_DA_EDICAO = { moto: MARCAS_MOTO, auto: MARCAS_AUTO };
+  // A marca so pode escolher quem esta em cartaz. Enquanto as 22 da moto ficaram
+  // na lista durante a auto, escolher uma delas abria os dias 12 a 16/08, que ja
+  // passaram, e o recado morria ali sem ninguem avisar. Patrocinador de evento
+  // inteiro (Suhai, Mercado Livre) e marca digitada pela producao valem sempre.
+  function marcaValeAgora(nome){
+    var em = edicaoDaMarca(nome);
+    return !em || em === edicaoCorrente().id;
   }
   function faixaDe(ed){ return fmtData(ed.dias[0])+" a "+fmtData(ed.dias[ed.dias.length-1]); }
   function diaExtenso(iso){
@@ -3689,7 +3698,16 @@
       return p.length <= 2 ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
     });
   }
-  function pdEdicao(){ return edicaoPorId(edicaoDaMarca(pdMarca) || edicaoCorrente().id) || EDICOES[0]; }
+  // Dupla checagem, a regra da casa: a lista fechada ja nao oferece marca de
+  // edicao encerrada, mas quem tem 2 falas escolhe digitando (pdPedirMarca), e
+  // dali ainda dava pra escrever "Suzuki" e cair em 12/08. Aqui a edicao de quem
+  // ja teve a vez e descartada e o painel volta pra edicao em cartaz.
+  function pdEdicao(){
+    var atual = edicaoCorrente();
+    var em = edicaoDaMarca(pdMarca);
+    if(em && em !== atual.id) em = null;
+    return edicaoPorId(em || atual.id) || atual;
+  }
   function pdUsadas(d){ return (pdDados[d] || []).reduce(function(s,r){ return s + (repeticoesDe(r) || 1); }, 0); }
   function pdLivres(d){ return Math.max(0, minhasLeituras() - pdUsadas(d)); }
   function pdPlural(n){ return n === 1 ? "1 vez" : n + " vezes"; }
@@ -4056,8 +4074,10 @@
       arr.forEach(function(m){ var o = document.createElement("option"); o.value = m; o.textContent = m; g.appendChild(o); });
       return g;
     }
-    sl.appendChild(grp("Edição Moto", MARCAS_MOTO));
-    sl.appendChild(grp("Edição Auto", MARCAS_AUTO));
+    // So a edicao em cartaz. A da vez sai de edicaoCorrente(), entao quando a
+    // proxima entrar em EDICOES a lista troca sozinha, sem mexer aqui.
+    var ed = edicaoCorrente();
+    sl.appendChild(grp(ed.rotulo, MARCAS_DA_EDICAO[ed.id] || []));
     sl.appendChild(grp("Patrocinadores", MARCAS_OUTRAS));
   }
 
@@ -4067,6 +4087,10 @@
     $("#wrapFormRec").hidden = true;      // o formulario antigo sai de cena
     pdMontarSelect();
     var salva = localStorage.getItem("fi_marca");
+    // Marca guardada de uma edicao que ja acabou nao vale mais: o celular da
+    // Suzuki tinha "Suzuki" no localStorage desde a moto e voltaria direto pros
+    // dias 12 a 16/08. Melhor esquecer e pedir pra escolher de novo.
+    if(salva && !marcaValeAgora(salva)){ salva = null; localStorage.removeItem("fi_marca"); }
     // edicaoCorrente(), nao EDICOES[0]: com duas edicoes na lista, o indice 0 e a
     // moto pra sempre, entao o palpite inicial cairia num dia que ja passou. Quem
     // escolhe marca logo em seguida nao chega a ver (pdTrocarMarca corrige), mas
