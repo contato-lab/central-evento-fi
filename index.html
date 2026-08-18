@@ -192,6 +192,17 @@
     font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
   .edtrocar:hover{border-color:var(--ink-3);color:var(--ink)}
   .edtrocar:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  /* edicao que ja aconteceu: fica de proposito apagada e com borda tracejada, pra
+     nao competir com a fila ao vivo nem convidar ao toque no meio do evento */
+  .edtrocar.encerrada{border-style:dashed;color:var(--ink-3);opacity:.72}
+  .edtrocar.encerrada:hover{opacity:1;color:var(--ink-2)}
+  /* aviso de que a tela saiu da edicao em cartaz: some sozinho ao voltar */
+  .avisoed{display:flex;align-items:center;gap:9px;margin:0 0 10px;padding:8px 11px;
+    border:1px dashed var(--line);border-radius:10px;background:transparent}
+  .avisoed .txt{flex:1;min-width:0;font-size:.82rem;color:var(--ink-2)}
+  .avisoed button{min-height:36px;padding:0 12px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--lime);background:transparent;color:var(--lime);
+    font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
 
   /* ---- dias no formulario da marca: uma linha por dia, por extenso ---- */
   .dialista{display:flex;flex-direction:column;gap:6px}
@@ -1204,7 +1215,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-18.2";
+  var VERSAO = "2026-08-18.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1781,6 +1792,18 @@
     if(MARCAS_MOTO.indexOf(nome)>=0) return "moto";
     if(MARCAS_AUTO.indexOf(nome)>=0) return "auto";
     return null; // patrocinador ou marca digitada: nao da pra deduzir
+  }
+  // Quantos recados pertencem a uma edicao. Mesma regra do noDia() da fila: quem
+  // tem data cai pela data, quem nao tem cai pela edicao da propria marca.
+  function totalDaEdicao(lista, ed){
+    if(!ed) return 0;
+    return (lista||[]).filter(function(it){
+      if(!it.data){
+        var em = edicaoDaMarca(it.marca);
+        return !em || em === ed.id;
+      }
+      return ed.dias.indexOf(it.data) >= 0;
+    }).length;
   }
   var MARCAS_DA_EDICAO = { moto: MARCAS_MOTO, auto: MARCAS_AUTO };
   // A marca so pode escolher quem esta em cartaz. Enquanto as 22 da moto ficaram
@@ -3090,9 +3113,19 @@
     var host=$("#listRec"); if(!host) return;
     host.innerHTML="";
     var n = recados.length;
-    if($("#cRec"))     $("#cRec").textContent = n;
-    if($("#countRec")) $("#countRec").textContent = n + (n===1 ? " RECADO" : " RECADOS");
     var rodadas = (sortRec==="prioridade");
+    // O contador mostrava o total do banco (97) enquanto a tela da edicao em
+    // cartaz estava vazia: parecia que a lista tinha sumido. Na visao em rodadas,
+    // que filtra por edicao, ele passa a separar o que e daqui do que e de edicao
+    // encerrada. Nas outras ordenacoes a tela mostra tudo mesmo, entao o total vale.
+    var nAqui = totalDaEdicao(recados, edicaoCorrente());
+    var nFora = n - nAqui;
+    if($("#cRec")) $("#cRec").textContent = rodadas ? nAqui : n;
+    if($("#countRec")){
+      $("#countRec").textContent = (rodadas && nFora > 0)
+        ? nAqui + " NESTA EDIÇÃO · " + nFora + " EM EDIÇÃO ENCERRADA"
+        : n + (n===1 ? " RECADO" : " RECADOS");
+    }
     host.classList.toggle("rodadas-on", rodadas);
     if(!n){
       host.innerHTML = estadoVazio("recados", "Nenhum recado na fila ainda. Assim que uma marca enviar, aparece aqui.");
@@ -3164,21 +3197,60 @@
       if(statusDe(it.status)==="ok") fim.push(it); else pend.push(it);
     });
 
-    // barra de dias: exatamente os dias da edicao em cartaz, nada alem disso.
-    // Quando a outra edicao entrar, edicaoCorrente() ja troca a barra sozinha na data certa.
+    // barra de dias: os dias da edicao aberta, mais um atalho pra cada OUTRA
+    // edicao. Sem esse atalho os recados de uma edicao encerrada ficavam sem
+    // nenhum caminho na tela: so apareciam trocando a ordenacao, o que ninguem
+    // descobre no meio do evento.
     var edAtual = edicaoDoDia(dia) || edicaoCorrente();
+    var edCartaz = edicaoCorrente();
+    function totNoDia(d){ return sorted.filter(function(it){ return noDia(it,d); }).length; }
+    function totNaEdicao(e){
+      return sorted.filter(function(it){
+        return e.dias.some(function(d){ return noDia(it,d); });
+      }).length;
+    }
+    function acabou(e){ return e.dias[e.dias.length-1] < hoje; }
+    // ao trocar de edicao, cair num dia que tenha algo: primeiro o de hoje, depois
+    // o primeiro com recado pendente, depois o primeiro com qualquer recado.
+    function diaDeEntrada(e){
+      if(e.dias.indexOf(hoje) >= 0) return hoje;
+      var comPend = e.dias.filter(function(d){ return pendNoDia(d) > 0; });
+      if(comPend.length) return comPend[0];
+      var comAlgo = e.dias.filter(function(d){ return totNoDia(d) > 0; });
+      return comAlgo[0] || e.dias[0];
+    }
 
-    var out = '<div class="diasbar">'+
+    var out = "";
+    // saiu da edicao em cartaz: faixa com o caminho de volta, pra ninguem ficar
+    // lendo recado de agosto achando que e a fila de hoje.
+    if(edAtual.id !== edCartaz.id){
+      out += '<div class="avisoed"><span class="txt">Você está vendo a '+esc(edAtual.rotulo)+
+        ', que já aconteceu. A fila de hoje é a '+esc(edCartaz.rotulo)+'.</span>'+
+        '<button type="button" data-act="edicao" data-dia="'+diaDeEntrada(edCartaz)+'">Voltar</button></div>';
+    }
+    out += '<div class="diasbar">'+
       '<span class="edtitulo">'+esc(edAtual.rotulo)+'</span>'+
       '<span class="edfaixa">'+faixaDe(edAtual)+'</span>'+
-    '</div><div class="diaslinha">';
+      '<span class="espaco"></span>';
+    EDICOES.forEach(function(e){
+      if(e.id === edAtual.id) return;
+      // o dia de destino ja vai calculado no botao: diaDeEntrada() vive aqui
+      // dentro (depende de sorted/pendNoDia) e o handler nao alcanca.
+      out += '<button type="button" class="edtrocar'+(acabou(e)?' encerrada':'')+'" '+
+        'data-act="edicao" data-dia="'+diaDeEntrada(e)+'">'+esc(e.rotulo)+
+        (acabou(e) ? ' · encerrada' : '')+' · '+totNaEdicao(e)+'</button>';
+    });
+    out += '</div><div class="diaslinha">';
     edAtual.dias.forEach(function(d){
       var q = pendNoDia(d);
       var ehHoje = (d === hoje);
+      // numa edicao encerrada nao sobra pendente nenhum, entao o chip mostraria "·"
+      // em todos os dias e a fileira pareceria vazia. Ali vale mostrar o total.
+      var rot = q ? q : (acabou(edAtual) ? (totNoDia(d) || "·") : "·");
       out += '<button type="button" class="diachip'+(ehHoje?' ehoje':'')+'" data-act="dia" data-dia="'+d+'" aria-pressed="'+(dia===d)+'">'+
         (ehHoje ? '<span class="selohoje">hoje</span>' : '')+
         '<span class="dnum">'+fmtData(d)+'</span>'+
-        '<span class="qt">'+(q||'·')+'</span></button>';
+        '<span class="qt">'+rot+'</span></button>';
     });
     out += '</div>';
 
@@ -3483,6 +3555,13 @@
     var act=btn.dataset.act;
     // acoes da moldura (nao pertencem a um recado)
     if(act==="dia"){ diaAtivo=btn.dataset.dia; renderRec(); return; }
+    // trocar de edicao = pular pro melhor dia dela, ja calculado no data-dia.
+    // Nao existe estado proprio de "edicao aberta": quem manda e o dia, e
+    // edicaoDoDia() deduz o resto.
+    if(act==="edicao"){
+      if(btn.dataset.dia){ diaAtivo = btn.dataset.dia; renderRec(); }
+      return;
+    }
     if(act==="gaveta"){ e.preventDefault(); gavetaAberta=!gavetaAberta; renderRec(); return; }
     var row=e.target.closest("[data-id]"); if(!row)return;
     var id=row.dataset.id;
