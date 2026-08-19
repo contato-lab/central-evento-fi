@@ -12,8 +12,13 @@
  * errar do Web Push, e a notificacao sempre mostra o dado mais recente de
  * verdade, nao um texto que foi montado minutos antes.
  */
-var PROJETO = "central-evento-fi";
-var API_KEY = "AIzaSyD1spoy847dEtccSGJflKtG4-EYZMe23OQ";
+// PROJETO PROPRIO desde 19/08/2026. Este arquivo ficou apontando pro
+// central-evento-fi depois que as pecas mudaram pro conteudo-fi, e o sintoma
+// nao era erro: o push tocava e o texto vinha da copia velha, ou nao vinha
+// novidade nenhuma. Se um dia o push voltar a mostrar coisa antiga, o primeiro
+// lugar pra olhar e esta linha.
+var PROJETO = "conteudo-fi";
+var API_KEY = "AIzaSyBUWmUynV6U0mqHZoNDm-2KPb3wh4Z9NuY";
 var BASE = "https://firestore.googleapis.com/v1/projects/" + PROJETO +
            "/databases/(default)/documents";
 var APP_URL = "/conteudo/";
@@ -33,16 +38,39 @@ function carimbo(f){
   return typeof e === "number" ? e : 0;
 }
 
+// PEDE SO O ULTIMO, NAO A COLECAO INTEIRA.
+//
+// Antes isto listava a colecao com pageSize=300 e escolhia o carimbo mais alto
+// no proprio celular. No Firestore listagem custa UMA LEITURA POR DOCUMENTO,
+// entao cada push acordava o aparelho e gastava 144 leituras (23 de cont_pecas
+// mais 121 de cont_story). Vezes os aparelhos inscritos, vezes cada publicacao.
+// Um unico "peca nova" com 6 celulares inscritos torrava 864 leituras da cota
+// do dia, e isso ninguem via, porque roda no service worker.
+//
+// Ordenando por criadoEm e pegando 1, custa 1 leitura e nao cresce quando a
+// colecao cresce. Sao 2 leituras por push, no total.
 function maisNovo(colecao){
-  return fetch(BASE + "/" + colecao + "?key=" + API_KEY + "&pageSize=300")
+  return fetch(BASE + ":runQuery?key=" + API_KEY, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: colecao }],
+        orderBy: [{ field: { fieldPath: "criadoEm" }, direction: "DESCENDING" }],
+        limit: 1
+      }
+    })
+  })
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
-      var docs = (d && d.documents) || [], melhor = null, t = 0;
-      for(var i=0;i<docs.length;i++){
-        var f = docs[i].fields || {}, c = carimbo(f);
-        if(c > t){ t = c; melhor = f; }
+      var linhas = (d && d.length) ? d : [];
+      for(var i=0;i<linhas.length;i++){
+        if(linhas[i] && linhas[i].document){
+          var f = linhas[i].document.fields || {};
+          return { f:f, ts:carimbo(f), col:colecao };
+        }
       }
-      return melhor ? { f:melhor, ts:t, col:colecao } : null;
+      return null;
     })["catch"](function(){ return null; });
 }
 

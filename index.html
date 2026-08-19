@@ -1216,7 +1216,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-19.2";
+  var VERSAO = "2026-08-19.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1370,10 +1370,47 @@
         cb(items);
       }, onErr);
     }
-    return db.collection(c).onSnapshot({ includeMetadataChanges:true }, function(snap){
+    return consultaDe(c).onSnapshot({ includeMetadataChanges:true }, function(snap){
       setStatus(snap.metadata && snap.metadata.fromCache ? "warn" : "on");
       var a=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; a.push(o); }); cb(a);
     }, onErr);
+  }
+
+  // NAO TRAGA A COLECAO INTEIRA.
+  //
+  // No Firestore o listener cobra UMA LEITURA POR DOCUMENTO que ele traz, toda
+  // vez que a escuta e ligada. "recados" e a unica colecao grande da Central, e
+  // ela nunca e limpa: em 19/08/2026 tinha 109 documentos, dos quais 97 eram da
+  // edicao MOTO, que ninguem mais abre. Ou seja, a tela pagava 109 leituras pra
+  // mostrar 12 uteis, e isso a cada carga de tela, de cada pessoa, o dia todo.
+  // Era 58% de todo o gasto da Central.
+  //
+  // Filtrar pelos dias da edicao em cartaz corta isso na origem e nao muda nada
+  // do que o locutor ve: a barra de dias da fila JA e a grade da edicao corrente,
+  // entao o que sai daqui e exatamente o que a tela nunca desenhou.
+  //
+  // Por que "in" e nao "where data >= primeiro dia": "in" bate no indice que o
+  // Firestore cria sozinho pra cada campo, entao NAO precisa criar indice
+  // composto nenhum no console. Aceita ate 30 valores e a edicao tem 5 dias.
+  //
+  // O "" na lista e cinto de seguranca: recado de patrocinador pode ser gravado
+  // sem dia (vale pra qualquer dia da edicao), e sem isso ele sumiria da fila.
+  // Documento que nao tenha o campo data DE JEITO NENHUM fica de fora, porque
+  // consulta do Firestore nao alcanca campo ausente. Conferido em 19/08/2026:
+  // os 109 recados tem data, entao hoje isso nao tira ninguem.
+  var QUERY = {
+    recados: function(){
+      var ed = edicaoCorrente();
+      return db.collection("recados").where("data", "in", ed.dias.concat([""]));
+    }
+  };
+  function consultaDe(c){
+    if(QUERY[c]){
+      try { return QUERY[c](); }
+      // se a consulta falhar de montar, e melhor pagar caro do que ficar sem fila
+      catch(e){ if(window.console) console.error("[central] consulta "+c, e); }
+    }
+    return db.collection(c);
   }
 
   // escrita da estrategia "doc": transacao no documento unico (seguro com varios editores ao mesmo tempo)
@@ -1612,9 +1649,16 @@
       desligar[col] = DBwatch(col, function(a){
         carregou[col] = true; falhou[col] = false;
         aplicar(a || []);
-        // seguro contra perda: o celular da producao guarda uma copia de tudo
-        // a cada atualizacao. Se alguem apagar algo sem querer, da pra recuperar.
-        if(ehAdmin()){ try{ localStorage.setItem("fi_bkp_"+col, JSON.stringify({ quando: now(), itens: a || [] })); }catch(e){} }
+        // seguro contra perda: o celular da producao guarda uma copia a cada
+        // atualizacao. Se alguem apagar algo sem querer, da pra recuperar.
+        //
+        // JUNTA, NAO SUBSTITUI. Desde que "recados" passou a ser escutado so
+        // pela edicao em cartaz, a escuta entrega uma FATIA e nao o acervo. Com
+        // o setItem antigo, que gravava por cima, o backup encolhia sozinho: na
+        // primeira atualizacao da auto ele jogaria fora os 97 recados da moto
+        // que estava guardando. Backup que encolhe e pior que backup nenhum,
+        // porque ninguem percebe.
+        if(ehAdmin()){ guardarBackup(col, a || []); }
         protegido(col, render, seletorLista);
       });
     } catch(e){
@@ -1624,6 +1668,40 @@
       protegido(col, render, seletorLista);
     }
   }
+  // Guarda o backup do aparelho juntando o que chegou agora com o que ja estava
+  // la, casando por id. Item que sumiu da escuta (edicao encerrada, ou apagado
+  // sem querer) CONTINUA no backup, que e justamente pra isso que ele serve.
+  // Teto de 2000 itens por colecao pra nao estourar o localStorage do celular;
+  // sai o mais antigo primeiro, medido por ts quando existe.
+  function guardarBackup(col, chegou){
+    try{
+      var antigo = [];
+      try{
+        var cru = JSON.parse(localStorage.getItem("fi_bkp_"+col) || "{}");
+        antigo = (cru && cru.itens) || [];
+      }catch(e){}
+      var porId = {}, ordem = [], i, it;
+      for(i=0;i<antigo.length;i++){
+        it = antigo[i]; if(!it) continue;
+        var ka = it.id || ("_a"+i);
+        if(!(ka in porId)) ordem.push(ka);
+        porId[ka] = it;
+      }
+      for(i=0;i<chegou.length;i++){
+        it = chegou[i]; if(!it) continue;
+        var kc = it.id || ("_c"+i);
+        if(!(kc in porId)) ordem.push(kc);
+        porId[kc] = it;                       // o que veio do banco manda
+      }
+      var todos = ordem.map(function(k){ return porId[k]; });
+      if(todos.length > 2000){
+        todos.sort(function(x,y){ return (x.ts||0) - (y.ts||0); });
+        todos = todos.slice(todos.length - 2000);
+      }
+      localStorage.setItem("fi_bkp_"+col, JSON.stringify({ quando: now(), itens: todos }));
+    }catch(e){ /* localStorage cheio ou bloqueado: o backup e extra, nao pode derrubar a tela */ }
+  }
+
   function ligarEscutas(){
     setStatus();
     escutar("mural",   podeVerMural(),   function(a){ mural   = a; }, renderMural,   "#listMural");
@@ -1674,6 +1752,18 @@
     // se a tela estava seguindo o dia corrente, segue pro novo. Se o locutor tinha
     // escolhido outro dia na mao, a escolha dele e respeitada.
     if(diaAtivo === null || diaAtivo === anterior){ diaAtivo = null; }
+    // A escuta de recados e filtrada pelos dias da edicao em cartaz, entao ela
+    // esta congelada na edicao que valia quando foi ligada. Na virada de uma
+    // edicao pra outra (o que aconteceu em 17/08 entre moto e auto) e preciso
+    // refazer a escuta, senao a fila abriria vazia na primeira manha da auto e
+    // ninguem entenderia por que. Sem isto, o unico jeito seria recarregar a
+    // pagina, e as 6h da manha do dia 26 ninguem vai lembrar disso.
+    var edAgora = edicaoCorrente(), edAntes = edicaoDoDia(anterior);
+    if(edAgora && (!edAntes || edAntes.id !== edAgora.id) && FB_ON && desligar["recados"]){
+      try{ desligar["recados"](); }catch(e){}
+      desligar["recados"] = null; escutando["recados"] = false;
+      try{ ligarEscutas(); }catch(e){ if(window.console) console.error("[central] religar recados", e); }
+    }
     protegido("recados", renderRec, "#listRec");
     protegido("interno", renderInterno, "#listInterno");     // o "ja aconteceu" precisa reavaliar
     if($("#r_dias")) { try{ montarDiasForm(); }catch(e){} }  // o form da marca tambem sugere o dia
