@@ -1216,7 +1216,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-18.6";
+  var VERSAO = "2026-08-19.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1799,7 +1799,7 @@
   // No envio ela e obrigatoria (select), no locutor ela e sugestao (datalist),
   // pra producao poder lancar um patrocinador fora da lista numa emergencia.
   var MARCAS_MOTO = ["AIMA","Bajaj","BMW Motorrad","Brizzo","CFMOTO","Dafra","Ducati","Fun Motors","Harley-Davidson","Honda","Kawasaki","Mottu","MXF","Piaggio","Royal Enfield","Shineray","Suzuki","Triumph","Vespa","Voge","Yadea","Zontes"];
-  var MARCAS_AUTO = ["Abarth","Aston Martin","BMW","BYD","Denza","Fiat","Ford","GAC","Geely","GWM","Honda (Auto)","Jaecoo","Jeep","Jetour","Leapmotor","Lexus","McLaren","MG","Mitsubishi","Omoda","Peugeot","RAM","Renault","Toyota Gazoo Racing","Volvo"];
+  var MARCAS_AUTO = ["Abarth","Aston Martin","BMW","BAIC","BYD","Denza","DFM","Fiat","Ford","GAC","Geely","GWM","Honda (Auto)","iCAUR","Jaecoo","Jeep","Jetour","Leapmotor","Lexus","McLaren","MG","Mini","Mitsubishi","Omoda","Peugeot","RAM","Renault","Toyota Gazoo Racing","Volvo"];
   var MARCAS_OUTRAS = ["Suhai","Mercado Livre"];
 
   // ---- grade do evento: as duas edicoes e seus 4 dias ----
@@ -1811,7 +1811,7 @@
   // de 17/08 tudo aponta pra auto sem ninguem precisar trocar nada na mao.
   var EDICOES = [
     { id:"moto", rotulo:"Edição Moto", dias:["2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16"] },
-    { id:"auto", rotulo:"Edição Auto", dias:["2026-08-27","2026-08-28","2026-08-29","2026-08-30"] }
+    { id:"auto", rotulo:"Edição Auto", dias:["2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30"] }
   ];
   var DIA_EXTENSO = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
 
@@ -2242,7 +2242,34 @@
   // (abertura, intervalo) — aparece em italico, sem cara de atracao.
   // Esvaziada em 18/08/2026: a agenda de coletivas era da edicao moto.
   // A da auto (27 a 30/08) entra aqui quando a producao mandar.
+  // Agenda oficial de coletivas da EDICAO AUTO, divulgada em 19/08/2026.
+  // 26 e 27/08 sao os dias de imprensa; o festival abre pro publico em 27/08.
+  // A grade veio SEM box e SEM local: quando a producao mandar, e so
+  // acrescentar box:"..." ou local:"..." em cada item, igual era na moto.
   var COLETIVAS = [
+    { data:"2026-08-26", rotulo:"Quarta-feira, 26/08", itens:[
+      { hora:"08h00", nome:"Omoda Jaecoo" },
+      { hora:"09h00", nome:"GWM" },
+      { hora:"10h00", nome:"Ford" },
+      { hora:"11h00", nome:"Abarth" },
+      { hora:"12h00", nome:"Jeep/RAM" },
+      { hora:"13h00", nome:"Peugeot" },
+      { hora:"14h00", nome:"Leapmotor" },
+      { hora:"15h00", nome:"BMW" },
+      { hora:"16h00", nome:"Renault" },
+      { hora:"17h00", nome:"Geely" },
+      { hora:"18h00", nome:"Jetour" },
+      { hora:"19h00", nome:"MG" },
+      { hora:"20h00", nome:"DFM" }
+    ]},
+    { data:"2026-08-27", rotulo:"Quinta-feira, 27/08", itens:[
+      { hora:"09h00", nome:"Volvo" },
+      { hora:"10h00", nome:"Honda" },
+      { hora:"11h00", nome:"GAC" },
+      { hora:"12h00", nome:"Mini" },
+      { hora:"13h00", nome:"iCAUR" },
+      { hora:"14h00", nome:"BAIC" }
+    ]}
   ];
 
   // aceita "08h10" e "19:00" — a agenda de coletivas usa o primeiro formato,

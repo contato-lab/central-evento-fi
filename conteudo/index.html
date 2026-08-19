@@ -773,7 +773,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-18.2";
+  var VERSAO = "2026-08-19.1";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1085,6 +1085,35 @@
       { hora:"18h00", marca:"Dafra",         influ:"Day Miguel",       box:"17"    },
       { hora:"19h00", marca:"Fun Motors",    influ:"Gisele Favaro",    local:"Sala de vidro 01" }
     ]},
+    // ── EDICAO AUTO, agenda oficial divulgada em 19/08/2026 ──────────
+    // Veio SO com hora e marca: a producao ainda nao mandou influenciador
+    // nem box. Os dois campos ficam vazios de proposito, e a tela ja sabe
+    // mostrar "Box a confirmar" tracejado em vez de deixar em branco.
+    // Horas unicas dentro de cada dia, que e o que impede duas coletivas de
+    // virarem o mesmo documento (o id e dia+hora, sem o ano).
+    { edicao:"auto", dia:"2026-08-26", rotulo:"Quarta-feira, 26/08", itens:[
+      { hora:"08h00", marca:"Omoda Jaecoo", influ:"", box:"" },
+      { hora:"09h00", marca:"GWM",          influ:"", box:"" },
+      { hora:"10h00", marca:"Ford",         influ:"", box:"" },
+      { hora:"11h00", marca:"Abarth",       influ:"", box:"" },
+      { hora:"12h00", marca:"Jeep/RAM",     influ:"", box:"" },
+      { hora:"13h00", marca:"Peugeot",      influ:"", box:"" },
+      { hora:"14h00", marca:"Leapmotor",    influ:"", box:"" },
+      { hora:"15h00", marca:"BMW",          influ:"", box:"" },
+      { hora:"16h00", marca:"Renault",      influ:"", box:"" },
+      { hora:"17h00", marca:"Geely",        influ:"", box:"" },
+      { hora:"18h00", marca:"Jetour",       influ:"", box:"" },
+      { hora:"19h00", marca:"MG",           influ:"", box:"" },
+      { hora:"20h00", marca:"DFM",          influ:"", box:"" }
+    ]},
+    { edicao:"auto", dia:"2026-08-27", rotulo:"Quinta-feira, 27/08", itens:[
+      { hora:"09h00", marca:"Volvo",        influ:"", box:"" },
+      { hora:"10h00", marca:"Honda",        influ:"", box:"" },
+      { hora:"11h00", marca:"GAC",          influ:"", box:"" },
+      { hora:"12h00", marca:"Mini",         influ:"", box:"" },
+      { hora:"13h00", marca:"iCAUR",        influ:"", box:"" },
+      { hora:"14h00", marca:"BAIC",         influ:"", box:"" }
+    ]},
     { edicao:"moto", dia:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
       { hora:"07h00", marca:"Royal Enfield", influ:"Lucas Xaparral",   box:"3/4"   },
       { hora:"08h10", marca:"Triumph",       influ:"Vans Faria",       box:"15/16" },
@@ -1130,6 +1159,7 @@
       { dia:"2026-08-16", rotulo:"Dom 16/08" }
     ]},
     { id:"auto", rotulo:"Edição Auto", dias:[
+      { dia:"2026-08-26", rotulo:"Qua 26/08", semPeca:true },
       { dia:"2026-08-27", rotulo:"Qui 27/08" },
       { dia:"2026-08-28", rotulo:"Sex 28/08" },
       { dia:"2026-08-29", rotulo:"Sáb 29/08" },
