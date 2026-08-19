@@ -773,7 +773,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-19.1";
+  var VERSAO = "2026-08-19.2";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -801,17 +801,32 @@
   ];
 
   // ═══════════════════════════════════════════════════════════════
-  // FIREBASE — mesmo projeto da Central do Evento, colecoes proprias.
-  // Arquivo separado de proposito: se este modulo quebrar no meio do
-  // evento, o mural do locutor e os avisos da imprensa continuam de pe.
+  // FIREBASE — PROJETO PROPRIO (conteudo-fi), separado da Central das marcas.
+  //
+  // Separado em 19/08/2026. O limite gratis do Firestore e de 50 mil leituras
+  // por DIA e por PROJETO. Com os dois apps no mesmo projeto eles dividiam o
+  // mesmo balde, e em 18/08 esse balde estourou (54 mil leituras contra 1,1 mil
+  // escritas). Como toda escrita roda dentro de transacao, e transacao le do
+  // servidor antes de gravar, cota de LEITURA estourada passa a recusar
+  // GRAVACAO: a producao clicava pra apagar um aviso e nada acontecia.
+  //
+  // Agora cada app tem os proprios 50 mil por dia e um nao derruba mais o
+  // outro. Nos dias do evento a Central das marcas fica com o balde inteiro.
+  // O endereco nao muda: isto mora no GitHub Pages, o Firebase e so onde o
+  // dado fica guardado.
+  //
+  // Os 195 documentos (cont_coletivas 42, cont_pecas 23, cont_story 121,
+  // cont_fotos 3, cont_push 6, mais board/push_state) foram copiados em
+  // 19/08/2026 e conferidos campo a campo. A copia antiga continua no projeto
+  // central-evento-fi e NAO foi apagada: ela e o backup.
   // ═══════════════════════════════════════════════════════════════
   var firebaseConfig = {
-    apiKey: "AIzaSyD1spoy847dEtccSGJflKtG4-EYZMe23OQ",
-    authDomain: "central-evento-fi.firebaseapp.com",
-    projectId: "central-evento-fi",
-    storageBucket: "central-evento-fi.firebasestorage.app",
-    messagingSenderId: "343908101394",
-    appId: "1:343908101394:web:ae260e08858b43e70dd7cb"
+    apiKey: "AIzaSyBUWmUynV6U0mqHZoNDm-2KPb3wh4Z9NuY",
+    authDomain: "conteudo-fi.firebaseapp.com",
+    projectId: "conteudo-fi",
+    storageBucket: "conteudo-fi.firebasestorage.app",
+    messagingSenderId: "1664129659",
+    appId: "1:1664129659:web:ab75fcb93a9d8e06bde0de"
   };
   var FB_ON = !!(firebaseConfig.projectId && window.firebase);
   var db = null;
