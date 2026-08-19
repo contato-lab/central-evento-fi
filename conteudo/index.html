@@ -773,7 +773,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-19.4";
+  var VERSAO = "2026-08-19.5";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -803,30 +803,35 @@
   // ═══════════════════════════════════════════════════════════════
   // FIREBASE — PROJETO PROPRIO (conteudo-fi), separado da Central das marcas.
   //
-  // Separado em 19/08/2026. O limite gratis do Firestore e de 50 mil leituras
-  // por DIA e por PROJETO. Com os dois apps no mesmo projeto eles dividiam o
-  // mesmo balde, e em 18/08 esse balde estourou (54 mil leituras contra 1,1 mil
-  // escritas). Como toda escrita roda dentro de transacao, e transacao le do
-  // servidor antes de gravar, cota de LEITURA estourada passa a recusar
-  // GRAVACAO: a producao clicava pra apagar um aviso e nada acontecia.
+  // MESMO PROJETO da Central das marcas: festival-interlagos-2026.
   //
-  // Agora cada app tem os proprios 50 mil por dia e um nao derruba mais o
-  // outro. Nos dias do evento a Central das marcas fica com o balde inteiro.
-  // O endereco nao muda: isto mora no GitHub Pages, o Firebase e so onde o
-  // dado fica guardado.
+  // Em 18/08 o conteudo tinha sido separado num projeto proprio porque o limite
+  // gratis e de 50 mil leituras por DIA e por PROJETO, e os dois juntos
+  // estouravam o mesmo balde. Em 19/08 tudo voltou pra um projeto so, agora numa
+  // conta com o teste sem custo do Google Cloud (R$1.745 de credito ate
+  // 18/11/2026). Com credito, a cota deixou de ser a trava e a separacao deixou
+  // de valer a complexidade de dois consoles e duas chaves.
   //
-  // Os 195 documentos (cont_coletivas 42, cont_pecas 23, cont_story 121,
-  // cont_fotos 3, cont_push 6, mais board/push_state) foram copiados em
-  // 19/08/2026 e conferidos campo a campo. A copia antiga continua no projeto
-  // central-evento-fi e NAO foi apagada: ela e o backup.
+  // O QUE CONTINUA VALENDO E NAO PODE SER DESFEITO: os cortes de leitura de
+  // 19/08. Escuta por perfil aqui, recados filtrado por edicao na Central,
+  // worker e service worker pedindo 1 documento em vez da colecao inteira.
+  // Nao foram "apertar pra caber no gratis", foram defeitos: o worker sozinho
+  // gastava 213 mil leituras por dia pra responder "tem coisa nova?".
+  //
+  // O endereco nao muda: isto mora no GitHub Pages, o Firebase e so onde o dado
+  // fica guardado.
+  //
+  // Os 310 documentos dos dois projetos antigos foram copiados em 19/08/2026 e
+  // conferidos campo a campo. central-evento-fi e conteudo-fi NAO foram
+  // apagados: sao o backup ate o time confirmar que esta tudo certo.
   // ═══════════════════════════════════════════════════════════════
   var firebaseConfig = {
-    apiKey: "AIzaSyBUWmUynV6U0mqHZoNDm-2KPb3wh4Z9NuY",
-    authDomain: "conteudo-fi.firebaseapp.com",
-    projectId: "conteudo-fi",
-    storageBucket: "conteudo-fi.firebasestorage.app",
-    messagingSenderId: "1664129659",
-    appId: "1:1664129659:web:ab75fcb93a9d8e06bde0de"
+    apiKey: "AIzaSyBMY82Mcp1rhNXHt6gQhTvyV4VAjIkU0bI",
+    authDomain: "festival-interlagos-2026.firebaseapp.com",
+    projectId: "festival-interlagos-2026",
+    storageBucket: "festival-interlagos-2026.firebasestorage.app",
+    messagingSenderId: "31705575491",
+    appId: "1:31705575491:web:fcf7ef1b01d05b71c9a4f6"
   };
   var FB_ON = !!(firebaseConfig.projectId && window.firebase);
   var db = null;

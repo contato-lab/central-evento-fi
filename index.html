@@ -1216,7 +1216,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-19.3";
+  var VERSAO = "2026-08-19.4";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1279,13 +1279,32 @@
   // Cole aqui a config do seu projeto Firebase:
   // Console Firebase > engrenagem (Configuracoes do projeto) > "Seus apps" > app Web > firebaseConfig.
   // Enquanto os valores estiverem "COLE_AQUI", o sistema funciona so neste navegador (modo local).
+  //
+  // PROJETO festival-interlagos-2026, em 19/08/2026. E O TERCEIRO ENDERECO EM
+  // DOIS DIAS, entao vale registrar a linha do tempo pra ninguem se perder:
+  //   ate 18/08  central-evento-fi          os dois apps no mesmo projeto
+  //   18/08      conteudo-fi                o conteudo saiu, pra dobrar a cota gratis
+  //   19/08      festival-interlagos-2026   tudo junto de novo, em conta com credito
+  //
+  // O motivo da ultima mudanca: a conta antiga so ativava o plano pago mediante
+  // um deposito de R$150 que o Google exige no Brasil, e que nao sumiu nem
+  // trocando pra cartao de credito. A conta nova entrou com o teste sem custo do
+  // Google Cloud, R$1.745 de credito ate 18/11/2026, e com credito a cota
+  // deixou de ser a trava, entao os dois apps voltaram a morar juntos.
+  //
+  // O QUE NAO MUDA: o endereco publico. Isto aqui e servido pelo GitHub Pages,
+  // e o Firebase e so onde o dado fica guardado. Quem usa nao percebe nada.
+  //
+  // OS 310 DOCUMENTOS foram copiados dos dois projetos antigos em 19/08/2026 e
+  // conferidos campo a campo. Os projetos antigos NAO foram apagados: sao o
+  // backup ate o time usar o sistema e confirmar.
   var firebaseConfig = {
-    apiKey: "AIzaSyD1spoy847dEtccSGJflKtG4-EYZMe23OQ",
-    authDomain: "central-evento-fi.firebaseapp.com",
-    projectId: "central-evento-fi",
-    storageBucket: "central-evento-fi.firebasestorage.app",
-    messagingSenderId: "343908101394",
-    appId: "1:343908101394:web:ae260e08858b43e70dd7cb"
+    apiKey: "AIzaSyBMY82Mcp1rhNXHt6gQhTvyV4VAjIkU0bI",
+    authDomain: "festival-interlagos-2026.firebaseapp.com",
+    projectId: "festival-interlagos-2026",
+    storageBucket: "festival-interlagos-2026.firebasestorage.app",
+    messagingSenderId: "31705575491",
+    appId: "1:31705575491:web:fcf7ef1b01d05b71c9a4f6"
   };
   var FB_ON = !!(firebaseConfig.projectId && firebaseConfig.projectId.indexOf("COLE_AQUI") < 0 && window.firebase);
   var db = null;

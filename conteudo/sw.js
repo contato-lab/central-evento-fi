@@ -12,13 +12,17 @@
  * errar do Web Push, e a notificacao sempre mostra o dado mais recente de
  * verdade, nao um texto que foi montado minutos antes.
  */
-// PROJETO PROPRIO desde 19/08/2026. Este arquivo ficou apontando pro
-// central-evento-fi depois que as pecas mudaram pro conteudo-fi, e o sintoma
-// nao era erro: o push tocava e o texto vinha da copia velha, ou nao vinha
-// novidade nenhuma. Se um dia o push voltar a mostrar coisa antiga, o primeiro
-// lugar pra olhar e esta linha.
-var PROJETO = "conteudo-fi";
-var API_KEY = "AIzaSyBUWmUynV6U0mqHZoNDm-2KPb3wh4Z9NuY";
+// ESTA LINHA JA QUEBROU O PUSH UMA VEZ, em 19/08/2026, e o jeito que ela quebra
+// nao da erro nenhum: o push toca, o celular acorda, le a copia velha e mostra
+// uma peca antiga. Ninguem reclama porque a notificacao chegou.
+//
+// O projeto mudou duas vezes no mesmo dia (central-evento-fi, depois
+// conteudo-fi, agora festival-interlagos-2026, que e onde tudo foi reunido numa
+// conta com credito). Se algum dia a notificacao mostrar conteudo antigo, o
+// primeiro lugar pra olhar e aqui, e o valor tem que ser igual ao projectId do
+// index.html deste mesmo diretorio.
+var PROJETO = "festival-interlagos-2026";
+var API_KEY = "AIzaSyBMY82Mcp1rhNXHt6gQhTvyV4VAjIkU0bI";
 var BASE = "https://firestore.googleapis.com/v1/projects/" + PROJETO +
            "/databases/(default)/documents";
 var APP_URL = "/conteudo/";
