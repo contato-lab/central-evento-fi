@@ -773,7 +773,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-19.2";
+  var VERSAO = "2026-08-19.3";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1106,26 +1106,38 @@
     // mostrar "Box a confirmar" tracejado em vez de deixar em branco.
     // Horas unicas dentro de cada dia, que e o que impede duas coletivas de
     // virarem o mesmo documento (o id e dia+hora, sem o ano).
+    // ONDE CADA UMA ACONTECE — tirado do "Manual e Normas do Fornecedor",
+    // planta operacional AUTO (paginas 18 e 19), divulgado em 19/08/2026.
+    // Mesmos lugares que estao na Central do Evento; se mudar aqui, muda la.
+    //
+    // Quem tem BOX fica no predio virado pro pit lane, e os pares (01/02) sao
+    // duas garagens juntas da mesma marca. Quem nao tem box expoe na ARENA ou
+    // no RACE VILLAGE e sai sem o prefixo "Box", que seria mentira.
+    //
+    // A planta diz onde fica o ESTANDE da marca, nao onde a coletiva sera dada.
+    // MG, iCAUR e BAIC nao aparecem em planta nenhuma deste manual e ficam em
+    // "box a definir" de proposito. Nao preencher no chute: quem le isto aqui
+    // e quem esta indo gravar.
     { edicao:"auto", dia:"2026-08-26", rotulo:"Quarta-feira, 26/08", itens:[
-      { hora:"08h00", marca:"Omoda Jaecoo", influ:"", box:"" },
-      { hora:"09h00", marca:"GWM",          influ:"", box:"" },
-      { hora:"10h00", marca:"Ford",         influ:"", box:"" },
-      { hora:"11h00", marca:"Abarth",       influ:"", box:"" },
-      { hora:"12h00", marca:"Jeep/RAM",     influ:"", box:"" },
-      { hora:"13h00", marca:"Peugeot",      influ:"", box:"" },
-      { hora:"14h00", marca:"Leapmotor",    influ:"", box:"" },
-      { hora:"15h00", marca:"BMW",          influ:"", box:"" },
-      { hora:"16h00", marca:"Renault",      influ:"", box:"" },
-      { hora:"17h00", marca:"Geely",        influ:"", box:"" },
-      { hora:"18h00", marca:"Jetour",       influ:"", box:"" },
+      { hora:"08h00", marca:"Omoda Jaecoo", influ:"", box:"1/2" },
+      { hora:"09h00", marca:"GWM",          influ:"", box:"3/4" },
+      { hora:"10h00", marca:"Ford",         influ:"", box:"11/12" },
+      { hora:"11h00", marca:"Abarth",       influ:"", box:"17" },
+      { hora:"12h00", marca:"Jeep/RAM",     influ:"", box:"15/16" },
+      { hora:"13h00", marca:"Peugeot",      influ:"", box:"13" },
+      { hora:"14h00", marca:"Leapmotor",    influ:"", box:"14" },
+      { hora:"15h00", marca:"BMW",          influ:"", box:"7/8" },
+      { hora:"16h00", marca:"Renault",      influ:"", local:"Arena" },
+      { hora:"17h00", marca:"Geely",        influ:"", local:"Arena" },
+      { hora:"18h00", marca:"Jetour",       influ:"", local:"Arena" },
       { hora:"19h00", marca:"MG",           influ:"", box:"" },
-      { hora:"20h00", marca:"DFM",          influ:"", box:"" }
+      { hora:"20h00", marca:"DFM",          influ:"", local:"Arena" }
     ]},
     { edicao:"auto", dia:"2026-08-27", rotulo:"Quinta-feira, 27/08", itens:[
-      { hora:"09h00", marca:"Volvo",        influ:"", box:"" },
-      { hora:"10h00", marca:"Honda",        influ:"", box:"" },
-      { hora:"11h00", marca:"GAC",          influ:"", box:"" },
-      { hora:"12h00", marca:"Mini",         influ:"", box:"" },
+      { hora:"09h00", marca:"Volvo",        influ:"", box:"20/21" },
+      { hora:"10h00", marca:"Honda",        influ:"", box:"18/19" },
+      { hora:"11h00", marca:"GAC",          influ:"", local:"Arena" },
+      { hora:"12h00", marca:"Mini",         influ:"", local:"Race Village" },
       { hora:"13h00", marca:"iCAUR",        influ:"", box:"" },
       { hora:"14h00", marca:"BAIC",         influ:"", box:"" }
     ]},

@@ -1216,7 +1216,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-19.1";
+  var VERSAO = "2026-08-19.2";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2247,28 +2247,43 @@
   // A grade veio SEM box e SEM local: quando a producao mandar, e so
   // acrescentar box:"..." ou local:"..." em cada item, igual era na moto.
   var COLETIVAS = [
+    // ONDE CADA UMA ACONTECE — tirado do "Manual e Normas do Fornecedor",
+    // planta operacional AUTO (paginas 18 e 19), divulgado em 19/08/2026.
+    //
+    // Quem tem BOX fica no predio dos boxes, virado pro pit lane. Os numeros
+    // sao os da planta e nao mudam: box 00 e reservado e os pares (01/02, 03/04)
+    // sao duas garagens juntas da mesma marca.
+    //
+    // Quem NAO tem box expoe na ARENA ou no RACE VILLAGE, e ai sai sem o
+    // prefixo "Box", que seria mentira. ATENCAO: a planta diz onde fica o
+    // ESTANDE da marca, nao onde a coletiva vai ser dada. Enquanto a producao
+    // nao confirmar, "Arena" e o lugar da marca, nao a sala da entrevista.
+    //
+    // MG, iCAUR e BAIC dao coletiva mas NAO APARECEM em nenhuma planta deste
+    // manual. Ficam em "Box a confirmar" de proposito: e a verdade, e some
+    // sozinho quando a producao mandar. Nao preencher no chute.
     { data:"2026-08-26", rotulo:"Quarta-feira, 26/08", itens:[
-      { hora:"08h00", nome:"Omoda Jaecoo" },
-      { hora:"09h00", nome:"GWM" },
-      { hora:"10h00", nome:"Ford" },
-      { hora:"11h00", nome:"Abarth" },
-      { hora:"12h00", nome:"Jeep/RAM" },
-      { hora:"13h00", nome:"Peugeot" },
-      { hora:"14h00", nome:"Leapmotor" },
-      { hora:"15h00", nome:"BMW" },
-      { hora:"16h00", nome:"Renault" },
-      { hora:"17h00", nome:"Geely" },
-      { hora:"18h00", nome:"Jetour" },
-      { hora:"19h00", nome:"MG" },
-      { hora:"20h00", nome:"DFM" }
+      { hora:"08h00", nome:"Omoda Jaecoo", box:"1/2" },
+      { hora:"09h00", nome:"GWM",          box:"3/4" },
+      { hora:"10h00", nome:"Ford",         box:"11/12" },
+      { hora:"11h00", nome:"Abarth",       box:"17" },
+      { hora:"12h00", nome:"Jeep/RAM",     box:"15/16" },
+      { hora:"13h00", nome:"Peugeot",      box:"13" },
+      { hora:"14h00", nome:"Leapmotor",    box:"14" },
+      { hora:"15h00", nome:"BMW",          box:"7/8" },
+      { hora:"16h00", nome:"Renault",      local:"Arena" },
+      { hora:"17h00", nome:"Geely",        local:"Arena" },
+      { hora:"18h00", nome:"Jetour",       local:"Arena" },
+      { hora:"19h00", nome:"MG",           box:"" },
+      { hora:"20h00", nome:"DFM",          local:"Arena" }
     ]},
     { data:"2026-08-27", rotulo:"Quinta-feira, 27/08", itens:[
-      { hora:"09h00", nome:"Volvo" },
-      { hora:"10h00", nome:"Honda" },
-      { hora:"11h00", nome:"GAC" },
-      { hora:"12h00", nome:"Mini" },
-      { hora:"13h00", nome:"iCAUR" },
-      { hora:"14h00", nome:"BAIC" }
+      { hora:"09h00", nome:"Volvo",        box:"20/21" },
+      { hora:"10h00", nome:"Honda",        box:"18/19" },
+      { hora:"11h00", nome:"GAC",          local:"Arena" },
+      { hora:"12h00", nome:"Mini",         local:"Race Village" },
+      { hora:"13h00", nome:"iCAUR",        box:"" },
+      { hora:"14h00", nome:"BAIC",         box:"" }
     ]}
   ];
 
