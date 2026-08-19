@@ -773,7 +773,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-19.3";
+  var VERSAO = "2026-08-19.4";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -3322,18 +3322,38 @@
     // do Firestore chega depois da tela montar, e sem isto a faixa so apareceria
     // se a pessoa recarregasse a pagina. Ou seja, justamente na hora em que
     // alguem publica algo com a Central ja aberta, que e o caso que importa.
-    desligar.push(DBwatch("coletivas", function(a){ coletivas=a;
-      renderOuAdiar("coletivas", renderColetivas, "#view-coletivas", false);
-      try{ renderNovidades(); }catch(e){} }));
-    desligar.push(DBwatch("pecas", function(a){ pecas=a;
-      renderOuAdiar("pecas", renderPecas, "#view-pecas", !!editandoPeca); contadores();
-      try{ renderNovidades(); }catch(e){} }));
-    desligar.push(DBwatch("story", function(a){ story=a;
-      renderOuAdiar("story", renderStory, "#view-story", !!criandoBloco); contadores();
-      try{ renderNovidades(); }catch(e){} }));
-    desligar.push(DBwatch("fotos", function(a){ fotos=a;
-      renderOuAdiar("fotos", renderFotos, "#view-fotos", !!criandoFoto); contadores();
-      try{ renderNovidades(); }catch(e){} }));
+    // SO ESCUTA O QUE O PERFIL PODE VER.
+    //
+    // Antes as 4 escutas subiam pra todo mundo, mesmo com a aba escondida por
+    // aplicarInterface(). No Firestore cada escuta cobra UMA LEITURA POR
+    // DOCUMENTO toda vez que liga, entao um StoryMaker, que so enxerga a aba
+    // dele, pagava tambem as coletivas, as pecas e as fotos: 68 documentos que
+    // ele nunca viu na tela. E pagava de novo a cada atualizacao dessas
+    // colecoes, porque escuta ligada cobra por documento alterado.
+    //
+    // podeVer() e a MESMA funcao que decide se a aba aparece, entao escuta e
+    // tela nao tem como discordar. Se amanha um perfil ganhar uma aba, ele
+    // ganha a escuta junto, sem ninguem lembrar de mexer aqui.
+    if(podeVer("coletivas")){
+      desligar.push(DBwatch("coletivas", function(a){ coletivas=a;
+        renderOuAdiar("coletivas", renderColetivas, "#view-coletivas", false);
+        try{ renderNovidades(); }catch(e){} }));
+    }
+    if(podeVer("pecas")){
+      desligar.push(DBwatch("pecas", function(a){ pecas=a;
+        renderOuAdiar("pecas", renderPecas, "#view-pecas", !!editandoPeca); contadores();
+        try{ renderNovidades(); }catch(e){} }));
+    }
+    if(podeVer("story")){
+      desligar.push(DBwatch("story", function(a){ story=a;
+        renderOuAdiar("story", renderStory, "#view-story", !!criandoBloco); contadores();
+        try{ renderNovidades(); }catch(e){} }));
+    }
+    if(podeVer("fotos")){
+      desligar.push(DBwatch("fotos", function(a){ fotos=a;
+        renderOuAdiar("fotos", renderFotos, "#view-fotos", !!criandoFoto); contadores();
+        try{ renderNovidades(); }catch(e){} }));
+    }
   }
 
   function openApp(){
