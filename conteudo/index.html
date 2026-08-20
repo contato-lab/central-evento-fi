@@ -799,7 +799,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-20.1";
+  var VERSAO = "2026-08-20.2";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1413,6 +1413,7 @@
   var criandoBloco=false;              // formulario de novo bloco do StoryMaker aberto
   var fMinhasStory=false;              // filtro "só as minhas" no checklist
   var frSoFalta=false;                 // fotorelatorio: esconde o que ja foi marcado
+  var frCriando=false;                 // campo de novo item do grupo Outros aberto
   var recolhidos={};                   // bloco EM ABERTO que a pessoa fechou na mao
   var reabertos={};                    // bloco COMPLETO que a pessoa reabriu na mao
   var desligar=[];                     // funcoes que param as escutas
@@ -2546,9 +2547,77 @@
     p["catch"](function(e){ avisoDeFalha(e); toast(marcar ? "Não deu para marcar." : "Não deu para desmarcar."); });
   }
 
+  // UMA COLECAO, DOIS TIPOS DE DOCUMENTO, e da pra distinguir sem campo de tipo:
+  //   item da lista fixa  -> id fr_auto_<g>_<i>, guarda so { por, em }.
+  //                          O documento EXISTIR ja quer dizer "marcado".
+  //   item criado no dia  -> id automatico, guarda { texto, feito, por, em }.
+  //                          Aqui o documento existe desde que foi criado, entao
+  //                          quem diz se esta marcado e o campo feito.
+  // Quem tem "texto" e do grupo Outros. Sem campo de tipo pra ninguem esquecer
+  // de preencher, e sem uma segunda colecao pra escutar (que custaria leitura).
+  function ehOutro(d){ return !!(d && typeof d.texto === "string"); }
+  // Ordena por criadoEm, NAO por em. "em" e a data do ultimo toque, entao
+  // ordenar por ele fazia o item PULAR DE LUGAR na hora em que era marcado:
+  // a pessoa tocava numa linha e outra linha ficava embaixo do dedo dela.
+  // criadoEm nao muda nunca, entao a lista fica parada.
+  function frOutros(){
+    return fotorel.filter(ehOutro).sort(function(a,b){
+      return (a.criadoEm || a.em || 0) - (b.criadoEm || b.em || 0);
+    });
+  }
+  // Salvar e LIMPAR O CAMPO, deixando ele aberto e com foco. Quem esta em campo
+  // costuma lembrar de tres coisas de uma vez; fechar o formulario a cada item
+  // transformaria isso em tres idas e voltas.
+  function frSalvarNovo(){
+    var cx = $("#fr_novo"); if(!cx) return;
+    var txt = String(cx.value || "").trim();
+    if(!txt){ cx.focus(); return; }
+    if(txt.length > 160) txt = txt.slice(0,160);
+    var agora = Date.now();
+    // criadoEm fixa o lugar do item na lista; em guarda o ultimo toque
+    var obj = { texto: txt, feito: false, por: meuNome || quemSou(), criadoEm: agora, em: agora };
+    if(!FB_ON){
+      obj.id = uid();
+      var a = lsGet("fotorel"); a.push(obj); lsSet("fotorel", a);
+      fotorel = lsGet("fotorel");
+    } else {
+      // add e nao set: id automatico, entao dois celulares cadastrando ao mesmo
+      // tempo nunca gravam por cima um do outro
+      db.collection(COL.fotorel).add(obj)["catch"](function(e){
+        avisoDeFalha(e); toast("Não deu para adicionar.");
+      });
+    }
+    cx.value = "";
+    renderFotorel(); contadores();
+    var novo = $("#fr_novo"); if(novo){ try{ novo.focus(); }catch(e){} }
+    toast("Item adicionado.");
+  }
+  function frGravarOutro(id, patch){
+    if(!FB_ON){
+      var a = lsGet("fotorel");
+      for(var i=0;i<a.length;i++){ if(a[i].id===id){ for(var k in patch) a[i][k]=patch[k]; } }
+      lsSet("fotorel", a); fotorel = lsGet("fotorel"); renderFotorel(); contadores(); return;
+    }
+    db.collection(COL.fotorel).doc(id).update(patch)["catch"](function(e){
+      avisoDeFalha(e); toast("Não deu para salvar.");
+    });
+  }
+  function frApagarOutro(id){
+    if(!FB_ON){
+      lsSet("fotorel", lsGet("fotorel").filter(function(x){ return x.id!==id; }));
+      fotorel = lsGet("fotorel"); renderFotorel(); contadores(); return;
+    }
+    db.collection(COL.fotorel).doc(id)["delete"]()["catch"](function(e){
+      avisoDeFalha(e); toast("Não deu para apagar.");
+    });
+  }
+
   function frMarcados(){
     var m = {};
-    for(var i=0;i<fotorel.length;i++){ if(fotorel[i] && fotorel[i].id) m[fotorel[i].id] = fotorel[i]; }
+    for(var i=0;i<fotorel.length;i++){
+      var d = fotorel[i];
+      if(d && d.id && !ehOutro(d)) m[d.id] = d;
+    }
     return m;
   }
   function frTodoMarcado(grupo){
@@ -2563,6 +2632,11 @@
       total += FOTOREL[g].itens.length;
       for(var i=0;i<FOTOREL[g].itens.length;i++){ if(m[idFotorel(g,i)]) feito++; }
     }
+    // os itens criados no dia contam junto: o numero do topo e do badge tem que
+    // ser o trabalho de verdade, nao so o que estava previsto no documento
+    var o = frOutros();
+    total += o.length;
+    for(var k=0;k<o.length;k++){ if(o[k].feito) feito++; }
     return { feito: feito, total: total, falta: total - feito };
   }
 
@@ -2630,11 +2704,83 @@
       h += '</div></div>';
     }
 
+    // ---- OUTROS: o que aparece no dia e nao estava no documento ----
+    // Fica sempre por ultimo e NUNCA se recolhe sozinho, mesmo completo: o
+    // botao de criar precisa estar a um toque durante o evento. Se ele se
+    // escondesse ao fechar tudo, criar item viraria dois toques na hora errada.
+    var outros = frOutros();
+    var okO = outros.filter(function(x){ return x.feito; }).length;
+    var visO = frSoFalta ? outros.filter(function(x){ return !x.feito; }) : outros;
+    h += '<div class="bloco'+((outros.length && okO===outros.length)?" completo":"")+'">'+
+      // cabecalho e DIV, nao botao: este grupo nao recolhe, entao um botao aqui
+      // seria um alvo que nao faz nada, e disso a pessoa desconfia do resto
+      '<div class="cabeca" style="cursor:default">'+
+        '<span class="cmeio"><span class="cnome">Outros</span>'+
+        '<span class="cinflu">o que apareceu no dia</span></span>'+
+        '<span class="cprog'+((outros.length && okO===outros.length)?" ok":"")+'">'+okO+'/'+outros.length+'</span>'+
+      '</div>'+
+      '<div class="corpo">';
+    for(var oi=0; oi<visO.length; oi++){
+      var it = visO[oi];
+      h += '<div class="chk'+(it.feito?" feito":"")+'" style="align-items:center">'+
+        '<button class="frlinha'+(it.feito?" on":"")+'" data-act="frchkoutro" data-id="'+esc(it.id)+'" '+
+          'style="border-bottom:0;padding:8px 0;min-height:48px" aria-pressed="'+(it.feito?"true":"false")+'">'+
+          '<span class="frbox">&#10003;</span>'+
+          '<span class="frtx"><span class="frnome">'+esc(it.texto)+'</span>'+
+            (it.por ? '<span class="frquem">'+esc(it.por)+(it.em?" · "+horaCurta(it.em):"")+'</span>' : '')+
+          '</span>'+
+        '</button>'+
+        (podeGerenciar("fotorel") ? '<button class="chkdel" data-act="frdelout" data-id="'+esc(it.id)+'" aria-label="Apagar item">&times;</button>' : '')+
+      '</div>';
+    }
+    if(!outros.length){
+      h += '<div style="color:var(--ink-3);font-size:.82rem;padding:6px 0 10px">'+
+           'Nada aqui ainda. Use para o que aparecer no dia e não estava na lista.</div>';
+    }
+    if(podeGerenciar("fotorel")){
+      h += frCriando
+        ? '<div class="fld" style="margin-top:6px">'+
+            '<input id="fr_novo" type="text" maxlength="160" placeholder="O que precisa ser fotografado?" '+
+              'autocomplete="off" enterkeyhint="done">'+
+            '<div class="acoes" style="margin-top:8px">'+
+              '<button class="btn" data-act="frsalvar">Adicionar</button>'+
+              '<button class="btn ghost" data-act="frcancelar">Fechar</button>'+
+            '</div>'+
+            '<span style="font-size:.7rem;color:var(--ink-3);margin-top:4px;display:block">'+
+              'O campo continua aberto: dá para emendar um atrás do outro.</span>'+
+          '</div>'
+        : '<div class="acoes"><button class="btn" data-act="frnovo">+ Novo item</button></div>';
+    }
+    h += '</div></div>';
+
     if(frSoFalta && !c.falta){
       h += '<div class="vazio"><div class="big">Acabou a lista</div>'+
            '<div class="sm">Os '+c.total+' itens do fotorelatório estão marcados. Toque em <b>Ver tudo</b> para conferir.</div></div>';
     }
+    // GUARDA O QUE ESTA DIGITADO antes de trocar o HTML, e devolve depois.
+    // Sem isto, o snapshot que chega quando outra pessoa marca um item apagaria
+    // no meio da frase de quem esta cadastrando, e a pessoa nao teria como saber
+    // por que. Vale tambem pra posicao do cursor: reescrever o valor joga o
+    // cursor pro fim, e quem estava corrigindo o comeco da palavra se perde.
+    var antes = $("#fr_novo");
+    var txtAntes = antes ? antes.value : null;
+    var posAntes = (antes && antes.selectionStart != null) ? antes.selectionStart : null;
+    var tinhaFoco = !!(antes && document.activeElement === antes);
+
     el.innerHTML = h;
+
+    if(frCriando){
+      var cx = $("#fr_novo");
+      if(cx){
+        if(txtAntes != null) cx.value = txtAntes;
+        if(tinhaFoco){
+          try{
+            cx.focus();
+            if(posAntes != null) cx.setSelectionRange(posAntes, posAntes);
+          }catch(e){}
+        }
+      }
+    }
   }
 
   // A hora de quem marcou sai por horaCurta(), que JA EXISTIA neste arquivo
@@ -3140,6 +3286,32 @@
       renderFotorel();
       return;
     }
+    if(act === "frnovo"){
+      if(!podeGerenciar("fotorel")){ toast("Seu acesso não cria item aqui."); return; }
+      frCriando = true; renderFotorel();
+      var cn = $("#fr_novo"); if(cn){ try{ cn.focus(); }catch(e){} }
+      return;
+    }
+    if(act === "frcancelar"){ frCriando = false; renderFotorel(); return; }
+    if(act === "frsalvar"){ frSalvarNovo(); return; }
+    if(act === "frchkoutro"){
+      if(!podeGerenciar("fotorel")){ toast("Seu acesso não marca o fotorelatório."); return; }
+      var alvo = fotorel.filter(function(x){ return x.id === id; })[0];
+      if(!alvo) return;
+      // aqui e update do campo feito, e nao apagar o documento: apagar sumiria
+      // com o item da lista, e desmarcar nao pode significar perder o que
+      // alguem cadastrou no meio do evento
+      frGravarOutro(id, { feito: !alvo.feito, em: Date.now(), por: meuNome || quemSou() });
+      return;
+    }
+    if(act === "frdelout"){
+      if(!podeGerenciar("fotorel")){ toast("Seu acesso não apaga item."); return; }
+      var av = fotorel.filter(function(x){ return x.id === id; })[0];
+      if(!av) return;
+      if(!confirm('Apagar "'+(av.texto||"")+'" do fotorelatório?')) return;
+      frApagarOutro(id);
+      return;
+    }
     if(act === "frchk"){
       if(!podeGerenciar("fotorel")){ toast("Seu acesso não marca o fotorelatório."); return; }
       var fg = parseInt(b.dataset.g,10), fi = parseInt(b.dataset.i,10);
@@ -3328,6 +3500,10 @@
   document.addEventListener("keydown", function(ev){
     if(ev.key !== "Enter") return;
     var a = ev.target, act = a && a.dataset && a.dataset.act;
+    // Enter adiciona o item do fotorelatorio e mantem o campo aberto. No
+    // teclado do celular a tecla vira "concluir" (enterkeyhint), entao esse e o
+    // caminho natural de quem esta cadastrando varios seguidos.
+    if(a && a.id === "fr_novo"){ ev.preventDefault(); frSalvarNovo(); return; }
     if(act === "stcol-link" || act === "peca-link"){ ev.preventDefault(); a.blur(); }
   });
 
@@ -3627,7 +3803,15 @@
     // piscaria 136 vezes ao longo do evento e ninguem olharia mais pra ela.
     if(podeVer("fotorel")){
       desligar.push(DBwatch("fotorel", function(a){ fotorel=a;
-        renderOuAdiar("fotorel", renderFotorel, "#view-fotorel", false); contadores(); }));
+        // NAO passa por renderOuAdiar de proposito. Aquele helper adia o
+        // redesenho enquanto alguem esta com o cursor num campo da aba, o que e
+        // certo pros formularios longos das outras abas. Aqui seria o contrario
+        // do desejado: o campo de "novo item" fica aberto justamente pra emendar
+        // varios, e adiar o redesenho faria o item recem-criado NAO aparecer,
+        // com a pessoa achando que nao salvou e digitando de novo.
+        // renderFotorel() preserva texto e foco do campo por conta propria.
+        if(abaAtual === "fotorel") renderFotorel();
+        contadores(); }));
     }
   }
 
