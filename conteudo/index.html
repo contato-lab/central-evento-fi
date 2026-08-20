@@ -799,7 +799,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-20.2";
+  var VERSAO = "2026-08-20.3";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -812,18 +812,34 @@
   // O storymaker nao precisa (nem deve) mexer na grade das coletivas no
   // meio do corre. Menos tela = menos engano.
   // ═══════════════════════════════════════════════════════════════
+  // "gerenciar" = mexe em tudo, inclusive APAGAR.
+  // "editar"    = cria, edita e marca, mas NAO APAGA nada.
+  // "nenhum"    = nem ve a aba.
   var PERFIS = {
-    conteudo: { rotulo:"Conteúdo",   coletivas:"gerenciar", pecas:"gerenciar", story:"gerenciar", fotos:"gerenciar", fotorel:"gerenciar" },
+    // EQUIPE INTERNA: e quem apaga. Se algo for apagado por engano, e alguem
+    // desta lista, e por isso ela e curta de proposito.
+    conteudo: { rotulo:"Equipe interna", coletivas:"gerenciar", pecas:"gerenciar", story:"gerenciar", fotos:"gerenciar", fotorel:"gerenciar" },
+
+    // EQUIPE EXTERNA: enxerga o mesmo, produz o mesmo, e a unica diferenca e
+    // que nao apaga. Freelancer e parceiro entram por aqui. Nao e desconfianca:
+    // durante o evento uma exclusao errada nao tem desfazer, e quem esta de fora
+    // nao tem como saber que aquela peca era a unica copia de alguma coisa.
+    externo:  { rotulo:"Equipe externa", coletivas:"editar",    pecas:"editar",    story:"editar",    fotos:"editar",    fotorel:"editar" },
+
     // o storymaker de campo tambem entrega foto, entao a aba Fotos entra pra ele.
-    // Se a coordenacao quiser fechar depois, e trocar "gerenciar" por "nenhum".
-    // Fotorelatorio entra pros dois: quem esta em campo marca, a coordenacao acompanha.
-    story:    { rotulo:"StoryMaker", coletivas:"nenhum",    pecas:"nenhum",    story:"gerenciar", fotos:"gerenciar", fotorel:"gerenciar" }
+    // Fotorelatorio entra pros tres: quem esta em campo marca, a coordenacao acompanha.
+    story:    { rotulo:"StoryMaker",     coletivas:"nenhum",    pecas:"nenhum",    story:"gerenciar", fotos:"gerenciar", fotorel:"gerenciar" }
   };
 
   // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com o banco
   // fora do ar. Impede o time ficar trancado pra fora no dia do evento.
   var ACESSOS_PADRAO = [
-    { nome:"Time de Conteúdo", senha:"conteudo2026", perfil:"conteudo" },
+    { nome:"Equipe interna",   senha:"conteudo2026", perfil:"conteudo" },
+    // Entrou em 20/08/2026. Mesma tela da interna, mesma capacidade de criar e
+    // editar, sem os botoes de apagar. A senha antiga da interna NAO mudou de
+    // proposito: o time ja tem ela decorada e trocar as duas de uma vez, a dias
+    // do evento, e receita de gente trancada pra fora no dia.
+    { nome:"Equipe externa",   senha:"externa2026",  perfil:"externo"  },
     { nome:"StoryMaker",       senha:"story2026",    perfil:"story"    }
   ];
 
@@ -1420,8 +1436,18 @@
 
   // ---- permissoes: checadas ao DESENHAR e de novo ao EXECUTAR ----
   function definirPerfil(p){ PERFIL = PERFIS[p] ? p : null; PERM = PERFIL ? PERFIS[PERFIL] : null; return !!PERM; }
+  // TRES NIVEIS por modulo, do menor pro maior:
+  //   "nenhum"    nao ve a aba
+  //   "editar"    ve, cria, edita e marca. NAO APAGA. (equipe externa)
+  //   "gerenciar" tudo, inclusive apagar.   (equipe interna)
+  //
+  // podeGerenciar aceita os dois de cima de proposito: ele guarda dezenas de
+  // acoes que sao de EDICAO (criar peca, marcar item, trocar status), e se ele
+  // exigisse "gerenciar" a equipe externa nao conseguiria trabalhar. Quem
+  // separa apagar de editar e podeApagar, e so ele.
   function podeVer(m){       return !!PERM && PERM[m] && PERM[m] !== "nenhum"; }
-  function podeGerenciar(m){ return !!PERM && PERM[m] === "gerenciar"; }
+  function podeGerenciar(m){ return !!PERM && (PERM[m] === "gerenciar" || PERM[m] === "editar"); }
+  function podeApagar(m){    return !!PERM && PERM[m] === "gerenciar"; }
   function quemSou(){ return (PERM && PERM.rotulo) || "—"; }
 
   function acharAcesso(senha){
@@ -1558,7 +1584,7 @@
             'value="'+esc(f.resp||"")+'" data-act="ftresp" data-id="'+f.id+'">'+
           '<input class="busca" style="flex:0 0 110px" type="number" inputmode="numeric" min="0" '+
             'placeholder="Qtd" value="'+(f.qtd||"")+'" data-act="ftqtd" data-id="'+f.id+'">'+
-          '<button class="btn perigo" data-act="ftdel" data-id="'+f.id+'">Apagar</button>'+
+          (podeApagar("fotos") ? '<button class="btn perigo" data-act="ftdel" data-id="'+f.id+'">Apagar</button>' : '')+
         '</div>'+
       '</div>'+
     '</div>';
@@ -2197,7 +2223,7 @@
       if(podeGerenciar("pecas")){
         h += '<div class="acoes">'+
           '<button class="btn ghost" data-act="editarpeca" data-id="'+p.id+'">Editar campos</button>'+
-          '<button class="btn perigo" data-act="apagarpeca" data-id="'+p.id+'">Apagar</button>'+
+          (podeApagar("pecas") ? '<button class="btn perigo" data-act="apagarpeca" data-id="'+p.id+'">Apagar</button>' : '')+
         '</div>';
       }
       h += '</div></div>';
@@ -2478,7 +2504,7 @@
             (s.resp?' · <button class="chkdel" data-act="quem" data-id="'+s.id+'" style="font-size:.62rem">trocar</button>':'')+
             '</span>'+
           '</span>'+
-          (podeGerenciar("story")?'<button class="chkdel" data-act="delstory" data-id="'+s.id+'" aria-label="Apagar item">&times;</button>':'')+
+          (podeApagar("story")?'<button class="chkdel" data-act="delstory" data-id="'+s.id+'" aria-label="Apagar item">&times;</button>':'')+
         '</div>';
       }
       if(podeGerenciar("story")){
@@ -2730,7 +2756,7 @@
             (it.por ? '<span class="frquem">'+esc(it.por)+(it.em?" · "+horaCurta(it.em):"")+'</span>' : '')+
           '</span>'+
         '</button>'+
-        (podeGerenciar("fotorel") ? '<button class="chkdel" data-act="frdelout" data-id="'+esc(it.id)+'" aria-label="Apagar item">&times;</button>' : '')+
+        (podeApagar("fotorel") ? '<button class="chkdel" data-act="frdelout" data-id="'+esc(it.id)+'" aria-label="Apagar item">&times;</button>' : '')+
       '</div>';
     }
     if(!outros.length){
@@ -3226,7 +3252,7 @@
       return;
     }
     if(act === "ftdel"){
-      if(!podeGerenciar("fotos")){ toast("Seu acesso nao apaga."); return; }
+      if(!podeApagar("fotos")){ toast("Seu acesso não apaga entregas."); return; }
       var f2 = fotos.filter(function(x){ return x.id===id; })[0] || {};
       if(confirm("Apagar a entrega \"" + (f2.momento||"sem momento") + "\"?")) DBremove("fotos", id);
       return;
@@ -3248,7 +3274,7 @@
       salvarPeca(); return;
     }
     if(act === "apagarpeca"){
-      if(!podeGerenciar("pecas")){ toast("Seu acesso não apaga peças."); return; }
+      if(!podeApagar("pecas")){ toast("Seu acesso não apaga peças."); return; }
       var alvo = pecas.filter(function(x){ return x.id===id; })[0] || {};
       if(!confirm("Apagar esta peça?\n\n"+(alvo.marca||"Sem marca")+" · "+(alvo.tema||alvo.formato||"")+"\n\nIsso não volta.")) return;
       DBremove("pecas", id); toast("Peça apagada."); return;
@@ -3305,7 +3331,7 @@
       return;
     }
     if(act === "frdelout"){
-      if(!podeGerenciar("fotorel")){ toast("Seu acesso não apaga item."); return; }
+      if(!podeApagar("fotorel")){ toast("Seu acesso não apaga item."); return; }
       var av = fotorel.filter(function(x){ return x.id === id; })[0];
       if(!av) return;
       if(!confirm('Apagar "'+(av.texto||"")+'" do fotorelatório?')) return;
@@ -3335,7 +3361,7 @@
       return;
     }
     if(act === "delstory"){
-      if(!podeGerenciar("story")){ toast("Seu acesso não apaga itens."); return; }
+      if(!podeApagar("story")){ toast("Seu acesso não apaga itens."); return; }
       var si = story.filter(function(x){ return x.id===id; })[0] || {};
       if(!confirm("Apagar este item?\n\n"+(si.texto||"")+"\n\nIsso não volta.")) return;
       DBremove("story", id); return;
