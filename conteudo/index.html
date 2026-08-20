@@ -527,6 +527,30 @@
     background:var(--panel-2);color:transparent;font-size:1.05rem;font-weight:700;
     flex:0 0 auto;display:grid;place-items:center;padding:0;line-height:1}
   .chkbox.on{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  /* FOTORELATORIO — 136 itens marcados a dedo, andando pelo autodromo com a
+     camera na outra mao. A LINHA INTEIRA e o botao, nao so o quadradinho:
+     alvo de 34px e o que faz a pessoa errar, desistir e marcar no papel. */
+  .frlinha{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;
+    background:none;border:0;border-bottom:1px solid var(--line-soft);
+    padding:13px 2px;min-height:58px;color:var(--ink);cursor:pointer;font:inherit}
+  .frlinha:last-child{border-bottom:0}
+  .frlinha:active{background:var(--panel-2)}
+  .frbox{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);
+    background:var(--panel-2);color:transparent;font-size:1rem;font-weight:700;
+    flex:0 0 auto;display:grid;place-items:center;line-height:1;margin-top:1px}
+  .frlinha.on .frbox{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .frtx{flex:1;min-width:0;font-size:.9rem;line-height:1.4}
+  .frlinha.on .frnome{color:var(--ink-3);text-decoration:line-through}
+  .frsub{display:block;font-size:.72rem;line-height:1.35;color:var(--ink-3);margin-top:3px}
+  .frquem{display:block;font-family:var(--mono);font-size:.6rem;letter-spacing:.06em;
+    color:var(--ink-3);margin-top:4px}
+  /* barra de progresso do grupo: o dado que a coordenacao olha de longe */
+  .frbarra{height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:8px}
+  .frbarra i{display:block;height:100%;background:var(--lime);border-radius:4px}
+  @media(max-width:520px){
+    .frlinha{min-height:62px;padding:14px 2px}
+    .frtx{font-size:.92rem}
+  }
   .chktx{flex:1;min-width:0;font-size:.88rem;line-height:1.45}
   .chk.feito .chktx{color:var(--ink-3);text-decoration:line-through}
   .chkresp{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;color:var(--ink-3);
@@ -750,6 +774,7 @@
     <button class="tab" data-tab="pecas">Orgânicos e pagos <span class="n" id="cPecas">0</span></button>
     <button class="tab" data-tab="story">StoryMaker <span class="n" id="cStory">0</span></button>
     <button class="tab" data-tab="fotos">Fotos <span class="n" id="cFotos">0</span></button>
+    <button class="tab" data-tab="fotorel">Fotorelatório <span class="n" id="cFotorel">0</span></button>
   </div></nav>
 
   <!-- faixa de novidade: fica FORA do main pra ser vista de qualquer aba,
@@ -762,6 +787,7 @@
     <section id="view-pecas" hidden></section>
     <section id="view-story" hidden></section>
     <section id="view-fotos" hidden></section>
+    <section id="view-fotorel" hidden></section>
   </main>
 </div>
 
@@ -773,7 +799,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-19.5";
+  var VERSAO = "2026-08-20.1";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -787,10 +813,11 @@
   // meio do corre. Menos tela = menos engano.
   // ═══════════════════════════════════════════════════════════════
   var PERFIS = {
-    conteudo: { rotulo:"Conteúdo",   coletivas:"gerenciar", pecas:"gerenciar", story:"gerenciar", fotos:"gerenciar" },
+    conteudo: { rotulo:"Conteúdo",   coletivas:"gerenciar", pecas:"gerenciar", story:"gerenciar", fotos:"gerenciar", fotorel:"gerenciar" },
     // o storymaker de campo tambem entrega foto, entao a aba Fotos entra pra ele.
     // Se a coordenacao quiser fechar depois, e trocar "gerenciar" por "nenhum".
-    story:    { rotulo:"StoryMaker", coletivas:"nenhum",    pecas:"nenhum",    story:"gerenciar", fotos:"gerenciar" }
+    // Fotorelatorio entra pros dois: quem esta em campo marca, a coordenacao acompanha.
+    story:    { rotulo:"StoryMaker", coletivas:"nenhum",    pecas:"nenhum",    story:"gerenciar", fotos:"gerenciar", fotorel:"gerenciar" }
   };
 
   // Caminho de recuperacao: estas senhas funcionam SEMPRE, mesmo com o banco
@@ -979,7 +1006,7 @@
   // ninguem. Um documento por peca elimina isso na raiz.
   // ═══════════════════════════════════════════════════════════════
   var COL = { coletivas:"cont_coletivas", pecas:"cont_pecas", story:"cont_story",
-              fotos:"cont_fotos" };
+              fotos:"cont_fotos", fotorel:"cont_fotorel" };
 
   var watchers = {};
   function lsGet(c){ try{ return JSON.parse(localStorage.getItem("cfi_"+c)) || []; }catch(e){ return []; } }
@@ -1084,6 +1111,80 @@
   // E DADO NO CODIGO de proposito: agenda oficial nao pode ser editada por
   // engano no meio do evento. Mudou a grade, edita aqui e sobe VERSAO nova.
   // "Abertura oficial" e "Intervalo" nao entram: sao momentos, nao coletiva.
+  // ═══════════════════════════════════════════════════════════════
+  // FOTORELATORIO — checklist puro do que precisa ser fotografado.
+  //
+  // A LISTA MORA AQUI, NAO NO BANCO, de proposito. Ela veio pronta de um
+  // documento da producao ("Lista Fotorelatorio [Festival AUTO 2026]") e nao
+  // muda durante o evento. Mesma decisao das COLETIVAS logo abaixo: a grade e
+  // codigo, o banco guarda so o que muda.
+  //
+  // A CONSEQUENCIA BOA disso: item NAO marcado nao tem documento nenhum no
+  // Firestore. A aba comeca custando ZERO leitura e cresce um documento por
+  // check. Sao 136 itens; se cada um fosse um documento criado de saida, a aba
+  // custaria 136 leituras por carga de tela, de todo mundo, o tempo todo, so
+  // pra mostrar uma lista que ja esta aqui dentro.
+  //
+  // O id do documento e fr_auto_<grupo>_<item>, derivado da POSICAO na lista.
+  // Isso significa: mexer na ordem dos itens abaixo BAGUNCA o que ja foi
+  // marcado. Pra acrescentar item, acrescente NO FIM do grupo. Pra remover,
+  // e melhor deixar o texto e nao apagar a linha durante o evento.
+  var FOTOREL = [
+    { grupo:"Áreas e estrutura do evento", itens:[
+      "Ambulância e Centro Médico", "Área Kids", "Arena", "Banheiros", "Bares Arena",
+      "Boulevard", "Camarins", "Carga e Descarga", "Cenografia", "Convention Center",
+      "Credenciamento", "Drift", "Entrada Portões", "Escadas", "Estacionamento Torre",
+      "Fotop", "Infra", "Lateral da Torre", "Lixeiras", "Lojinha Festival (espalhada)",
+      "Locker (Varandão, Paddock e Arena)", "Palco", "Pista", "Pista Premium",
+      "Placas Pista", "Pista Off-Road (entrada, estrutura, placas)", "Race Village",
+      "Roda Gigante", "Sala de Briefing", "Sala de Imprensa", "Sala Produção",
+      "Super Carros", "Super Sport Pass", "Tirolesa", "Volta Rápida"
+    ]},
+    { grupo:"Área VIP", itens:[
+      "Lounge", "Salas Corporativas", "Camarotes", "Bares", "Comidas",
+      "McDonald's", "Banheiros", "Vista", "Palco"
+    ]},
+    { grupo:"Alimentação", itens:[
+      "Praça de Alimentação", "Praça de Alimentação Lajão", "Praça de Alimentação Arena",
+      "Alimentação Varandão", "Alimentação Boulevard", "Alimentação Luck Friends",
+      "Alimentação Quiosques", "Sorvete Baccio di Latte", "Red Bull", "Frozen"
+    ]},
+    // No LED cada marca tem varios pontos. Fica UM check por marca, com os
+    // pontos escritos embaixo pra saber o que entra na foto. Um check por ponto
+    // viraria 90 linhas e ninguem marca 90 linhas no meio do evento.
+    { grupo:"LED", itens:[
+      "BAIC · Palco, Torre, Telão VIP, Rooftop Lajão",
+      "Ford · Palco, Torre, Telão VIP, Rooftop Lajão",
+      "Ford Motorcraft · Palco, Torre, Telão VIP, Rooftop Lajão",
+      "Globo · Palco, Torre, Telão VIP, Rooftop Lajão",
+      "Honda · Pórtico, Testeira Pista, Cubo, Totem, Borda de Pista, Tirolesa, Cubo Proteção Coluna, Portão de Acesso VIP, Palco, Torre, Telão VIP, Rooftop Lajão",
+      "Honda Consórcio · Palco, Torre, Telão VIP, Rooftop Lajão",
+      "Livelo · Pórtico, Testeira Pista, Cubo, Totem, Borda de Pista, Tirolesa, Cubo Proteção Coluna, Portão de Acesso VIP",
+      "Mercado Livre · Pórtico, Testeira Pista, Cubo, Totem, Borda de Pista, Tirolesa, Cubo Proteção Coluna, Portão de Acesso VIP, Palco, Torre, Telão VIP, Rooftop Lajão",
+      "Pro Honda · Pórtico, Testeira Pista, Cubo, Totem, Borda de Pista, Tirolesa, Cubo Proteção Coluna, Portão de Acesso VIP, Palco, Torre, Telão VIP, Rooftop Lajão",
+      "Red Bull · Palco, Torre, Telão VIP, Rooftop Lajão",
+      "Santander · Pórtico, Testeira Pista, Cubo, Totem, Borda de Pista, Tirolesa, Cubo Proteção Coluna, Portão de Acesso VIP, Palco, Torre, Telão VIP, Rooftop Lajão",
+      "SP Negócios · Telão VIP (Convention Center)",
+      "Suhai · Pórtico, Testeira Pista, Cubo, Totem, Borda de Pista, Tirolesa, Cubo Proteção Coluna, Portão de Acesso VIP, Palco, Torre, Telão VIP, Rooftop Lajão",
+      "UOL · Pórtico, Testeira Pista, Cubo, Totem, Borda de Pista, Tirolesa, Cubo Proteção Coluna, Portão de Acesso VIP",
+      "Vibra · Palco, Torre, Telão VIP, Rooftop Lajão"
+    ]},
+    { grupo:"Marcas", itens:[
+      "Abarth", "Abraciclo", "Alltak", "Aston Martin São Paulo", "Auto.equip", "AutoZone",
+      "BMW", "BYD", "Cadillac", "Caoa Changan", "Denza", "DFM", "EMaster", "EZ Volt",
+      "Faaftech", "Fiat", "Ford", "Ford Motorcraft", "FW", "GAC", "Geely",
+      "GR Gazoo Racing", "GWM", "Heliar", "Honda", "Honda Serviços Financeiros",
+      "Ipiranga Lubrificantes", "Jeep", "Jetour", "Leapmotor", "Lexus", "Lime", "Livelo",
+      "Lwart", "McLaren São Paulo", "Meguiar's", "Mercado Livre", "MG",
+      "Mitsubishi Motors", "Mobil 1", "Motul", "Nacar", "Nani Sound", "NewX Protection",
+      "Omoda Jaecoo", "Paulinho", "Petronas Syntium", "Petrobras Podium", "Peugeot",
+      "Pneustore", "Pra Honda", "Prefeitura de São Paulo", "Quad Film", "Quantum Group",
+      "RAM", "Renault", "Repsol", "Santander", "Sempa", "Sherwin Williams", "Sign House",
+      "SP Negócios", "Suhai", "TV Globo", "Varta", "Volvo", "Yokohama"
+    ]}
+  ];
+  function idFotorel(g, i){ return "fr_auto_" + g + "_" + i; }
+
   // ═══════════════════════════════════════════════════════════════
   var FORMATOS_COLETIVA = ["Carrossel de fotos", "Vídeo edit", "Vídeo com influenciador"];
 
@@ -1278,6 +1379,8 @@
   // ---- estado ----
   var PERFIL=null, PERM=null;
   var coletivas=[], pecas=[], story=[];
+  // So os itens JA MARCADOS do fotorelatorio. Item em aberto nao tem documento.
+  var fotorel=[], frRecolhidos={};
   var abaAtual="coletivas";
   // Qual edicao a tela esta mostrando. Vale para as QUATRO abas ao mesmo tempo:
   // trocar de aba nao pode trocar de edicao no meio do caminho. Nasce na que
@@ -1309,6 +1412,7 @@
   var editandoPeca=null;               // id da peca em edicao, ou "novo"
   var criandoBloco=false;              // formulario de novo bloco do StoryMaker aberto
   var fMinhasStory=false;              // filtro "só as minhas" no checklist
+  var frSoFalta=false;                 // fotorelatorio: esconde o que ja foi marcado
   var recolhidos={};                   // bloco EM ABERTO que a pessoa fechou na mao
   var reabertos={};                    // bloco COMPLETO que a pessoa reabriu na mao
   var desligar=[];                     // funcoes que param as escutas
@@ -2407,13 +2511,145 @@
       var dia = diaStoryAtual();
       el.textContent = story.filter(function(s){ return s.dia===dia && !s.feito; }).length;
     }
+    // Igual aos outros: o numero e o QUE FALTA, nao o total. Serve pra saber
+    // se ainda tem trabalho sem precisar abrir a aba.
+    el=$("#cFotorel");   if(el){ try{ el.textContent = frContas().falta; }catch(e){} }
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FOTORELATORIO
+  // Checklist puro: marca e desmarca, nada de link, prazo ou responsavel.
+  // Quem esta em campo vai usar isso de pe, no sol, com o celular numa mao.
+  // Por isso: linha inteira clicavel, filtro "só o que falta" e progresso por
+  // grupo. Sem formulario, sem confirmacao, sem passo extra.
+  // ═══════════════════════════════════════════════════════════════
+  // GRAVA POR FORA DE bloqueiaSeArquivo(), e isso e de proposito.
+  //
+  // Aquela trava existe pra impedir que alguem edite peca de uma edicao
+  // ENCERRADA sem perceber, e ela olha a edicao que a tela esta mostrando
+  // (edicaoVista), que e compartilhada pelas outras abas. O fotorelatorio nao
+  // tem edicao: e uma lista so, da auto. Se a pessoa tivesse deixado a fita na
+  // moto em outra aba, o check aqui seria RECUSADO EM SILENCIO, com o item
+  // voltando a desmarcado sozinho e ninguem entendendo por que.
+  function frGravar(id, marcar){
+    if(!FB_ON){
+      var a = lsGet("fotorel").filter(function(x){ return x.id !== id; });
+      if(marcar) a.push({ id:id, por: meuNome || quemSou(), em: Date.now() });
+      lsSet("fotorel", a);
+      fotorel = lsGet("fotorel"); renderFotorel(); contadores();
+      return;
+    }
+    var ref = db.collection(COL.fotorel).doc(id);
+    var p = marcar
+      ? ref.set({ por: meuNome || quemSou(), em: Date.now() })
+      : ref["delete"]();
+    p["catch"](function(e){ avisoDeFalha(e); toast(marcar ? "Não deu para marcar." : "Não deu para desmarcar."); });
+  }
+
+  function frMarcados(){
+    var m = {};
+    for(var i=0;i<fotorel.length;i++){ if(fotorel[i] && fotorel[i].id) m[fotorel[i].id] = fotorel[i]; }
+    return m;
+  }
+  function frTodoMarcado(grupo){
+    if(!grupo) return false;
+    var g = FOTOREL.indexOf(grupo), m = frMarcados();
+    for(var i=0;i<grupo.itens.length;i++){ if(!m[idFotorel(g,i)]) return false; }
+    return true;
+  }
+  function frContas(){
+    var m = frMarcados(), feito = 0, total = 0;
+    for(var g=0; g<FOTOREL.length; g++){
+      total += FOTOREL[g].itens.length;
+      for(var i=0;i<FOTOREL[g].itens.length;i++){ if(m[idFotorel(g,i)]) feito++; }
+    }
+    return { feito: feito, total: total, falta: total - feito };
+  }
+
+  function renderFotorel(){
+    var el = $("#view-fotorel"); if(!el) return;
+    if(!podeVer("fotorel")){
+      el.innerHTML = '<div class="vazio"><div class="big">Sem acesso a esta aba</div></div>';
+      return;
+    }
+    var m = frMarcados(), c = frContas(), h = '';
+
+    h += '<div class="resumo">'+
+      '<div class="rbox"><div class="rk">Total</div><div class="rv">'+c.total+'</div></div>'+
+      '<div class="rbox destaque"><div class="rk">Feitos</div><div class="rv">'+c.feito+'</div></div>'+
+      '<div class="rbox'+(c.falta?" alerta":"")+'"><div class="rk">Falta</div><div class="rv">'+c.falta+'</div></div>'+
+    '</div>';
+
+    // Com 136 itens, depois do primeiro dia a lista vira uma parede de riscados.
+    // Este filtro e o que mantem a aba usavel no sabado.
+    h += '<div class="fchips">'+
+      '<button class="fchip destaque'+(frSoFalta?" on":"")+'" data-act="frfalta">Só o que falta</button>'+
+      (frSoFalta ? '<button class="fchip" data-act="frfalta">Ver tudo</button>' : '')+
+    '</div>';
+
+    for(var g=0; g<FOTOREL.length; g++){
+      var grupo = FOTOREL[g], itens = grupo.itens;
+      var okG = 0, k;
+      for(k=0;k<itens.length;k++){ if(m[idFotorel(g,k)]) okG++; }
+      var cheio = okG === itens.length;
+      var visiveis = [];
+      for(k=0;k<itens.length;k++){
+        if(frSoFalta && m[idFotorel(g,k)]) continue;
+        visiveis.push(k);
+      }
+      // grupo fechado se recolhe sozinho, igual ao StoryMaker
+      var min = (grupo.grupo in frRecolhidos) ? frRecolhidos[grupo.grupo] : cheio;
+      if(frSoFalta && !visiveis.length) continue;
+
+      h += '<div class="bloco'+(cheio?" completo":"")+(min?" recolhido":"")+'">'+
+        '<button class="cabeca" data-act="frdobrar" data-grupo="'+esc(grupo.grupo)+'" aria-expanded="'+(min?"false":"true")+'">'+
+          '<span class="cmeio"><span class="cnome">'+(cheio?"&#10003; ":"")+esc(grupo.grupo)+'</span></span>'+
+          (cheio && min ? '<span class="tag st" data-st="publicado">Pronto</span>' : '')+
+          '<span class="cprog'+(cheio?" ok":"")+'">'+okG+'/'+itens.length+'</span>'+
+          '<span class="cmais">'+(min?"+":"&minus;")+'</span>'+
+        '</button>';
+      if(min){ h += '</div>'; continue; }
+      h += '<div class="corpo">';
+      h += '<div class="frbarra"><i style="width:'+Math.round(okG/itens.length*100)+'%"></i></div>';
+      for(var vi=0; vi<visiveis.length; vi++){
+        k = visiveis[vi];
+        var id = idFotorel(g,k), doc = m[id], txt = itens[k];
+        // no LED o texto vem "Marca · pontos": a marca fica grande, os pontos embaixo
+        var corte = txt.indexOf(" · ");
+        var nome = corte > 0 ? txt.slice(0, corte) : txt;
+        var sub  = corte > 0 ? txt.slice(corte + 3) : "";
+        h += '<button class="frlinha'+(doc?" on":"")+'" data-act="frchk" data-g="'+g+'" data-i="'+k+'" '+
+             'aria-pressed="'+(doc?"true":"false")+'">'+
+          '<span class="frbox">&#10003;</span>'+
+          '<span class="frtx"><span class="frnome">'+esc(nome)+'</span>'+
+            (sub ? '<span class="frsub">'+esc(sub)+'</span>' : '')+
+            (doc && doc.por ? '<span class="frquem">'+esc(doc.por)+(doc.em?" · "+horaCurta(doc.em):"")+'</span>' : '')+
+          '</span>'+
+        '</button>';
+      }
+      h += '</div></div>';
+    }
+
+    if(frSoFalta && !c.falta){
+      h += '<div class="vazio"><div class="big">Acabou a lista</div>'+
+           '<div class="sm">Os '+c.total+' itens do fotorelatório estão marcados. Toque em <b>Ver tudo</b> para conferir.</div></div>';
+    }
+    el.innerHTML = h;
+  }
+
+  // A hora de quem marcou sai por horaCurta(), que JA EXISTIA neste arquivo
+  // (usada pelo painel de novidades) e escreve no formato da casa, "11h34".
+  // Cheguei a declarar uma segunda com o mesmo nome aqui: como declaracao de
+  // funcao sobe pro topo, a de baixo vencia e a minha virava letra morta, com
+  // o risco de trocar o formato do app inteiro se alguem reordenasse o arquivo.
+  // Uma so, e e a de baixo.
 
   function renderAll(){
     try{ renderColetivas(); }catch(e){ if(window.console) console.error("[conteudo] coletivas", e); }
     try{ renderPecas();     }catch(e){ if(window.console) console.error("[conteudo] pecas", e); }
     try{ renderStory();     }catch(e){ if(window.console) console.error("[conteudo] story", e); }
     try{ renderFotos();     }catch(e){ if(window.console) console.error("[conteudo] fotos", e); }
+    try{ renderFotorel();   }catch(e){ if(window.console) console.error("[conteudo] fotorelatorio", e); }
     try{ contadores();      }catch(e){}
     try{ renderNovidades(); }catch(e){ if(window.console) console.error("[conteudo] novidades", e); }
   }
@@ -2645,6 +2881,7 @@
     $("#view-pecas").hidden     = t !== "pecas";
     $("#view-story").hidden     = t !== "story";
     $("#view-fotos").hidden     = t !== "fotos";
+    $("#view-fotorel").hidden   = t !== "fotorel";
     // NAO marca como visto so por abrir a aba. Antes marcava, e isso apagava o
     // aviso antes da pessoa ter visto qual peca era nova: bastava passar pela
     // aba pra perder a informacao. Agora quem apaga e a pessoa, clicando no
@@ -2656,6 +2893,7 @@
       if(t === "coletivas") renderColetivas();
       else if(t === "pecas"){ if(!editandoPeca) renderPecas(); }
       else if(t === "fotos") renderFotos();
+      else if(t === "fotorel") renderFotorel();
       else { if(!criandoBloco) renderStory(); }
       pendente[t] = false;
       renderNovidades();
@@ -2665,8 +2903,12 @@
 
   function aplicarInterface(){
     if(!PERM) return;
+    // Toda aba nova PRECISA entrar aqui. Esta lista e escrita a mao, entao
+    // esquecer uma linha nao da erro: a aba simplesmente nunca aparece, pra
+    // ninguem, e o sintoma e "sumiu" em vez de "quebrou".
     var abas = { coletivas: podeVer("coletivas"), pecas: podeVer("pecas"),
-                 story: podeVer("story"), fotos: podeVer("fotos") };
+                 story: podeVer("story"), fotos: podeVer("fotos"),
+                 fotorel: podeVer("fotorel") };
     var primeira = null;
     $$(".tab").forEach(function(b){
       var t = b.getAttribute("data-tab"), ok = !!abas[t];
@@ -2885,6 +3127,27 @@
     }
 
     // ---- storymaker ----
+    // ---- fotorelatorio ----
+    if(act === "frfalta"){ frSoFalta = !frSoFalta; renderFotorel(); return; }
+    if(act === "frdobrar"){
+      var gr = b.dataset.grupo;
+      // guarda o ESTADO EXPLICITO, nao um toggle sobre o automatico: sem isto,
+      // um grupo que se recolheu sozinho por estar completo nao abre no
+      // primeiro toque, so no segundo.
+      var achatado = FOTOREL.filter(function(x){ return x.grupo === gr; })[0];
+      var visivelAgora = (gr in frRecolhidos) ? !frRecolhidos[gr] : !frTodoMarcado(achatado);
+      frRecolhidos[gr] = visivelAgora;   // estava visivel -> passa a recolhido
+      renderFotorel();
+      return;
+    }
+    if(act === "frchk"){
+      if(!podeGerenciar("fotorel")){ toast("Seu acesso não marca o fotorelatório."); return; }
+      var fg = parseInt(b.dataset.g,10), fi = parseInt(b.dataset.i,10);
+      if(isNaN(fg) || isNaN(fi)) return;
+      var fid = idFotorel(fg, fi);
+      frGravar(fid, !frMarcados()[fid]);
+      return;
+    }
     if(act === "chk"){
       if(!podeGerenciar("story")){ toast("Seu acesso não marca o checklist."); return; }
       var s = story.filter(function(x){ return x.id===id; })[0]; if(!s) return;
@@ -3358,6 +3621,13 @@
       desligar.push(DBwatch("fotos", function(a){ fotos=a;
         renderOuAdiar("fotos", renderFotos, "#view-fotos", !!criandoFoto); contadores();
         try{ renderNovidades(); }catch(e){} }));
+    }
+    // O fotorelatorio nao entra em renderNovidades de proposito: check de item
+    // e trabalho em andamento, nao publicacao. Se entrasse, a faixa de novidade
+    // piscaria 136 vezes ao longo do evento e ninguem olharia mais pra ela.
+    if(podeVer("fotorel")){
+      desligar.push(DBwatch("fotorel", function(a){ fotorel=a;
+        renderOuAdiar("fotorel", renderFotorel, "#view-fotorel", false); contadores(); }));
     }
   }
 
