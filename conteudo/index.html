@@ -1667,6 +1667,9 @@
     if(podeGerenciar("fotos")){
       h += '<div class="barrafiltro">'+
         '<button class="btn" data-act="novafoto">+ Nova entrega</button>'+
+        (marcasDaEdicao().length
+          ? '<button class="btn ghost" data-act="entregasmarcas">+ Entregas das marcas</button>'
+          : '')+
       '</div>';
     }
     if(criandoFoto) h += formFotoHTML();
@@ -3386,6 +3389,41 @@
       salvarFoto(); return;
     }
     if(act === "diafoto"){ diaStory = b.dataset.dia; renderFotos(); contadores(); return; }
+    // UMA ENTREGA DE FOTOS POR MARCA, mesma grade do StoryMaker.
+    // Aqui nao tem formulario: a entrega nasce so com o titulo (marca, onde e
+    // quando), e link, responsavel e quantidade sao preenchidos no dia, que e
+    // como o time ja usa a aba. Perguntar isso agora seria inventar resposta.
+    if(act === "entregasmarcas"){
+      if(!podeGerenciar("fotos")){ toast("Seu acesso não cria entregas."); return; }
+      var marcasF = marcasDaEdicao();
+      if(!marcasF.length){ toast("A grade desta edição ainda não foi publicada."); return; }
+      // ja existe = titulo comeca com o nome da marca, no mesmo dia. Compara so
+      // o comeco porque o resto do titulo (box, hora) pode ter mudado na grade.
+      var pendentes = [], jaF = {};
+      fotos.forEach(function(f){ jaF[(f.dia||"") + "|" + String(f.momento||"").split(" · ")[0]] = true; });
+      for(var i=0;i<marcasF.length;i++){
+        if(!jaF[marcasF[i].dia + "|" + marcasF[i].marca]) pendentes.push(marcasF[i]);
+      }
+      if(!pendentes.length){ toast("Todas as marcas já têm entrega."); return; }
+      var porDiaF = {}, k;
+      for(i=0;i<pendentes.length;i++) porDiaF[pendentes[i].dia] = (porDiaF[pendentes[i].dia]||0) + 1;
+      var resumoF = [];
+      for(k in porDiaF) resumoF.push(rotuloDia(k) + ": " + porDiaF[k] + (porDiaF[k]===1?" entrega":" entregas"));
+      if(!confirm("Criar "+pendentes.length+(pendentes.length===1?" entrega":" entregas")+
+                  " de fotos, uma por marca?\n\n"+resumoF.join("\n")+
+                  "\n\nLink e responsável ficam em branco para preencher no dia.")) return;
+      var baseF = Date.now();
+      for(i=0;i<pendentes.length;i++){
+        DBadd("fotos", { dia:pendentes[i].dia,
+                         momento: pendentes[i].marca + " · " + ondeEQuando(pendentes[i]),
+                         resp:"", link:"", qtd:0, enviado:false, tratado:false,
+                         criadoEm: baseF + i, em: baseF + i, por:quemSou() });
+      }
+      naoAlertarProprio("fotos", baseF + pendentes.length);
+      toast(pendentes.length + (pendentes.length===1 ? " entrega criada." : " entregas criadas."));
+      renderFotos();
+      return;
+    }
     if(act === "movfoto"){
       if(!podeGerenciar("fotos")){ toast("Seu acesso não muda a ordem."); return; }
       var listaF = fotosDoDia(), iF = -1;
@@ -3649,6 +3687,26 @@
   //
   // Marca com coletiva nos dois dias entra duas vezes, uma por dia, porque ai
   // sao dois trabalhos diferentes e nao uma repeticao.
+  // ONDE A MARCA FICA, escrito do jeito que serve pra quem esta andando com a
+  // camera na mao. Vem da mesma grade que a aba de Coletivas usa:
+  //   box preenchido  -> "Box 1/2"   (predio virado pro pit lane)
+  //   local           -> "Arena", "Race Village"  (sem o prefixo Box, que seria mentira)
+  //   box vazio       -> "Box a confirmar"  (MG, iCAUR e BAIC nao estao em planta nenhuma)
+  // Chutar um numero aqui e pior que admitir que falta: quem le isto e quem
+  // esta indo gravar.
+  function ondeFica(it){
+    var box = String((it && it.box) || "").trim();
+    if(box) return "Box " + box;
+    var local = String((it && it.local) || "").trim();
+    if(local) return local;
+    return "Box a confirmar";
+  }
+  // "Box 1/2 · coletiva 08h00". A hora e a DA COLETIVA, e vem escrita assim de
+  // propositivo: o box e onde o estande fica o dia todo, a hora e um compromisso
+  // pontual. Sem a palavra "coletiva" alguem leria como horario do estande.
+  function ondeEQuando(m){
+    return m.hora ? (m.onde + " · coletiva " + m.hora) : m.onde;
+  }
   function marcasDaEdicao(){
     var vistas = {}, saida = [];
     for(var i=0;i<COLETIVAS.length;i++){
@@ -3659,7 +3717,8 @@
         var chave = COLETIVAS[i].dia + "|" + m;
         if(vistas[chave]) continue;      // a mesma marca duas vezes no mesmo dia
         vistas[chave] = true;
-        saida.push({ marca:m, dia:COLETIVAS[i].dia, rotulo:COLETIVAS[i].rotulo || COLETIVAS[i].dia });
+        saida.push({ marca:m, dia:COLETIVAS[i].dia, rotulo:COLETIVAS[i].rotulo || COLETIVAS[i].dia,
+                     onde:ondeFica(COLETIVAS[i].itens[j]), hora:COLETIVAS[i].itens[j].hora || "" });
       }
     }
     return saida;
@@ -3676,12 +3735,11 @@
          '<b>no dia da coletiva dela</b>. Não importa qual dia está aberto agora. '+
          'Quem já tem bloco vem desmarcada, para não duplicar.</p>';
     h += '<div class="grid2">';
-    h += '<div class="fld"><label>Área</label><select id="m_area">';
-    for(i=0;i<AREAS.length;i++){
-      h += '<option value="'+esc(AREAS[i])+'"'+(AREAS[i]==="Boulevard"?" selected":"")+'>'+esc(AREAS[i])+'</option>';
-    }
-    h += '<option value="">Sem área</option></select></div>';
-    h += '<div class="fld"><label>Marcas</label>'+
+    // Nao tem campo de area aqui de proposito: o lugar de cada marca ja esta na
+    // grade (box, Arena, Race Village) e e diferente de marca pra marca. Um
+    // seletor unico obrigaria a escolher uma area so pras 19, que seria errada
+    // pra maioria delas.
+    h += '<div class="fld full"><label>Marcas</label>'+
          '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
          '<button type="button" class="fchip" data-act="marcastodas">Marcar todas</button>'+
          '<button type="button" class="fchip" data-act="marcasnenhuma">Desmarcar todas</button>'+
@@ -3703,8 +3761,11 @@
       }
       h += '<label class="mkitem'+(tem?" ja":"")+'">'+
         '<input type="checkbox" class="mkchk" value="'+esc(m.marca)+'" '+
-          'data-dia="'+esc(m.dia)+'"'+(tem?"":" checked")+'>'+
-        '<span>'+esc(m.marca)+(tem?' <i>já tem bloco</i>':'')+'</span></label>';
+          'data-dia="'+esc(m.dia)+'" data-onde="'+esc(ondeEQuando(m))+'"'+(tem?"":" checked")+'>'+
+        '<span>'+esc(m.marca)+
+          '<i style="display:block;margin-top:2px">'+esc(ondeEQuando(m))+'</i>'+
+          (tem?'<i style="display:block">já tem bloco</i>':'')+
+        '</span></label>';
     }
     if(diaAnterior !== null) h += '</div>';
     h += '</div>';
@@ -3715,7 +3776,6 @@
     return h;
   }
   function salvarMarcas(){
-    var area = String(($("#m_area")||{}).value || "").trim();
     var txt  = String(($("#m_itens")||{}).value || "");
     var lista = txt.split("\n").map(function(x){ return x.trim(); }).filter(Boolean);
     if(!lista.length){ toast("Escreva ao menos um item."); return; }
@@ -3725,7 +3785,9 @@
     var marcadas = [];
     var caixas = document.querySelectorAll(".mkchk");
     for(var c=0;c<caixas.length;c++){
-      if(caixas[c].checked) marcadas.push({ marca:caixas[c].value, dia:caixas[c].getAttribute("data-dia") });
+      if(caixas[c].checked) marcadas.push({ marca:caixas[c].value,
+                                            dia:caixas[c].getAttribute("data-dia"),
+                                            onde:caixas[c].getAttribute("data-onde") || "" });
     }
     if(!marcadas.length){ toast("Marque ao menos uma marca."); return; }
 
@@ -3744,8 +3806,8 @@
     var base = Date.now(), n = 0;
     for(i=0;i<marcadas.length;i++){
       for(k=0;k<lista.length;k++){
-        DBadd("story", { dia:marcadas[i].dia, grupo:marcadas[i].marca, area:area, texto:lista[k],
-                         resp:"", feito:false, criadoEm: base + n, por:quemSou() });
+        DBadd("story", { dia:marcadas[i].dia, grupo:marcadas[i].marca, area:marcadas[i].onde,
+                         texto:lista[k], resp:"", feito:false, criadoEm: base + n, por:quemSou() });
         n++;
       }
     }
