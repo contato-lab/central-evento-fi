@@ -292,6 +292,26 @@
   .cabeca{display:flex;align-items:center;gap:12px;padding:13px 15px;width:100%;
     background:transparent;border:0;color:var(--ink);text-align:left}
   .cabeca:hover{background:var(--panel-2)}
+  /* ---------- MOVER (ordem da lista) ----------
+     Setas, nao arrastar. Quem usa esta andando pelo autodromo com o celular numa
+     mao: arrastar exige segurar e mirar ao mesmo tempo, e no toque briga com a
+     rolagem da pagina. Duas setas resolvem o mesmo e nao erram.
+     Fica FORA da .cabeca porque .cabeca ja e um <button> e botao dentro de botao
+     nao vale em HTML: o navegador desmonta e o clique de cima come o de dentro. */
+  .blocotopo{display:flex;align-items:stretch}
+  .blocotopo > .cabeca{flex:1;min-width:0}
+  .mover{display:flex;flex-direction:column;justify-content:center;gap:1px;
+    padding:4px 7px;flex:0 0 auto;border-left:1px solid var(--line-soft)}
+  .mvbtn{background:transparent;border:0;color:var(--ink-3);font-size:.78rem;line-height:1;
+    padding:5px 6px;min-height:26px;border-radius:6px;cursor:pointer}
+  .mvbtn:hover{color:var(--lime);background:var(--panel-2)}
+  /* extremo da lista: fica no lugar, apagado. Sumir mudaria a altura do cartao
+     e faria a lista inteira pular a cada troca de ordem. */
+  .mvbtn[disabled]{opacity:.22;cursor:default}
+  .mvbtn[disabled]:hover{color:var(--ink-3);background:transparent}
+  /* dentro do item do checklist as setas ficam lado a lado, nao empilhadas:
+     a linha do item e baixa e nao comporta duas alturas de botao */
+  .chk .mover{flex-direction:row;border-left:0;padding:0;gap:0;align-items:center}
   .chora{font-family:var(--display);font-weight:700;font-size:1.05rem;color:var(--lime);
     min-width:56px;flex:0 0 auto}
   /* QUANTO FALTA. Vem antes de tudo no cartao porque e a unica informacao que
@@ -563,6 +583,22 @@
   .chkdel:hover{color:var(--red)}
   .chkresp .chkdel{color:var(--lime);text-decoration:underline;text-underline-offset:3px}
   .chkresp .chkdel:hover{color:var(--lime-d)}
+
+  /* ---------- LISTA DE MARCAS (gerador de blocos) ----------
+     Grade que vira uma coluna no celular. Cada linha e um <label>, entao o toque
+     em qualquer lugar dela marca a caixa: no autodromo ninguem acerta um
+     checkbox de 13px. */
+  .mklista{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+    gap:4px;margin-top:2px}
+  .mkitem{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;
+    background:var(--panel-2);border:1px solid var(--line);font-size:.84rem;cursor:pointer}
+  .mkitem:hover{border-color:var(--line-soft)}
+  .mkitem input{width:17px;height:17px;flex:0 0 auto;accent-color:var(--lime)}
+  /* marca que ja tem bloco no dia: continua clicavel, mas apagada, pra ficar
+     claro que criar de novo ia duplicar o bloco em vez de completar o que existe */
+  .mkitem.ja{opacity:.55}
+  .mkitem i{font-style:normal;font-family:var(--mono);font-size:.6rem;
+    letter-spacing:.05em;color:var(--ink-3)}
 
   /* ---------- ESTADOS ---------- */
   .vazio{text-align:center;padding:46px 20px;color:var(--ink-3)}
@@ -1427,6 +1463,7 @@
   try{ meuNome = localStorage.getItem(MEU_KEY) || ""; }catch(e){}
   var editandoPeca=null;               // id da peca em edicao, ou "novo"
   var criandoBloco=false;              // formulario de novo bloco do StoryMaker aberto
+  var criandoMarcas=false;             // formulario que gera um bloco por marca de uma vez
   var fMinhasStory=false;              // filtro "só as minhas" no checklist
   var frSoFalta=false;                 // fotorelatorio: esconde o que ja foi marcado
   var frCriando=false;                 // campo de novo item do grupo Outros aberto
@@ -1494,7 +1531,7 @@
   function fotosDoDia(){
     var d = diaStoryAtual();
     return fotos.filter(function(f){ return (f.dia || "") === d; })
-                .sort(function(a,b){ return (a.criadoEm||0) - (b.criadoEm||0); });
+                .sort(function(a,b){ return ordDe(a) - ordDe(b); });
   }
 
   function formFotoHTML(){
@@ -1539,7 +1576,7 @@
     renderFotos();
   }
 
-  function blocoFotoHTML(f){
+  function blocoFotoHTML(f, pos, total){
     var pronto = !!f.tratado;
     var nova = ehNovo("fotos", f);
     var link = String(f.link || "").trim();
@@ -1555,6 +1592,11 @@
           '</span>'+
         '</span>'+
         '<span class="cprog'+(pronto?" ok":"")+'">'+((f.enviado?1:0)+(f.tratado?1:0))+'/2</span>'+
+        // Aqui a .cabeca e uma div, nao um button como no StoryMaker, entao as
+        // setas entram direto dentro dela sem precisar de linha separada.
+        (podeGerenciar("fotos")
+          ? setasHTML("movfoto", f.id, pos > 0, pos < total-1)
+          : '')+
       '</div>'+
       '<div class="corpo">'+
         '<div class="stchips">'+
@@ -1628,7 +1670,7 @@
       h += '<div class="vazio"><div class="big">Nenhuma entrega neste dia</div>'+
         '<div class="sm">Toque em <b>+ Nova entrega</b>, diga o momento e cole o link da pasta.</div></div>';
     } else {
-      for(i=0;i<lista.length;i++) h += blocoFotoHTML(lista[i]);
+      for(i=0;i<lista.length;i++) h += blocoFotoHTML(lista[i], i, lista.length);
     }
     el.innerHTML = h;
   }
@@ -2316,6 +2358,79 @@
     return String(s.resp||"").toLowerCase().indexOf(meuNome.toLowerCase()) >= 0;
   }
 
+  // ---- ORDEM DA LISTA (StoryMaker e Fotos) -----------------------
+  // Pedido da Fernanda em 20/08: poder subir e descer os proprios checks.
+  //
+  // A ordem mora no campo "ord". Documento antigo nao tem esse campo e cai no
+  // criadoEm, que e o que ja ordenava antes: ninguem precisa mexer no que ja
+  // existe pra continuar na mesma sequencia de sempre.
+  //
+  // Por que nao guardar "ord" so na tela: sao 5 a 8 pessoas no mesmo checklist.
+  // Ordem que so existe no celular de quem arrastou nao ajuda o time, e some no
+  // primeiro F5. Fica no banco pra todo mundo ver a mesma lista.
+  function ordDe(it){
+    var n = (it && typeof it.ord === "number") ? it.ord : (it && it.criadoEm) || 0;
+    return isNaN(n) ? 0 : n;
+  }
+  // Regrava a sequencia inteira a partir da lista JA na ordem desejada, e so
+  // escreve onde o numero mudou. Sem isso, uma troca de posicao viraria escrita
+  // em todos os itens do dia a cada clique.
+  //
+  // O passo de 10 deixa buraco entre um item e outro: item criado depois cai no
+  // fim (criadoEm e casa dos trilhoes) sem embaralhar quem ja foi ordenado.
+  function regravarOrdem(colecao, lista){
+    var mudou = 0;
+    for(var i=0;i<lista.length;i++){
+      var alvo = (i+1)*10;
+      if(lista[i] && lista[i].ord !== alvo){
+        DBupdate(colecao, lista[i].id, { ord: alvo });
+        mudou++;
+      }
+    }
+    return mudou;
+  }
+  // Move o elemento da posicao i uma casa pra dir (-1 sobe, +1 desce) e devolve
+  // a lista nova. Fora da faixa, devolve null: quem chamou nao grava nada.
+  function trocarNaLista(lista, i, dir){
+    var j = i + dir;
+    if(i < 0 || i >= lista.length || j < 0 || j >= lista.length) return null;
+    var copia = lista.slice();
+    var t = copia[i]; copia[i] = copia[j]; copia[j] = t;
+    return copia;
+  }
+  // Mesmo agrupamento que a tela desenha, so que sem o filtro "só as minhas".
+  // Precisa ser o MESMO criterio do render: se as duas listas discordassem, a
+  // seta moveria uma coisa e a tela mostraria outra subindo.
+  function listaOrdenadaDoDia(dia){
+    var doDia = story.filter(function(s){ return s.dia === dia; });
+    doDia.sort(function(a,b){ return ordDe(a)-ordDe(b); });
+    var ordem=[], grupos={}, i;
+    for(i=0;i<doDia.length;i++){
+      var g = doDia[i].grupo || "Sem bloco";
+      if(!grupos[g]){ grupos[g]=[]; ordem.push(g); }
+      grupos[g].push(doDia[i]);
+    }
+    ordem.sort(function(a,b){
+      var fa = mesmoEstado(grupos[a]), fb = mesmoEstado(grupos[b]);
+      if(fa !== fb) return fa ? 1 : -1;
+      return 0;
+    });
+    return { ordem:ordem, grupos:grupos };
+  }
+  // bloco "fechado" = todo item marcado. E o que manda ele pro fim da lista.
+  function mesmoEstado(itens){
+    return (itens||[]).every(function(s){ return s.feito; });
+  }
+  // As duas setas de um item. "trava" desliga a seta na ponta da lista.
+  function setasHTML(act, id, podeSubir, podeDescer, extra){
+    return '<span class="mover">'+
+      '<button class="mvbtn" data-act="'+act+'" data-dir="-1" data-id="'+esc(id)+'"'+
+        (extra||'')+(podeSubir?'':' disabled')+' aria-label="Subir" title="Subir">&#9650;</button>'+
+      '<button class="mvbtn" data-act="'+act+'" data-dir="1" data-id="'+esc(id)+'"'+
+        (extra||'')+(podeDescer?'':' disabled')+' aria-label="Descer" title="Descer">&#9660;</button>'+
+    '</span>';
+  }
+
   function hojeISO(){
     var d = new Date(), m = String(d.getMonth()+1).padStart(2,"0"), x = String(d.getDate()).padStart(2,"0");
     return d.getFullYear()+"-"+m+"-"+x;
@@ -2439,13 +2554,19 @@
     '</div>';
 
     if(podeGerenciar("story")){
-      h += criandoBloco ? formBlocoHTML()
-         : '<div class="barrafiltro"><button class="btn" data-act="novobloco">+ Novo bloco</button></div>';
+      if(criandoBloco)       h += formBlocoHTML();
+      else if(criandoMarcas) h += formMarcasHTML();
+      else h += '<div class="barrafiltro">'+
+             '<button class="btn" data-act="novobloco">+ Novo bloco</button>'+
+             (marcasDaEdicao().length
+               ? '<button class="btn ghost" data-act="blocosmarcas">+ Blocos das marcas</button>'
+               : '')+
+           '</div>';
     }
 
     // agrupa por bloco, preservando a ordem de criacao do primeiro item
     var ordem=[], grupos={};
-    doDia.sort(function(a,b){ return (a.criadoEm||0)-(b.criadoEm||0); });
+    doDia.sort(function(a,b){ return ordDe(a)-ordDe(b); });
     for(i=0;i<doDia.length;i++){
       if(fMinhasStory && !ehMeuItem(doDia[i])) continue;
       var g = doDia[i].grupo || "Sem bloco";
@@ -2482,7 +2603,14 @@
       // abre e fecha qualquer bloco na mao. Quem reabriu um bloco fechado fica
       // marcado em reabertos: o automatico nao insiste em fechar de novo.
       var min = cheio ? !reabertos[nome] : !!recolhidos[nome];
+      // Setas do BLOCO. Bloco fechado ja desce sozinho pro fim da lista, e essa
+      // regra continua valendo: as setas movem dentro do mesmo estado, nunca
+      // por cima dela. Se movessem, o clique subiria o bloco e a regra o jogaria
+      // de volta pra baixo na mesma hora, e a seta pareceria quebrada.
+      var vizinhoAcima = i > 0 && mesmoEstado(grupos[ordem[i-1]]) === cheio;
+      var vizinhoAbaixo = i < ordem.length-1 && mesmoEstado(grupos[ordem[i+1]]) === cheio;
       h += '<div class="bloco'+(cheio?" completo":"")+(min?" recolhido":"")+'">'+
+        '<div class="blocotopo">'+
         '<button class="cabeca" data-act="dobrar" data-bloco="'+esc(nome)+'" '+
           'aria-expanded="'+(min?"false":"true")+'">'+
           '<span class="cmeio"><span class="cnome">'+(cheio?"&#10003; ":"")+esc(nome)+'</span>'+
@@ -2490,7 +2618,11 @@
           (cheio && min ? '<span class="tag st" data-st="publicado">Pronto</span>' : '')+
           '<span class="cprog'+(cheio?" ok":"")+'">'+okG+'/'+itens.length+'</span>'+
           '<span class="cmais">'+(min?"+":"&minus;")+'</span>'+
-        '</button>';
+        '</button>'+
+        (podeGerenciar("story") && !fMinhasStory
+          ? setasHTML("movbloco", nome, vizinhoAcima, vizinhoAbaixo)
+          : '')+
+        '</div>';
       if(min){ h += '</div>'; continue; }
       h += '<div class="corpo">';
       for(var j=0;j<itens.length;j++){
@@ -2504,6 +2636,13 @@
             (s.resp?' · <button class="chkdel" data-act="quem" data-id="'+s.id+'" style="font-size:.62rem">trocar</button>':'')+
             '</span>'+
           '</span>'+
+          // Setas do ITEM. Somem com o filtro "só as minhas" ligado: ali a lista
+          // na tela e um recorte, e subir dentro do recorte nao diz onde o item
+          // cai na lista que o resto do time enxerga.
+          (podeGerenciar("story") && !fMinhasStory
+            ? setasHTML("movitem", s.id, j > 0, j < itens.length-1,
+                        ' data-bloco="'+esc(nome)+'"')
+            : '')+
           (podeApagar("story")?'<button class="chkdel" data-act="delstory" data-id="'+s.id+'" aria-label="Apagar item">&times;</button>':'')+
         '</div>';
       }
@@ -3066,7 +3205,7 @@
       else if(t === "pecas"){ if(!editandoPeca) renderPecas(); }
       else if(t === "fotos") renderFotos();
       else if(t === "fotorel") renderFotorel();
-      else { if(!criandoBloco) renderStory(); }
+      else { if(!criandoBloco && !criandoMarcas) renderStory(); }
       pendente[t] = false;
       renderNovidades();
     }catch(e){ if(window.console) console.error("[conteudo] render de aba", e); }
@@ -3242,6 +3381,15 @@
       salvarFoto(); return;
     }
     if(act === "diafoto"){ diaStory = b.dataset.dia; renderFotos(); contadores(); return; }
+    if(act === "movfoto"){
+      if(!podeGerenciar("fotos")){ toast("Seu acesso não muda a ordem."); return; }
+      var listaF = fotosDoDia(), iF = -1;
+      for(var kf=0;kf<listaF.length;kf++){ if(listaF[kf].id === id) iF = kf; }
+      var novaF = trocarNaLista(listaF, iF, parseInt(b.dataset.dir,10) || 0);
+      if(!novaF) return;
+      if(regravarOrdem("fotos", novaF)) renderFotos();
+      return;
+    }
     if(act === "ftenviado" || act === "fttratado"){
       if(!podeGerenciar("fotos")){ toast("Seu acesso nao edita fotos."); return; }
       var alvoF = fotos.filter(function(x){ return x.id===id; })[0] || {};
@@ -3366,9 +3514,40 @@
       if(!confirm("Apagar este item?\n\n"+(si.texto||"")+"\n\nIsso não volta.")) return;
       DBremove("story", id); return;
     }
+    // ---- mover de lugar (bloco e item) ----
+    // Os dois regravam o DIA INTEIRO, nao so os dois que trocaram. E o que
+    // impede a lista de embaralhar com o tempo: item de um bloco nunca cai no
+    // meio da faixa de numeros de outro.
+    if(act === "movbloco" || act === "movitem"){
+      if(!podeGerenciar("story")){ toast("Seu acesso não muda a ordem."); return; }
+      var dirM = parseInt(b.dataset.dir, 10) || 0;
+      var estado = listaOrdenadaDoDia(diaStoryAtual());
+      var novaOrdem = estado.ordem, gruposM = estado.grupos, k;
+
+      if(act === "movbloco"){
+        var nomeB = b.dataset.id;
+        var iB = novaOrdem.indexOf(nomeB);
+        novaOrdem = trocarNaLista(novaOrdem, iB, dirM);
+        if(!novaOrdem) return;
+      } else {
+        var nomeI = b.dataset.bloco;
+        var doBloco = gruposM[nomeI] || [];
+        var iI = -1;
+        for(k=0;k<doBloco.length;k++){ if(doBloco[k].id === id) iI = k; }
+        var trocado = trocarNaLista(doBloco, iI, dirM);
+        if(!trocado) return;
+        gruposM[nomeI] = trocado;
+      }
+
+      // achata bloco a bloco: a sequencia gravada e exatamente a que aparece
+      var plana = [];
+      for(k=0;k<novaOrdem.length;k++) plana = plana.concat(gruposM[novaOrdem[k]]);
+      if(regravarOrdem("story", plana)) renderStory();
+      return;
+    }
     if(act === "novobloco"){
       if(!podeGerenciar("story")){ toast("Seu acesso não cria blocos."); return; }
-      criandoBloco = true; renderStory();
+      criandoBloco = true; criandoMarcas = false; renderStory();
       var bn = $("#b_nome"); if(bn) bn.focus();
       return;
     }
@@ -3384,6 +3563,22 @@
       return;
     }
     if(act === "cancelarbloco"){ criandoBloco = false; renderStory(); return; }
+    if(act === "blocosmarcas"){
+      if(!podeGerenciar("story")){ toast("Seu acesso não cria blocos."); return; }
+      criandoMarcas = true; criandoBloco = false; renderStory(); return;
+    }
+    if(act === "cancelarmarcas"){ criandoMarcas = false; renderStory(); return; }
+    // marcar/desmarcar todas mexe so nas caixas na tela, sem redesenhar: o
+    // redesenho jogaria fora o que a pessoa ja tinha digitado nos itens
+    if(act === "marcastodas" || act === "marcasnenhuma"){
+      var todas = document.querySelectorAll(".mkchk");
+      for(var mc=0;mc<todas.length;mc++) todas[mc].checked = (act === "marcastodas");
+      return;
+    }
+    if(act === "salvarmarcas"){
+      if(!podeGerenciar("story")){ toast("Seu acesso não cria blocos."); return; }
+      salvarMarcas(); return;
+    }
     if(act === "salvarbloco"){
       if(!podeGerenciar("story")){ toast("Seu acesso não cria blocos."); return; }
       salvarBloco(); return;
@@ -3421,6 +3616,111 @@
       '<button class="btn ghost" data-act="cancelarbloco">Cancelar</button>'+
     '</div></div>';
     return h;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BLOCOS DAS MARCAS
+  // ═══════════════════════════════════════════════════════════════
+  // Pedido da Fernanda em 20/08: "seguindo esse padrão das marcas em storymaker,
+  // tipo o que você fez na aba de coletivas, mas com esses itens em story".
+  //
+  // A aba de Coletivas ja tem a lista oficial das marcas da edicao, digitada em
+  // COLETIVAS. Esta tela reaproveita ESSA lista em vez de pedir pra alguem
+  // redigitar 19 nomes: nome errado aqui vira bloco que ninguem acha depois.
+  //
+  // O padrao de itens veio do bloco que o time montou a mao (Omoda Jaecoo), mas
+  // fica editavel: a cobertura de uma marca no Boulevard nao e igual todo dia.
+  var ITENS_MARCA = [
+    "Influencer convidando",
+    "Lançamento",
+    "Livre (vibe/foto/ambientação)",
+    "Saída de pista"
+  ];
+  // Uma marca aparece uma vez so, mesmo dando coletiva nos dois dias: o bloco e
+  // da cobertura dela no dia escolhido, nao da coletiva.
+  function marcasDaEdicao(){
+    var vistas = {}, saida = [];
+    for(var i=0;i<COLETIVAS.length;i++){
+      if((COLETIVAS[i].edicao||"moto") !== edicaoVista) continue;
+      for(var j=0;j<COLETIVAS[i].itens.length;j++){
+        var m = String(COLETIVAS[i].itens[j].marca || "").trim();
+        if(!m || vistas[m]) continue;
+        vistas[m] = true; saida.push(m);
+      }
+    }
+    return saida;
+  }
+  function formMarcasHTML(){
+    var dia = diaStoryAtual();
+    var jaTem = {};
+    story.forEach(function(s){ if(s.dia === dia) jaTem[s.grupo || ""] = true; });
+
+    var marcas = marcasDaEdicao(), i;
+    var h = '<div class="form"><h3>Blocos das marcas &middot; '+esc(rotuloDia(dia))+'</h3>';
+    h += '<p class="sub" style="margin:-4px 0 12px">Cada marca marcada vira um bloco com a mesma lista de itens. '+
+         'Quem já tem bloco neste dia vem desmarcada, para não duplicar.</p>';
+    h += '<div class="grid2">';
+    h += '<div class="fld"><label>Área</label><select id="m_area">';
+    for(i=0;i<AREAS.length;i++){
+      h += '<option value="'+esc(AREAS[i])+'"'+(AREAS[i]==="Boulevard"?" selected":"")+'>'+esc(AREAS[i])+'</option>';
+    }
+    h += '<option value="">Sem área</option></select></div>';
+    h += '<div class="fld"><label>Marcas</label>'+
+         '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+         '<button type="button" class="fchip" data-act="marcastodas">Marcar todas</button>'+
+         '<button type="button" class="fchip" data-act="marcasnenhuma">Desmarcar todas</button>'+
+         '</div></div>';
+    h += '<div class="fld full"><label>Itens de cada bloco, um por linha</label>'+
+         '<textarea id="m_itens" rows="4" style="min-height:104px">'+esc(ITENS_MARCA.join("\n"))+'</textarea>'+
+         '<span style="font-size:.7rem;color:var(--ink-3);margin-top:4px">Vale para todas as marcas marcadas.</span></div>';
+
+    h += '<div class="fld full"><label>Quais marcas</label><div class="mklista">';
+    for(i=0;i<marcas.length;i++){
+      var m = marcas[i], tem = !!jaTem[m];
+      h += '<label class="mkitem'+(tem?" ja":"")+'">'+
+        '<input type="checkbox" class="mkchk" value="'+esc(m)+'"'+(tem?"":" checked")+'>'+
+        '<span>'+esc(m)+(tem?' <i>já está no dia</i>':'')+'</span></label>';
+    }
+    h += '</div></div>';
+    h += '</div><div class="acoes">'+
+      '<button class="btn" data-act="salvarmarcas">Criar blocos</button>'+
+      '<button class="btn ghost" data-act="cancelarmarcas">Cancelar</button>'+
+    '</div></div>';
+    return h;
+  }
+  function salvarMarcas(){
+    var area = String(($("#m_area")||{}).value || "").trim();
+    var txt  = String(($("#m_itens")||{}).value || "");
+    var lista = txt.split("\n").map(function(x){ return x.trim(); }).filter(Boolean);
+    if(!lista.length){ toast("Escreva ao menos um item."); return; }
+    for(var j=0;j<lista.length;j++){
+      if(lista[j].length > 600){ toast("Um dos itens passou de 600 caracteres. Encurte."); return; }
+    }
+    var marcadas = [];
+    var caixas = document.querySelectorAll(".mkchk");
+    for(var c=0;c<caixas.length;c++){ if(caixas[c].checked) marcadas.push(caixas[c].value); }
+    if(!marcadas.length){ toast("Marque ao menos uma marca."); return; }
+
+    // Confirma com o numero na frente: sao ate 19 marcas x 4 itens, e desfazer
+    // isso depois seria apagar item por item.
+    var total = marcadas.length * lista.length;
+    if(!confirm("Criar "+marcadas.length+(marcadas.length===1?" bloco":" blocos")+
+                " com "+total+(total===1?" item":" itens")+" no total?\n\n"+
+                marcadas.join(", "))) return;
+
+    // criadoEm com deslocamento pra sair na ordem da grade, marca por marca
+    var dia = diaStoryAtual(), base = Date.now(), n = 0;
+    for(var i=0;i<marcadas.length;i++){
+      for(var k=0;k<lista.length;k++){
+        DBadd("story", { dia:dia, grupo:marcadas[i], area:area, texto:lista[k],
+                         resp:"", feito:false, criadoEm: base + n, por:quemSou() });
+        n++;
+      }
+    }
+    naoAlertarProprio("story", base + n);
+    criandoMarcas = false;
+    toast(marcadas.length + (marcadas.length===1 ? " bloco criado." : " blocos criados."));
+    renderStory();
   }
 
   function salvarBloco(){
@@ -3783,7 +4083,7 @@
     setTimeout(function(){
       if(pendente.coletivas) renderOuAdiar("coletivas", renderColetivas, "#view-coletivas", false);
       if(pendente.pecas)     renderOuAdiar("pecas",     renderPecas,     "#view-pecas", !!editandoPeca);
-      if(pendente.story)     renderOuAdiar("story",     renderStory,     "#view-story", !!criandoBloco);
+      if(pendente.story)     renderOuAdiar("story",     renderStory,     "#view-story", (criandoBloco || criandoMarcas));
     }, 0);
   });
 
@@ -3816,7 +4116,7 @@
     }
     if(podeVer("story")){
       desligar.push(DBwatch("story", function(a){ story=a;
-        renderOuAdiar("story", renderStory, "#view-story", !!criandoBloco); contadores();
+        renderOuAdiar("story", renderStory, "#view-story", (criandoBloco || criandoMarcas)); contadores();
         try{ renderNovidades(); }catch(e){} }));
     }
     if(podeVer("fotos")){
