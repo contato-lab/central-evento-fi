@@ -590,6 +590,11 @@
      checkbox de 13px. */
   .mklista{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
     gap:4px;margin-top:2px}
+  /* o dia vem escrito acima do grupo: sem isso a pessoa marca 19 caixas sem
+     perceber que metade delas vai cair no dia seguinte */
+  .mkdia{font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--lime);margin:12px 0 5px}
+  .mkdia:first-of-type{margin-top:4px}
   .mkitem{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;
     background:var(--panel-2);border:1px solid var(--line);font-size:.84rem;cursor:pointer}
   .mkitem:hover{border-color:var(--line-soft)}
@@ -3636,29 +3641,40 @@
     "Livre (vibe/foto/ambientação)",
     "Saída de pista"
   ];
-  // Uma marca aparece uma vez so, mesmo dando coletiva nos dois dias: o bloco e
-  // da cobertura dela no dia escolhido, nao da coletiva.
+  // CADA MARCA NO DIA DA COLETIVA DELA, nao no dia que estiver aberto na tela.
+  // Foi assim que o time montou os dois primeiros blocos a mao (Omoda Jaecoo e
+  // GWM, os dois em 26/08, que e o dia da coletiva das duas). Jogar as 19 no
+  // mesmo dia daria uma lista que nao existe: ninguem cobre marca que so chega
+  // no dia seguinte.
+  //
+  // Marca com coletiva nos dois dias entra duas vezes, uma por dia, porque ai
+  // sao dois trabalhos diferentes e nao uma repeticao.
   function marcasDaEdicao(){
     var vistas = {}, saida = [];
     for(var i=0;i<COLETIVAS.length;i++){
       if((COLETIVAS[i].edicao||"moto") !== edicaoVista) continue;
       for(var j=0;j<COLETIVAS[i].itens.length;j++){
         var m = String(COLETIVAS[i].itens[j].marca || "").trim();
-        if(!m || vistas[m]) continue;
-        vistas[m] = true; saida.push(m);
+        if(!m) continue;
+        var chave = COLETIVAS[i].dia + "|" + m;
+        if(vistas[chave]) continue;      // a mesma marca duas vezes no mesmo dia
+        vistas[chave] = true;
+        saida.push({ marca:m, dia:COLETIVAS[i].dia, rotulo:COLETIVAS[i].rotulo || COLETIVAS[i].dia });
       }
     }
     return saida;
   }
   function formMarcasHTML(){
-    var dia = diaStoryAtual();
+    // a checagem de "ja existe" e por DIA + NOME, nao so por nome: a mesma marca
+    // pode ter bloco num dia e nao ter no outro
     var jaTem = {};
-    story.forEach(function(s){ if(s.dia === dia) jaTem[s.grupo || ""] = true; });
+    story.forEach(function(s){ jaTem[(s.dia||"") + "|" + (s.grupo||"")] = true; });
 
     var marcas = marcasDaEdicao(), i;
-    var h = '<div class="form"><h3>Blocos das marcas &middot; '+esc(rotuloDia(dia))+'</h3>';
-    h += '<p class="sub" style="margin:-4px 0 12px">Cada marca marcada vira um bloco com a mesma lista de itens. '+
-         'Quem já tem bloco neste dia vem desmarcada, para não duplicar.</p>';
+    var h = '<div class="form"><h3>Blocos das marcas</h3>';
+    h += '<p class="sub" style="margin:-4px 0 12px">Cada marca vira um bloco com a mesma lista de itens, '+
+         '<b>no dia da coletiva dela</b>. Não importa qual dia está aberto agora. '+
+         'Quem já tem bloco vem desmarcada, para não duplicar.</p>';
     h += '<div class="grid2">';
     h += '<div class="fld"><label>Área</label><select id="m_area">';
     for(i=0;i<AREAS.length;i++){
@@ -3674,14 +3690,24 @@
          '<textarea id="m_itens" rows="4" style="min-height:104px">'+esc(ITENS_MARCA.join("\n"))+'</textarea>'+
          '<span style="font-size:.7rem;color:var(--ink-3);margin-top:4px">Vale para todas as marcas marcadas.</span></div>';
 
-    h += '<div class="fld full"><label>Quais marcas</label><div class="mklista">';
+    // agrupado por dia, na ordem da grade: e assim que a pessoa confere se a
+    // lista bate com a agenda que ela tem na mao
+    var diaAnterior = null;
+    h += '<div class="fld full"><label>Quais marcas</label>';
     for(i=0;i<marcas.length;i++){
-      var m = marcas[i], tem = !!jaTem[m];
+      var m = marcas[i], tem = !!jaTem[m.dia + "|" + m.marca];
+      if(m.dia !== diaAnterior){
+        if(diaAnterior !== null) h += '</div>';
+        h += '<div class="mkdia">'+esc(m.rotulo)+'</div><div class="mklista">';
+        diaAnterior = m.dia;
+      }
       h += '<label class="mkitem'+(tem?" ja":"")+'">'+
-        '<input type="checkbox" class="mkchk" value="'+esc(m)+'"'+(tem?"":" checked")+'>'+
-        '<span>'+esc(m)+(tem?' <i>já está no dia</i>':'')+'</span></label>';
+        '<input type="checkbox" class="mkchk" value="'+esc(m.marca)+'" '+
+          'data-dia="'+esc(m.dia)+'"'+(tem?"":" checked")+'>'+
+        '<span>'+esc(m.marca)+(tem?' <i>já tem bloco</i>':'')+'</span></label>';
     }
-    h += '</div></div>';
+    if(diaAnterior !== null) h += '</div>';
+    h += '</div>';
     h += '</div><div class="acoes">'+
       '<button class="btn" data-act="salvarmarcas">Criar blocos</button>'+
       '<button class="btn ghost" data-act="cancelarmarcas">Cancelar</button>'+
@@ -3698,21 +3724,27 @@
     }
     var marcadas = [];
     var caixas = document.querySelectorAll(".mkchk");
-    for(var c=0;c<caixas.length;c++){ if(caixas[c].checked) marcadas.push(caixas[c].value); }
+    for(var c=0;c<caixas.length;c++){
+      if(caixas[c].checked) marcadas.push({ marca:caixas[c].value, dia:caixas[c].getAttribute("data-dia") });
+    }
     if(!marcadas.length){ toast("Marque ao menos uma marca."); return; }
 
-    // Confirma com o numero na frente: sao ate 19 marcas x 4 itens, e desfazer
-    // isso depois seria apagar item por item.
-    var total = marcadas.length * lista.length;
+    // Confirma com o numero na frente E com os dias, porque o que vai ser criado
+    // nao esta todo na tela que a pessoa esta vendo: sao ate 19 blocos
+    // espalhados por dois dias, e desfazer seria apagar item por item.
+    var total = marcadas.length * lista.length, porDia = {}, i, k;
+    for(i=0;i<marcadas.length;i++) porDia[marcadas[i].dia] = (porDia[marcadas[i].dia]||0) + 1;
+    var resumo = [];
+    for(k in porDia) resumo.push(rotuloDia(k) + ": " + porDia[k] + (porDia[k]===1?" marca":" marcas"));
     if(!confirm("Criar "+marcadas.length+(marcadas.length===1?" bloco":" blocos")+
                 " com "+total+(total===1?" item":" itens")+" no total?\n\n"+
-                marcadas.join(", "))) return;
+                resumo.join("\n"))) return;
 
     // criadoEm com deslocamento pra sair na ordem da grade, marca por marca
-    var dia = diaStoryAtual(), base = Date.now(), n = 0;
-    for(var i=0;i<marcadas.length;i++){
-      for(var k=0;k<lista.length;k++){
-        DBadd("story", { dia:dia, grupo:marcadas[i], area:area, texto:lista[k],
+    var base = Date.now(), n = 0;
+    for(i=0;i<marcadas.length;i++){
+      for(k=0;k<lista.length;k++){
+        DBadd("story", { dia:marcadas[i].dia, grupo:marcadas[i].marca, area:area, texto:lista[k],
                          resp:"", feito:false, criadoEm: base + n, por:quemSou() });
         n++;
       }
