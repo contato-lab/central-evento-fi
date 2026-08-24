@@ -1216,7 +1216,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-19.4";
+  var VERSAO = "2026-08-24.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -1909,7 +1909,19 @@
   // pra producao poder lancar um patrocinador fora da lista numa emergencia.
   var MARCAS_MOTO = ["AIMA","Bajaj","BMW Motorrad","Brizzo","CFMOTO","Dafra","Ducati","Fun Motors","Harley-Davidson","Honda","Kawasaki","Mottu","MXF","Piaggio","Royal Enfield","Shineray","Suzuki","Triumph","Vespa","Voge","Yadea","Zontes"];
   var MARCAS_AUTO = ["Abarth","Aston Martin","BMW","BAIC","BYD","Denza","DFM","Fiat","Ford","GAC","Geely","GWM","Honda (Auto)","iCAUR","Jaecoo","Jeep","Jetour","Leapmotor","Lexus","McLaren","MG","Mini","Mitsubishi","Omoda","Peugeot","RAM","Renault","Toyota Gazoo Racing","Volvo"];
-  var MARCAS_OUTRAS = ["Suhai","Mercado Livre"];
+  // PATROCINIO e APOIO valem o evento inteiro: edicaoDaMarca() devolve null pra
+  // eles e o formulario abre os 8 dias em vez dos 4 de uma edicao.
+  // Os nomes saem da arte oficial de patrocinadores da auto e sao escritos igual
+  // aos da Central de conteudo (lista do foto-relatorio). Se divergirem, a mesma
+  // marca aparece de dois jeitos nos dois sistemas e ninguem cruza uma com a outra.
+  // Apoio institucional fica SEPARADO de patrocinio de proposito: Prefeitura, SP
+  // Negocios e Abraciclo nao sao patrocinadores, e chamar assim numa tela que marca
+  // e cliente abrem e erro factual, nao detalhe de rotulo.
+  var MARCAS_PATROCINIO = ["Suhai","Mercado Livre","Santander","Petrobras Podium","TV Globo","Lime"];
+  var MARCAS_APOIO      = ["Abraciclo","SP Negócios","Prefeitura de São Paulo"];
+  // Uniao das duas: e por ela que o resto do arquivo pergunta "essa marca e de fora
+  // das edicoes?".
+  var MARCAS_OUTRAS = MARCAS_PATROCINIO.concat(MARCAS_APOIO);
 
   // ---- grade do evento: as duas edicoes e seus 4 dias ----
   // A marca escolhida ja diz a edicao, entao o formulario mostra so os 4 dias dela
@@ -1947,7 +1959,7 @@
   // A marca so pode escolher quem esta em cartaz. Enquanto as 22 da moto ficaram
   // na lista durante a auto, escolher uma delas abria os dias 12 a 16/08, que ja
   // passaram, e o recado morria ali sem ninguem avisar. Patrocinador de evento
-  // inteiro (Suhai, Mercado Livre) e marca digitada pela producao valem sempre.
+  // inteiro (patrocinio e apoio) e marca digitada pela producao valem sempre.
   function marcaValeAgora(nome){
     var em = edicaoDaMarca(nome);
     return !em || em === edicaoCorrente().id;
@@ -1997,7 +2009,8 @@
     }
     sel.appendChild(grp("Edição Moto", MARCAS_MOTO));
     sel.appendChild(grp("Edição Auto", MARCAS_AUTO));
-    sel.appendChild(grp("Patrocinadores", MARCAS_OUTRAS));
+    sel.appendChild(grp("Patrocinadores", MARCAS_PATROCINIO));
+    sel.appendChild(grp("Apoio institucional", MARCAS_APOIO));
 
     var go = document.createElement("optgroup");
     go.label = "Fora da lista"; go.id = "grpOutra";
@@ -4195,7 +4208,8 @@
     // proxima entrar em EDICOES a lista troca sozinha, sem mexer aqui.
     var ed = edicaoCorrente();
     sl.appendChild(grp(ed.rotulo, MARCAS_DA_EDICAO[ed.id] || []));
-    sl.appendChild(grp("Patrocinadores", MARCAS_OUTRAS));
+    sl.appendChild(grp("Patrocinadores", MARCAS_PATROCINIO));
+    sl.appendChild(grp("Apoio institucional", MARCAS_APOIO));
   }
 
   // ponto de entrada, chamado por aplicarInterface quando o perfil e marca
