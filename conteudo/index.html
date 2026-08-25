@@ -840,7 +840,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-20.3";
+  var VERSAO = "2026-08-25.1";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1337,9 +1337,13 @@
   // precisar de migracao, sem escrita nova e sem republicar regra do Firestore
   // a poucos dias do evento.
   //
-  // "semPeca" marca o dia de imprensa: existe pra coletiva e story, mas nao
-  // recebe peca de organico/pago. Antes isso era um slice(1) posicional, que
-  // so funcionava por sorte enquanto existia uma edicao so.
+  // "semPeca" marca dia que existe pra coletiva e story mas NAO recebe peca de
+  // organico/pago. Antes isso era um slice(1) posicional, que so funcionava por
+  // sorte enquanto existia uma edicao so.
+  //
+  // 25/08/2026: o 26/08 PERDEU esse marcador. Na moto o dia de imprensa nao tinha
+  // post, na auto tem: a equipe vai publicar conteudo da quarta. O 12/08 continua
+  // marcado porque e edicao encerrada e mexer nele mudaria o passado.
   var EDICOES = [
     { id:"moto", rotulo:"Edição Moto", dias:[
       { dia:"2026-08-12", rotulo:"Qua 12/08", semPeca:true },
@@ -1349,7 +1353,7 @@
       { dia:"2026-08-16", rotulo:"Dom 16/08" }
     ]},
     { id:"auto", rotulo:"Edição Auto", dias:[
-      { dia:"2026-08-26", rotulo:"Qua 26/08", semPeca:true },
+      { dia:"2026-08-26", rotulo:"Qua 26/08" },
       { dia:"2026-08-27", rotulo:"Qui 27/08" },
       { dia:"2026-08-28", rotulo:"Sex 28/08" },
       { dia:"2026-08-29", rotulo:"Sáb 29/08" },
@@ -1431,7 +1435,47 @@
     return h;
   }
 
-  var FORMATOS_SUGERIDOS = ["Reels","Carrossel","Story","Foto","Vídeo edit","Entrevista","Cobertura","YouTube"];
+  // Os QUATRO PRIMEIROS sao os do filtro. Vem na frente pra quem digita escolher
+  // um deles e a peca cair num grupo, em vez de virar "Outro". Os demais ficam
+  // porque o time ja usa, e o campo continua aceitando texto livre.
+  var FORMATOS_SUGERIDOS = ["Carrossel","Reel","GIF","Estático","Reels","Story","Foto","Vídeo edit","Entrevista","Cobertura","YouTube"];
+
+  // ===== FILTRO DE FORMATO =====
+  // O campo formato e texto livre e sempre foi: o banco tem "Carrossel", "Reels",
+  // "GIF" e "Plano Sequência" escritos a mao. Entao o filtro NAO compara igualdade,
+  // procura o pedaco da palavra no texto ja normalizado (sem acento, minusculo).
+  // "Reel" e "Reels" caem no mesmo grupo, que e o que a pessoa espera.
+  // "Outro" existe pra nada sumir da tela: peca com formato que nao casa com
+  // nenhum dos quatro continua alcancavel, e peca sem formato tambem.
+  var FORMATOS_FILTRO = [
+    { k:"carrossel", rot:"Carrossel", casa:["carross","carrosel"] },
+    { k:"reel",      rot:"Reel",      casa:["reel"] },
+    { k:"gif",       rot:"GIF",       casa:["gif"] },
+    { k:"estatico",  rot:"Estático",  casa:["estatic"] }
+  ];
+  function semAcento(s){
+    s = String(s || "").toLowerCase();
+    return s.normalize ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : s;
+  }
+  // devolve a chave do grupo, ou "outro" quando nao casa com nenhum (inclusive vazio)
+  function tituloPeca(p){
+    return String(p.tema||"").trim() || String(p.marca||"").trim() || "Sem tema";
+  }
+  function subPeca(p){
+    var partes = [];
+    if(String(p.tema||"").trim()) partes.push(String(p.marca||"").trim() || "Sem marca");
+    partes.push(String(p.formato||"").trim() || "—");
+    return partes.join(" · ");
+  }
+
+  function grupoDoFormato(txt){
+    var t = semAcento(txt);
+    for(var i=0;i<FORMATOS_FILTRO.length;i++){
+      var c = FORMATOS_FILTRO[i].casa;
+      for(var j=0;j<c.length;j++){ if(t.indexOf(c[j]) >= 0) return FORMATOS_FILTRO[i].k; }
+    }
+    return "outro";
+  }
 
   // ---- estado ----
   var PERFIL=null, PERM=null;
@@ -1448,6 +1492,7 @@
   var diaColetiva = null, diaStory = null;
   var abertos={};                      // id -> true (cartoes expandidos)
   var fBusca="", fTipo="todos", fStatus="todos", fDia="todos", fBoost=false, fMinhas=false;
+  var fFormato="todos";
 
   // A tela abre RECOLHIDA. Os numeros e os filtros continuam todos ali, a um
   // toque, mas fora do caminho: eles empurravam a primeira peca pra 455px de
@@ -1949,6 +1994,13 @@
       h += chip("status","todos","Todas", fStatus==="todos");
       for(i=0;i<STATUS.length;i++) h += chip("status",STATUS[i],ST_LABEL[STATUS[i]], fStatus===STATUS[i]);
       h += '</div>';
+      h += '<div class="fgr">Formato</div><div class="fchips">';
+      h += chip("formato","todos","Todos", fFormato==="todos");
+      for(i=0;i<FORMATOS_FILTRO.length;i++){
+        h += chip("formato",FORMATOS_FILTRO[i].k,FORMATOS_FILTRO[i].rot, fFormato===FORMATOS_FILTRO[i].k);
+      }
+      h += chip("formato","outro","Outro", fFormato==="outro");
+      h += '</div>';
       h += '<div class="fgr">Dia</div><div class="fchips">';
       h += chip("dia","todos","Todos", fDia==="todos");
       var diasFiltro = diasPecaDaEdicao(edicaoPorId(edicaoVista));
@@ -2009,6 +2061,7 @@
     if(fTipo   !== "todos") n++;
     if(fStatus !== "todos") n++;
     if(fDia    !== "todos") n++;
+    if(fFormato!== "todos") n++;
     if(fBoost) n++;
     return n;
   }
@@ -2077,6 +2130,7 @@
     if(fTipo   !== "todos" && p.tipo   !== fTipo)   return false;
     if(fStatus !== "todos" && p.status !== fStatus) return false;
     if(fDia    !== "todos" && p.dia    !== fDia)    return false;
+    if(fFormato!== "todos" && grupoDoFormato(p.formato) !== fFormato) return false;
     if(fBoost && !p.impulsionar) return false;
     if(fMinhas && meuNome){
       var eu = meuNome.toLowerCase();
@@ -2204,6 +2258,10 @@
   function blocoPecaHTML(p){
     var aberto = !!abertos["p_"+p.id];
     var nova = ehNovo("pecas", p);
+    // O TEMA E O TITULO. Antes era a marca, e numa lista de 26 pecas apareciam
+    // seis "HONDA" seguidas sem dizer o que cada uma e. Marca desce pra linha de
+    // baixo, junto do formato. Sem tema, a marca sobe pro titulo em vez de deixar
+    // o cartao anonimo.
     var late = atrasada(p);
     var hora = horaBonita(p.horario);
     var q    = faltaQuanto(p);
@@ -2218,8 +2276,8 @@
         (hora ? esc(hora)+' · ' : '')+
         esc(rotuloDia(p.dia).replace(/^\S+\s/,""))+'</span>'+
       '<span class="cmeio">'+
-        '<span class="cnome">'+esc(p.marca||"Sem marca")+'</span>'+
-        '<span class="cinflu">'+esc(p.formato||"—")+(p.tema?' · '+esc(p.tema):"")+'</span>'+
+        '<span class="cnome">'+esc(tituloPeca(p))+'</span>'+
+        '<span class="cinflu">'+esc(subPeca(p))+'</span>'+
         gentePecaHTML(p)+
       '</span>'+
       '<span class="tag '+(p.tipo==="pago"?"pago":"organico")+'">'+(p.tipo==="pago"?"Pago":"Orgânico")+'</span>'+
@@ -2315,13 +2373,16 @@
       '<option value="organico"'+(p.tipo!=="pago"?" selected":"")+'>Orgânico</option>'+
       '<option value="pago"'+(p.tipo==="pago"?" selected":"")+'>Pago</option></select></div>';
 
+    // TEMA vem antes de marca e ocupa a linha inteira: e o campo que diz o que a
+    // peca e, e e o que aparece como titulo no cartao da lista.
+    h += '<div class="fld full"><label>Tema</label><input id="f_tema" type="text" value="'+esc(p.tema||"")+'" placeholder="Do que é o conteúdo"></div>';
+
     h += '<div class="fld"><label>Marca</label><input id="f_marca" type="text" value="'+esc(p.marca||"")+'" placeholder="Honda, Heineken, sem marca..."></div>';
 
     h += '<div class="fld"><label>Formato</label><input id="f_formato" type="text" list="dlformatos" value="'+esc(p.formato||"")+'" placeholder="Reels, carrossel, foto..."><datalist id="dlformatos">';
     for(i=0;i<FORMATOS_SUGERIDOS.length;i++) h += '<option value="'+esc(FORMATOS_SUGERIDOS[i])+'">';
     h += '</datalist></div>';
 
-    h += '<div class="fld full"><label>Tema</label><input id="f_tema" type="text" value="'+esc(p.tema||"")+'" placeholder="Do que é o conteúdo"></div>';
     h += '<div class="fld full"><label>Referência</label><textarea id="f_referencia" maxlength="4000" placeholder="Link ou descrição da referência">'+esc(p.referencia||"")+'</textarea></div>';
     h += '<div class="fld full"><label>Roteiro</label><textarea id="f_roteiro" maxlength="4000" placeholder="O que precisa acontecer no vídeo">'+esc(p.roteiro||"")+'</textarea></div>';
     h += '<div class="fld"><label>Quem grava</label><input id="f_quemGrava" type="text" value="'+esc(p.quemGrava||"")+'" placeholder="Nome de quem captou"></div>';
@@ -2341,7 +2402,12 @@
     h += '<div class="fld"><label>Horário de veiculação</label>'+
          '<input id="f_horario" type="time" value="'+esc(horaBonita(p.horario))+'"></div>';
 
+    // "Ainda nao comecou" e o status VAZIO, que ja existia: e o grupo que as
+    // pastilhas do topo chamam de "Nao comecou" e a lista mostra como primeira
+    // etapa. So faltava poder ESCOLHER, entao dava pra sair dele e nunca voltar
+    // pelo formulario. Entra como valor "", sem chave nova e sem migrar nada.
     h += '<div class="fld"><label>Status</label><select id="f_status">';
+    h += '<option value=""'+(!p.status?" selected":"")+'>Ainda não começou</option>';
     for(i=0;i<STATUS.length;i++) h += '<option value="'+STATUS[i]+'"'+(p.status===STATUS[i]?" selected":"")+'>'+esc(ST_LABEL[STATUS[i]])+'</option>';
     h += '</select></div>';
 
@@ -3276,6 +3342,7 @@
     if(act === "filtro"){
       var g=b.dataset.grupo, v=b.dataset.valor;
       if(g==="tipo") fTipo=v; else if(g==="status") fStatus=v; else if(g==="dia") fDia=v;
+      else if(g==="formato") fFormato=v;
       renderPecas(); return;
     }
     if(act === "fboost"){ fBoost = !fBoost; renderPecas(); return; }
@@ -3315,7 +3382,7 @@
     }
     if(act === "abrirfiltros"){ filtrosAbertos = !filtrosAbertos; renderPecas(); return; }
     if(act === "limparfiltros"){
-      fTipo="todos"; fStatus="todos"; fDia="todos"; fBoost=false;
+      fTipo="todos"; fStatus="todos"; fDia="todos"; fFormato="todos"; fBoost=false;
       renderPecas(); toast("Filtros limpos."); return;
     }
     if(act === "etapa"){
