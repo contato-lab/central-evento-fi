@@ -385,6 +385,20 @@
   .campo .cl{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
     color:var(--ink-3);width:64px;flex:0 0 auto}
 
+  /* campo de texto longo dentro da peca de coletiva: rotulo em cima, porque
+     textarea ao lado de um rotulo de 64px fica com 3 palavras por linha */
+  .campotx{display:block;margin-bottom:7px}
+  .campotx .cl{display:block;width:auto;margin-bottom:4px}
+  .campotx textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--ink);border-radius:9px;padding:9px 11px;font-size:.82rem;
+    min-height:62px;resize:vertical;font-family:inherit;line-height:1.45}
+  .campotx textarea:focus{outline:none;border-color:var(--lime)}
+  .legbox textarea{width:100%;background:var(--raise);border:1px solid var(--line);
+    color:var(--ink);border-radius:9px;padding:9px 11px;font-size:.82rem;
+    min-height:96px;resize:vertical;font-family:inherit;line-height:1.5}
+  .legbox textarea:focus{outline:none;border-color:var(--lime)}
+  .legdica{font-size:.66rem;color:var(--ink-3);margin-top:5px;display:block}
+
   /* ---------- LEGENDA DO POST ---------- */
   .legbox{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;
     padding:10px 12px;margin:8px 0}
@@ -840,7 +854,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-25.1";
+  var VERSAO = "2026-08-25.3";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1844,6 +1858,12 @@
 
     h += campoLink("Pronto", id, "linkPronto", st.linkPronto, "stcol-link", "Link do Drive");
     h += linksDeRedeHTML(id, st, "stcol-link");
+
+    h += campoTextoLongo("Referência", id, "referencia", st.referencia, "Link ou descrição da referência");
+    h += campoTextoCurto("Captou", id, "quemGrava", st.quemGrava, "Nome de quem captou");
+    h += campoTextoCurto("Editou", id, "editor", st.editor, "Nome de quem editou");
+    h += legendaColetivaHTML(id, st);
+
     h += '</div>';
     return h;
   }
@@ -1863,6 +1883,50 @@
     // link salvo antes desta mudanca (campo unico): continua visivel pra ninguem perder nada
     if(st.linkPublicado) h += campoLink("No ar", id, "linkPublicado", st.linkPublicado, act, "");
     return h;
+  }
+
+  // ===== CAMPOS DA PECA DE COLETIVA =====
+  // A coletiva nao tem formulario: a agenda e dado no codigo e o que a equipe
+  // preenche fica solto no cartao, gravando ao sair do campo. Entao referencia,
+  // quem captou, quem editou e legenda entram como campo inline, do mesmo jeito
+  // que o link do Drive ja entrava.
+  //
+  // NOMES DOS CAMPOS IGUAIS AOS DE ORGANICOS E PAGOS de proposito (referencia,
+  // quemGrava, editor, legenda): e a mesma informacao, e um dia alguem vai
+  // querer cruzar as duas listas. Na tela o rotulo e o que voce pediu.
+  //
+  // TETO DE CAMPOS: a regra do Firestore aceita 20 chaves por documento de
+  // coletiva. Hoje o doc mais cheio tem 8. Com estes quatro chega a 12, e ainda
+  // sobram os tres links de rede. Cabe com folga, mas quem for acrescentar campo
+  // aqui no futuro conta antes: estourar a regra faz a gravacao ser recusada
+  // sem erro visivel na tela.
+  function campoTextoCurto(rotulo, id, campo, valor, ph){
+    return '<div class="campo">'+
+      '<span class="cl">'+esc(rotulo)+'</span>'+
+      '<input type="text" maxlength="120" placeholder="'+esc(ph)+'" value="'+esc(valor||"")+'" '+
+        'data-act="stcol-txt" data-id="'+id+'" data-campo="'+campo+'">'+
+    '</div>';
+  }
+  function campoTextoLongo(rotulo, id, campo, valor, ph){
+    return '<div class="campotx">'+
+      '<span class="cl">'+esc(rotulo)+'</span>'+
+      '<textarea maxlength="4000" placeholder="'+esc(ph)+'" '+
+        'data-act="stcol-txt" data-id="'+id+'" data-campo="'+campo+'">'+esc(valor||"")+'</textarea>'+
+    '</div>';
+  }
+  // A legenda e igual a de organicos e pagos: caixa propria e botao de copiar,
+  // porque ela existe pra ser colada no Instagram. A diferenca e que aqui da
+  // pra ESCREVER na hora, ja que nao existe tela de editar campos.
+  function legendaColetivaHTML(id, st){
+    var tem = !!String(st.legenda || "").trim();
+    return '<div class="legbox">'+
+      '<div class="legtop"><span class="legtit">Legenda do post</span>'+
+        (tem ? '<button class="legcopy" data-act="copialegcol" data-id="'+id+'">Copiar</button>' : '')+
+      '</div>'+
+      '<textarea maxlength="4000" data-act="stcol-txt" data-id="'+id+'" data-campo="legenda" '+
+        'placeholder="Texto do post, com hashtags e arrobas, do jeito que vai no ar">'+esc(st.legenda||"")+'</textarea>'+
+      '<span class="legdica">Escreva já com hashtag e @, pra quem publicar só copiar e colar.</span>'+
+    '</div>';
   }
 
   function campoLink(rotulo, id, campo, valor, act, ph){
@@ -2192,8 +2256,20 @@
     return isNaN(q.getTime()) ? null : q;
   }
 
+  // EDICAO ENCERRADA NAO ATRASA. A moto acabou em 16/08 e deixou peca que nunca
+  // foi marcada como no ar. Pela conta antiga cada uma dessas ficava atrasada
+  // PARA SEMPRE, e o alerta vermelho crescia sozinho: 18 de 26 no dia 25/08.
+  //
+  // Nao mexo no status delas pra calar o alerta: "no ar" quer dizer que foi
+  // publicado, e escrever isso em peca que nao subiu e mentir no proprio banco.
+  // O que estava errado era o alerta, nao o dado. Edicao encerrada e acervo, e
+  // acervo nao cobra nada de ninguem.
+  function pecaDeEdicaoEncerrada(p){
+    return !!p && !!p.dia && edicaoEncerrada(edicaoDoDia(p.dia));
+  }
   function atrasada(p){
     if(!p || p.status === "publicado") return false;
+    if(pecaDeEdicaoEncerrada(p)) return false;
     var q = quandoVaiAoAr(p);
     return !!q && q.getTime() < Date.now();
   }
@@ -2204,6 +2280,9 @@
   function faltaQuanto(p){
     var vazio = { texto:"", nivel:"" };
     if(!p || p.status === "publicado") return vazio;
+    // mesma regra do atrasada(): peca de edicao que ja acabou nao mostra
+    // contagem nenhuma, nem "atrasada de 13/08" nem "em 40 min"
+    if(pecaDeEdicaoEncerrada(p)) return vazio;
     var q = quandoVaiAoAr(p);
     if(!q) return vazio;
 
@@ -3406,6 +3485,18 @@
     }
     if(act === "meunome"){ pedirNome(false); return; }
     if(act === "cancelarpeca"){ editandoPeca=null; limparRascunho(); renderPecas(); return; }
+    // mesma copia da legenda, mas lendo do estado da coletiva em vez da lista de pecas
+    if(act === "copialegcol"){
+      var stc = estadoDe(id) || {};
+      if(!stc.legenda) return;
+      var txc = stc.legenda;
+      var okc = function(){ toast("Legenda copiada."); };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txc).then(okc)["catch"](function(){ copiaNaMarra(txc, okc); });
+      } else { copiaNaMarra(txc, okc); }
+      return;
+    }
+
     if(act === "copialeg"){
       var pl = pecas.filter(function(x){ return x.id===id; })[0];
       if(!pl || !pl.legenda) return;
@@ -3951,7 +4042,7 @@
   // campos de link e busca: gravam ao sair do campo, nao a cada tecla
   document.addEventListener("change", function(ev){
     var el = ev.target, act = el.dataset && el.dataset.act;
-    if(act === "stcol-link"){
+    if(act === "stcol-link" || act === "stcol-txt"){
       if(!podeGerenciar("coletivas")){ toast("Seu acesso não edita as coletivas."); return; }
       var patch = {}; patch[el.dataset.campo] = String(el.value||"").trim();
       patch.em = Date.now(); patch.por = quemSou();
