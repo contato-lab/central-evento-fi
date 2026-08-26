@@ -1225,7 +1225,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-26.5";
+  var VERSAO = "2026-08-26.6";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2415,8 +2415,11 @@
       { hora:"10h00", nome:"Honda",        box:"18/19" },
       { hora:"11h00", nome:"GAC",          local:"Arena" },
       { hora:"12h00", nome:"Mini",         local:"Race Village" },
-      { hora:"13h00", nome:"iCAUR",        box:"" },
-      { hora:"14h00", nome:"BAIC",         box:"" },
+      // iCAUR e BAIC sairam de "Box a confirmar" em 26/08/2026: a producao
+      // publicou a arte oficial da agenda de coletivas do dia 27 e ela diz
+      // onde cada uma acontece. Agora e dado divulgado, nao chute.
+      { hora:"13h00", nome:"iCAUR",        local:"Boulevard" },
+      { hora:"14h00", nome:"BAIC",         local:"Convention Center" },
       { hora:"15h00", nome:"Jetour",       local:"Arena" }
     ]}
   ];
