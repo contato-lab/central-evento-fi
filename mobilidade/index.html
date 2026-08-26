@@ -261,6 +261,9 @@ input:focus,textarea:focus{border-color:var(--lime)}
       <span class="rot">Número do pedido</span>
       <span class="protocolo" id="meuProt"></span>
       <div id="meuStatus"></div>
+      <div class="linhabtn" style="margin:10px 0">
+        <button class="btn" type="button" id="btFalar" data-act="falar" aria-pressed="false">Ouvir respostas em voz alta</button>
+      </div>
       <div id="meuTexto" class="ctexto"></div>
       <div id="meuConversa"></div>
 
@@ -331,7 +334,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-26.7";
+  var VERSAO = "2026-08-26.8";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -410,6 +413,27 @@ input:focus,textarea:focus{border-color:var(--lime)}
     toastT = setTimeout(function(){ t.classList.remove("show"); }, ruim ? 6000 : 3000);
   }
   // frase inteira pro leitor de tela, sem repintar bloco nenhum
+  // ═══════════════════════════════════════════════════════════════
+  // VOZ DA PROPRIA PAGINA (speechSynthesis, pt-BR)
+  //
+  // Isto NAO substitui o VoiceOver/TalkBack: quem usa leitor de tela ja ouve
+  // tudo pelos rotulos e regioes live. Isto e pra quem enxerga POUCO e nao
+  // usa leitor: a resposta da equipe e lida em voz alta no aparelho.
+  // Regra do navegador: a primeira fala so sai depois de um toque do usuario,
+  // por isso existe um botao de ligar em vez de falar sozinho.
+  // ═══════════════════════════════════════════════════════════════
+  var falarLigado = false;
+  try{ falarLigado = localStorage.getItem("mob_falar") === "1"; }catch(e){}
+  function vozAlta(txt){
+    if(!window.speechSynthesis) return;
+    try{
+      var u = new SpeechSynthesisUtterance(txt);
+      u.lang = "pt-BR"; u.rate = 1;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
   function avisar(txt){
     var a = $("#avisos");
     a.textContent = "";
@@ -577,11 +601,21 @@ input:focus,textarea:focus{border-color:var(--lime)}
       meuDoc = d.data(); meuDoc.id = d.id;
       pintarMeu();
       var agoraS = stOk(meuDoc.status);
-      if(antesS && agoraS !== antesS) avisar("Status agora: " + ST_ROT[agoraS] + ".");
+      if(antesS && agoraS !== antesS){
+        avisar("Status agora: " + ST_ROT[agoraS] + ".");
+        if(falarLigado) vozAlta("Status agora: " + ST_ROT[agoraS] + ".");
+      }
       var novas = (meuDoc.respostas || []).filter(function(x){ return x.lado !== "pessoa"; }).length;
       if(antesR >= 0 && (meuDoc.respostas || []).length > antesR && novas){
         toast("A equipe respondeu.");
         avisar("A equipe respondeu seu pedido.");
+        if(falarLigado){
+          var ult = null;
+          for(var ri = (meuDoc.respostas||[]).length - 1; ri >= 0; ri--){
+            if(meuDoc.respostas[ri].lado !== "pessoa"){ ult = meuDoc.respostas[ri]; break; }
+          }
+          if(ult) vozAlta("A equipe respondeu: " + ult.txt);
+        }
       }
     }, function(){
       toast("Perdemos a conexão. Tentando de novo.", true);
@@ -634,6 +668,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
       meuDoc = obj; meuDoc.id = meuId;
       pintarMeu(); ouvirMeu();
       avisar("Pedido enviado. Seu número é " + protocoloDe(meuId).split("").join(" ") + ".");
+      if(falarLigado) vozAlta("Pedido enviado. Seu número é " + protocoloDe(meuId).split("").join(" ") + ".");
       toast("Pedido enviado. Número " + protocoloDe(meuId));
       foco("#tMeu");
     })["catch"](function(){
@@ -758,11 +793,11 @@ input:focus,textarea:focus{border-color:var(--lime)}
   // minutos volta a alertar de tempos em tempos: um aviso unico se perde quando
   // a pessoa esta com o celular no bolso, e ai o pedido fica parado.
   function conferirAlerta(){
-    var novos = 0, esquecidos = 0, i;
+    var novos = 0, esquecidos = 0, i, locaisNovos = [];
     for(i=0;i<chamados.length;i++){
       var c = chamados[i];
       if(stOk(c.status) !== "novo") continue;
-      if(!jaAvisou[c.id]){ jaAvisou[c.id] = true; novos++; }
+      if(!jaAvisou[c.id]){ jaAvisou[c.id] = true; novos++; if(c.local) locaisNovos.push(c.local); }
       if(minDesde(c.criadoEm) >= MIN_ESQUECIDO) esquecidos++;
     }
     if(novos){
@@ -770,6 +805,11 @@ input:focus,textarea:focus{border-color:var(--lime)}
       try{ if(navigator.vibrate) navigator.vibrate([200,80,200]); }catch(e){}
       toast(novos === 1 ? "Pedido novo." : novos + " pedidos novos.");
       avisar(novos === 1 ? "Um pedido novo na fila." : novos + " pedidos novos na fila.");
+      // com o alerta ligado o aviso e FALADO com o lugar: quem esta andando
+      // pelo autodromo sabe pra onde ir sem tirar o celular do bolso
+      if(somLigado) vozAlta(novos === 1
+        ? "Pedido novo" + (locaisNovos[0] ? " em " + locaisNovos[0] : "") + "."
+        : novos + " pedidos novos na fila.");
       ultimoAlerta = Date.now();
     }else if(esquecidos && Date.now() - ultimoAlerta > 120000){
       bip();
@@ -974,6 +1014,16 @@ input:focus,textarea:focus{border-color:var(--lime)}
       foco("#tPedir");
       return;
     }
+    if(act === "falar"){
+      falarLigado = !falarLigado;
+      try{ localStorage.setItem("mob_falar", falarLigado ? "1" : "0"); }catch(e){}
+      b.classList.toggle("forte", falarLigado);
+      b.setAttribute("aria-pressed", falarLigado ? "true" : "false");
+      b.textContent = falarLigado ? "Voz ligada" : "Ouvir respostas em voz alta";
+      if(falarLigado) vozAlta("Voz ligada. Vou ler as respostas da equipe em voz alta.");
+      else{ try{ speechSynthesis.cancel(); }catch(e){} }
+      return;
+    }
     if(act === "souequipe"){
       $("#pub").hidden = true; $("#eq").hidden = false;
       foco("#tLogin");
@@ -1047,6 +1097,10 @@ input:focus,textarea:focus{border-color:var(--lime)}
     // O QR do publico aponta pro endereco limpo; o link que vai pro grupo da
     // coordenacao leva o #equipe. E o mesmo arquivo, so muda por onde entra.
     var querEquipe = String(location.hash || "").toLowerCase() === "#equipe";
+    if(falarLigado){
+      var bf0 = $("#btFalar");
+      if(bf0){ bf0.classList.add("forte"); bf0.setAttribute("aria-pressed","true"); bf0.textContent = "Voz ligada"; }
+    }
     if(souEquipe){ mostrarEquipe(); }
     else if(querEquipe){
       $("#pub").hidden = true; $("#eq").hidden = false;
