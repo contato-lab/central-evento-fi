@@ -353,6 +353,27 @@
   /* ---------- PECA DE CONTEUDO ---------- */
   .peca{padding:13px 0;border-bottom:1px solid var(--line-soft)}
   .peca:last-child{border-bottom:0}
+
+  /* CADA PECA DA COLETIVA VIRA UMA CAIXA FECHADA.
+     Antes eram tres blocos empilhados separados por um risco fino cinza. Isso
+     bastava quando cada peca tinha so os chips de status. Depois que ela ganhou
+     referencia, creditos e legenda, o bloco ficou alto e o risco sumiu no meio
+     do caminho: ninguem sabia se o campo que estava vendo era do "Carrossel de
+     fotos" ou do "Video edit", que sao coisas diferentes com o mesmo formulario.
+     A borda verde na esquerda marca onde cada peca comeca, e o titulo em verde
+     confirma. O risco cinza sai, porque agora seria uma segunda divisao dizendo
+     a mesma coisa em outro lugar.
+     A classe extra existe pra NAO mexer no cartao de organicos e pagos, que usa
+     a mesma .peca e nao tem esse problema: la e uma peca por cartao. */
+  .peca.pcol{
+    padding:14px 15px;
+    margin-bottom:12px;
+    border:1px solid var(--line);
+    border-left:3px solid var(--lime);
+    border-radius:12px;
+  }
+  .peca.pcol:last-child{margin-bottom:0}
+  .pcol .pnome{color:var(--lime);font-size:.95rem}
   .pnome{font-weight:700;font-size:.88rem;margin-bottom:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .stchips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
   /* 42px de altura: esses chips sao tocados de pe, no sol, com uma mao so.
@@ -571,6 +592,25 @@
     background:none;border:0;border-bottom:1px solid var(--line-soft);
     padding:13px 2px;min-height:58px;color:var(--ink);cursor:pointer;font:inherit}
   .frlinha:last-child{border-bottom:0}
+
+  /* DOIS FOTOGRAFOS, DOIS CHECKS POR ITEM.
+     A linha inteira deixou de ser um botao so: agora sao dois alvos, um por
+     fotografo, e o texto fica ao lado sem ser clicavel. Trocar um alvo grande
+     por dois menores e sempre risco pra quem marca de pe e no sol, entao cada
+     quadrado tem 44px, que e o minimo pra dedo, e nao 30px como era o antigo.
+     O numero dentro do quadrado (1 e 2) e o que diz de quem e cada check. */
+  .frdupla{display:flex;gap:12px;align-items:flex-start;width:100%;
+    border-bottom:1px solid var(--line-soft);padding:11px 2px;min-height:58px}
+  .frdupla:last-child{border-bottom:0}
+  .frchecks{display:flex;gap:7px;flex:0 0 auto;margin-top:1px}
+  .frb{width:44px;height:44px;border-radius:11px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--ink-3);font-size:.86rem;font-weight:700;
+    display:grid;place-items:center;line-height:1;cursor:pointer;font-family:inherit;
+    flex:0 0 auto}
+  .frb:hover{border-color:var(--ink-3);color:var(--ink)}
+  .frb.on{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+  .frdupla.cheio .frnome{color:var(--ink-3);text-decoration:line-through}
+  .frdupla .frtx{padding-top:2px}
   .frlinha:active{background:var(--panel-2)}
   .frbox{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);
     background:var(--panel-2);color:transparent;font-size:1rem;font-weight:700;
@@ -857,7 +897,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-25.4";
+  var VERSAO = "2026-08-25.7";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1257,7 +1297,15 @@
       "SP Negócios", "Suhai", "TV Globo", "Varta", "Volvo", "Yokohama"
     ]}
   ];
-  function idFotorel(g, i){ return "fr_auto_" + g + "_" + i; }
+  // O id do FOTOGRAFO 1 e exatamente o que ja existia, sem sufixo. Assim nada do
+  // que ja foi marcado precisa ser migrado, e a lista antiga continua valendo.
+  // O 2 ganha "_f2" no fim. Dois documentos por item, e a existencia de cada um
+  // continua querendo dizer "marcado", que e a regra do resto desta aba.
+  function idFotorel(g, i, f){ return "fr_auto_" + g + "_" + i + (f === 2 ? "_f2" : ""); }
+  // Quantos dos dois checks do item ja foram marcados
+  function frFeitosNoItem(m, g, i){
+    return (m[idFotorel(g,i,1)] ? 1 : 0) + (m[idFotorel(g,i,2)] ? 1 : 0);
+  }
 
   // ═══════════════════════════════════════════════════════════════
   var FORMATOS_COLETIVA = ["Carrossel de fotos", "Vídeo edit", "Vídeo com influenciador"];
@@ -1616,6 +1664,8 @@
     // esta gravada tem que continuar na lista, senao salvar reescreve ela.
     h += '<div class="fld"><label>Dia</label><select id="ft_dia">'+
          optgroupDias(diasDaEdicao, diaStoryAtual())+'</select></div>';
+    h += '<div class="fld full"><label>Observação</label>'+
+         '<textarea id="ft_obs" maxlength="1000" placeholder="O que quem for tratar precisa saber: o que priorizar, o que descartar, se falta alguma coisa"></textarea></div>';
     h += '</div><div class="acoes">'+
       '<button class="btn" data-act="salvarfoto">Criar entrega</button>'+
       '<button class="btn ghost" data-act="cancelarfoto">Cancelar</button>'+
@@ -1634,6 +1684,7 @@
       resp: v("ft_resp"),
       link: v("ft_link"),
       qtd: isNaN(n) ? 0 : n,
+      obs: v("ft_obs"),
       enviado: false, tratado: false,
       criadoEm: Date.now(), em: Date.now(), por: quemSou()
     });
@@ -1687,6 +1738,13 @@
           '<a class="abrir'+(seguro?"":" off")+'" '+(seguro
               ? 'href="'+esc(seguro)+'" target="_blank" rel="noopener noreferrer"'
               : 'href="#" tabindex="-1" aria-disabled="true"')+'>Abrir</a>'+
+        '</div>'+
+        // OBSERVACAO: recado de quem fotografou pra quem vai tratar. Fica no
+        // cartao, editavel, porque a informacao chega depois da entrega criada
+        // ("o terceiro carrossel ficou escuro", "nao usar as do portao").
+        '<div class="campotx"><span class="cl">Observação</span>'+
+          '<textarea maxlength="1000" placeholder="Recado pra quem for tratar" '+
+            'data-act="ftobs" data-id="'+f.id+'">'+esc(f.obs||"")+'</textarea>'+
         '</div>'+
         '<div class="linhaflex">'+
           '<input class="busca" style="flex:1 1 140px" type="text" placeholder="Responsável" '+
@@ -1833,7 +1891,7 @@
   function pecaColetivaHTML(id, formato, st){
     var i, h='';
     var status = st.status || "";
-    h += '<div class="peca">';
+    h += '<div class="peca pcol">';
     h += '<div class="pnome">'+esc(formato);
     if(st.impulsionar) h += ' <span class="tag boost">Impulsionar</span>';
     h += '</div>';
@@ -2966,14 +3024,19 @@
   function frTodoMarcado(grupo){
     if(!grupo) return false;
     var g = FOTOREL.indexOf(grupo), m = frMarcados();
-    for(var i=0;i<grupo.itens.length;i++){ if(!m[idFotorel(g,i)]) return false; }
+    for(var i=0;i<grupo.itens.length;i++){ if(frFeitosNoItem(m,g,i) < 2) return false; }
     return true;
   }
+  // A CONTA E POR CHECK, nao por item. Com dois fotografos, um item fotografado
+  // por um so ainda tem trabalho pela frente, e contar por item mostraria zero
+  // feito no fim do primeiro dia mesmo com metade do autodromo ja rodado.
+  // Os itens do grupo "Outros" continuam com um check so: sao coisas que
+  // aparecem no dia, sem divisao combinada entre os dois.
   function frContas(){
     var m = frMarcados(), feito = 0, total = 0;
     for(var g=0; g<FOTOREL.length; g++){
-      total += FOTOREL[g].itens.length;
-      for(var i=0;i<FOTOREL[g].itens.length;i++){ if(m[idFotorel(g,i)]) feito++; }
+      total += FOTOREL[g].itens.length * 2;
+      for(var i=0;i<FOTOREL[g].itens.length;i++){ feito += frFeitosNoItem(m,g,i); }
     }
     // os itens criados no dia contam junto: o numero do topo e do badge tem que
     // ser o trabalho de verdade, nao so o que estava previsto no documento
@@ -3007,11 +3070,13 @@
     for(var g=0; g<FOTOREL.length; g++){
       var grupo = FOTOREL[g], itens = grupo.itens;
       var okG = 0, k;
-      for(k=0;k<itens.length;k++){ if(m[idFotorel(g,k)]) okG++; }
-      var cheio = okG === itens.length;
+      for(k=0;k<itens.length;k++){ okG += frFeitosNoItem(m,g,k); }
+      var totalG = itens.length * 2;
+      var cheio = okG === totalG;
       var visiveis = [];
       for(k=0;k<itens.length;k++){
-        if(frSoFalta && m[idFotorel(g,k)]) continue;
+        // "so o que falta" some com o item so quando os DOIS ja marcaram
+        if(frSoFalta && frFeitosNoItem(m,g,k) === 2) continue;
         visiveis.push(k);
       }
       // grupo fechado se recolhe sozinho, igual ao StoryMaker
@@ -3022,27 +3087,35 @@
         '<button class="cabeca" data-act="frdobrar" data-grupo="'+esc(grupo.grupo)+'" aria-expanded="'+(min?"false":"true")+'">'+
           '<span class="cmeio"><span class="cnome">'+(cheio?"&#10003; ":"")+esc(grupo.grupo)+'</span></span>'+
           (cheio && min ? '<span class="tag st" data-st="publicado">Pronto</span>' : '')+
-          '<span class="cprog'+(cheio?" ok":"")+'">'+okG+'/'+itens.length+'</span>'+
+          '<span class="cprog'+(cheio?" ok":"")+'">'+okG+'/'+totalG+'</span>'+
           '<span class="cmais">'+(min?"+":"&minus;")+'</span>'+
         '</button>';
       if(min){ h += '</div>'; continue; }
       h += '<div class="corpo">';
-      h += '<div class="frbarra"><i style="width:'+Math.round(okG/itens.length*100)+'%"></i></div>';
+      h += '<div class="frbarra"><i style="width:'+Math.round(okG/totalG*100)+'%"></i></div>';
       for(var vi=0; vi<visiveis.length; vi++){
         k = visiveis[vi];
-        var id = idFotorel(g,k), doc = m[id], txt = itens[k];
+        var d1 = m[idFotorel(g,k,1)], d2 = m[idFotorel(g,k,2)], txt = itens[k];
+        var quantos = (d1?1:0) + (d2?1:0);
         // no LED o texto vem "Marca · pontos": a marca fica grande, os pontos embaixo
         var corte = txt.indexOf(" · ");
         var nome = corte > 0 ? txt.slice(0, corte) : txt;
         var sub  = corte > 0 ? txt.slice(corte + 3) : "";
-        h += '<button class="frlinha'+(doc?" on":"")+'" data-act="frchk" data-g="'+g+'" data-i="'+k+'" '+
-             'aria-pressed="'+(doc?"true":"false")+'">'+
-          '<span class="frbox">&#10003;</span>'+
+        var quem = "";
+        if(d1 && d1.por) quem += '<span class="frquem">1 · '+esc(d1.por)+(d1.em?" · "+horaCurta(d1.em):"")+'</span>';
+        if(d2 && d2.por) quem += '<span class="frquem">2 · '+esc(d2.por)+(d2.em?" · "+horaCurta(d2.em):"")+'</span>';
+        h += '<div class="frdupla'+(quantos===2?" cheio":"")+'">'+
+          '<span class="frchecks">'+
+            '<button class="frb'+(d1?" on":"")+'" data-act="frchk" data-g="'+g+'" data-i="'+k+'" data-f="1" '+
+              'aria-pressed="'+(d1?"true":"false")+'" title="Fotógrafo 1">1</button>'+
+            '<button class="frb'+(d2?" on":"")+'" data-act="frchk" data-g="'+g+'" data-i="'+k+'" data-f="2" '+
+              'aria-pressed="'+(d2?"true":"false")+'" title="Fotógrafo 2">2</button>'+
+          '</span>'+
           '<span class="frtx"><span class="frnome">'+esc(nome)+'</span>'+
             (sub ? '<span class="frsub">'+esc(sub)+'</span>' : '')+
-            (doc && doc.por ? '<span class="frquem">'+esc(doc.por)+(doc.em?" · "+horaCurta(doc.em):"")+'</span>' : '')+
+            quem+
           '</span>'+
-        '</button>';
+        '</div>';
       }
       h += '</div></div>';
     }
@@ -3715,8 +3788,9 @@
     if(act === "frchk"){
       if(!podeGerenciar("fotorel")){ toast("Seu acesso não marca o fotorelatório."); return; }
       var fg = parseInt(b.dataset.g,10), fi = parseInt(b.dataset.i,10);
+      var ff = parseInt(b.dataset.f,10) === 2 ? 2 : 1;
       if(isNaN(fg) || isNaN(fi)) return;
-      var fid = idFotorel(fg, fi);
+      var fid = idFotorel(fg, fi, ff);
       frGravar(fid, !frMarcados()[fid]);
       return;
     }
@@ -4076,10 +4150,11 @@
     }
     // link, responsavel e quantidade da entrega de fotos: gravam ao sair do
     // campo, nao a cada tecla, senao cada letra vira uma escrita no banco
-    if(act === "ftlink" || act === "ftresp" || act === "ftqtd"){
+    if(act === "ftlink" || act === "ftresp" || act === "ftqtd" || act === "ftobs"){
       if(!podeGerenciar("fotos")){ toast("Seu acesso não edita fotos."); return; }
       var pf = { em: Date.now(), por: quemSou() };
       if(act === "ftlink")      pf.link = String(el.value||"").trim();
+      else if(act === "ftobs")  pf.obs  = String(el.value||"").trim();
       else if(act === "ftresp") pf.resp = String(el.value||"").trim();
       else {
         var nq = parseInt(el.value, 10);
