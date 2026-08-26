@@ -374,6 +374,14 @@
   }
   .peca.pcol:last-child{margin-bottom:0}
   .pcol .pnome{color:var(--lime);font-size:.95rem}
+  /* o titulo da peca vira o botao de abrir e fechar: o alvo e a linha inteira,
+     nao um sinalzinho no canto */
+  .pdobra{width:100%;background:none;border:0;padding:0;margin:0 0 9px;
+    color:var(--lime);font:inherit;font-weight:700;font-size:.95rem;text-align:left;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;min-height:34px}
+  .pdobra .pmais{margin-left:auto;font-family:var(--mono);font-size:.9rem;color:var(--ink-3)}
+  .peca.pcol.fechada{padding-bottom:11px}
+  .peca.pcol.fechada .pdobra{margin-bottom:0}
   .pnome{font-weight:700;font-size:.88rem;margin-bottom:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .stchips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
   /* 42px de altura: esses chips sao tocados de pe, no sol, com uma mao so.
@@ -897,7 +905,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-25.7";
+  var VERSAO = "2026-08-25.8";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1556,6 +1564,9 @@
   // literal "2026-08-12" prenderia a tela na moto pra sempre.
   var diaColetiva = null, diaStory = null;
   var abertos={};                      // id -> true (cartoes expandidos)
+  // PECA DA COLETIVA ABERTA OU FECHADA. So guarda o que a pessoa mexeu na mao:
+  // quem nao esta aqui segue a regra automatica (peca no ar comeca fechada).
+  var colDobra={};                     // id da peca -> true fechada, false aberta
   var fBusca="", fTipo="todos", fStatus="todos", fDia="todos", fBoost=false, fMinhas=false;
   var fFormato="todos";
 
@@ -1891,10 +1902,22 @@
   function pecaColetivaHTML(id, formato, st){
     var i, h='';
     var status = st.status || "";
-    h += '<div class="peca pcol">';
-    h += '<div class="pnome">'+esc(formato);
+    // FECHA SOZINHA QUANDO JA FOI AO AR. Depois que a peca sobe, ela vira
+    // consulta: quem esta na tela quer a proxima, e nao rolar por cima de
+    // referencia, creditos e legenda de uma coisa que ja acabou. Mesma regra
+    // que a lista de organicos usa pro grupo "No ar" e o fotorelatorio usa pro
+    // grupo completo. Quem abrir na mao manda: a escolha da pessoa fica.
+    var fechada = (id in colDobra) ? colDobra[id] : (status === "publicado");
+    h += '<div class="peca pcol'+(fechada?" fechada":"")+'">';
+    h += '<button class="pdobra" data-act="pdobra" data-id="'+id+'" '+
+         'aria-expanded="'+(fechada?"false":"true")+'">'+esc(formato);
     if(st.impulsionar) h += ' <span class="tag boost">Impulsionar</span>';
-    h += '</div>';
+    // fechada, o titulo precisa dizer em que pe a peca esta, senao a pessoa
+    // abre uma por uma pra descobrir
+    if(status) h += ' <span class="tag st" data-st="'+status+'">'+esc(ST_CURTO[status])+'</span>';
+    h += '<span class="pmais">'+(fechada?"+":"&minus;")+'</span>';
+    h += '</button>';
+    if(fechada){ h += '</div>'; return h; }
 
     h += '<div class="stchips">';
     for(i=0;i<STATUS.length;i++){
@@ -3609,6 +3632,16 @@
     }
 
     // ---- coletivas ----
+    if(act === "pdobra"){
+      var idp = b.dataset.id;
+      // sem estado guardado, o que vale e a regra automatica: inverter ela
+      var stp = estadoDe(idp) || {};
+      var estava = (idp in colDobra) ? colDobra[idp] : ((stp.status||"") === "publicado");
+      colDobra[idp] = !estava;
+      renderColetivas();
+      return;
+    }
+
     if(act === "stcol" || act === "boostcol" || act === "boostokcol" || act === "redecol"){
       if(!podeGerenciar("coletivas")){ toast("Seu acesso não edita as coletivas."); return; }
       var st = estadoDe(id) || {};
