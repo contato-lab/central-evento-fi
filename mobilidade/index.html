@@ -35,7 +35,7 @@
   --line:#3A4133; --line-2:#6B7659;
   --ink:#F6F8F1; --ink-2:#C9CFBE; --ink-3:#A7AE99;
   --lime:#A6EC4D; --lime-ink:#0B0C0A;
-  --amber:#FBBF24; --red:#FF8078; --cyan:#6FD3F7;
+  --amber:#FBBF24; --red:#FF8078; --cyan:#6FD3F7; --violeta:#C7A2FF;
   --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --display:'Barlow Condensed',system-ui,-apple-system,sans-serif;
   --mono:ui-monospace,"SF Mono","Segoe UI Mono",Consolas,monospace;
@@ -102,6 +102,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 .selo .pt{width:10px;height:10px;border-radius:50%;background:currentColor;flex:0 0 auto}
 .selo.novo{color:var(--amber);border-color:var(--amber)}
 .selo.a_caminho{color:var(--cyan);border-color:var(--cyan)}
+.selo.contato{color:var(--violeta);border-color:var(--violeta)}
 .selo.resolvido{color:var(--lime);border-color:var(--lime)}
 
 .protocolo{font-family:var(--mono);font-size:1.6rem;font-weight:600;letter-spacing:.08em;
@@ -117,6 +118,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
   border-radius:14px;padding:15px;margin-bottom:13px}
 .chamado.novo{border-left-color:var(--amber)}
 .chamado.a_caminho{border-left-color:var(--cyan)}
+.chamado.contato{border-left-color:var(--violeta)}
 .chamado.resolvido{border-left-color:var(--lime);opacity:.7}
 .chamado.velho{box-shadow:0 0 0 2px var(--red) inset}
 .ctopo{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
@@ -296,7 +298,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-26.4";
+  var VERSAO = "2026-08-26.5";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -338,6 +340,8 @@ input:focus,textarea:focus{border-color:var(--lime)}
         txt:"Recebemos seu pedido e já estamos organizando quem vai te atender. Assim que alguém sair daqui, eu aviso por aqui." },
       { k:"cadeira", rot:"Cadeira de rodas a caminho", status:"a_caminho",
         txt:"Estamos levando uma cadeira de rodas até você." },
+      { k:"naoachei", rot:"Não te encontramos", status:"contato",
+        txt:"Estivemos no lugar que você indicou e não conseguimos te encontrar. Pode dizer um ponto de referência mais exato, ou o que você está vestindo? Responda aqui embaixo que a gente volta." },
       { k:"onde", rot:"Onde você está?", status:"",
         txt:"Pode dizer um ponto de referência perto de você? Uma placa, um portão ou o nome de um estande já ajuda. Dá pra responder aqui mesmo, no campo embaixo." }
     ];
@@ -354,7 +358,11 @@ input:focus,textarea:focus{border-color:var(--lime)}
     return r;
   }
 
-  var ST_ROT = { novo:"Esperando", a_caminho:"Equipe a caminho", resolvido:"Atendido" };
+  // OS QUATRO ESTADOS, na ordem em que o atendimento acontece.
+  // "contato" e quando a equipe foi e nao achou a pessoa: nao esta esperando
+  // (ja tem gente cuidando) e nao esta concluido (ninguem foi atendido).
+  var ST_ROT = { novo:"Recebido", a_caminho:"Equipe a caminho",
+                 contato:"Tentativa de contato", resolvido:"Atendimento concluído" };
 
   var $ = function(s){ return document.querySelector(s); };
   var esc = function(s){
@@ -364,7 +372,9 @@ input:focus,textarea:focus{border-color:var(--lime)}
   };
   // status vem do banco e e escrito dentro de class="...": se um dia entrar lixo
   // ali, so aceita o que a gente conhece
-  function stOk(s){ return (s === "a_caminho" || s === "resolvido") ? s : "novo"; }
+  function stOk(s){
+    return (s === "a_caminho" || s === "contato" || s === "resolvido") ? s : "novo";
+  }
 
   var toastT = null;
   function toast(m, ruim){
@@ -742,22 +752,26 @@ input:focus,textarea:focus{border-color:var(--lime)}
   }
 
   function pintarFila(){
-    var ordem = { novo:0, a_caminho:1, resolvido:2 };
+    // tentativa de contato fica ANTES de concluido: ainda tem gente sem atendimento
+    var ordem = { novo:0, a_caminho:1, contato:2, resolvido:3 };
     var lista = chamados.slice().sort(function(a,b){
       var da = ordem[stOk(a.status)], dbb = ordem[stOk(b.status)];
       if(da !== dbb) return da - dbb;
       return (a.criadoEm || 0) - (b.criadoEm || 0);
     });
 
-    var nNovo = 0, nCam = 0, i;
+    var nNovo = 0, nCam = 0, nCon = 0, i;
     for(i=0;i<chamados.length;i++){
       var s = stOk(chamados[i].status);
-      if(s === "novo") nNovo++; else if(s === "a_caminho") nCam++;
+      if(s === "novo") nNovo++;
+      else if(s === "a_caminho") nCam++;
+      else if(s === "contato") nCon++;
     }
     $("#filaResumo").innerHTML =
       '<div class="linhabtn">' +
-        '<span class="selo novo"><span class="pt"></span>' + nNovo + ' esperando</span>' +
-        '<span class="selo a_caminho"><span class="pt"></span>' + nCam + ' em atendimento</span>' +
+        '<span class="selo novo"><span class="pt"></span>' + nNovo + ' recebido' + (nNovo===1?"":"s") + '</span>' +
+        '<span class="selo a_caminho"><span class="pt"></span>' + nCam + ' a caminho</span>' +
+        (nCon ? '<span class="selo contato"><span class="pt"></span>' + nCon + ' sem contato</span>' : "") +
       '</div>' +
       (somLigado ? "" : '<div class="offline" style="margin-top:10px">O alerta sonoro está desligado. ' +
         'Toque em "Ativar alerta sonoro" ou você só vai ver pedido novo olhando a tela.</div>');
