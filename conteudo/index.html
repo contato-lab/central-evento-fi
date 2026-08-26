@@ -388,7 +388,10 @@
   /* campo de texto longo dentro da peca de coletiva: rotulo em cima, porque
      textarea ao lado de um rotulo de 64px fica com 3 palavras por linha */
   .campotx{display:block;margin-bottom:7px}
-  .campotx .cl{display:block;width:auto;margin-bottom:4px}
+  .campotx .cl{width:auto;flex:1}
+  /* rotulo e botao Abrir na mesma linha, em cima da caixa de texto */
+  .campotxtop{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .campotxtop .abrir{min-height:28px;padding:5px 10px;font-size:.66rem}
   .campotx textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);
     color:var(--ink);border-radius:9px;padding:9px 11px;font-size:.82rem;
     min-height:62px;resize:vertical;font-family:inherit;line-height:1.45}
@@ -854,7 +857,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-25.3";
+  var VERSAO = "2026-08-25.4";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1907,9 +1910,31 @@
         'data-act="stcol-txt" data-id="'+id+'" data-campo="'+campo+'">'+
     '</div>';
   }
+  // O endereco dentro de um campo EDITAVEL nao pode virar <a>: dentro de textarea
+  // nao existe link, so texto. Entao o link vai pro lado do rotulo, como o botao
+  // "Abrir" que os campos de link ja usam logo acima, no mesmo cartao.
+  //
+  // Pega o PRIMEIRO http(s) do texto, porque o campo e "link ou descricao": o
+  // time cola o endereco no meio de uma frase. Pontuacao final sai fora, senao
+  // "veja aqui: https://site.com." abre uma pagina com ponto no fim.
+  // So http e https: javascript: e data: continuam texto morto, mesma regra do
+  // resto do arquivo.
+  function primeiroLink(txt){
+    var m = String(txt||"").match(/https?:\/\/[^\s<]+/);
+    if(!m) return "";
+    var u = m[0], fim = u.match(/[.,;:!?)\]}>]+$/);
+    if(fim) u = u.slice(0, u.length - fim[0].length);
+    return linkSeguro(u);
+  }
   function campoTextoLongo(rotulo, id, campo, valor, ph){
+    var url = primeiroLink(valor);
     return '<div class="campotx">'+
-      '<span class="cl">'+esc(rotulo)+'</span>'+
+      '<div class="campotxtop">'+
+        '<span class="cl">'+esc(rotulo)+'</span>'+
+        (url
+          ? '<a class="abrir" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Abrir</a>'
+          : '')+
+      '</div>'+
       '<textarea maxlength="4000" placeholder="'+esc(ph)+'" '+
         'data-act="stcol-txt" data-id="'+id+'" data-campo="'+campo+'">'+esc(valor||"")+'</textarea>'+
     '</div>';
