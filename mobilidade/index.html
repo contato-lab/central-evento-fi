@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B0C0A">
+<meta name="robots" content="noindex,nofollow">
+<title>Apoio à Mobilidade · Suhai Festival Interlagos</title>
+<link rel="icon" href="../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   APOIO A MOBILIDADE, Suhai Festival Interlagos, edicao auto
+
+   ESTE SISTEMA E USADO POR PESSOAS COM DIFICULDADE DE LOCOMOCAO,
+   muitas vezes de pe, no sol, com pressa e as vezes com raiva. Entao a
+   folha inteira e mais generosa que a do resto da Central:
+     - corpo de 17px, nao 15
+     - alvo de toque de 52px, nao 42
+     - contraste maior nos textos secundarios
+     - nada depende so de cor: status tambem tem palavra escrita
+   Se alguem for "arrumar" isso pra ficar igual as outras telas, vai estar
+   piorando a unica tela do sistema feita pra quem mais precisa dela.
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#0B0C0A; --panel:#141613; --panel-2:#1B1E18; --raise:#23271F;
+  --line:#2F3529; --line-2:#414937;
+  --ink:#F6F8F1; --ink-2:#C3C9B8; --ink-3:#949B88;
+  --lime:#A6EC4D; --lime-ink:#0B0C0A;
+  --amber:#FBBF24; --red:#FF6B60; --cyan:#5CCBF5;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --display:'Barlow Condensed',system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono","Segoe UI Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--font);font-size:17px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:660px;margin:0 auto;padding:18px 16px 60px}
+h1,h2,h3{font-family:var(--display);text-transform:uppercase;margin:0;line-height:1.05}
+h1{font-size:2rem;letter-spacing:.01em}
+h2{font-size:1.3rem;margin-bottom:10px}
+h3{font-size:1.05rem;margin-bottom:8px}
+p{margin:0 0 12px}
+.sub{color:var(--ink-2)}
+.rot{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);display:block;margin-bottom:5px}
+
+/* ---------- topo ---------- */
+.topo{display:flex;align-items:center;gap:12px;padding:6px 0 16px;border-bottom:1px solid var(--line)}
+.topo img{height:36px;width:auto;flex:0 0 auto}
+.topo .tt{flex:1;min-width:0}
+.topo .tt span{display:block;font-size:.78rem;color:var(--ink-3);line-height:1.3}
+
+/* ---------- socorro ---------- */
+.socorro{
+  border:1px solid var(--red);border-left-width:5px;border-radius:12px;
+  background:rgba(255,107,96,.09);padding:13px 15px;margin:16px 0;font-size:.95rem;
+}
+.socorro b{color:var(--red)}
+.socorro a{color:var(--ink);font-weight:700}
+
+/* ---------- blocos ---------- */
+.bloco{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:16px;margin-bottom:14px}
+.vazio{border:1px dashed var(--line-2);border-radius:12px;padding:16px;
+  color:var(--ink-2);font-size:.93rem}
+
+/* ---------- botoes ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:52px;padding:13px 20px;border-radius:12px;border:1px solid var(--line-2);
+  background:var(--panel-2);color:var(--ink);font:inherit;font-weight:600;
+  cursor:pointer;text-decoration:none;
+}
+.btn:hover{border-color:var(--lime)}
+.btn.forte{background:var(--lime);border-color:var(--lime);color:var(--lime-ink);font-weight:700}
+.btn.largo{width:100%;font-size:1.1rem;min-height:60px}
+.btn.perigo{border-color:var(--red);color:var(--red)}
+.btn.fraco{background:none;border-color:transparent;color:var(--ink-3);min-height:44px;
+  text-decoration:underline;padding:8px 4px}
+.linhabtn{display:flex;gap:9px;flex-wrap:wrap}
+
+/* ---------- formulario ---------- */
+.campo{margin-bottom:16px}
+label{display:block;font-weight:600;margin-bottom:6px;font-size:.97rem}
+label .op{font-weight:400;color:var(--ink-3);font-size:.86rem}
+input[type=text],textarea,select{
+  width:100%;background:var(--panel-2);border:1px solid var(--line-2);color:var(--ink);
+  border-radius:12px;padding:14px;font:inherit;min-height:52px;
+}
+textarea{min-height:110px;resize:vertical;line-height:1.5}
+input:focus,textarea:focus,select:focus,button:focus-visible,a:focus-visible{
+  outline:3px solid var(--lime);outline-offset:2px;border-color:var(--lime)}
+.dica{font-size:.86rem;color:var(--ink-2);margin-top:6px}
+
+/* lugares em botoes, nao em <select>: <select> no celular abre uma roleta
+   dificil pra quem esta com uma mao so ocupada segurando alguma coisa */
+.lugares{display:flex;flex-wrap:wrap;gap:9px}
+.lug{min-height:52px;padding:12px 16px;border-radius:12px;border:1px solid var(--line-2);
+  background:var(--panel-2);color:var(--ink-2);font:inherit;font-weight:600;cursor:pointer}
+.lug[aria-pressed=true]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+
+/* ---------- status ---------- */
+.selo{display:inline-flex;align-items:center;gap:7px;border-radius:99px;padding:7px 14px;
+  font-weight:700;font-size:.88rem;border:1px solid var(--line-2);background:var(--panel-2)}
+.selo .pt{width:9px;height:9px;border-radius:50%;background:currentColor;flex:0 0 auto}
+.selo.novo{color:var(--amber);border-color:var(--amber)}
+.selo.a_caminho{color:var(--cyan);border-color:var(--cyan)}
+.selo.resolvido{color:var(--lime);border-color:var(--lime)}
+
+.protocolo{font-family:var(--mono);font-size:1.5rem;font-weight:600;letter-spacing:.06em;
+  color:var(--lime);display:block;margin:2px 0 4px}
+
+/* ---------- conversa ---------- */
+.fala{border-radius:12px;padding:12px 14px;margin-bottom:9px;font-size:.97rem}
+.fala.eu{background:var(--panel-2);border:1px solid var(--line)}
+.fala.eles{background:rgba(166,236,77,.10);border:1px solid rgba(166,236,77,.42)}
+.fala .quem{display:block;font-family:var(--mono);font-size:.64rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
+
+/* ---------- fila da equipe ---------- */
+.chamado{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--line-2);
+  border-radius:14px;padding:15px;margin-bottom:13px}
+.chamado.novo{border-left-color:var(--amber)}
+.chamado.a_caminho{border-left-color:var(--cyan)}
+.chamado.resolvido{border-left-color:var(--lime);opacity:.62}
+.ctopo{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.clocal{font-family:var(--display);font-size:1.35rem;font-weight:700;text-transform:uppercase;
+  line-height:1.1;display:block}
+.cquando{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;color:var(--ink-2);display:block;margin-top:2px}
+.ctexto{margin:11px 0;font-size:1rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.cdados{font-size:.86rem;color:var(--ink-2);margin-bottom:10px}
+.rapidas{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 10px}
+.rapida{min-height:48px;padding:10px 14px;border-radius:11px;border:1px solid var(--line-2);
+  background:var(--panel-2);color:var(--ink);font:inherit;font-weight:600;font-size:.92rem;cursor:pointer;
+  text-align:left}
+.rapida:hover{border-color:var(--lime)}
+.rapida.fecha{border-color:var(--lime);color:var(--lime)}
+
+.aviso{border:1px solid var(--line-2);border-left:5px solid var(--amber);border-radius:12px;
+  background:var(--panel);padding:13px 15px;margin:14px 0;font-size:.93rem}
+.aviso b{color:var(--amber)}
+
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(140%);
+  background:var(--lime);color:var(--lime-ink);font-weight:700;padding:13px 20px;border-radius:12px;
+  transition:transform .22s ease;z-index:60;max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+.rodape{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);
+  color:var(--ink-3);font-size:.82rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topo">
+    <img src="../logo.png" alt="Suhai Festival Interlagos">
+    <div class="tt">
+      <h1>Apoio à Mobilidade</h1>
+      <span>Edição Auto · 26 a 30 de agosto</span>
+    </div>
+  </div>
+
+  <!-- ══════════ TELA DE QUEM PRECISA ══════════ -->
+  <main id="pub">
+    <div class="socorro">
+      <b>Se for emergência, não use este formulário.</b><br>
+      Ligue <a href="tel:192">192</a> (ambulância) ou <a href="tel:193">193</a> (bombeiros),
+      ou procure qualquer pessoa de colete perto de você. É mais rápido.
+    </div>
+
+    <section class="bloco" id="secMapa">
+      <h2>Mapa acessível</h2>
+      <div id="mapaBox"></div>
+    </section>
+
+    <section class="bloco" id="secPontos">
+      <h2>Onde tem o quê</h2>
+      <div id="pontosBox"></div>
+    </section>
+
+    <section class="bloco" id="secPedir">
+      <h2>Precisa de ajuda?</h2>
+      <p class="sub" id="promessa"></p>
+      <button class="btn forte largo" type="button" data-act="abrirform">Preciso de ajuda da equipe</button>
+    </section>
+
+    <section class="bloco" id="secForm" hidden>
+      <h2>Falar com a equipe</h2>
+
+      <div class="campo">
+        <span class="rot" id="rotLugar">Onde você está</span>
+        <div class="lugares" id="lugares" role="group" aria-labelledby="rotLugar"></div>
+        <p class="dica">Se não achar o lugar, escreva embaixo.</p>
+      </div>
+
+      <div class="campo">
+        <label for="f_texto">O que está acontecendo</label>
+        <textarea id="f_texto" maxlength="1000"
+          placeholder="Ex: estou na entrada da Arena e não consigo subir a rampa sozinho"></textarea>
+      </div>
+
+      <div class="campo">
+        <label for="f_nome">Seu nome <span class="op">(opcional)</span></label>
+        <input id="f_nome" type="text" maxlength="80" autocomplete="name">
+      </div>
+
+      <div class="campo">
+        <label for="f_contato">Telefone <span class="op">(opcional, só se quiser que a gente ligue)</span></label>
+        <input id="f_contato" type="text" inputmode="tel" maxlength="40" autocomplete="tel">
+      </div>
+
+      <div class="linhabtn">
+        <button class="btn forte" type="button" data-act="enviar">Enviar pedido</button>
+        <button class="btn" type="button" data-act="cancelar">Cancelar</button>
+      </div>
+      <p class="dica" id="lgpd"></p>
+    </section>
+
+    <section class="bloco" id="secMeu" hidden aria-live="polite">
+      <span class="rot">Seu pedido</span>
+      <span class="protocolo" id="meuProt"></span>
+      <div id="meuStatus"></div>
+      <div id="meuTexto" class="ctexto"></div>
+      <div id="meuConversa"></div>
+      <div class="linhabtn" style="margin-top:12px">
+        <button class="btn" type="button" data-act="novoPedido">Preciso de outra coisa</button>
+      </div>
+    </section>
+
+    <button class="btn fraco" type="button" data-act="souequipe">Sou da equipe</button>
+  </main>
+
+  <!-- ══════════ TELA DA EQUIPE ══════════ -->
+  <main id="eq" hidden>
+    <section class="bloco" id="secLogin">
+      <h2>Equipe de mobilidade</h2>
+      <div class="campo">
+        <label for="f_senha">Senha</label>
+        <input id="f_senha" type="password" autocomplete="current-password">
+      </div>
+      <div class="campo">
+        <label for="f_quem">Seu nome</label>
+        <input id="f_quem" type="text" maxlength="40" autocomplete="name" placeholder="Aparece pra equipe e pra quem pediu ajuda">
+      </div>
+      <div class="linhabtn">
+        <button class="btn forte" type="button" data-act="entrar">Entrar</button>
+        <button class="btn" type="button" data-act="voltarpub">Voltar</button>
+      </div>
+    </section>
+
+    <section id="secFila" hidden>
+      <div class="linhabtn" style="margin-bottom:14px">
+        <button class="btn" type="button" data-act="somligar" id="btSom">Ativar alerta sonoro</button>
+        <button class="btn fraco" type="button" data-act="sair">Sair</button>
+      </div>
+      <div id="filaResumo"></div>
+      <div id="filaBox" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <p class="rodape">
+    Suhai Festival Interlagos · Apoio à Mobilidade.
+    Este canal é atendido pela equipe do evento durante o horário de funcionamento.
+  </p>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // Trocar a cada publicacao, senao o celular fica com a copia velha.
+  var VERSAO = "2026-08-25.1";
+
+  // ═══════════════════════════════════════════════════════════════
+  // O QUE FALTA PREENCHER (o usuario disse que ainda esta sendo feito)
+  //
+  // MAPA e PONTOS estao vazios de proposito. Enquanto estiverem assim, a tela
+  // mostra um recado honesto no lugar ("estamos preparando"), em vez de uma
+  // caixa quebrada ou uma imagem que nao existe. Preencher aqui e so isso: nao
+  // precisa mexer em mais nada da tela.
+  // ═══════════════════════════════════════════════════════════════
+  var MAPA = "";                 // ex: "mapa-acessivel.jpg" (arquivo ao lado deste index)
+  var PONTOS = [
+    // { o:"Rampa", onde:"Entrada da Arena, lado direito de quem chega" },
+    // { o:"Elevador", onde:"Paddock Mall, junto da escada central" },
+    // { o:"Banheiro acessível", onde:"Praça de Alimentação e Área VIP" }
+  ];
+  var TENDA = "";                // ex: "ao lado do Portão A, na entrada do Boulevard"
+  var PRAZO = "";                // ex: "10 minutos". Vazio = a tela nao promete tempo.
+
+  // Lista fechada de lugares. Sai da legenda do mapa oficial da auto, e existe
+  // pra equipe saber PARA ONDE IR sem ter que decifrar texto livre. Quem nao se
+  // encontrar na lista escreve no campo de texto, que continua livre.
+  var LUGARES = ["Boulevard","Paddock Mall","Live Arena","Arena","Praça de Alimentação",
+                 "Área Mercado Livre","Race Village","Roda Gigante","Portão A","Portão C",
+                 "Estacionamento","Outro lugar"];
+
+  // ═══════════════════════════════════════════════════════════════
+  // RESPOSTAS PRONTAS
+  //
+  // Cada botao faz DUAS coisas de uma vez: manda o texto e muda o status. Isso e
+  // de proposito. Se fossem separados, ia existir o caso "escrevi que estou indo
+  // mas esqueci de marcar", e a fila mostraria como parado um chamado que ja tem
+  // gente a caminho. O contrario tambem: status mudando sem a pessoa ser avisada.
+  //
+  // O texto e um COMECO, nao uma camisa de forca: depois de tocar, ele cai no
+  // campo de escrever e da pra completar antes de mandar.
+  // ═══════════════════════════════════════════════════════════════
+  function RESPOSTAS(){
+    return [
+      { k:"caminho", rot:"Equipe a caminho", status:"a_caminho",
+        txt:"Nossa equipe já está indo até você. Se conseguir, fique onde está." },
+      { k:"pouco", rot:"Chegamos em alguns minutos", status:"a_caminho",
+        txt:"Recebemos seu pedido e estamos em atendimento agora. Chegamos até você em alguns minutos." },
+      { k:"cadeira", rot:"Cadeira de rodas a caminho", status:"a_caminho",
+        txt:"Estamos levando uma cadeira de rodas até você." },
+      { k:"onde", rot:"Onde você está?", status:"",
+        txt:"Pode dizer um ponto de referência perto de você? Uma placa, um portão ou o nome de um estande já ajuda." },
+      { k:"tenda", rot:"Venha até a tenda", status:"",
+        txt:"Se conseguir se deslocar, nossa tenda de apoio à mobilidade fica" +
+            (TENDA ? " " + TENDA : " na entrada do evento") + ". Tem equipe lá agora." },
+      { k:"acesso", rot:"Mostrar acesso mais perto", status:"",
+        txt:"Olhe o mapa acessível nesta mesma tela: ele mostra as rampas, os elevadores e os banheiros acessíveis mais perto de você." },
+      { k:"fim", rot:"Atendimento concluído", status:"resolvido", fecha:true,
+        txt:"Atendimento concluído. Se precisar de novo, é só mandar por aqui. Bom evento!" }
+    ];
+  }
+
+  var ST_ROT = { novo:"Recebido", a_caminho:"Equipe a caminho", resolvido:"Atendido" };
+  var SENHA_EQUIPE = "mobilidade2026";
+
+  // ---- atalhos ----
+  var $ = function(s){ return document.querySelector(s); };
+  var esc = function(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  };
+  function toast(m){
+    var t = $("#toast"); t.textContent = m; t.classList.add("show");
+    setTimeout(function(){ t.classList.remove("show"); }, 2600);
+  }
+  function hhmm(ms){
+    if(!ms) return "";
+    var d = new Date(ms);
+    return ("0"+d.getHours()).slice(-2) + "h" + ("0"+d.getMinutes()).slice(-2);
+  }
+  // "há 4 min" diz mais que "14h32" pra quem esta decidindo o que pegar primeiro
+  function faz(ms){
+    if(!ms) return "";
+    var min = Math.round((Date.now() - ms) / 60000);
+    if(min < 1) return "agora";
+    if(min < 60) return "há " + min + " min";
+    var h = Math.floor(min/60);
+    return "há " + h + (h === 1 ? " hora" : " horas");
+  }
+
+  // ---- firebase ----
+  var firebaseConfig = {
+    apiKey: "AIzaSyBMY82Mcp1rhNXHt6gQhTvyV4VAjIkU0bI",
+    authDomain: "festival-interlagos-2026.firebaseapp.com",
+    projectId: "festival-interlagos-2026",
+    storageBucket: "festival-interlagos-2026.firebasestorage.app",
+    messagingSenderId: "31705575491",
+    appId: "1:31705575491:web:fcf7ef1b01d05b71c9a4f6"
+  };
+  var COL = "mob_chamados";
+  var db = null, FB_ON = false;
+  try{
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    FB_ON = true;
+  }catch(e){ FB_ON = false; }
+
+  // ---- estado ----
+  var meuId = null, meuDoc = null, meuUnsub = null;
+  var souEquipe = false, meuNome = "", chamados = [], fila = null;
+  var lugarEscolhido = "";
+  var somLigado = false, audioCtx = null, vistos = {};
+
+  try{ meuId = localStorage.getItem("mob_id") || null; }catch(e){}
+  try{
+    if(localStorage.getItem("mob_eq") === "1"){
+      souEquipe = true; meuNome = localStorage.getItem("mob_nome") || "";
+    }
+  }catch(e){}
+
+  // ═══════════════════════════════════════════════════════════════
+  // TELA DE QUEM PRECISA
+  // ═══════════════════════════════════════════════════════════════
+  function pintarMapa(){
+    var box = $("#mapaBox");
+    if(MAPA){
+      box.innerHTML =
+        '<a href="' + esc(MAPA) + '" target="_blank" rel="noopener" style="display:block;border:1px solid var(--line);border-radius:12px;overflow:hidden">' +
+          '<img src="' + esc(MAPA) + '" alt="Mapa do evento com os pontos acessíveis marcados" style="display:block;width:100%;height:auto">' +
+        '</a>' +
+        '<p class="dica">Toque no mapa pra abrir em tamanho cheio.</p>';
+    }else{
+      box.innerHTML = '<div class="vazio">O mapa com os pontos acessíveis está sendo preparado pela produção. ' +
+        'Enquanto isso, a equipe na tenda te orienta pessoalmente.</div>';
+    }
+  }
+  function pintarPontos(){
+    var box = $("#pontosBox"), h = "", i;
+    if(PONTOS.length){
+      h = '<dl style="margin:0">';
+      for(i=0;i<PONTOS.length;i++){
+        h += '<dt style="font-weight:700;margin-top:10px">' + esc(PONTOS[i].o) + '</dt>' +
+             '<dd style="margin:2px 0 0;color:var(--ink-2)">' + esc(PONTOS[i].onde) + '</dd>';
+      }
+      h += '</dl>';
+    }else{
+      h = '<div class="vazio">A lista de rampas, elevadores e banheiros acessíveis está sendo montada com a produção.</div>';
+    }
+    if(TENDA){
+      h += '<p style="margin-top:14px"><b>Tenda de apoio:</b> ' + esc(TENDA) + '</p>';
+    }
+    box.innerHTML = h;
+  }
+  function pintarPromessa(){
+    // NAO PROMETER TEMPO QUE NINGUEM MEDIU. Enquanto PRAZO estiver vazio, a tela
+    // diz o que e verdade: alguem vai ver e vai responder aqui mesmo.
+    $("#promessa").textContent = PRAZO
+      ? "Escreva o que está acontecendo. A equipe costuma chegar em até " + PRAZO + ", e a resposta aparece nesta mesma tela."
+      : "Escreva o que está acontecendo e onde você está. A equipe recebe na hora e responde nesta mesma tela.";
+    $("#lgpd").textContent = "Usamos o que você escrever só para te atender durante o evento. " +
+      "Nome e telefone são opcionais.";
+  }
+  function pintarLugares(){
+    var h = "", i;
+    for(i=0;i<LUGARES.length;i++){
+      h += '<button type="button" class="lug" data-act="lugar" data-v="' + esc(LUGARES[i]) + '" ' +
+           'aria-pressed="' + (lugarEscolhido === LUGARES[i] ? "true" : "false") + '">' +
+           esc(LUGARES[i]) + '</button>';
+    }
+    $("#lugares").innerHTML = h;
+  }
+
+  function seloHTML(st){
+    var k = st || "novo";
+    return '<span class="selo ' + k + '"><span class="pt"></span>' + esc(ST_ROT[k] || "Recebido") + '</span>';
+  }
+
+  function pintarMeu(){
+    if(!meuDoc){ $("#secMeu").hidden = true; return; }
+    $("#secMeu").hidden = false;
+    $("#secPedir").hidden = true;
+    $("#secForm").hidden = true;
+
+    $("#meuProt").textContent = protocoloDe(meuId);
+    $("#meuStatus").innerHTML = seloHTML(meuDoc.status) +
+      '<span class="cquando" style="margin-top:8px">Enviado ' + esc(faz(meuDoc.criadoEm)) +
+      (meuDoc.local ? ' · ' + esc(meuDoc.local) : "") + '</span>';
+    $("#meuTexto").textContent = meuDoc.texto || "";
+
+    var r = meuDoc.respostas || [], h = "", i;
+    for(i=0;i<r.length;i++){
+      h += '<div class="fala eles"><span class="quem">Equipe de mobilidade' +
+           (r[i].por ? " · " + esc(r[i].por) : "") + (r[i].em ? " · " + esc(hhmm(r[i].em)) : "") +
+           '</span>' + esc(r[i].txt) + '</div>';
+    }
+    if(!r.length){
+      h = '<div class="vazio" style="margin-top:10px">Ainda sem resposta. Assim que a equipe responder, aparece aqui.</div>';
+    }
+    $("#meuConversa").innerHTML = h;
+  }
+
+  // Numero curto e falavel: a pessoa vai LER isso em voz alta pra alguem de
+  // colete. Por isso 4 digitos vindos do proprio id, e nao o id inteiro.
+  function protocoloDe(id){
+    var s = String(id || ""), n = 0;
+    for(var i=0;i<s.length;i++) n = (n * 31 + s.charCodeAt(i)) % 10000;
+    return "M-" + ("000" + n).slice(-4);
+  }
+
+  function ouvirMeu(){
+    if(!meuId || !FB_ON) return;
+    if(meuUnsub) meuUnsub();
+    meuUnsub = db.collection(COL).doc(meuId).onSnapshot(function(d){
+      if(!d.exists){ meuDoc = null; $("#secMeu").hidden = true; $("#secPedir").hidden = false; return; }
+      var antes = meuDoc ? (meuDoc.respostas || []).length : 0;
+      meuDoc = d.data(); meuDoc.id = d.id;
+      pintarMeu();
+      if((meuDoc.respostas || []).length > antes) toast("A equipe respondeu.");
+    }, function(){ /* silencio: a tela ja mostra o ultimo estado conhecido */ });
+  }
+
+  function enviarPedido(){
+    var texto = String($("#f_texto").value || "").trim();
+    if(!texto){ toast("Escreva o que está acontecendo."); $("#f_texto").focus(); return; }
+    if(!FB_ON){ toast("Sem conexão agora. Procure a tenda ou alguém de colete."); return; }
+    var obj = {
+      local: lugarEscolhido || "",
+      texto: texto,
+      nome: String($("#f_nome").value || "").trim(),
+      contato: String($("#f_contato").value || "").trim(),
+      status: "novo",
+      respostas: [],
+      criadoEm: Date.now(),
+      em: Date.now()
+    };
+    db.collection(COL).add(obj).then(function(ref){
+      meuId = ref.id;
+      try{ localStorage.setItem("mob_id", meuId); }catch(e){}
+      meuDoc = obj; meuDoc.id = meuId;
+      pintarMeu(); ouvirMeu();
+      toast("Pedido enviado.");
+      $("#secMeu").scrollIntoView({ block:"start" });
+    })["catch"](function(){
+      toast("Não deu para enviar. Procure a tenda ou alguém de colete.");
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // TELA DA EQUIPE
+  // ═══════════════════════════════════════════════════════════════
+  function entrarEquipe(){
+    var s = String($("#f_senha").value || "");
+    var n = String($("#f_quem").value || "").trim();
+    if(s !== SENHA_EQUIPE){ toast("Senha não confere."); return; }
+    if(!n){ toast("Diga seu nome, é ele que aparece pra quem pediu ajuda."); $("#f_quem").focus(); return; }
+    souEquipe = true; meuNome = n;
+    try{ localStorage.setItem("mob_eq","1"); localStorage.setItem("mob_nome", n); }catch(e){}
+    mostrarEquipe();
+  }
+  function sairEquipe(){
+    souEquipe = false; meuNome = "";
+    try{ localStorage.removeItem("mob_eq"); localStorage.removeItem("mob_nome"); }catch(e){}
+    if(fila){ fila(); fila = null; }
+    $("#eq").hidden = true; $("#pub").hidden = false;
+    $("#secFila").hidden = true; $("#secLogin").hidden = false;
+  }
+  function mostrarEquipe(){
+    $("#pub").hidden = true; $("#eq").hidden = false;
+    $("#secLogin").hidden = true; $("#secFila").hidden = false;
+    ouvirFila();
+  }
+
+  function ouvirFila(){
+    if(!FB_ON || fila) return;
+    fila = db.collection(COL).onSnapshot(function(snap){
+      var novos = 0;
+      chamados = [];
+      snap.forEach(function(d){
+        var o = d.data(); o.id = d.id; chamados.push(o);
+        if((o.status || "novo") === "novo" && !vistos[d.id]){ vistos[d.id] = true; novos++; }
+      });
+      if(novos) alertar(novos);
+      pintarFila();
+    }, function(){ $("#filaBox").innerHTML = '<div class="vazio">Sem conexão com o banco agora.</div>'; });
+  }
+
+  // ALERTA SONORO precisa de um toque antes, senao o navegador bloqueia. Por isso
+  // o botao "ativar": sem ele o som simplesmente nao sai e ninguem entende por que.
+  function ligarSom(){
+    try{
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(audioCtx.state === "suspended") audioCtx.resume();
+      somLigado = true;
+      $("#btSom").textContent = "Alerta sonoro ligado";
+      $("#btSom").classList.add("forte");
+      bip();
+      toast("Alerta ligado. Deixe esta tela aberta.");
+    }catch(e){ toast("Este aparelho não deixou ligar o som."); }
+  }
+  function bip(){
+    if(!somLigado || !audioCtx) return;
+    try{
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = "sine"; o.frequency.value = 880;
+      g.gain.setValueAtTime(.0001, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.3, audioCtx.currentTime + .02);
+      g.gain.exponentialRampToValueAtTime(.0001, audioCtx.currentTime + .5);
+      o.start(); o.stop(audioCtx.currentTime + .52);
+    }catch(e){}
+  }
+  function alertar(n){
+    bip();
+    try{ if(navigator.vibrate) navigator.vibrate([200,80,200]); }catch(e){}
+    toast(n === 1 ? "Pedido novo na fila." : n + " pedidos novos na fila.");
+    document.title = "(" + n + ") Apoio à Mobilidade";
+  }
+
+  function pintarFila(){
+    var ordem = { novo:0, a_caminho:1, resolvido:2 };
+    var lista = chamados.slice().sort(function(a,b){
+      var da = ordem[a.status || "novo"], dbb = ordem[b.status || "novo"];
+      if(da !== dbb) return da - dbb;              // quem precisa primeiro fica em cima
+      return (a.criadoEm || 0) - (b.criadoEm || 0); // e dentro do grupo, o mais antigo
+    });
+
+    var nNovo = 0, nCam = 0, i;
+    for(i=0;i<chamados.length;i++){
+      var s = chamados[i].status || "novo";
+      if(s === "novo") nNovo++; else if(s === "a_caminho") nCam++;
+    }
+    $("#filaResumo").innerHTML =
+      '<div class="linhabtn" style="margin-bottom:14px">' +
+        '<span class="selo novo"><span class="pt"></span>' + nNovo + ' esperando</span>' +
+        '<span class="selo a_caminho"><span class="pt"></span>' + nCam + ' em atendimento</span>' +
+      '</div>';
+
+    if(!lista.length){
+      $("#filaBox").innerHTML = '<div class="vazio">Nenhum pedido ainda. Deixe esta tela aberta: ' +
+        'quando alguém pedir ajuda, toca o alerta.</div>';
+      document.title = "Apoio à Mobilidade · Suhai Festival Interlagos";
+      return;
+    }
+
+    var h = "";
+    for(i=0;i<lista.length;i++) h += chamadoHTML(lista[i]);
+    $("#filaBox").innerHTML = h;
+    if(!nNovo) document.title = "Apoio à Mobilidade · Suhai Festival Interlagos";
+  }
+
+  function chamadoHTML(c){
+    var st = c.status || "novo";
+    var rs = RESPOSTAS(), i, h = "";
+    h += '<article class="chamado ' + st + '">';
+    h += '<div class="ctopo"><div>' +
+           '<span class="clocal">' + esc(c.local || "Lugar não informado") + '</span>' +
+           '<span class="cquando">' + esc(faz(c.criadoEm)) + ' · ' + esc(hhmm(c.criadoEm)) +
+             ' · ' + esc(protocoloDe(c.id)) + '</span>' +
+         '</div>' + seloHTML(st) + '</div>';
+    h += '<div class="ctexto">' + esc(c.texto || "") + '</div>';
+    if(c.nome || c.contato){
+      h += '<p class="cdados">' + esc(c.nome || "Sem nome") +
+           (c.contato ? ' · <a href="tel:' + esc(c.contato.replace(/[^0-9+]/g,"")) + '" style="color:var(--lime)">' +
+             esc(c.contato) + '</a>' : "") + '</p>';
+    }
+    if(c.assumidoPor){
+      h += '<p class="cdados">Com <b>' + esc(c.assumidoPor) + '</b></p>';
+    }
+
+    var r = c.respostas || [];
+    for(i=0;i<r.length;i++){
+      h += '<div class="fala eles"><span class="quem">' + esc(r[i].por || "Equipe") +
+           (r[i].em ? " · " + esc(hhmm(r[i].em)) : "") + '</span>' + esc(r[i].txt) + '</div>';
+    }
+
+    if(st !== "resolvido"){
+      h += '<div class="rapidas">';
+      for(i=0;i<rs.length;i++){
+        h += '<button type="button" class="rapida' + (rs[i].fecha ? " fecha" : "") + '" ' +
+             'data-act="rapida" data-id="' + esc(c.id) + '" data-k="' + esc(rs[i].k) + '">' +
+             esc(rs[i].rot) + '</button>';
+      }
+      h += '</div>';
+      h += '<div class="campo" style="margin-bottom:8px">' +
+        '<label class="rot" for="esc_' + esc(c.id) + '">Escrever para a pessoa</label>' +
+        '<textarea id="esc_' + esc(c.id) + '" maxlength="1000" style="min-height:80px" ' +
+          'placeholder="Toque numa resposta pronta acima ou escreva aqui"></textarea>' +
+        '</div>' +
+        '<div class="linhabtn">' +
+          '<button class="btn forte" type="button" data-act="mandar" data-id="' + esc(c.id) + '">Enviar</button>' +
+        '</div>';
+    }
+    h += '</article>';
+    return h;
+  }
+
+  function responder(id, txt, status, quem){
+    if(!FB_ON) { toast("Sem conexão agora."); return; }
+    var t = String(txt || "").trim();
+    if(!t) { toast("Escreva alguma coisa ou toque numa resposta pronta."); return; }
+    var patch = {
+      respostas: firebase.firestore.FieldValue.arrayUnion({ txt:t, por:quem || meuNome, em:Date.now() }),
+      em: Date.now()
+    };
+    if(status) patch.status = status;
+    if(quem || meuNome) patch.assumidoPor = quem || meuNome;
+    db.collection(COL).doc(id).update(patch)["catch"](function(){
+      toast("Não deu para enviar. Tente de novo.");
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CLIQUES
+  // ═══════════════════════════════════════════════════════════════
+  document.addEventListener("click", function(ev){
+    var b = ev.target.closest("[data-act]"); if(!b) return;
+    var act = b.dataset.act, id = b.dataset.id;
+
+    if(act === "abrirform"){
+      $("#secForm").hidden = false; $("#secPedir").hidden = true;
+      $("#f_texto").focus();
+      return;
+    }
+    if(act === "cancelar"){
+      $("#secForm").hidden = true; $("#secPedir").hidden = false;
+      return;
+    }
+    if(act === "lugar"){
+      lugarEscolhido = (lugarEscolhido === b.dataset.v) ? "" : b.dataset.v;
+      pintarLugares();
+      return;
+    }
+    if(act === "enviar"){ enviarPedido(); return; }
+    if(act === "novoPedido"){
+      meuId = null; meuDoc = null;
+      try{ localStorage.removeItem("mob_id"); }catch(e){}
+      if(meuUnsub){ meuUnsub(); meuUnsub = null; }
+      $("#secMeu").hidden = true; $("#secPedir").hidden = false;
+      $("#f_texto").value = ""; lugarEscolhido = ""; pintarLugares();
+      return;
+    }
+    if(act === "souequipe"){
+      $("#pub").hidden = true; $("#eq").hidden = false;
+      $("#f_senha").focus();
+      return;
+    }
+    if(act === "voltarpub"){ $("#eq").hidden = true; $("#pub").hidden = false; return; }
+    if(act === "entrar"){ entrarEquipe(); return; }
+    if(act === "sair"){ sairEquipe(); return; }
+    if(act === "somligar"){ ligarSom(); return; }
+
+    if(act === "rapida"){
+      var lista = RESPOSTAS(), achou = null, i;
+      for(i=0;i<lista.length;i++){ if(lista[i].k === b.dataset.k) achou = lista[i]; }
+      if(!achou) return;
+      var cx = document.getElementById("esc_" + id);
+      // "Atendimento concluído" manda direto: e o unico que encerra, e obrigar a
+      // um segundo toque so atrasaria quem ja esta indo pro proximo chamado.
+      if(achou.fecha){ responder(id, achou.txt, achou.status, meuNome); return; }
+      // os outros caem no campo pra dar pra completar antes de mandar
+      if(cx){ cx.value = achou.txt; cx.focus(); }
+      if(achou.status) marcarStatus(id, achou.status);
+      return;
+    }
+    if(act === "mandar"){
+      var cxm = document.getElementById("esc_" + id);
+      responder(id, cxm ? cxm.value : "", "", meuNome);
+      if(cxm) cxm.value = "";
+      return;
+    }
+  });
+
+  function marcarStatus(id, status){
+    if(!FB_ON) return;
+    db.collection(COL).doc(id).update({
+      status: status, assumidoPor: meuNome, em: Date.now()
+    })["catch"](function(){});
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // PARTIDA: sempre na ULTIMA linha. Chamar isto no meio do arquivo ja
+  // quebrou a Central antes: roda antes das constantes existirem, estoura no
+  // meio e o resto da tela nunca e desenhado.
+  // ═══════════════════════════════════════════════════════════════
+  function iniciar(){
+    pintarMapa(); pintarPontos(); pintarPromessa(); pintarLugares();
+    if(souEquipe){ mostrarEquipe(); }
+    if(meuId){ ouvirMeu(); }
+    // relogio do "há X min": so redesenha a fila da equipe, e so quando ela
+    // esta na tela. Sem isso os tempos congelam e a fila mente.
+    setInterval(function(){
+      if(souEquipe && !$("#eq").hidden && !$("#secFila").hidden) pintarFila();
+      else if(meuDoc) pintarMeu();
+    }, 60000);
+  }
+  iniciar();
+})();
+</script>
+</body>
+</html>
