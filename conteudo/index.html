@@ -905,7 +905,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-26.1";
+  var VERSAO = "2026-08-26.2";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1369,7 +1369,6 @@
       { hora:"15h00", marca:"BMW",          influ:"", box:"7/8" },
       { hora:"16h00", marca:"Renault",      influ:"", local:"Arena" },
       { hora:"17h00", marca:"Geely",        influ:"", local:"Arena" },
-      { hora:"18h00", marca:"Jetour",       influ:"", local:"Arena" },
       { hora:"19h00", marca:"MG",           influ:"", box:"" },
       { hora:"20h00", marca:"DFM",          influ:"", local:"Arena" }
     ]},
@@ -1379,7 +1378,10 @@
       { hora:"11h00", marca:"GAC",          influ:"", local:"Arena" },
       { hora:"12h00", marca:"Mini",         influ:"", local:"Race Village" },
       { hora:"13h00", marca:"iCAUR",        influ:"", box:"" },
-      { hora:"14h00", marca:"BAIC",         influ:"", box:"" }
+      { hora:"14h00", marca:"BAIC",         influ:"", box:"" },
+      // Jetour mudou do dia 26 as 18h pra ca em 26/08/2026. O id da peca sai de
+      // c_2608_1800_* e vira c_2708_1500_*: nada estava gravado no antigo.
+      { hora:"15h00", marca:"Jetour",       influ:"", local:"Arena" }
     ]},
     { edicao:"moto", dia:"2026-08-13", rotulo:"Quinta-feira, 13/08", itens:[
       { hora:"07h00", marca:"Royal Enfield", influ:"Lucas Xaparral",   box:"3/4"   },
