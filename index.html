@@ -600,13 +600,6 @@
   /* ===== SUB-ABAS DO MURAL + COLETIVAS =====
      A agenda de coletivas e uma grade fixa: dia, hora e marca. O slot em
      andamento ganha destaque AGORA; o que ja passou apaga. */
-  .mapaArte{display:block;border:1px solid var(--line);border-radius:10px;overflow:hidden;
-    background:#000;margin:0 0 14px}
-  .mapaArte img{display:block;width:100%;height:auto}
-  .mapaLeg{margin:0;padding:0 0 0 26px;display:grid;gap:7px}
-  @media(min-width:620px){ .mapaLeg{grid-template-columns:1fr 1fr;column-gap:26px} }
-  .mapaLeg li{color:var(--ink);font-size:15px;line-height:1.4}
-  .mapaLeg li::marker{color:var(--lime);font-weight:700}
   .subtabs{display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap}
   .subtab{background:transparent;border:1px solid var(--line);color:var(--ink-2);
     border-radius:20px;padding:8px 16px;font-size:.82rem;font-weight:600;
@@ -950,7 +943,6 @@
           <button type="button" class="subtab" data-sub="shows">Shows</button>
           <button type="button" class="subtab" data-sub="coletivas">Coletivas de imprensa</button>
           <button type="button" class="subtab" data-sub="extras">Programação Extra Oficial</button>
-          <button type="button" class="subtab" data-sub="mapa">Mapa</button>
         </div>
         <div id="extrasBox" style="display:none"></div>
         <!-- a grade oficial de atracoes fica ACIMA do mural do Firestore: quem
@@ -959,7 +951,6 @@
         <div id="progBox"></div>
         <div id="showsBox" style="display:none"></div>
         <div id="coletivasBox" style="display:none"></div>
-        <div id="mapaBox" style="display:none"></div>
         <div class="count" id="countMural"></div>
         <div class="list three" id="listMural"></div>
         <div class="legenda" id="legendaMural" hidden>
@@ -1225,7 +1216,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-25.1";
+  var VERSAO = "2026-08-26.3";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2404,7 +2395,6 @@
       { hora:"15h00", nome:"BMW",          box:"7/8" },
       { hora:"16h00", nome:"Renault",      local:"Arena" },
       { hora:"17h00", nome:"Geely",        local:"Arena" },
-      { hora:"18h00", nome:"Jetour",       local:"Arena" },
       { hora:"19h00", nome:"MG",           box:"" },
       { hora:"20h00", nome:"DFM",          local:"Arena" }
     ]},
@@ -2414,7 +2404,10 @@
       { hora:"11h00", nome:"GAC",          local:"Arena" },
       { hora:"12h00", nome:"Mini",         local:"Race Village" },
       { hora:"13h00", nome:"iCAUR",        box:"" },
-      { hora:"14h00", nome:"BAIC",         box:"" }
+      { hora:"14h00", nome:"BAIC",         box:"" },
+      // Jetour saiu do dia 26 as 18h e veio pra ca em 26/08/2026, a pedido da
+      // producao. Nada estava gravado no horario antigo, entao nao ficou orfao.
+      { hora:"15h00", nome:"Jetour",       local:"Arena" }
     ]}
   ];
 
@@ -2478,17 +2471,26 @@
   //                         mas o nome nao bate.
   // Nao chutei: descricao errada num mural que a imprensa le vira materia errada.
   var ATRACAO_INFO = {
-    // A edicao moto tinha verbete pra quase toda atracao. Os textos vinham de
-    // moto.festivalinterlagos.com.br e falam de "duas rodas", "Arena 2 Rodas",
-    // "MotoMeli", "universo motociclistico". Numa grade de AUTOMOVEIS isso
-    // descreve outro evento, e quem le esse mural e imprensa. Entao ficaram so
-    // os verbetes que continuam verdadeiros aqui, e as atracoes novas (Teste
-    // Drive, Pista Off Road, Drift) entram quando a producao mandar o texto.
-    // Atracao sem verbete simplesmente nao mostra o "ver mais", sem quebrar nada.
     "Tirolesa": { sub:"Aventura nas Alturas",
       d:"Um voo sobre o Festival! Atravesse o evento em uma experiência de pura emoção, garantindo uma vista única e privilegiada de Interlagos." },
+    "Boulevard": { sub:"O Maior Salão de Exposições da América Latina",
+      d:"O coração do Festival reúne as gigantes do setor em uma exposição monumental. Conheça de perto as máquinas dos seus sonhos, acompanhe lançamentos mundiais e viva ativações exclusivas no palco principal do mundo das duas rodas." },
+    "Arena": { sub:"O Centro das Emoções Radicais",
+      d:"Onde o Festival pulsa mais forte! A Arena 2 Rodas concentra as atrações mais radicais e emocionantes do evento. Se você busca adrenalina pura e diversão sem limites, este é o seu lugar." },
+    "Paddock": { sub:"Inovação e Novidades",
+      d:"O Paddock Mall é o destino obrigatório para quem busca o que há de mais moderno no universo motociclístico. Reunindo expositores selecionados e lançamentos exclusivos, este espaço dita as tendências que movem o setor. É o ponto de encontro estratégico onde a indústria revela a força e a evolução do mercado em primeira mão." },
+    "Pavilhão Mercado Livre": { sub:"MotoMeli",
+      d:"O Mercado Livre chega ao Festival Interlagos para conectar você ao que há de melhor no mundo das duas rodas. No MotoMeli, você encontra uma curadoria de peças, acessórios e equipamentos com a conveniência de quem lidera o mercado. Aproveite benefícios exclusivos para membros Meli+ e turbine sua jornada." },
+    "Mobilidade Urbana": { sub:"Teste e Compare",
+      d:"A oportunidade perfeita para testar scooters e modelos de baixa cilindrada em um cenário que simula o trânsito real. Com curvas e obstáculos estratégicos, é o teste ideal para quem busca agilidade e precisão. Escolha aqui sua próxima moto!" },
+    "Pista de Habilidade": { sub:"Desafio em Duas Rodas",
+      d:"Onde o controle total é o protagonista. Teste sua precisão e domínio sobre duas rodas em um traçado técnico feito para desafiar seus limites. Prove que você tem as habilidades necessárias para superar cada curva e obstáculo!" },
+    "Arena Kids": { sub:"Diversão para Toda a Família",
+      d:"O espaço ideal para os pequenos viverem o Festival com total segurança. Com atividades e atrações exclusivas, é o lugar perfeito para os futuros pilotos darem seus primeiros passos na paixão pelas duas rodas." },
     "Roda Gigante": { sub:"A melhor vista do Festival",
       d:"Suba e contemple Interlagos de um ângulo único! Mais que uma atração, é a chance de ver toda a magnitude do Festival de uma perspectiva inesquecível. Garanta o melhor ponto de vista para quem ama velocidade." },
+    "Globo da Morte": { sub:"Desafiando a Gravidade",
+      d:"A emoção vai ao limite em um show de agilidade e ousadia. Assista a pilotos desafiando a gravidade em manobras de tirar o fôlego, onde a precisão e a coragem se encontram em cada giro." },
     "Fred Kyrillos": { sub:"Freestyle: Espetáculo de Manobras e Adrenalina",
       d:"Onde a gravidade é desafiada! Sinta a adrenalina pura com as manobras insanas do heptacampeão de FMX. Fred Kyrillos faz o impossível acontecer diante dos seus olhos em um show de tirar o fôlego." },
     "Força e Ação": { sub:"Adrenalina e Emoção",
@@ -2514,79 +2516,10 @@
   // se fosse a de hoje. Copia integral em
   // _backup-central-evento/programacao-MOTO-2026-arquivada.txt e no git.
   var PROGRAMACAO = [
-    { data:"2026-08-27", rotulo:"Quinta-feira, 27/08", itens:[
-      { nome:"Tirolesa",               de:"13:00", ate:"20:00" },
-      { nome:"Teste Drive",            de:"13:00", ate:"19:00" },
-      { nome:"Boulevard",              de:"13:00", ate:"20:00" },
-      { nome:"Arena",                  de:"13:00", ate:"20:00" },
-      { nome:"Paddock",                de:"13:00", ate:"20:00" },
-      { nome:"Pavilhão Mercado Livre", de:"13:00", ate:"20:00" },
-      { nome:"Pista Off Road",         de:"13:00", ate:"17:00" },
-      { nome:"Drift",                  horas:["14:00","17:00"] },
-      { nome:"Roda Gigante",           de:"13:00", ate:"20:00" }
-    ]},
-    { data:"2026-08-28", rotulo:"Sexta-feira, 28/08", itens:[
-      { nome:"Teste Drive",            de:"08:00", ate:"19:00" },
-      { nome:"Boulevard",              de:"08:00", ate:"20:00" },
-      { nome:"Arena",                  de:"08:00", ate:"20:00" },
-      { nome:"Paddock",                de:"08:00", ate:"20:00" },
-      { nome:"Pavilhão Mercado Livre", de:"08:00", ate:"20:00" },
-      { nome:"Pista Off Road",         de:"08:00", ate:"17:00" },
-      { nome:"Drift",                  horas:["11:00","14:00","17:00"] },
-      { nome:"Tirolesa",               de:"10:00", ate:"20:00" },
-      { nome:"Roda Gigante",           de:"10:00", ate:"23:00" },
-      { nome:"Arena de Shows",         de:"17:00", ate:"00:00" }
-    ]},
-    { data:"2026-08-29", rotulo:"Sábado, 29/08", itens:[
-      { nome:"Teste Drive",            de:"08:00", ate:"19:00" },
-      { nome:"Boulevard",              de:"08:00", ate:"20:00" },
-      { nome:"Arena",                  de:"08:00", ate:"20:00" },
-      { nome:"Paddock",                de:"08:00", ate:"20:00" },
-      { nome:"Pavilhão Mercado Livre", de:"08:00", ate:"20:00" },
-      { nome:"Pista Off Road",         de:"08:00", ate:"17:00" },
-      { nome:"Drift",                  horas:["11:00","14:00","17:00"] },
-      { nome:"Tirolesa",               de:"10:00", ate:"20:00" },
-      { nome:"Roda Gigante",           de:"10:00", ate:"23:00" },
-      { nome:"Arena de Shows",         de:"17:00", ate:"00:00" }
-    ]},
-    { data:"2026-08-30", rotulo:"Domingo, 30/08", itens:[
-      { nome:"Teste Drive",            de:"08:00", ate:"19:00" },
-      { nome:"Boulevard",              de:"08:00", ate:"20:00" },
-      { nome:"Arena",                  de:"08:00", ate:"20:00" },
-      { nome:"Paddock",                de:"08:00", ate:"20:00" },
-      { nome:"Pavilhão Mercado Livre", de:"08:00", ate:"20:00" },
-      { nome:"Pista Off Road",         de:"08:00", ate:"17:00" },
-      { nome:"Drift",                  horas:["11:00","14:00","17:00"] },
-      { nome:"Tirolesa",               de:"10:00", ate:"20:00" },
-      { nome:"Roda Gigante",           de:"10:00", ate:"23:00" },
-      { nome:"Fred Kyrillos",          horas:["15:00"] },
-      { nome:"Força e Ação",           horas:["17:30"] },
-      { nome:"Arena de Shows",         de:"17:00", ate:"00:00" }
-    ]}
   ];
 
   // Esvaziada em 18/08/2026 junto com o resto da grade de moto.
   var SHOWS = [
-    { data:"2026-08-28", rotulo:"Sexta-feira, 28/08", itens:[
-      { hora:"19h00", nome:"Matuê"      },
-      { hora:"20h30", nome:"Dennis DJ"  },
-      { hora:"22h00", nome:"Dubdogz"    },
-      { hora:"00h00", nome:"Fim"       , momento:true }
-    ]},
-    { data:"2026-08-29", rotulo:"Sábado, 29/08", itens:[
-      { hora:"19h00", nome:"Hungria"  },
-      { hora:"21h00", nome:"Lennon"   },
-      { hora:"23h00", nome:"Ja Rule"  },
-      { hora:"00h00", nome:"Fim"     , momento:true }
-    ]},
-    { data:"2026-08-30", rotulo:"Domingo, 30/08", itens:[
-      { hora:"16h00", nome:"DJ Jods"   },
-      { hora:"17h00", nome:"Felth"     },
-      { hora:"18h30", nome:"Suhai"     },
-      { hora:"20h00", nome:"Péricles"  },
-      { hora:"22h00", nome:"Belo"      },
-      { hora:"00h00", nome:"Fim"      , momento:true }
-    ]}
   ];
 
   function coletivaMin(h){
@@ -2755,12 +2688,9 @@
           }
         } else {
           var lista = it.horas || [];
-          // com DOIS horarios "e" basta; com TRES vira "11h00 e 14h00 e 17h00",
-          // que ninguem escreve assim. O Drift da auto tem tres, foi onde apareceu.
-          var fmt = lista.map(hFmt);
-          rotulo = fmt.length > 2
-            ? fmt.slice(0, -1).join(', ') + ' e ' + fmt[fmt.length - 1]
-            : (fmt.length === 2 ? fmt.join(' e ') : 'às ' + fmt[0]);
+          rotulo = lista.length > 1
+            ? lista.map(hFmt).join(' e ')
+            : 'às ' + hFmt(lista[0]);
           // horario marcado nao tem duracao no post, entao nao existe "acontecendo
           // agora" aqui: so marco como passado depois do ULTIMO horario do dia
           var ult = coletivaMin(lista[lista.length - 1]);
@@ -2932,48 +2862,6 @@
            '</button>';
   }
 
-  // ===== MAPA DO EVENTO =====
-  // A arte oficial da edicao auto, com a legenda das 10 areas.
-  //
-  // TRES DECISOES QUE VALEM SER LEMBRADAS:
-  // 1. A imagem NAO entra no HTML. Fica em mapa-auto.jpg ao lado do index, e a
-  //    tag <img> so nasce quando alguem abre esta aba. Quem nunca abrir o mapa
-  //    nao baixa 740 KB, e quem abrir baixa uma vez e o navegador guarda.
-  //    (Foi a licao do logo em base64, que descia em toda abertura da pagina.)
-  // 2. A legenda tambem vem em TEXTO, embaixo da arte. Serve pra quem esta com
-  //    4G ruim e a imagem nao carregou, pra leitor de tela, e pra quem so quer
-  //    saber onde e a Live Arena sem esperar imagem nenhuma.
-  // 3. Toque na arte abre o arquivo inteiro em outra aba, que e como se da zoom
-  //    de verdade no celular. Zoom dentro da pagina brigaria com a rolagem.
-  var MAPA_AREAS = [
-    "Boulevard",
-    "Paddock Mall",
-    "Pista Off Road",
-    "Praça de Alimentação",
-    "Live Arena",
-    "Área Mercado Livre + VIP Lounge",
-    "Roda Gigante",
-    "Pista de Arrancada",
-    "Race Village",
-    "Drift Show, na Arena São Paulo Full Power"
-  ];
-  var mapaMontado = false;
-  function renderMapa(){
-    var caixa = $("#mapaBox"); if(!caixa) return;
-    if(mapaMontado) return;          // monta uma vez so: nada aqui muda com a hora
-    var h = '<p class="legenda">Mapa oficial da Edição Auto. Toque na arte pra abrir em tamanho cheio e dar zoom.</p>';
-    h += '<a class="mapaArte" href="mapa-auto.jpg" target="_blank" rel="noopener">' +
-           '<img src="mapa-auto.jpg" alt="Mapa do Festival Interlagos, edição auto, com as dez áreas numeradas">' +
-         '</a>';
-    h += '<ol class="mapaLeg">';
-    MAPA_AREAS.forEach(function(nome){
-      h += '<li>' + esc(nome) + '</li>';
-    });
-    h += '</ol>';
-    caixa.innerHTML = h;
-    mapaMontado = true;
-  }
-
   var subMuralAtivo = "prog";
   function aplicarSubMural(){
     var prog = (subMuralAtivo === "prog");
@@ -2991,8 +2879,6 @@
     if(boxProg)  boxProg.style.display  = (subMuralAtivo === "prog")      ? "" : "none";
     var boxExtras = $("#extrasBox");
     if(boxExtras) boxExtras.style.display = (subMuralAtivo === "extras")   ? "" : "none";
-    var boxMapa = $("#mapaBox");
-    if(boxMapa) boxMapa.style.display = (subMuralAtivo === "mapa")      ? "" : "none";
     document.querySelectorAll("#subMural .subtab").forEach(function(b){
       b.classList.toggle("active", b.dataset.sub === subMuralAtivo);
     });
@@ -3000,8 +2886,6 @@
     if(subMuralAtivo === "coletivas") renderColetivas();
     if(subMuralAtivo === "prog")      renderProgramacao();
     if(subMuralAtivo === "extras")    renderExtras();
-    // o mapa nao entra no timer de baixo: nada nele muda com a hora
-    if(subMuralAtivo === "mapa")      renderMapa();
   }
 
   // ===== AVISOS (operacional) =====
