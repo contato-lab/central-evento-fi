@@ -905,7 +905,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-25.8";
+  var VERSAO = "2026-08-26.1";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -1316,7 +1316,11 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
-  var FORMATOS_COLETIVA = ["Carrossel de fotos", "Vídeo edit", "Vídeo com influenciador"];
+  // A ORDEM AQUI E O ID NO BANCO. slotId() usa a POSICAO (c_2708_0800_0, _1, _2),
+  // entao formato novo entra sempre NO FIM. Inserir no meio faria cada peca
+  // herdar o estado da peca de outro formato, sem erro nenhum na tela.
+  // "Carrossel editorial" entrou em 26/08/2026, a pedido da producao.
+  var FORMATOS_COLETIVA = ["Carrossel de fotos", "Vídeo edit", "Vídeo com influenciador", "Carrossel editorial"];
 
   // Quando a grade da auto chegar, acrescente entradas com edicao:"auto".
   // ATENCAO, e a armadilha mais cara desta aba: o id de cada coletiva e
