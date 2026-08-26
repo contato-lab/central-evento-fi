@@ -62,11 +62,6 @@ p{margin:0 0 12px}
 .topo img{height:36px;width:auto;flex:0 0 auto}
 .topo .tt span{display:block;font-size:.85rem;color:var(--ink-2);line-height:1.3}
 
-.socorro{border:2px solid var(--red);border-radius:14px;background:rgba(255,128,120,.10);
-  padding:15px;margin:16px 0}
-.socorro p{font-size:1rem;margin-bottom:12px}
-.socorro b{color:var(--red)}
-
 .bloco{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
 .vazio{border:1px dashed var(--line-2);border-radius:12px;padding:16px;color:var(--ink-2);font-size:1rem}
 
@@ -172,15 +167,6 @@ input:focus,textarea:focus{border-color:var(--lime)}
 
   <!-- ══════════ QUEM PRECISA ══════════ -->
   <div id="pub">
-    <section class="socorro" aria-labelledby="tSocorro">
-      <h2 id="tSocorro" class="sr">Emergência</h2>
-      <p><b>Passou mal, se machucou ou está em perigo?</b><br>
-        Ligar é mais rápido que escrever aqui. Você também pode chamar qualquer pessoa de colete.</p>
-      <div class="linhabtn">
-        <a class="btn perigo" href="tel:192">Ligar 192 · Ambulância</a>
-        <a class="btn perigo" href="tel:193">Ligar 193 · Bombeiros</a>
-      </div>
-    </section>
 
     <section class="bloco" aria-labelledby="tMapa">
       <h2 id="tMapa">Mapa acessível</h2>
@@ -310,7 +296,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-26.1";
+  var VERSAO = "2026-08-26.3";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -630,8 +616,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
   function falhaEnvio(motivo){
     var e = $("#erroEnvio");
     e.textContent = motivo + " Seu pedido NÃO foi registrado, ninguém vai ver. " +
-      "Procure alguém de colete" + (TENDA ? " ou vá até a tenda de apoio (" + TENDA + ")" : "") +
-      ", ou ligue 192 se for urgente.";
+      "Procure alguém de colete" + (TENDA ? " ou vá até a tenda de apoio (" + TENDA + ")" : "") + ".";
     e.hidden = false;
     avisar(e.textContent);
     toast("Não foi enviado.", true);
@@ -673,6 +658,9 @@ input:focus,textarea:focus{border-color:var(--lime)}
     if(filaUnsub){ filaUnsub(); filaUnsub = null; }
     $("#eq").hidden = true; $("#pub").hidden = false;
     $("#secFila").hidden = true; $("#secLogin").hidden = false;
+    if(String(location.hash||"").toLowerCase() === "#equipe"){
+      try{ history.replaceState(null,"",location.pathname); }catch(e){ location.hash = ""; }
+    }
     foco("#tPedir");
   }
   function mostrarEquipe(){
@@ -984,7 +972,15 @@ input:focus,textarea:focus{border-color:var(--lime)}
         '<div class="offline" style="margin-top:12px">Este aparelho não conseguiu carregar o sistema. ' +
         'Recarregue a página, ou procure alguém de colete.</div>');
     }
-    if(souEquipe) mostrarEquipe();
+    // ENDERECO SEPARADO PRA EQUIPE: terminar em #equipe abre direto na senha.
+    // O QR do publico aponta pro endereco limpo; o link que vai pro grupo da
+    // coordenacao leva o #equipe. E o mesmo arquivo, so muda por onde entra.
+    var querEquipe = String(location.hash || "").toLowerCase() === "#equipe";
+    if(souEquipe){ mostrarEquipe(); }
+    else if(querEquipe){
+      $("#pub").hidden = true; $("#eq").hidden = false;
+      foco("#tLogin");
+    }
     if(meuId) ouvirMeu();
     setInterval(function(){
       if(souEquipe && !$("#eq").hidden && !$("#secFila").hidden){ pintarFila(); conferirAlerta(); }
