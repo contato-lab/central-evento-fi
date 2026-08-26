@@ -114,25 +114,58 @@ input:focus,textarea:focus{border-color:var(--lime)}
 .fala .quem{display:block;font-family:var(--mono);font-size:.76rem;letter-spacing:.05em;
   text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
 
-.chamado{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line-2);
-  border-radius:14px;padding:15px;margin-bottom:13px}
+/* A TELA DA EQUIPE E OPERACAO, a do publico e acolhimento. O lado publico
+   continua generoso (fonte grande, alvo de 52px): e pra quem pede ajuda. Aqui
+   quem usa atende varios chamados por hora, e o que vale e caber mais na tela
+   SEM alvo abaixo de 40px, que e o piso de toque. */
+.chamado{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--line-2);
+  border-radius:12px;padding:11px 13px;margin-bottom:9px}
 .chamado.novo{border-left-color:var(--amber)}
 .chamado.a_caminho{border-left-color:var(--cyan)}
 .chamado.contato{border-left-color:var(--violeta)}
 .chamado.resolvido{border-left-color:var(--lime);opacity:.7}
 .chamado.velho{box-shadow:0 0 0 2px var(--red) inset}
 .ctopo{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
-.clocal{font-family:var(--display);font-size:1.35rem;font-weight:700;text-transform:uppercase;
-  line-height:1.1;display:block}
+.clocal{font-family:var(--display);font-size:1.06rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.02em;line-height:1.1;display:block}
 .cquando{font-family:var(--mono);font-size:.82rem;color:var(--ink-2);display:block;margin-top:3px}
-.ctexto{margin:11px 0;font-size:1.02rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
-.cdados{font-size:.92rem;color:var(--ink-2);margin-bottom:10px}
-.rapidas{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 10px}
-.rapida{min-height:52px;padding:12px 15px;border-radius:12px;border:2px solid var(--line-2);
-  background:var(--panel-2);color:var(--ink);font:inherit;font-weight:600;font-size:.98rem;
+.ctexto{margin:8px 0;font-size:.95rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.cdados{font-size:.84rem;color:var(--ink-2);margin-bottom:7px}
+.rapidas{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0 8px}
+.rapida{min-height:40px;padding:8px 12px;border-radius:9px;border:1px solid var(--line-2);
+  background:var(--panel-2);color:var(--ink);font:inherit;font-weight:600;font-size:.86rem;
   cursor:pointer;text-align:left}
 .rapida:hover{border-color:var(--lime)}
 .rapida.fecha{border-color:var(--lime);color:var(--lime)}
+#eq .selo{padding:4px 11px;font-size:.78rem;gap:6px}
+#eq .selo .pt{width:8px;height:8px}
+#eq .btn{min-height:44px;padding:9px 16px;font-size:.94rem}
+#eq .fala{padding:9px 11px;font-size:.9rem;margin-bottom:7px}
+#eq .fala .quem{font-size:.68rem}
+#eq textarea{min-height:60px;padding:10px;font-size:.95rem}
+/* concluido recolhido: uma linha, o suficiente pra conferir de relance */
+.chfeito{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--lime);
+  border-radius:12px;padding:8px 12px;margin-bottom:7px;color:var(--ink-2);
+  font:inherit;cursor:pointer;min-height:46px}
+.chfeito:hover{border-color:var(--line-2)}
+.chfok{color:var(--lime);font-weight:700;flex:0 0 auto}
+.chftx{flex:1;min-width:0;font-weight:600;font-size:.92rem;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chfsub{display:block;font-family:var(--mono);font-size:.7rem;color:var(--ink-3);
+  font-weight:400;margin-top:1px}
+.chfmais{color:var(--ink-3);font-size:1.05rem;flex:0 0 auto}
+.vermais{background:none;border:1px dashed var(--line-2);border-radius:9px;color:var(--ink-2);
+  font:inherit;font-size:.84rem;padding:8px 12px;margin-bottom:7px;cursor:pointer;
+  min-height:40px;width:100%}
+/* com a equipe logada o cabecalho vira uma tarja: a marca ja apareceu no login,
+   e cada centimetro daqui e fila */
+.modoeq .topo{padding:2px 0 8px;margin-bottom:0}
+.modoeq .topo img{height:22px}
+.modoeq .topo h1{font-size:1.05rem}
+.modoeq .topo .tt span{display:none}
+.modoeq .rodape{display:none}
+#eq .offline{padding:8px 12px;font-size:.84rem;margin-bottom:10px;border-radius:9px}
 
 .barratopo{position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0;
   border-bottom:1px solid var(--line);margin-bottom:14px}
@@ -298,7 +331,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-26.5";
+  var VERSAO = "2026-08-26.6";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -432,6 +465,9 @@ input:focus,textarea:focus{border-color:var(--lime)}
   var souEquipe = false, meuNome = "", chamados = [], filaUnsub = null;
   var lugarEscolhido = "", somLigado = false, audioCtx = null;
   var jaAvisou = {}, ultimoAlerta = 0;
+  // dobras da fila: concluido abre/fecha, conversa longa expande. So memoria
+  // da tela: recarregou, volta ao padrao (concluido fechado), que e o certo.
+  var eqAberto = {}, eqConversa = {};
 
   try{ meuId = localStorage.getItem("mob_id") || null; }catch(e){}
   try{
@@ -663,6 +699,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
     mostrarEquipe();
   }
   function sairEquipe(){
+    document.body.classList.remove("modoeq");
     souEquipe = false; meuNome = "";
     try{ localStorage.removeItem("mob_eq"); localStorage.removeItem("mob_nome"); }catch(e){}
     if(filaUnsub){ filaUnsub(); filaUnsub = null; }
@@ -674,6 +711,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
     foco("#tPedir");
   }
   function mostrarEquipe(){
+    document.body.classList.add("modoeq");
     $("#pub").hidden = true; $("#eq").hidden = false;
     $("#secLogin").hidden = true; $("#secFila").hidden = false;
     ouvirFila();
@@ -773,8 +811,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
         '<span class="selo a_caminho"><span class="pt"></span>' + nCam + ' a caminho</span>' +
         (nCon ? '<span class="selo contato"><span class="pt"></span>' + nCon + ' sem contato</span>' : "") +
       '</div>' +
-      (somLigado ? "" : '<div class="offline" style="margin-top:10px">O alerta sonoro está desligado. ' +
-        'Toque em "Ativar alerta sonoro" ou você só vai ver pedido novo olhando a tela.</div>');
+      (somLigado ? "" : '<div class="offline" style="margin-top:8px">Alerta sonoro desligado: pedido novo só aparece olhando a tela.</div>');
     document.title = (nNovo ? "(" + nNovo + ") " : "") + "Apoio à Mobilidade · Suhai Festival Interlagos";
 
     if(!lista.length){
@@ -791,8 +828,14 @@ input:focus,textarea:focus{border-color:var(--lime)}
       if(document.activeElement === caixas[i]){ focado = caixas[i].id; caret = caixas[i].selectionStart; }
     }
 
-    var h = "";
-    for(i=0;i<lista.length;i++) h += chamadoHTML(lista[i]);
+    var h = "", jaConcluidos = false;
+    for(i=0;i<lista.length;i++){
+      if(!jaConcluidos && stOk(lista[i].status) === "resolvido"){
+        jaConcluidos = true;
+        h += '<p class="rot" style="margin:14px 0 7px">Concluídos</p>';
+      }
+      h += chamadoHTML(lista[i]);
+    }
     $("#filaBox").innerHTML = h;
 
     for(var id in salvo){
@@ -808,6 +851,19 @@ input:focus,textarea:focus{border-color:var(--lime)}
 
   function chamadoHTML(c){
     var st = stOk(c.status), rs = RESPOSTAS(), i, h = "";
+    // CONCLUIDO RECOLHE PRA UMA LINHA. No fim da tarde a fila seria uma parede
+    // de atendimentos encerrados na frente do que ainda precisa de gente. A
+    // linha guarda o que se confere de relance (lugar, codigo, hora, quem
+    // atendeu) e abre num toque pra ver a conversa ou reabrir.
+    if(st === "resolvido" && !eqAberto[c.id]){
+      return '<button class="chfeito" data-act="eqdobra" data-id="' + esc(c.id) + '" aria-expanded="false">' +
+        '<span class="chfok">&#10003;</span>' +
+        '<span class="chftx">' + esc(c.local || "Sem lugar") +
+          '<span class="chfsub">' + esc(protocoloDe(c.id)) + ' · ' + esc(hhmm(c.criadoEm)) +
+          (c.assumidoPor ? ' · ' + esc(c.assumidoPor) : '') + '</span></span>' +
+        '<span class="chfmais">+</span>' +
+      '</button>';
+    }
     var esperando = st === "novo" && minDesde(c.criadoEm) >= MIN_ESQUECIDO;
     h += '<article class="chamado ' + st + (esperando ? " velho" : "") + '">';
     h += '<div class="ctopo"><div>' +
@@ -826,8 +882,15 @@ input:focus,textarea:focus{border-color:var(--lime)}
         ? 'Com <b>' + esc(c.assumidoPor) + '</b>'
         : '<b>Ninguém pegou ainda</b>') + '</p>';
 
-    var r = c.respostas || [];
-    for(i=0;i<r.length;i++){
+    // conversa longa: so as 2 ultimas na tela, o resto atras de um toque.
+    // O que importa na fila e o estado AGORA, nao a historia inteira.
+    var r = c.respostas || [], corte = 0;
+    if(r.length > 3 && !eqConversa[c.id]){
+      corte = r.length - 2;
+      h += '<button type="button" class="vermais" data-act="eqconversa" data-id="' + esc(c.id) + '">' +
+           'Ver conversa inteira (' + r.length + ' mensagens)</button>';
+    }
+    for(i=corte;i<r.length;i++){
       var daEquipe = r[i].lado !== "pessoa";
       h += '<div class="fala ' + (daEquipe ? "eles" : "eu") + '"><span class="quem">' +
            (daEquipe ? esc(r[i].por || "Equipe") : "Quem pediu") +
@@ -837,6 +900,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
     if(st === "resolvido"){
       h += '<div class="linhabtn" style="margin-top:10px">' +
         '<button class="btn" type="button" data-act="reabrir" data-id="' + esc(c.id) + '">Reabrir</button>' +
+        '<button class="btn fraco" type="button" data-act="eqdobra" data-id="' + esc(c.id) + '" aria-expanded="true">Recolher</button>' +
       '</div>';
     }else{
       if(!c.assumidoPor){
@@ -851,8 +915,8 @@ input:focus,textarea:focus{border-color:var(--lime)}
       }
       h += '</div>';
       h += '<div class="campo" style="margin-bottom:8px">' +
-        '<label for="esc_' + esc(c.id) + '">Escrever para a pessoa</label>' +
-        '<textarea id="esc_' + esc(c.id) + '" maxlength="1000" style="min-height:80px"></textarea>' +
+        '<label class="sr" for="esc_' + esc(c.id) + '">Escrever para a pessoa</label>' +
+        '<textarea id="esc_' + esc(c.id) + '" maxlength="1000" placeholder="Escrever para a pessoa..."></textarea>' +
         '</div>' +
         '<div class="linhabtn">' +
           '<button class="btn forte" type="button" data-act="mandar" data-id="' + esc(c.id) + '">Enviar</button>' +
@@ -934,6 +998,8 @@ input:focus,textarea:focus{border-color:var(--lime)}
         ["catch"](function(){ toast("Não deu para marcar.", true); });
       return;
     }
+    if(act === "eqdobra"){ eqAberto[id] = !eqAberto[id]; pintarFila(); return; }
+    if(act === "eqconversa"){ eqConversa[id] = true; pintarFila(); return; }
     if(act === "reabrir"){
       if(!FB_ON) return;
       db.collection(COL).doc(id).update({ status:"a_caminho", em: Date.now() })
