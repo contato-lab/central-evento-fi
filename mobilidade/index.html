@@ -331,7 +331,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-26.6";
+  var VERSAO = "2026-08-26.7";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -366,29 +366,20 @@ input:focus,textarea:focus{border-color:var(--lime)}
   // mapa nao publicado) simplesmente NAO APARECE na tela da equipe.
   // ═══════════════════════════════════════════════════════════════
   function RESPOSTAS(){
-    var r = [
+    // QUATRO BOTOES, um por status, nessa ordem. Pedido do coordenador em
+    // 26/08: "apenas isso". Cada toque manda a mensagem E marca o status no
+    // mesmo gesto. O que nao couber nos quatro (cadeira de rodas, ponto de
+    // referencia) vai no campo livre logo abaixo.
+    return [
+      { k:"recebido", rot:"Recebido", status:"novo",
+        txt:"Recebemos seu pedido e já estamos organizando quem vai até você." },
       { k:"caminho", rot:"Equipe a caminho", status:"a_caminho",
         txt:"Nossa equipe já está indo até você. Se conseguir, fique onde está." },
-      { k:"fila", rot:"Recebido, já estamos vendo", status:"a_caminho",
-        txt:"Recebemos seu pedido e já estamos organizando quem vai te atender. Assim que alguém sair daqui, eu aviso por aqui." },
-      { k:"cadeira", rot:"Cadeira de rodas a caminho", status:"a_caminho",
-        txt:"Estamos levando uma cadeira de rodas até você." },
-      { k:"naoachei", rot:"Não te encontramos", status:"contato",
+      { k:"contato", rot:"Tentativa de contato", status:"contato",
         txt:"Estivemos no lugar que você indicou e não conseguimos te encontrar. Pode dizer um ponto de referência mais exato, ou o que você está vestindo? Responda aqui embaixo que a gente volta." },
-      { k:"onde", rot:"Onde você está?", status:"",
-        txt:"Pode dizer um ponto de referência perto de você? Uma placa, um portão ou o nome de um estande já ajuda. Dá pra responder aqui mesmo, no campo embaixo." }
+      { k:"fim", rot:"Atendimento concluído", status:"resolvido", fecha:true,
+        txt:"Atendimento concluído. Se precisar de novo, é só mandar por aqui. Bom evento!" }
     ];
-    if(TENDA){
-      r.push({ k:"tenda", rot:"Venha até a tenda", status:"",
-        txt:"Se conseguir se deslocar, nossa tenda de apoio fica " + TENDA + "." });
-    }
-    if(MAPA || PONTOS.length){
-      r.push({ k:"acesso", rot:"Ver mapa acessível", status:"",
-        txt:"Nesta mesma tela, um pouco acima, tem o mapa com as rampas, os elevadores e os banheiros acessíveis." });
-    }
-    r.push({ k:"fim", rot:"Atendimento concluído", status:"resolvido", fecha:true,
-      txt:"Atendimento concluído. Se precisar de novo, é só mandar por aqui. Bom evento!" });
-    return r;
   }
 
   // OS QUATRO ESTADOS, na ordem em que o atendimento acontece.
