@@ -334,7 +334,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-26.8";
+  var VERSAO = "2026-08-26.9";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -345,8 +345,28 @@ input:focus,textarea:focus{border-color:var(--lime)}
   // "nossa tenda fica na entrada do evento" com o endereco vazio, ou seja,
   // mandava uma pessoa com dificuldade de andar pra um lugar inventado.
   // ═══════════════════════════════════════════════════════════════
-  var MAPA   = "";   // ex: "mapa-acessivel.jpg", arquivo ao lado deste index
-  var PONTOS = [];   // ex: { o:"Rampa", onde:"Entrada da Arena, lado direito" }
+  var MAPA   = "mapa-acessibilidade.jpg";   // arquivo ao lado deste index
+
+  // A LISTA E O MAPA DE QUEM NAO ENXERGA. Imagem nao e lida por leitor de tela:
+  // um JPG com numeros desenhados em cima simplesmente nao existe pra quem usa
+  // VoiceOver ou TalkBack. Entao tudo que a arte marca precisa estar escrito
+  // aqui, com as mesmas palavras da legenda. Arte nova = esta lista muda junto,
+  // senao a pagina passa a mentir justamente pro publico dela.
+  //
+  // Copiado da arte "Mapa Edicao Auto - acessibilidade" (producao, 26/08/2026),
+  // sem acrescentar lugar que a arte nao nomeia.
+  var PONTOS = [
+    { o:"Elevador entre o Boulevard e o Paddock",
+      onde:"Liga o Boulevard ao Paddock, nos dois sentidos. É o ponto 1 do mapa." },
+    { o:"Rampa de acesso para a Arena",
+      onde:"Leva até a Arena sem escada. É o ponto 2 do mapa." },
+    { o:"Rampa e elevador para a área VIP e a praça de alimentação",
+      onde:"Uma rampa e um elevador dão acesso à área VIP e à praça de alimentação. É o ponto 3 do mapa." },
+    { o:"Área PCD no show",
+      onde:"Espaço reservado para pessoas com deficiência na área do show. É o ponto 4 do mapa." },
+    { o:"Banheiros com acessibilidade",
+      onde:"São quatro, marcados com WC no mapa. Se você não achar o mais perto de você, peça ajuda aqui embaixo que a equipe diz qual é e como chegar." }
+  ];
   var TENDA  = "";   // ex: "ao lado do Portão A, na entrada do Boulevard"
   var HORARIO = "";  // ex: "das 8h às 20h". Vazio = o rodape nao fala de horario.
 
@@ -496,15 +516,18 @@ input:focus,textarea:focus{border-color:var(--lime)}
   function pintarMapa(){
     $("#mapaBox").innerHTML = MAPA
       ? '<a href="' + esc(MAPA) + '" target="_blank" rel="noopener" style="display:block;border:2px solid var(--line-2);border-radius:12px;overflow:hidden">' +
-          '<img src="' + esc(MAPA) + '" alt="Mapa do evento com os pontos acessíveis marcados" style="display:block;width:100%;height:auto">' +
-        '</a><p class="dica">Toque no mapa pra abrir em tamanho cheio.</p>'
+          '<img src="' + esc(MAPA) + '" alt="Mapa ilustrado do evento com os pontos acessíveis numerados de 1 a 4 e os banheiros marcados com WC. A lista escrita logo abaixo, em Onde tem o quê, traz os mesmos pontos." style="display:block;width:100%;height:auto">' +
+        '</a><p class="dica">Toque no mapa pra abrir em tamanho cheio. Logo abaixo, em <b>Onde tem o quê</b>, os mesmos pontos estão escritos.</p>'
       : '<div class="vazio">O mapa com os pontos acessíveis está sendo preparado. ' +
         'Enquanto isso, quem te orienta é a equipe, pessoalmente ou por aqui.</div>';
   }
   function pintarPontos(){
     var h = "", i;
     if(PONTOS.length){
-      h = '<dl style="margin:0">';
+      // primeira linha que o leitor de tela le nesta secao: avisa que aqui esta,
+      // por escrito, o que a imagem mostra desenhado
+      h = '<p style="margin:0 0 4px">Tudo que está marcado no mapa, escrito:</p>' +
+          '<dl style="margin:0">';
       for(i=0;i<PONTOS.length;i++){
         h += '<dt style="font-weight:700;margin-top:12px">' + esc(PONTOS[i].o) + '</dt>' +
              '<dd style="margin:2px 0 0;color:var(--ink-2)">' + esc(PONTOS[i].onde) + '</dd>';
