@@ -79,6 +79,13 @@ p{margin:0 0 12px}
 .lenteb.fechar{background:var(--lime);color:#0B0C0A;border-color:var(--lime)}
 .lentepalco{flex:1 1 auto;display:flex;align-items:center;justify-content:center;overflow:auto;padding:6px}
 #lenteimg{display:block;transform-origin:center center}
+/* Faixa que pede a permissao de notificacao. Existe porque o botao sozinho
+   nao basta: quem entra na fila esta olhando os chamados, nao os controles, e
+   sem permissao o celular NAO acorda com o app fechado. A faixa some sozinha
+   assim que a permissao e dada ou negada, entao nao vira poluicao permanente. */
+#barranotif{margin-top:12px;border:1px solid var(--lime);border-radius:12px;
+  padding:12px 13px;background:rgba(200,255,0,.06)}
+#barranotif p{margin:0 0 10px;font-size:.95rem;line-height:1.4;color:var(--ink)}
 .subtit{font-family:var(--display);font-size:1.02rem;font-weight:700;text-transform:uppercase;
   letter-spacing:.03em;color:var(--ink);margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
 .vazio{border:1px dashed var(--line-2);border-radius:12px;padding:16px;color:var(--ink-2);font-size:1rem}
@@ -341,6 +348,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
           <button class="btn fraco" type="button" data-act="sair">Sair</button>
         </div>
         <div id="filaResumo" style="margin-top:10px"></div>
+        <div id="barranotif" hidden></div>
       </div>
       <div id="filaBox"></div>
     </section>
@@ -362,7 +370,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.8";
+  var VERSAO = "2026-08-27.9";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -925,6 +933,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
     document.body.classList.add("modoeq");
     $("#pub").hidden = true; $("#eq").hidden = false;
     $("#secLogin").hidden = true; $("#secFila").hidden = false;
+    pintarBarraNotif();
     ouvirFila();
     foco("#tFila");
   }
@@ -970,6 +979,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
         }).then(function(p){
           if(p === "granted"){ assinarPush(); toast("Avisos ligados. Som e notificação."); }
           else{ toast("Som ligado. A notificação não foi permitida."); }
+          pintarBarraNotif();
           pintarFila();
         })["catch"](function(){ toast("Alerta sonoro ligado."); });
       }else{
@@ -1021,6 +1031,45 @@ input:focus,textarea:focus{border-color:var(--lime)}
                              : esquecidos + " pedidos esperando há mais de " + MIN_ESQUECIDO + " min.", true);
       ultimoAlerta = Date.now();
     }
+  }
+
+  // ═══════════ FAIXA DE PERMISSAO ═══════════
+  function ehIOS(){
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+  function instaladoNaTela(){
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+           navigator.standalone === true;
+  }
+  function pintarBarraNotif(){
+    var bar = $("#barranotif"); if(!bar) return;
+    var esconde = function(){ bar.hidden = true; bar.innerHTML = ""; };
+    if(!souEquipe || !notifSuportada()) return esconde();
+    var p = window.Notification ? Notification.permission : "denied";
+    if(p === "granted") return esconde();
+
+    if(p === "denied"){
+      // Negado nao tem botao: o navegador nao pergunta duas vezes. Dar um botao
+      // aqui seria dar um botao que nao faz nada, e a pessoa acha que ligou.
+      bar.innerHTML = '<p><b>A notificação está bloqueada neste aparelho.</b> ' +
+        'Enquanto estiver assim, pedido novo só aparece com esta tela aberta. ' +
+        'Pra liberar: ajustes do celular, notificações, e procure este app.</p>';
+      bar.hidden = false; return;
+    }
+    if(ehIOS() && !instaladoNaTela()){
+      // No iPhone o pedido de permissao nem aparece fora do app instalado.
+      // Melhor ensinar o caminho do que oferecer um botao que falha calado.
+      bar.innerHTML = '<p><b>Pra receber aviso com o celular no bolso</b>, primeiro ' +
+        'adicione esta tela à tela de início: toque no botão de compartilhar do ' +
+        'Safari e escolha "Adicionar à Tela de Início". Depois abra por lá e toque em Ativar avisos.</p>';
+      bar.hidden = false; return;
+    }
+    bar.innerHTML = '<p><b>Ative a notificação.</b> Sem ela, pedido de ajuda novo ' +
+      'só aparece se você estiver olhando esta tela. Com ela, o celular avisa ' +
+      'dizendo o lugar, mesmo com o app fechado.</p>' +
+      '<button class="btn forte largo" type="button" data-act="somligar">Ativar notificação</button>';
+    bar.hidden = false;
   }
 
   function pintarFila(){
