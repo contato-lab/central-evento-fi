@@ -209,7 +209,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
     </section>
 
     <section class="bloco" aria-labelledby="tPontos">
-      <h2 id="tPontos">Onde tem o quê</h2>
+      <h2 id="tPontos">Descrição do mapa</h2>
       <div id="pontosBox"></div>
     </section>
 
@@ -334,7 +334,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-26.9";
+  var VERSAO = "2026-08-27.1";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -516,8 +516,8 @@ input:focus,textarea:focus{border-color:var(--lime)}
   function pintarMapa(){
     $("#mapaBox").innerHTML = MAPA
       ? '<a href="' + esc(MAPA) + '" target="_blank" rel="noopener" style="display:block;border:2px solid var(--line-2);border-radius:12px;overflow:hidden">' +
-          '<img src="' + esc(MAPA) + '" alt="Mapa ilustrado do evento com os pontos acessíveis numerados de 1 a 4 e os banheiros marcados com WC. A lista escrita logo abaixo, em Onde tem o quê, traz os mesmos pontos." style="display:block;width:100%;height:auto">' +
-        '</a><p class="dica">Toque no mapa pra abrir em tamanho cheio. Logo abaixo, em <b>Onde tem o quê</b>, os mesmos pontos estão escritos.</p>'
+          '<img src="' + esc(MAPA) + '" alt="Mapa ilustrado do evento com os pontos acessíveis numerados de 1 a 4 e os banheiros marcados com WC. A lista escrita logo abaixo, em Descrição do mapa, traz os mesmos pontos." style="display:block;width:100%;height:auto">' +
+        '</a><p class="dica">Toque no mapa pra abrir em tamanho cheio. Logo abaixo, em <b>Descrição do mapa</b>, os mesmos pontos estão em texto.</p>'
       : '<div class="vazio">O mapa com os pontos acessíveis está sendo preparado. ' +
         'Enquanto isso, quem te orienta é a equipe, pessoalmente ou por aqui.</div>';
   }
@@ -526,7 +526,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
     if(PONTOS.length){
       // primeira linha que o leitor de tela le nesta secao: avisa que aqui esta,
       // por escrito, o que a imagem mostra desenhado
-      h = '<p style="margin:0 0 4px">Tudo que está marcado no mapa, escrito:</p>' +
+      h = '<p style="margin:0 0 10px">Todos os pontos do mapa em texto: rampas, elevadores, banheiros acessíveis e a área PCD.</p>' +
           '<dl style="margin:0">';
       for(i=0;i<PONTOS.length;i++){
         h += '<dt style="font-weight:700;margin-top:12px">' + esc(PONTOS[i].o) + '</dt>' +
