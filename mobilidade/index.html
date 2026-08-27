@@ -360,7 +360,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.5";
+  var VERSAO = "2026-08-27.6";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -859,7 +859,13 @@ input:focus,textarea:focus{border-color:var(--lime)}
   function ouvirFila(){
     if(!FB_ON){ $("#filaBox").innerHTML = '<div class="offline">Este aparelho não carregou o sistema. Recarregue a página.</div>'; return; }
     if(filaUnsub) return;
-    filaUnsub = db.collection(COL).orderBy("criadoEm","desc").limit(200).onSnapshot(function(snap){
+    // LIMITE DE 500, nao 200. A edicao dura 4 dias. Com 30 a 60 pedidos por dia
+    // o total passa de 200 no sabado, e como a ordem e criadoEm desc os MAIS
+    // ANTIGOS caem fora da escuta. Se um deles ainda estivesse aberto, ele
+    // sumiria da fila sem aviso: a tela diria que nao tem ninguem esperando.
+    // 500 documentos foram medidos em 20ms de desenho neste mesmo codigo,
+    // entao o custo e irrelevante perto do risco de perder um chamado.
+    filaUnsub = db.collection(COL).orderBy("criadoEm","desc").limit(500).onSnapshot(function(snap){
       chamados = [];
       snap.forEach(function(d){ var o = d.data(); o.id = d.id; chamados.push(o); });
       pintarFila();
