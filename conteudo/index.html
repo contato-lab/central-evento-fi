@@ -905,7 +905,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-26.5";
+  var VERSAO = "2026-08-27.1";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -2467,9 +2467,11 @@
       // QUANTO FALTA na frente, hora exata do lado. A hora ja estava no banco
       // e nunca aparecia: o time preenchia e nunca via de volta.
       (q.texto ? '<span class="cfalta '+q.nivel+'">'+esc(q.texto)+'</span>' : '')+
+      // DIA NA FRENTE, HORA DEPOIS. Pedido do time em 27/08/2026: quem varre a
+      // lista procura primeiro o dia, e a hora so importa depois de achar o dia.
       '<span class="cquando">'+
-        (hora ? esc(hora)+' · ' : '')+
-        esc(rotuloDia(p.dia).replace(/^\S+\s/,""))+'</span>'+
+        esc(rotuloDia(p.dia).replace(/^\S+\s/,""))+
+        (hora ? ' · '+esc(hora) : '')+'</span>'+
       '<span class="cmeio">'+
         '<span class="cnome">'+esc(tituloPeca(p))+'</span>'+
         '<span class="cinflu">'+esc(subPeca(p))+'</span>'+
@@ -2578,7 +2580,20 @@
     for(i=0;i<FORMATOS_SUGERIDOS.length;i++) h += '<option value="'+esc(FORMATOS_SUGERIDOS[i])+'">';
     h += '</datalist></div>';
 
-    h += '<div class="fld full"><label>Referência</label><textarea id="f_referencia" maxlength="4000" placeholder="Link ou descrição da referência">'+esc(p.referencia||"")+'</textarea></div>';
+    // O LINK DA REFERENCIA PRECISA ABRIR DAQUI. Na visualizacao ele ja era
+    // clicavel (ficha() passa por linkar), mas dentro do formulario e uma
+    // textarea: o time colava o link do Instagram e tinha que selecionar,
+    // copiar e colar na barra do navegador pra ver a referencia. Mesmo botao
+    // "Abrir" que os campos das coletivas ja usam.
+    var _urlRef = primeiroLink(p.referencia);
+    h += '<div class="fld full">'+
+      '<div class="campotxtop">'+
+        '<label for="f_referencia">Referência</label>'+
+        '<a class="abrir'+(_urlRef?"":" off")+'" id="abrirRef" '+
+          (_urlRef ? 'href="'+esc(_urlRef)+'"' : 'href="#" tabindex="-1" aria-disabled="true"')+
+          ' target="_blank" rel="noopener noreferrer">Abrir</a>'+
+      '</div>'+
+      '<textarea id="f_referencia" maxlength="4000" placeholder="Link ou descrição da referência">'+esc(p.referencia||"")+'</textarea></div>';
     h += '<div class="fld full"><label>Roteiro</label><textarea id="f_roteiro" maxlength="4000" placeholder="O que precisa acontecer no vídeo">'+esc(p.roteiro||"")+'</textarea></div>';
     h += '<div class="fld"><label>Quem grava</label><input id="f_quemGrava" type="text" value="'+esc(p.quemGrava||"")+'" placeholder="Nome de quem captou"></div>';
     h += '<div class="fld"><label>Editor</label><input id="f_editor" type="text" value="'+esc(p.editor||"")+'" placeholder="Quem edita"></div>';
@@ -4229,6 +4244,21 @@
   });
 
   // busca: filtra enquanto digita, sem perder o foco do campo
+  // o botao Abrir da referencia acompanha o que a pessoa cola, sem esperar
+  // salvar: colar o link e ja poder abrir e o caminho todo em um gesto
+  document.addEventListener("input", function(ev){
+    if(!ev.target || ev.target.id !== "f_referencia") return;
+    var a = $("#abrirRef"); if(!a) return;
+    var u = primeiroLink(ev.target.value);
+    if(u){
+      a.href = u; a.classList.remove("off");
+      a.removeAttribute("tabindex"); a.removeAttribute("aria-disabled");
+    }else{
+      a.href = "#"; a.classList.add("off");
+      a.setAttribute("tabindex","-1"); a.setAttribute("aria-disabled","true");
+    }
+  });
+
   document.addEventListener("input", function(ev){
     if(ev.target.id !== "buscaPeca") return;
     // sem trim aqui: com trim, o espaco some a cada tecla e e impossivel
