@@ -7,6 +7,8 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Apoio à Mobilidade · Suhai Festival Interlagos</title>
 <link rel="icon" href="../favicon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap">
@@ -335,7 +337,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
       <h2 id="tFila" class="sr">Fila de pedidos</h2>
       <div class="barratopo">
         <div class="linhabtn">
-          <button class="btn" type="button" data-act="somligar" id="btSom">Ativar alerta sonoro</button>
+          <button class="btn" type="button" data-act="somligar" id="btSom">Ativar avisos</button>
           <button class="btn fraco" type="button" data-act="sair">Sair</button>
         </div>
         <div id="filaResumo" style="margin-top:10px"></div>
@@ -360,7 +362,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.7";
+  var VERSAO = "2026-08-27.8";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -399,6 +401,77 @@ input:focus,textarea:focus{border-color:var(--lime)}
   var LUGARES = ["Boulevard","Paddock Mall","Área do palco","Arena","Praça de Alimentação",
                  "Área Mercado Livre","Race Village","Roda Gigante","Portão D","Portão 7",
                  "Estacionamento","Outro lugar"];
+
+  // ═══════════════════════════════════════════════════════════════
+  // NOTIFICACAO
+  //
+  // Sao DUAS coisas diferentes, e a diferenca decide o que funciona quando:
+  //
+  //   AVISO LOCAL  a propria pagina manda o service worker mostrar o aviso
+  //                quando ve chamado novo na escuta em tempo real. Funciona com
+  //                o app aberto ou recem-minimizado. Nao depende de servidor.
+  //
+  //   PUSH         o servidor acorda o celular mesmo com o app FECHADO. Precisa
+  //                de quem assine o envio com a chave VAPID privada, que vive
+  //                fora daqui. A inscricao do aparelho fica em mob_push,
+  //                pronta pra ser usada assim que o envio for ligado.
+  //
+  // A chave publica e a MESMA do modulo de Conteudo de proposito: mesma
+  // identidade de remetente, mesmo servidor podendo enviar pros dois.
+  // ═══════════════════════════════════════════════════════════════
+  var VAPID_PUB = "BGpVLKMV09mK8-elVjc7xgDKZVvwZAgZc1t_fVDGtNIHks_dE6On1zvRELrAlXaykrJnLD4qJrsH26IUjr8q73Q";
+  var swReg = null;
+
+  function notifSuportada(){
+    return !!(window.navigator && "serviceWorker" in navigator && "Notification" in window);
+  }
+  function registrarSW(){
+    if(!notifSuportada()) return Promise.resolve(null);
+    return navigator.serviceWorker.register("sw.js")
+      .then(function(r){ swReg = r; return navigator.serviceWorker.ready; })
+      .then(function(r){ swReg = r || swReg; return swReg; })
+      ["catch"](function(){ return null; });
+  }
+  // a chave vai pro navegador como bytes, nao como texto
+  function chaveEmBytes(b64){
+    var t = (b64 + "=".repeat((4 - b64.length % 4) % 4)).replace(/-/g,"+").replace(/_/g,"/");
+    var bin = atob(t), arr = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  }
+  // id fixo por aparelho: sem ele, cada reativacao criaria uma inscricao nova e
+  // o mesmo celular receberia o aviso repetido
+  function idDaInscricao(endpoint){
+    var h = 5381;
+    for(var i=0;i<endpoint.length;i++){ h = ((h*33) ^ endpoint.charCodeAt(i)) >>> 0; }
+    return "s" + h.toString(36) + endpoint.length.toString(36);
+  }
+  function salvarInscricao(sub){
+    if(!FB_ON || !sub) return;
+    var j = sub.toJSON ? sub.toJSON() : sub, k = j.keys || {};
+    db.collection("mob_push").doc(idDaInscricao(j.endpoint)).set({
+      endpoint: j.endpoint, p256dh: k.p256dh || "", auth: k.auth || "",
+      quem: meuNome || "", em: Date.now()
+    })["catch"](function(){});
+  }
+  function assinarPush(){
+    if(!swReg || !swReg.pushManager) return Promise.resolve();
+    return swReg.pushManager.getSubscription().then(function(x){
+      return x || swReg.pushManager.subscribe({
+        userVisibleOnly: true,                       // exigido no iOS
+        applicationServerKey: chaveEmBytes(VAPID_PUB)
+      });
+    }).then(salvarInscricao)["catch"](function(){});
+  }
+  // SO AVISA COM O APP FORA DA FRENTE. Com a tela aberta a pessoa ja tem o bip,
+  // o toast e a fila mudando na cara dela: um cartao por cima disso e barulho.
+  function notificarChamado(c){
+    if(!swReg || !window.Notification || Notification.permission !== "granted") return;
+    if(!document.hidden) return;
+    try{
+      if(swReg.active) swReg.active.postMessage({ tipo:"chamado-novo", local: c.local || "", texto: c.texto || "" });
+    }catch(e){}
+  }
 
   var SENHA_EQUIPE = "mobilidade2026";
   var MIN_ESQUECIDO = 10;   // minutos sem ninguem pegar: o card acende e o alerta volta
@@ -886,10 +959,22 @@ input:focus,textarea:focus{border-color:var(--lime)}
       if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if(audioCtx.state === "suspended") audioCtx.resume();
       somLigado = true;
-      $("#btSom").textContent = "Alerta ligado";
+      $("#btSom").textContent = "Avisos ligados";
       $("#btSom").classList.add("forte");
       bip();
-      toast("Alerta ligado. Deixe esta tela aberta.");
+      // UM TOQUE LIGA OS DOIS. O navegador so deixa pedir permissao de
+      // notificacao dentro de um gesto da pessoa, entao e aqui ou nunca.
+      if(notifSuportada()){
+        registrarSW().then(function(){
+          return Notification.requestPermission();
+        }).then(function(p){
+          if(p === "granted"){ assinarPush(); toast("Avisos ligados. Som e notificação."); }
+          else{ toast("Som ligado. A notificação não foi permitida."); }
+          pintarFila();
+        })["catch"](function(){ toast("Alerta sonoro ligado."); });
+      }else{
+        toast("Alerta sonoro ligado. Deixe esta tela aberta.");
+      }
     }catch(e){ toast("Este aparelho não deixou ligar o som.", true); }
   }
   function bip(){
@@ -915,7 +1000,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
     for(i=0;i<chamados.length;i++){
       var c = chamados[i];
       if(stOk(c.status) !== "novo") continue;
-      if(!jaAvisou[c.id]){ jaAvisou[c.id] = true; novos++; if(c.local) locaisNovos.push(c.local); }
+      if(!jaAvisou[c.id]){ jaAvisou[c.id] = true; novos++; if(c.local) locaisNovos.push(c.local); notificarChamado(c); }
       if(minDesde(c.criadoEm) >= MIN_ESQUECIDO) esquecidos++;
     }
     if(novos){
@@ -1268,6 +1353,10 @@ input:focus,textarea:focus{border-color:var(--lime)}
       else if(meuDoc) pintarMeu();
     }, 60000);
     setTimeout(conferirVersao, 2500);
+    // registra cedo pra notificacao ja estar pronta no primeiro toque do botao
+    if(notifSuportada() && window.Notification && Notification.permission === "granted"){
+      registrarSW().then(assinarPush);
+    }
     setInterval(conferirVersao, 300000);   // 5 min com o app aberto
   }
   iniciar();
