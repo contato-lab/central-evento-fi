@@ -63,6 +63,20 @@ p{margin:0 0 12px}
 .topo .tt span{display:block;font-size:.85rem;color:var(--ink-2);line-height:1.3}
 
 .bloco{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+/* LENTE: o mapa em tela cheia DENTRO da pagina.
+   Antes a arte abria em aba nova (target=_blank). No app fixado na tela
+   inicial nao existe barra de endereco nem botao de voltar, entao a pessoa
+   ficava presa na imagem e so saia fechando o app. Agora abre por cima, com
+   botao Fechar, tecla Esc, toque no fundo e o gesto de voltar do celular. */
+#lente{position:fixed;inset:0;z-index:80;background:#000;display:flex;flex-direction:column}
+#lente[hidden]{display:none}
+.lentebar{display:flex;gap:8px;justify-content:flex-end;align-items:center;
+  padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top));background:#000;flex:0 0 auto}
+.lenteb{min-height:44px;padding:8px 18px;border-radius:10px;border:1px solid var(--line-2);
+  background:#141712;color:var(--ink);font:inherit;font-size:.95rem;font-weight:700;cursor:pointer}
+.lenteb.fechar{background:var(--lime);color:#0B0C0A;border-color:var(--lime)}
+.lentepalco{flex:1 1 auto;display:flex;align-items:center;justify-content:center;overflow:auto;padding:6px}
+#lenteimg{display:block;transform-origin:center center}
 .subtit{font-family:var(--display);font-size:1.02rem;font-weight:700;text-transform:uppercase;
   letter-spacing:.03em;color:var(--ink);margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
 .vazio{border:1px dashed var(--line-2);border-radius:12px;padding:16px;color:var(--ink-2);font-size:1rem}
@@ -199,6 +213,14 @@ input:focus,textarea:focus{border-color:var(--lime)}
       <span>Edição Auto · 26 a 30 de agosto</span>
     </div>
   </header>
+
+  <div id="lente" hidden role="dialog" aria-modal="true" aria-label="Mapa em tela cheia">
+    <div class="lentebar">
+      <button class="lenteb" type="button" data-act="lentegirar" id="btGirar">Girar</button>
+      <button class="lenteb fechar" type="button" data-act="lentefechar" id="btFecharLente">Fechar</button>
+    </div>
+    <div class="lentepalco" id="lentepalco" data-act="lentefechar"><img id="lenteimg" alt=""></div>
+  </div>
 
   <main id="app">
 
@@ -338,7 +360,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.2";
+  var VERSAO = "2026-08-27.4";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -519,12 +541,69 @@ input:focus,textarea:focus{border-color:var(--lime)}
   // ═══════════ QUEM PRECISA ═══════════
   function pintarMapa(){
     $("#mapaBox").innerHTML = MAPA
-      ? '<a href="' + esc(MAPA) + '" target="_blank" rel="noopener" style="display:block;border:2px solid var(--line-2);border-radius:12px;overflow:hidden">' +
+      ? '<a href="' + esc(MAPA) + '" data-act="lenteabrir" id="linkMapa" style="display:block;border:2px solid var(--line-2);border-radius:12px;overflow:hidden">' +
           '<img src="' + esc(MAPA) + '" alt="Mapa ilustrado do evento com os pontos acessíveis numerados de 1 a 4 e os banheiros marcados com WC. A descrição do mapa, logo abaixo, traz os mesmos pontos em texto." style="display:block;width:100%;height:auto">' +
-        '</a><p class="dica">Toque no mapa pra abrir em tamanho cheio. A <b>descrição do mapa</b>, logo abaixo, tem os mesmos pontos em texto.</p>'
+        '</a><p class="dica">Toque no mapa pra ver em tela cheia, e use o botão Fechar pra voltar. A <b>descrição do mapa</b>, logo abaixo, tem os mesmos pontos em texto.</p>'
       : '<div class="vazio">O mapa com os pontos acessíveis está sendo preparado. ' +
         'Enquanto isso, quem te orienta é a equipe, pessoalmente ou por aqui.</div>';
   }
+  // ═══════════ LENTE (mapa em tela cheia) ═══════════
+  var lenteGirada = false, lenteVoltouDe = null, lenteEmpurrou = false;
+
+  function ajustarLente(){
+    var pal = $("#lentepalco"), im = $("#lenteimg");
+    if(!pal || !im) return;
+    var L = pal.clientWidth - 12, A = pal.clientHeight - 12;
+    // girada 90deg, a largura VISUAL da imagem passa a ocupar a altura do palco
+    im.style.maxWidth  = (lenteGirada ? A : L) + "px";
+    im.style.maxHeight = (lenteGirada ? L : A) + "px";
+    im.style.transform = lenteGirada ? "rotate(90deg)" : "none";
+    var bg = $("#btGirar");
+    if(bg) bg.textContent = lenteGirada ? "Desgirar" : "Girar";
+  }
+
+  function abrirLente(){
+    if(!MAPA) return;
+    var lente = $("#lente"), im = $("#lenteimg");
+    im.src = MAPA;
+    im.alt = "Mapa do evento em tela cheia. A descrição em texto está na página, em Descrição do mapa.";
+    // JA ABRE DEITADO NO CELULAR EM PE. A arte e larga: em retrato ela fica
+    // minuscula e a pessoa teria que destravar a rotacao do aparelho pra ler.
+    lenteGirada = window.innerHeight > window.innerWidth;
+    lente.hidden = false;
+    document.body.style.overflow = "hidden";
+    ajustarLente();
+    lenteVoltouDe = document.activeElement;
+    var bf = $("#btFecharLente"); if(bf) bf.focus();
+    // O GESTO DE VOLTAR DO CELULAR TAMBEM FECHA. Sem isto, no app da tela
+    // inicial o gesto sairia do app inteiro em vez de sair da imagem.
+    try{ history.pushState({ lente:1 }, ""); lenteEmpurrou = true; }catch(e){ lenteEmpurrou = false; }
+  }
+
+  function fecharLente(peloHistorico){
+    var lente = $("#lente");
+    if(!lente || lente.hidden) return;
+    lente.hidden = true;
+    $("#lenteimg").removeAttribute("src");
+    document.body.style.overflow = "";
+    if(!peloHistorico && lenteEmpurrou){ lenteEmpurrou = false; try{ history.back(); }catch(e){} }
+    if(peloHistorico) lenteEmpurrou = false;
+    // devolve o foco pro mapa: sem isto o leitor de tela volta pro topo da
+    // pagina e a pessoa perde o lugar onde estava
+    var volta = (lenteVoltouDe && lenteVoltouDe.focus && document.contains(lenteVoltouDe))
+      ? lenteVoltouDe : $("#linkMapa");
+    if(volta && volta.focus) volta.focus();
+  }
+
+  window.addEventListener("popstate", function(){ fecharLente(true); });
+  window.addEventListener("resize", function(){ if(!$("#lente").hidden) ajustarLente(); });
+  window.addEventListener("orientationchange", function(){
+    setTimeout(function(){ if(!$("#lente").hidden){ lenteGirada = window.innerHeight > window.innerWidth; ajustarLente(); } }, 250);
+  });
+  document.addEventListener("keydown", function(ev){
+    if(ev.key === "Escape" && !$("#lente").hidden) fecharLente(false);
+  });
+
   function pintarPontos(){
     var h = "", i;
     if(PONTOS.length){
@@ -1024,6 +1103,9 @@ input:focus,textarea:focus{border-color:var(--lime)}
       foco("#tPedir");
       return;
     }
+    if(act === "lenteabrir"){ ev.preventDefault(); abrirLente(); return; }
+    if(act === "lentefechar"){ fecharLente(false); return; }
+    if(act === "lentegirar"){ lenteGirada = !lenteGirada; ajustarLente(); return; }
     if(act === "lugar"){ marcarLugar(b); return; }
     if(act === "novoPedido"){
       if(!confirm("Isto encerra o acompanhamento deste pedido na sua tela. A equipe continua vendo. Encerrar?")) return;
@@ -1094,19 +1176,54 @@ input:focus,textarea:focus{border-color:var(--lime)}
   // rodando e recarrega uma vez. Sem isto o celular fica com a copia velha e
   // "eu subi a correcao" nao significa nada. Trava anti-loop no sessionStorage.
   // ═══════════════════════════════════════════════════════════════
+  // ATENCAO: este app fica FIXADO NA TELA INICIAL do celular do coordenador e
+  // da equipe. Nesse modo nao existe barra de endereco nem botao de recarregar:
+  // se a pagina nao se atualizar sozinha, a pessoa fica com a versao de ontem e
+  // NAO TEM COMO CONSERTAR SEM DESINSTALAR. Por isso a conferencia acontece em
+  // tres momentos, nao so na abertura:
+  //   1. 2,5s depois de abrir
+  //   2. toda vez que o app volta pro primeiro plano (e o caso mais comum:
+  //      a pessoa troca de app o dia inteiro)
+  //   3. de 5 em 5 minutos com o app aberto
+  function estaDigitando(){
+    // NAO RECARREGAR POR CIMA DE ALGUEM ESCREVENDO. Recarregar apaga o texto,
+    // e quem esta escrevendo aqui e uma pessoa pedindo ajuda ou a equipe
+    // respondendo. Nesses casos adia: a proxima conferencia pega.
+    var campos = document.querySelectorAll("textarea, input[type=text], input[type=tel]"), i;
+    for(i = 0; i < campos.length; i++){
+      if(campos[i].value && campos[i].value.trim()) return true;
+    }
+    return document.activeElement && /^(TEXTAREA|INPUT)$/.test(document.activeElement.tagName);
+  }
+
   function conferirVersao(){
     fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })
       .then(function(r){ return r.text(); })
       .then(function(html){
         var m = html.match(/var VERSAO = "([^"]+)"/);
         if(!m || m[1] === VERSAO) return;
-        var ja = false;
-        try{ ja = sessionStorage.getItem("mob_recarregou") === "1"; }catch(e){}
-        if(ja) return;
-        try{ sessionStorage.setItem("mob_recarregou","1"); }catch(e){}
-        location.reload();
+        if(estaDigitando()) return;
+        // Trava anti-loop POR VERSAO, nao por sessao. Antes era a string "1":
+        // depois da primeira atualizacao a trava ficava ligada pra sempre e a
+        // SEGUNDA correcao do dia nunca chegava no aparelho. Guardando a versao
+        // alvo, um recarregamento que nao pegou nao vira loop, mas uma versao
+        // nova depois dela continua entrando.
+        var ja = "";
+        try{ ja = sessionStorage.getItem("mob_recarregou") || ""; }catch(e){}
+        if(ja === m[1]) return;
+        try{ sessionStorage.setItem("mob_recarregou", m[1]); }catch(e){}
+        // location.reload() pode devolver a copia de cache no app da tela
+        // inicial. Trocar a URL com carimbo de hora forca documento novo.
+        location.replace(location.pathname + "?v=" + Date.now() + location.hash);
       })["catch"](function(){});
   }
+
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden) conferirVersao();
+  });
+  window.addEventListener("pageshow", function(ev){
+    if(ev.persisted) conferirVersao();   // voltou do cache de historico
+  });
 
   // ═══════════════════════════════════════════════════════════════
   // PARTIDA: sempre na ULTIMA linha. Chamar isto no meio do arquivo ja quebrou
@@ -1139,6 +1256,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
       else if(meuDoc) pintarMeu();
     }, 60000);
     setTimeout(conferirVersao, 2500);
+    setInterval(conferirVersao, 300000);   // 5 min com o app aberto
   }
   iniciar();
 })();
