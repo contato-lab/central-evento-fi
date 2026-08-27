@@ -370,7 +370,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.9";
+  var VERSAO = "2026-08-27.10";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -1186,10 +1186,11 @@ input:focus,textarea:focus{border-color:var(--lime)}
         '<button class="btn fraco" type="button" data-act="eqdobra" data-id="' + esc(c.id) + '" aria-expanded="true">Recolher</button>' +
       '</div>';
     }else{
-      if(!c.assumidoPor){
-        h += '<div class="linhabtn" style="margin:10px 0"><button class="btn forte" type="button" ' +
-             'data-act="assumir" data-id="' + esc(c.id) + '">Eu pego este</button></div>';
-      }
+      // NAO EXISTE MAIS "Eu pego este". Eram cinco botoes numa tela onde o
+      // coordenador pediu QUATRO, e o quinto era o mais chamativo de todos sem
+      // fazer nada que os outros ja nao facam: responder qualquer uma das
+      // quatro respostas prontas ja grava assumidoPor com o nome de quem
+      // respondeu. Botao a mais em tela de emergencia e tempo perdido.
       h += '<div class="rapidas">';
       for(i=0;i<rs.length;i++){
         h += '<button type="button" class="rapida' + (rs[i].fecha ? " fecha" : "") + '" ' +
@@ -1288,12 +1289,6 @@ input:focus,textarea:focus{border-color:var(--lime)}
     if(act === "sair"){ sairEquipe(); return; }
     if(act === "somligar"){ ligarSom(); pintarFila(); return; }
 
-    if(act === "assumir"){
-      if(!FB_ON) return;
-      db.collection(COL).doc(id).update({ assumidoPor: meuNome, em: Date.now() })
-        ["catch"](function(){ toast("Não deu para marcar.", true); });
-      return;
-    }
     if(act === "eqdobra"){ eqAberto[id] = !eqAberto[id]; pintarFila(); return; }
     if(act === "eqconversa"){ eqConversa[id] = true; pintarFila(); return; }
     if(act === "reabrir"){
