@@ -63,6 +63,8 @@ p{margin:0 0 12px}
 .topo .tt span{display:block;font-size:.85rem;color:var(--ink-2);line-height:1.3}
 
 .bloco{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.subtit{font-family:var(--display);font-size:1.02rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.03em;color:var(--ink);margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
 .vazio{border:1px dashed var(--line-2);border-radius:12px;padding:16px;color:var(--ink-2);font-size:1rem}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -203,13 +205,15 @@ input:focus,textarea:focus{border-color:var(--lime)}
   <!-- ══════════ QUEM PRECISA ══════════ -->
   <div id="pub">
 
+    <!-- UM BLOCO SO. A arte e a descricao sao a MESMA informacao em dois
+         formatos, entao ficam juntas: quem enxerga ve a imagem e ja tem a
+         descricao logo abaixo; quem usa leitor de tela entra em "Mapa
+         acessivel" e acha a descricao dentro, sem ter que adivinhar que
+         existe outra secao mais pra baixo. -->
     <section class="bloco" aria-labelledby="tMapa">
       <h2 id="tMapa">Mapa acessível</h2>
       <div id="mapaBox"></div>
-    </section>
-
-    <section class="bloco" aria-labelledby="tPontos">
-      <h2 id="tPontos">Descrição do mapa</h2>
+      <h3 id="tPontos" class="subtit">Descrição do mapa</h3>
       <div id="pontosBox"></div>
     </section>
 
@@ -334,7 +338,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.1";
+  var VERSAO = "2026-08-27.2";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -516,8 +520,8 @@ input:focus,textarea:focus{border-color:var(--lime)}
   function pintarMapa(){
     $("#mapaBox").innerHTML = MAPA
       ? '<a href="' + esc(MAPA) + '" target="_blank" rel="noopener" style="display:block;border:2px solid var(--line-2);border-radius:12px;overflow:hidden">' +
-          '<img src="' + esc(MAPA) + '" alt="Mapa ilustrado do evento com os pontos acessíveis numerados de 1 a 4 e os banheiros marcados com WC. A lista escrita logo abaixo, em Descrição do mapa, traz os mesmos pontos." style="display:block;width:100%;height:auto">' +
-        '</a><p class="dica">Toque no mapa pra abrir em tamanho cheio. Logo abaixo, em <b>Descrição do mapa</b>, os mesmos pontos estão em texto.</p>'
+          '<img src="' + esc(MAPA) + '" alt="Mapa ilustrado do evento com os pontos acessíveis numerados de 1 a 4 e os banheiros marcados com WC. A descrição do mapa, logo abaixo, traz os mesmos pontos em texto." style="display:block;width:100%;height:auto">' +
+        '</a><p class="dica">Toque no mapa pra abrir em tamanho cheio. A <b>descrição do mapa</b>, logo abaixo, tem os mesmos pontos em texto.</p>'
       : '<div class="vazio">O mapa com os pontos acessíveis está sendo preparado. ' +
         'Enquanto isso, quem te orienta é a equipe, pessoalmente ou por aqui.</div>';
   }
