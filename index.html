@@ -600,7 +600,21 @@
   /* ===== SUB-ABAS DO MURAL + COLETIVAS =====
      A agenda de coletivas e uma grade fixa: dia, hora e marca. O slot em
      andamento ganha destaque AGORA; o que ja passou apaga. */
-  .mapaArte{display:block;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  /* LENTE: o mapa em tela cheia DENTRO da pagina, com botao Fechar.
+   Antes a arte abria em aba nova (target=_blank). No celular com a Central
+   fixada na tela inicial nao existe barra de endereco nem botao de voltar:
+   a pessoa ficava presa na imagem e so saia fechando o app. Mesma solucao
+   ja usada no modulo de mobilidade, copiada de la. */
+#lente{position:fixed;inset:0;z-index:120;background:#000;display:flex;flex-direction:column}
+#lente[hidden]{display:none}
+.lentebar{display:flex;gap:8px;justify-content:flex-end;align-items:center;
+  padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top));background:#000;flex:0 0 auto}
+.lenteb{min-height:44px;padding:8px 18px;border-radius:10px;border:1px solid var(--line);
+  background:#141712;color:var(--ink);font:inherit;font-size:.95rem;font-weight:700;cursor:pointer}
+.lenteb.fechar{background:var(--lime);color:#0B0C0A;border-color:var(--lime)}
+.lentepalco{flex:1 1 auto;display:flex;align-items:center;justify-content:center;overflow:auto;padding:6px}
+#lenteimg{display:block;transform-origin:center center}
+.mapaArte{display:block;border:1px solid var(--line);border-radius:10px;overflow:hidden;
     background:#000;margin:0 0 14px}
   .mapaArte img{display:block;width:100%;height:auto}
   .mapaLeg{margin:0;padding:0 0 0 26px;display:grid;gap:7px}
@@ -868,6 +882,14 @@
   .legenda span{display:flex;align-items:center;gap:7px;font-size:.72rem;color:var(--ink-2)}
   .legenda i{width:9px;height:9px;border-radius:50%;display:inline-block;font-style:normal}
 </style>
+
+<div id="lente" hidden role="dialog" aria-modal="true" aria-label="Mapa em tela cheia">
+  <div class="lentebar">
+    <button class="lenteb" type="button" id="btGirar">Girar</button>
+    <button class="lenteb fechar" type="button" id="btFecharLente">Fechar</button>
+  </div>
+  <div class="lentepalco" id="lentepalco"><img id="lenteimg" alt=""></div>
+</div>
 
 <div class="fi">
 
@@ -1225,7 +1247,7 @@
   // O GitHub Pages e o celular guardam a pagina em cache e as vezes servem uma copia velha,
   // que foi exatamente o que fez o mural aparecer vazio. Aqui a pagina confere sozinha:
   // busca o arquivo ignorando o cache e, se a versao no servidor for outra, recarrega uma vez.
-  var VERSAO = "2026-08-26.6";
+  var VERSAO = "2026-08-27.1";
   (function conferirVersao(){
     try{
       if(location.protocol === "file:") return;
@@ -2967,8 +2989,8 @@
   function renderMapa(){
     var caixa = $("#mapaBox"); if(!caixa) return;
     if(mapaMontado) return;          // monta uma vez so: nada aqui muda com a hora
-    var h = '<p class="legenda">Mapa oficial da Edição Auto. Toque na arte pra abrir em tamanho cheio e dar zoom.</p>';
-    h += '<a class="mapaArte" href="mapa-auto.jpg" target="_blank" rel="noopener">' +
+    var h = '<p class="legenda">Mapa oficial da Edição Auto. Toque na arte pra ver em tela cheia, e use o botão Fechar pra voltar.</p>';
+    h += '<a class="mapaArte" href="mapa-auto.jpg" id="linkMapa">' +
            '<img src="mapa-auto.jpg" alt="Mapa do Festival Interlagos, edição auto, com as dez áreas numeradas">' +
          '</a>';
     h += '<ol class="mapaLeg">';
@@ -2977,8 +2999,71 @@
     });
     h += '</ol>';
     caixa.innerHTML = h;
+    var lk = $("#linkMapa");
+    if(lk) lk.addEventListener("click", function(ev){ ev.preventDefault(); abrirLente(); });
     mapaMontado = true;
   }
+
+  // ═══════════ LENTE (mapa em tela cheia) ═══════════
+  // Copiada do modulo de mobilidade em 27/08/2026, mesmo comportamento:
+  // Fechar, tecla Esc, toque no fundo e o gesto de voltar do celular saem da
+  // imagem sem sair do app. No celular em pe a arte ja abre girada: deitada e
+  // o unico jeito de ler imagem larga sem destravar a rotacao do aparelho.
+  var lenteGirada = false, lenteVoltouDe = null, lenteEmpurrou = false;
+
+  function ajustarLente(){
+    var pal = $("#lentepalco"), im = $("#lenteimg");
+    if(!pal || !im) return;
+    var L = pal.clientWidth - 12, A = pal.clientHeight - 12;
+    im.style.maxWidth  = (lenteGirada ? A : L) + "px";
+    im.style.maxHeight = (lenteGirada ? L : A) + "px";
+    im.style.transform = lenteGirada ? "rotate(90deg)" : "none";
+    var bg = $("#btGirar");
+    if(bg) bg.textContent = lenteGirada ? "Desgirar" : "Girar";
+  }
+
+  function abrirLente(){
+    var lente = $("#lente"), im = $("#lenteimg");
+    if(!lente || !im) return;
+    im.src = "mapa-auto.jpg";
+    im.alt = "Mapa do Festival Interlagos em tela cheia, com as dez áreas numeradas.";
+    lenteGirada = window.innerHeight > window.innerWidth;
+    lente.hidden = false;
+    document.body.style.overflow = "hidden";
+    ajustarLente();
+    lenteVoltouDe = document.activeElement;
+    var bf = $("#btFecharLente"); if(bf) bf.focus();
+    try{ history.pushState({ lente:1 }, ""); lenteEmpurrou = true; }catch(e){ lenteEmpurrou = false; }
+  }
+
+  function fecharLente(peloHistorico){
+    var lente = $("#lente");
+    if(!lente || lente.hidden) return;
+    lente.hidden = true;
+    $("#lenteimg").removeAttribute("src");
+    document.body.style.overflow = "";
+    if(!peloHistorico && lenteEmpurrou){ lenteEmpurrou = false; try{ history.back(); }catch(e){} }
+    if(peloHistorico) lenteEmpurrou = false;
+    var volta = (lenteVoltouDe && lenteVoltouDe.focus && document.contains(lenteVoltouDe))
+      ? lenteVoltouDe : $("#linkMapa");
+    if(volta && volta.focus) volta.focus();
+  }
+
+  (function(){
+    var bf = $("#btFecharLente"), bg = $("#btGirar"), pal = $("#lentepalco");
+    if(bf) bf.addEventListener("click", function(){ fecharLente(false); });
+    if(bg) bg.addEventListener("click", function(){ lenteGirada = !lenteGirada; ajustarLente(); });
+    if(pal) pal.addEventListener("click", function(ev){ if(ev.target === pal) fecharLente(false); });
+  })();
+  window.addEventListener("popstate", function(){ fecharLente(true); });
+  window.addEventListener("resize", function(){ var l=$("#lente"); if(l && !l.hidden) ajustarLente(); });
+  window.addEventListener("orientationchange", function(){
+    setTimeout(function(){ var l=$("#lente"); if(l && !l.hidden){ lenteGirada = window.innerHeight > window.innerWidth; ajustarLente(); } }, 250);
+  });
+  document.addEventListener("keydown", function(ev){
+    var l=$("#lente");
+    if(ev.key === "Escape" && l && !l.hidden) fecharLente(false);
+  });
 
   var subMuralAtivo = "prog";
   function aplicarSubMural(){
