@@ -86,6 +86,11 @@ p{margin:0 0 12px}
 #barranotif{margin-top:12px;border:1px solid var(--lime);border-radius:12px;
   padding:12px 13px;background:rgba(200,255,0,.06)}
 #barranotif p{margin:0 0 10px;font-size:.95rem;line-height:1.4;color:var(--ink)}
+.selo.feito{border-color:var(--lime);color:var(--lime)}
+.selo.feito .pt{background:var(--lime)}
+/* o unico selo que grita: alguem esperando alem do combinado */
+.selo.atrasado{border-color:#FF8A7A;color:#FF8A7A;font-weight:700}
+.selo.atrasado .pt{background:#FF8A7A}
 .subtit{font-family:var(--display);font-size:1.02rem;font-weight:700;text-transform:uppercase;
   letter-spacing:.03em;color:var(--ink);margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
 .vazio{border:1px dashed var(--line-2);border-radius:12px;padding:16px;color:var(--ink-2);font-size:1rem}
@@ -370,7 +375,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.10";
+  var VERSAO = "2026-08-27.11";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -1081,18 +1086,30 @@ input:focus,textarea:focus{border-color:var(--lime)}
       return (a.criadoEm || 0) - (b.criadoEm || 0);
     });
 
-    var nNovo = 0, nCam = 0, nCon = 0, i;
+    // OS QUATRO STATUS, SEMPRE OS QUATRO, mais o que esta demorando.
+    // O concluido faltava e e o numero que responde "como foi o dia": sem ele
+    // a tela so mostra problema em aberto e o trabalho feito fica invisivel.
+    // Aparecem mesmo zerados, menos o "esperando ha mais de X", que so faz
+    // sentido quando existe: chip zerado ali seria alarme falso permanente.
+    var nNovo = 0, nCam = 0, nCon = 0, nFeito = 0, nEsperando = 0, i;
     for(i=0;i<chamados.length;i++){
       var s = stOk(chamados[i].status);
-      if(s === "novo") nNovo++;
+      if(s === "novo"){
+        nNovo++;
+        if(minDesde(chamados[i].criadoEm) >= MIN_ESQUECIDO) nEsperando++;
+      }
       else if(s === "a_caminho") nCam++;
       else if(s === "contato") nCon++;
+      else if(s === "resolvido") nFeito++;
     }
     $("#filaResumo").innerHTML =
       '<div class="linhabtn">' +
         '<span class="selo novo"><span class="pt"></span>' + nNovo + ' recebido' + (nNovo===1?"":"s") + '</span>' +
         '<span class="selo a_caminho"><span class="pt"></span>' + nCam + ' a caminho</span>' +
-        (nCon ? '<span class="selo contato"><span class="pt"></span>' + nCon + ' sem contato</span>' : "") +
+        '<span class="selo contato"><span class="pt"></span>' + nCon + ' tentativa de contato</span>' +
+        '<span class="selo feito"><span class="pt"></span>' + nFeito + ' concluído' + (nFeito===1?"":"s") + '</span>' +
+        (nEsperando ? '<span class="selo atrasado"><span class="pt"></span>' + nEsperando +
+           ' esperando +' + MIN_ESQUECIDO + ' min</span>' : "") +
       '</div>' +
       (somLigado ? "" : '<div class="offline" style="margin-top:8px">Alerta sonoro desligado: pedido novo só aparece olhando a tela.</div>');
     document.title = (nNovo ? "(" + nNovo + ") " : "") + "Apoio à Mobilidade · Suhai Festival Interlagos";
