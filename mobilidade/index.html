@@ -360,7 +360,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.4";
+  var VERSAO = "2026-08-27.5";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -543,7 +543,13 @@ input:focus,textarea:focus{border-color:var(--lime)}
     $("#mapaBox").innerHTML = MAPA
       ? '<a href="' + esc(MAPA) + '" data-act="lenteabrir" id="linkMapa" style="display:block;border:2px solid var(--line-2);border-radius:12px;overflow:hidden">' +
           '<img src="' + esc(MAPA) + '" alt="Mapa ilustrado do evento com os pontos acessíveis numerados de 1 a 4 e os banheiros marcados com WC. A descrição do mapa, logo abaixo, traz os mesmos pontos em texto." style="display:block;width:100%;height:auto">' +
-        '</a><p class="dica">Toque no mapa pra ver em tela cheia, e use o botão Fechar pra voltar. A <b>descrição do mapa</b>, logo abaixo, tem os mesmos pontos em texto.</p>'
+        '</a>' +
+        // BOTAO DE VERDADE, nao instrucao escrita. A arte e larga: no celular
+        // em pe ela sai minuscula, e a pessoa so leria virando o aparelho, o que
+        // exige destravar a rotacao. O botao abre ja deitado, sem isso.
+        '<button class="btn largo" type="button" data-act="lenteabrir" style="margin-top:10px">' +
+          'Ver o mapa na horizontal</button>' +
+        '<p class="dica">A <b>descrição do mapa</b>, logo abaixo, tem os mesmos pontos em texto.</p>'
       : '<div class="vazio">O mapa com os pontos acessíveis está sendo preparado. ' +
         'Enquanto isso, quem te orienta é a equipe, pessoalmente ou por aqui.</div>';
   }
