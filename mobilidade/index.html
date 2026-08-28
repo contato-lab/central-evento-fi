@@ -375,7 +375,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.12";
+  var VERSAO = "2026-08-27.13";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -860,6 +860,19 @@ input:focus,textarea:focus{border-color:var(--lime)}
     db.collection(COL).add(obj).then(function(ref){
       if(acabou) return;
       acabou = true; clearTimeout(prazo); destravar();
+      // TOCA A CAMPAINHA NA HORA, sem esperar o robo da rodada seguinte.
+      // O envio das notificacoes roda de minuto em minuto (piso da Cloudflare);
+      // com alguem parado esperando, ate 60s a mais e tempo demais. Esta
+      // chamada so ACELERA: se falhar, o robo pega na proxima rodada.
+      //
+      // no-cors porque nao precisamos ler a resposta, so provocar o envio, e
+      // sem isto o navegador barraria a chamada por ser de outro dominio.
+      // Fica DEPOIS da gravacao dar certo e dentro de try: o pedido de ajuda
+      // nunca pode falhar por causa do aviso.
+      try{
+        fetch("https://push-central-conteudo.performance-ef2.workers.dev/agora",
+              { mode:"no-cors", cache:"no-store" })["catch"](function(){});
+      }catch(e){}
       meuId = ref.id;
       try{ localStorage.setItem("mob_id", meuId); }catch(e){}
       meuDoc = obj; meuDoc.id = meuId;
