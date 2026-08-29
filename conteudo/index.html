@@ -298,6 +298,24 @@
      rolagem da pagina. Duas setas resolvem o mesmo e nao erram.
      Fica FORA da .cabeca porque .cabeca ja e um <button> e botao dentro de botao
      nao vale em HTML: o navegador desmonta e o clique de cima come o de dentro. */
+  /* ---------- ARRASTAR (ordem das pecas) ----------
+     Pedido do time em 29/08: poder colocar as pecas na ordem que quiser
+     arrastando com o mouse.
+     POR QUE ALCA E NAO O CARTAO INTEIRO: a decisao registrada logo abaixo
+     ("Setas, nao arrastar") continua valendo pro celular, onde arrastar o
+     cartao briga com a rolagem. Uma alca resolve os dois: no mouse da pra
+     pegar e arrastar, e no toque a rolagem so e capturada se a pessoa
+     encostar de proposito nos seis pontinhos.
+     Fica FORA da .cabeca porque .cabeca ja e um <button>. */
+  .pega{display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+    width:30px;color:var(--ink-3);cursor:grab;touch-action:none;user-select:none;
+    border-right:1px solid var(--line-soft);font-size:.95rem;line-height:1}
+  .pega:hover{color:var(--lime);background:var(--panel-2)}
+  .pega:active{cursor:grabbing}
+  .bloco.arrastando{opacity:.45}
+  /* linha que mostra ONDE vai cair. Sem ela a pessoa arrasta no escuro e so
+     descobre a posicao quando solta. */
+  .alvodrop{height:3px;background:var(--lime);border-radius:3px;margin:3px 0}
   .blocotopo{display:flex;align-items:stretch}
   .blocotopo > .cabeca{flex:1;min-width:0}
   .mover{display:flex;flex-direction:column;justify-content:center;gap:1px;
@@ -905,7 +923,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.1";
+  var VERSAO = "2026-08-29.1";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -2210,8 +2228,17 @@
       // lista pra saber o que e agora, nao quem chegou antes.
       // Sem hora vai pro fim do dia: nao da pra afirmar que e urgente, e chutar
       // 00:00 colocaria ela em cima de tudo.
+      // ORDEM MANUAL SO VALE NO DIA QUE ALGUEM JA ARRASTOU. Enquanto ninguem
+      // mexe, o dia segue exatamente o criterio de sempre (horario, depois
+      // criacao). Assim ligar o arrastar nao remexe sozinho nenhuma lista que o
+      // time ja conhece: a ordem so muda quando alguem arrasta de proposito.
+      var diaComOrdem = {};
+      for(var z=0;z<vis.length;z++){
+        if(typeof vis[z].ord === "number") diaComOrdem[vis[z].dia||""] = true;
+      }
       vis.sort(function(a,b){
         if((a.dia||"") !== (b.dia||"")) return (a.dia||"") < (b.dia||"") ? -1 : 1;
+        if(diaComOrdem[a.dia||""]) return ordDe(a) - ordDe(b);
         var ma = minutosDe(a.horario), mb = minutosDe(b.horario);
         if(ma === null && mb !== null) return 1;
         if(mb === null && ma !== null) return -1;
@@ -2461,7 +2488,11 @@
     var hora = horaBonita(p.horario);
     var q    = faltaQuanto(p);
     var h = '<div class="bloco'+(p.status==="publicado"?" completo":"")+(nova?" ehnovo":"")+
-            (late?" atrasada":"")+'" id="pc_'+esc(p.id)+'">';
+            (late?" atrasada":"")+'" id="pc_'+esc(p.id)+'" data-peca="'+esc(p.id)+'"'+
+            ' data-dia="'+esc(p.dia||"")+'">';
+    h += '<div class="blocotopo">';
+    h += '<div class="pega" data-pega="'+esc(p.id)+'" title="Arraste para mudar a ordem" '+
+         'aria-label="Arraste para mudar a ordem">&#8942;&#8942;</div>';
     h += '<button class="cabeca" data-act="abrirpeca" data-id="'+p.id+'">'+
       (nova ? '<span class="tagnova">NOVA</span>' : '')+
       // QUANTO FALTA na frente, hora exata do lado. A hora ja estava no banco
@@ -2481,6 +2512,7 @@
       (p.status ? '<span class="tag st" data-st="'+p.status+'">'+esc(ST_CURTO[p.status])+'</span>' : '')+
       '<span class="cmais">'+(aberto?"&minus;":"+")+'</span>'+
     '</button>';
+    h += '</div>';   // fecha .blocotopo (alca + cabeca)
 
     if(aberto){
       h += '<div class="corpo">';
@@ -4269,6 +4301,108 @@
     var novo = $("#buscaPeca");
     if(novo){ novo.focus(); try{ novo.setSelectionRange(pos,pos); }catch(e){} }
   });
+
+  // ═══════════════════════════════════════════════════════════════
+  // ARRASTAR PARA REORDENAR AS PECAS
+  //
+  // Usa Pointer Events, nao o drag-and-drop nativo do HTML, por dois motivos:
+  // o nativo nao funciona em toque nenhum, e nao deixa desenhar a linha que
+  // mostra onde a peca vai cair.
+  //
+  // Grava a ordem do DIA INTEIRO, nao so a da tela: com filtro ligado, as pecas
+  // escondidas continuam entre as visiveis na posicao que ja tinham. Gravar so
+  // o que esta na tela embaralharia o que ninguem viu.
+  //
+  // Arrastar de um dia pro outro NAO move: dia e hora vem da grade, e mexer
+  // nisso pelo arraste mudaria a agenda sem querer. Solta e volta pro lugar.
+  // ═══════════════════════════════════════════════════════════════
+  var arr = null;
+
+  function pecasDoDiaEmOrdem(dia){
+    var doDia = pecas.filter(function(p){ return (p.dia||"") === dia; });
+    var temOrd = doDia.some(function(p){ return typeof p.ord === "number"; });
+    doDia.sort(function(a,b){
+      if(temOrd) return ordDe(a) - ordDe(b);
+      var ma = minutosDe(a.horario), mb = minutosDe(b.horario);
+      if(ma === null && mb !== null) return 1;
+      if(mb === null && ma !== null) return -1;
+      if(ma !== null && mb !== null && ma !== mb) return ma - mb;
+      return (a.criadoEm||0) - (b.criadoEm||0);
+    });
+    return doDia;
+  }
+
+  function limparArraste(){
+    if(arr && arr.el) arr.el.classList.remove("arrastando");
+    var m = document.querySelector(".alvodrop");
+    if(m && m.parentNode) m.parentNode.removeChild(m);
+    arr = null;
+  }
+
+  document.addEventListener("pointerdown", function(ev){
+    var pega = ev.target.closest && ev.target.closest(".pega");
+    if(!pega) return;
+    var el = pega.closest(".bloco");
+    if(!el) return;
+    ev.preventDefault();
+    var dia = el.getAttribute("data-dia") || "";
+    var cartoes = Array.prototype.filter.call(
+      document.querySelectorAll("#view-pecas .bloco[data-peca]"),
+      function(c){ return (c.getAttribute("data-dia")||"") === dia; });
+    arr = { id: pega.getAttribute("data-pega"), dia: dia, el: el, cartoes: cartoes, marca: null };
+    el.classList.add("arrastando");
+    try{ pega.setPointerCapture(ev.pointerId); }catch(e){}
+  });
+
+  document.addEventListener("pointermove", function(ev){
+    if(!arr) return;
+    ev.preventDefault();
+    var marca = document.querySelector(".alvodrop");
+    if(!marca){ marca = document.createElement("div"); marca.className = "alvodrop"; }
+    var antes = null;
+    for(var i=0;i<arr.cartoes.length;i++){
+      var c = arr.cartoes[i];
+      if(c === arr.el) continue;
+      var r = c.getBoundingClientRect();
+      if(ev.clientY < r.top + r.height/2){ antes = c; break; }
+    }
+    if(antes) antes.parentNode.insertBefore(marca, antes);
+    else if(arr.cartoes.length){
+      var ult = arr.cartoes[arr.cartoes.length-1];
+      ult.parentNode.insertBefore(marca, ult.nextSibling);
+    }
+    arr.marca = marca;
+  });
+
+  document.addEventListener("pointerup", function(){
+    if(!arr) return;
+    var marca = arr.marca;
+    if(!marca || !marca.parentNode){ limparArraste(); return; }
+    var visiveis = arr.cartoes.filter(function(c){ return c !== arr.el; });
+    var destino = visiveis.length, i;
+    for(i=0;i<visiveis.length;i++){
+      if(marca.compareDocumentPosition(visiveis[i]) & Node.DOCUMENT_POSITION_FOLLOWING){ destino = i; break; }
+    }
+    var idsVisiveis = visiveis.map(function(c){ return c.getAttribute("data-peca"); });
+    var doDia = pecasDoDiaEmOrdem(arr.dia);
+    var movida = null, resto = [];
+    for(i=0;i<doDia.length;i++){
+      if(doDia[i].id === arr.id) movida = doDia[i];
+      else resto.push(doDia[i]);
+    }
+    if(!movida){ limparArraste(); return; }
+    var ancora = (destino < idsVisiveis.length) ? idsVisiveis[destino] : null;
+    var nova = [], colocada = false;
+    for(i=0;i<resto.length;i++){
+      if(ancora && resto[i].id === ancora && !colocada){ nova.push(movida); colocada = true; }
+      nova.push(resto[i]);
+    }
+    if(!colocada) nova.push(movida);
+    limparArraste();
+    if(regravarOrdem("pecas", nova)) renderPecas();
+  });
+
+  document.addEventListener("pointercancel", limparArraste);
 
   // ═══════════════════════════════════════════════════════════════
   // MINI GUIA — uma unica vez por aparelho, e o "?" reabre quando quiser
