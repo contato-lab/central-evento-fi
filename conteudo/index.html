@@ -930,7 +930,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-29.2";
+  var VERSAO = "2026-08-29.4";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -2235,17 +2235,14 @@
       // lista pra saber o que e agora, nao quem chegou antes.
       // Sem hora vai pro fim do dia: nao da pra afirmar que e urgente, e chutar
       // 00:00 colocaria ela em cima de tudo.
-      // ORDEM MANUAL SO VALE NO DIA QUE ALGUEM JA ARRASTOU. Enquanto ninguem
-      // mexe, o dia segue exatamente o criterio de sempre (horario, depois
-      // criacao). Assim ligar o arrastar nao remexe sozinho nenhuma lista que o
-      // time ja conhece: a ordem so muda quando alguem arrasta de proposito.
-      var diaComOrdem = {};
-      for(var z=0;z<vis.length;z++){
-        if(typeof vis[z].ord === "number") diaComOrdem[vis[z].dia||""] = true;
-      }
+      // Depois do primeiro arraste a ordem manual manda na lista inteira, e nao
+      // mais dia a dia. Nada pula na hora de ligar: enquanto a numeracao antiga
+      // (por dia, com numero repetido) estiver no banco, vale o criterio de
+      // sempre. Peca criada depois entra no fim, e e so arrastar.
+      var temOrdemManual = ordemGlobalValida(daEdicaoVista(pecas));
       vis.sort(function(a,b){
+        if(temOrdemManual) return ordDe(a) - ordDe(b);
         if((a.dia||"") !== (b.dia||"")) return (a.dia||"") < (b.dia||"") ? -1 : 1;
-        if(diaComOrdem[a.dia||""]) return ordDe(a) - ordDe(b);
         var ma = minutosDe(a.horario), mb = minutosDe(b.horario);
         if(ma === null && mb !== null) return 1;
         if(mb === null && ma !== null) return -1;
@@ -2496,7 +2493,7 @@
     var q    = faltaQuanto(p);
     var h = '<div class="bloco'+(p.status==="publicado"?" completo":"")+(nova?" ehnovo":"")+
             (late?" atrasada":"")+'" id="pc_'+esc(p.id)+'" data-peca="'+esc(p.id)+'"'+
-            ' data-dia="'+esc(p.dia||"")+'">';
+            ' data-dia="'+esc(p.dia||"")+'" data-status="'+esc(p.status||"")+'">';
     h += '<div class="blocotopo">';
     h += '<div class="pega" data-pega="'+esc(p.id)+'" title="Arraste para mudar a ordem" '+
          'aria-label="Arraste para mudar a ordem">&#8942;&#8942;</div>';
@@ -2694,6 +2691,26 @@
   function ordDe(it){
     var n = (it && typeof it.ord === "number") ? it.ord : (it && it.criadoEm) || 0;
     return isNaN(n) ? 0 : n;
+  }
+  // A ordem manual so vale como ordem GERAL quando os numeros nao se repetem.
+  //
+  // Ate 29/08/2026 o arraste numerava de 10 em 10 DENTRO DE CADA DIA, entao
+  // 27/08, 28/08 e 29/08 tinham todos um item "10", um "20", um "30". Se a tela
+  // passasse a ordenar so por esse numero, os tres dias se misturariam sozinhos
+  // no primeiro carregamento e o quadro embaralharia na cara do time, sem
+  // ninguem ter arrastado nada. Enquanto houver numero repetido, a tela mantem
+  // o criterio de sempre (dia, horario, criacao); o primeiro arraste renumera a
+  // edicao inteira em sequencia unica e a partir dai a ordem manual manda.
+  function ordemGlobalValida(lista){
+    var vistos = {}, achou = false;
+    for(var i=0;i<lista.length;i++){
+      var o = lista[i] && lista[i].ord;
+      if(typeof o !== "number") continue;
+      if(vistos[o]) return false;
+      vistos[o] = true;
+      achou = true;
+    }
+    return achou;
   }
   // Regrava a sequencia inteira a partir da lista JA na ordem desejada, e so
   // escreve onde o numero mudou. Sem isso, uma troca de posicao viraria escrita
@@ -4326,18 +4343,25 @@
   var arr = null, pend = null;
   var FOLGA = 5;   // px antes de virar arraste, pra nao roubar o clique
 
-  function pecasDoDiaEmOrdem(dia){
-    var doDia = pecas.filter(function(p){ return (p.dia||"") === dia; });
-    var temOrd = doDia.some(function(p){ return typeof p.ord === "number"; });
-    doDia.sort(function(a,b){
+  // A LISTA DE REFERENCIA E A EDICAO INTEIRA, NAO O DIA.
+  //
+  // Na primeira versao o arraste so trocava pecas do MESMO dia, e o time bateu
+  // de frente com isso: a peca de 27/08 era a unica daquele dia, entao arrastar
+  // nao fazia nada e parecia quebrado. O dia continua guardado na peca e o
+  // "atrasada de 27/08" continua aparecendo, mas ele deixa de prender a ordem.
+  function pecasNaOrdemAtual(){
+    var lista = daEdicaoVista(pecas).slice();
+    var temOrd = ordemGlobalValida(lista);
+    lista.sort(function(a,b){
       if(temOrd) return ordDe(a) - ordDe(b);
+      if((a.dia||"") !== (b.dia||"")) return (a.dia||"") < (b.dia||"") ? -1 : 1;
       var ma = minutosDe(a.horario), mb = minutosDe(b.horario);
       if(ma === null && mb !== null) return 1;
       if(mb === null && ma !== null) return -1;
       if(ma !== null && mb !== null && ma !== mb) return ma - mb;
       return (a.criadoEm||0) - (b.criadoEm||0);
     });
-    return doDia;
+    return lista;
   }
 
   function limparArraste(){
@@ -4350,11 +4374,14 @@
   }
 
   function comecarArraste(el, capturador, pointerId){
-    var dia = el.getAttribute("data-dia") || "";
+    // Move dentro do MESMO GRUPO DE STATUS. Atravessar grupo seria mudar o
+    // status da peca sem querer, e status se muda pelas pastilhas, nao
+    // arrastando.
+    var st = el.getAttribute("data-status") || "";
     var cartoes = Array.prototype.filter.call(
       document.querySelectorAll("#view-pecas .bloco[data-peca]"),
-      function(c){ return (c.getAttribute("data-dia")||"") === dia; });
-    arr = { id: el.getAttribute("data-peca"), dia: dia, el: el, cartoes: cartoes, marca: null };
+      function(c){ return (c.getAttribute("data-status")||"") === st; });
+    arr = { id: el.getAttribute("data-peca"), st: st, el: el, cartoes: cartoes, marca: null };
     el.classList.add("arrastando");
     document.body.classList.add("arrastando-agora");
     if(capturador){ try{ capturador.setPointerCapture(pointerId); }catch(e){} }
@@ -4413,16 +4440,19 @@
     var marca = arr.marca;
     if(!marca || !marca.parentNode){ limparArraste(); return; }
     var visiveis = arr.cartoes.filter(function(c){ return c !== arr.el; });
+    // Sozinha no grupo nao tem pra onde ir. Sem isso, soltar a peca gravaria
+    // numero novo na edicao inteira sem nada ter mudado de lugar.
+    if(!visiveis.length){ limparArraste(); return; }
     var destino = visiveis.length, i;
     for(i=0;i<visiveis.length;i++){
       if(marca.compareDocumentPosition(visiveis[i]) & Node.DOCUMENT_POSITION_FOLLOWING){ destino = i; break; }
     }
     var idsVisiveis = visiveis.map(function(c){ return c.getAttribute("data-peca"); });
-    var doDia = pecasDoDiaEmOrdem(arr.dia);
+    var todas = pecasNaOrdemAtual();
     var movida = null, resto = [];
-    for(i=0;i<doDia.length;i++){
-      if(doDia[i].id === arr.id) movida = doDia[i];
-      else resto.push(doDia[i]);
+    for(i=0;i<todas.length;i++){
+      if(todas[i].id === arr.id) movida = todas[i];
+      else resto.push(todas[i]);
     }
     if(!movida){ limparArraste(); return; }
     var ancora = (destino < idsVisiveis.length) ? idsVisiveis[destino] : null;
