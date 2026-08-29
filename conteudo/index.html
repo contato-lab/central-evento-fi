@@ -308,10 +308,17 @@
      encostar de proposito nos seis pontinhos.
      Fica FORA da .cabeca porque .cabeca ja e um <button>. */
   .pega{display:flex;align-items:center;justify-content:center;flex:0 0 auto;
-    width:30px;color:var(--ink-3);cursor:grab;touch-action:none;user-select:none;
-    border-right:1px solid var(--line-soft);font-size:.95rem;line-height:1}
+    width:34px;color:var(--ink-2);cursor:grab;touch-action:none;user-select:none;
+    border-right:1px solid var(--line-soft);font-size:1.15rem;line-height:1;
+    letter-spacing:-2px}
   .pega:hover{color:var(--lime);background:var(--panel-2)}
   .pega:active{cursor:grabbing}
+  /* No MOUSE da pra pegar o cartao inteiro, nao so a alca: foi o que o time
+     tentou fazer primeiro e nao funcionava. So vale depois de 5px de
+     movimento, senao um clique simples viraria arraste e a peca nunca abriria.
+     No toque continua so pela alca, senao briga com a rolagem. */
+  @media (pointer:fine){ .blocotopo > .cabeca{cursor:grab} }
+  body.arrastando-agora{user-select:none;cursor:grabbing}
   .bloco.arrastando{opacity:.45}
   /* linha que mostra ONDE vai cair. Sem ela a pessoa arrasta no escuro e so
      descobre a posicao quando solta. */
@@ -923,7 +930,7 @@
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-29.1";
+  var VERSAO = "2026-08-29.2";
 
   // ═══════════════════════════════════════════════════════════════
   // PERFIS
@@ -4316,7 +4323,8 @@
   // Arrastar de um dia pro outro NAO move: dia e hora vem da grade, e mexer
   // nisso pelo arraste mudaria a agenda sem querer. Solta e volta pro lugar.
   // ═══════════════════════════════════════════════════════════════
-  var arr = null;
+  var arr = null, pend = null;
+  var FOLGA = 5;   // px antes de virar arraste, pra nao roubar o clique
 
   function pecasDoDiaEmOrdem(dia){
     var doDia = pecas.filter(function(p){ return (p.dia||"") === dia; });
@@ -4333,28 +4341,53 @@
   }
 
   function limparArraste(){
+    pend = null;
+    document.body.classList.remove("arrastando-agora");
     if(arr && arr.el) arr.el.classList.remove("arrastando");
     var m = document.querySelector(".alvodrop");
     if(m && m.parentNode) m.parentNode.removeChild(m);
     arr = null;
   }
 
-  document.addEventListener("pointerdown", function(ev){
-    var pega = ev.target.closest && ev.target.closest(".pega");
-    if(!pega) return;
-    var el = pega.closest(".bloco");
-    if(!el) return;
-    ev.preventDefault();
+  function comecarArraste(el, capturador, pointerId){
     var dia = el.getAttribute("data-dia") || "";
     var cartoes = Array.prototype.filter.call(
       document.querySelectorAll("#view-pecas .bloco[data-peca]"),
       function(c){ return (c.getAttribute("data-dia")||"") === dia; });
-    arr = { id: pega.getAttribute("data-pega"), dia: dia, el: el, cartoes: cartoes, marca: null };
+    arr = { id: el.getAttribute("data-peca"), dia: dia, el: el, cartoes: cartoes, marca: null };
     el.classList.add("arrastando");
-    try{ pega.setPointerCapture(ev.pointerId); }catch(e){}
+    document.body.classList.add("arrastando-agora");
+    if(capturador){ try{ capturador.setPointerCapture(pointerId); }catch(e){} }
+  }
+
+  document.addEventListener("pointerdown", function(ev){
+    if(!ev.target || !ev.target.closest) return;
+    // 1) pela alca: vale em qualquer aparelho e comeca na hora
+    var pega = ev.target.closest(".pega");
+    if(pega){
+      var elp = pega.closest(".bloco[data-peca]");
+      if(!elp) return;
+      ev.preventDefault();
+      comecarArraste(elp, pega, ev.pointerId);
+      return;
+    }
+    // 2) pelo cartao inteiro, SO NO MOUSE e so com o botao esquerdo. Aqui NAO
+    // da pra chamar preventDefault: isso mataria o clique que abre a peca.
+    // Por isso fica "pendente" ate a pessoa mover FOLGA pixels.
+    if(ev.pointerType !== "mouse" || ev.button !== 0) return;
+    var cab = ev.target.closest(".cabeca");
+    if(!cab) return;
+    var elc = cab.closest(".bloco[data-peca]");
+    if(!elc) return;
+    pend = { el: elc, x: ev.clientX, y: ev.clientY, id: ev.pointerId };
   });
 
   document.addEventListener("pointermove", function(ev){
+    if(pend && !arr){
+      if(Math.abs(ev.clientX - pend.x) < FOLGA && Math.abs(ev.clientY - pend.y) < FOLGA) return;
+      comecarArraste(pend.el, null, pend.id);
+      pend = null;
+    }
     if(!arr) return;
     ev.preventDefault();
     var marca = document.querySelector(".alvodrop");
@@ -4375,6 +4408,7 @@
   });
 
   document.addEventListener("pointerup", function(){
+    pend = null;                       // clique simples: nao virou arraste
     if(!arr) return;
     var marca = arr.marca;
     if(!marca || !marca.parentNode){ limparArraste(); return; }
