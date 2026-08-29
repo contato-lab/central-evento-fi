@@ -375,7 +375,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-27.13";
+  var VERSAO = "2026-08-29.1";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -575,6 +575,22 @@ input:focus,textarea:focus{border-color:var(--lime)}
     if(!ms) return "";
     var d = new Date(ms);
     return ("0"+d.getHours()).slice(-2) + "h" + ("0"+d.getMinutes()).slice(-2);
+  }
+  // DIA DO CHAMADO, em palavra quando da. Pedido do time em 29/08: a lista de
+  // concluidos so mostrava a hora, entao "19h18" podia ser de hoje ou de tres
+  // dias atras e nao dava pra saber olhando.
+  //
+  // Compara por DIA DO CALENDARIO, nao por "24 horas atras": as 00h30, um
+  // chamado das 23h de ontem tem 1h30 de idade mas e de ontem, e chamar isso de
+  // "hoje" e mentira num plantao que vira a madrugada.
+  function diaDoChamado(ms){
+    if(!ms) return "";
+    var d = new Date(ms), hoje = new Date();
+    var soDia = function(x){ return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    var dif = Math.round((soDia(hoje) - soDia(d)) / 86400000);
+    if(dif === 0) return "Hoje";
+    if(dif === 1) return "Ontem";
+    return ("0"+d.getDate()).slice(-2) + "/" + ("0"+(d.getMonth()+1)).slice(-2);
   }
   function minDesde(ms){ return ms ? Math.round((Date.now() - ms) / 60000) : 0; }
   function faz(ms){
@@ -1171,7 +1187,8 @@ input:focus,textarea:focus{border-color:var(--lime)}
       return '<button class="chfeito" data-act="eqdobra" data-id="' + esc(c.id) + '" aria-expanded="false">' +
         '<span class="chfok">&#10003;</span>' +
         '<span class="chftx">' + esc(c.local || "Sem lugar") +
-          '<span class="chfsub">' + esc(protocoloDe(c.id)) + ' · ' + esc(hhmm(c.criadoEm)) +
+          '<span class="chfsub">' + esc(protocoloDe(c.id)) + ' · ' +
+          esc(diaDoChamado(c.criadoEm)) + ' ' + esc(hhmm(c.criadoEm)) +
           (c.assumidoPor ? ' · ' + esc(c.assumidoPor) : '') + '</span></span>' +
         '<span class="chfmais">+</span>' +
       '</button>';
@@ -1180,7 +1197,8 @@ input:focus,textarea:focus{border-color:var(--lime)}
     h += '<article class="chamado ' + st + (esperando ? " velho" : "") + '">';
     h += '<div class="ctopo"><div>' +
            '<span class="clocal">' + esc(c.local || "Lugar não informado") + '</span>' +
-           '<span class="cquando">' + esc(faz(c.criadoEm)) + ' · ' + esc(hhmm(c.criadoEm)) +
+           '<span class="cquando">' + esc(faz(c.criadoEm)) + ' · ' +
+             esc(diaDoChamado(c.criadoEm)) + ' ' + esc(hhmm(c.criadoEm)) +
              ' · ' + esc(protocoloDe(c.id)) + '</span>' +
          '</div>' + seloHTML(st) + '</div>';
     if(esperando) h += '<p class="erro">Esperando há mais de ' + MIN_ESQUECIDO + ' minutos.</p>';
