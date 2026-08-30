@@ -113,6 +113,14 @@ label .op{font-weight:400;color:var(--ink-2);font-size:.9rem}
 input[type=text],input[type=password],textarea{
   width:100%;background:var(--panel-2);border:2px solid var(--line-2);color:var(--ink);
   border-radius:12px;padding:13px;font:inherit;min-height:52px}
+/* O campo de data NAO herda a regra de cima (ela lista text e password). Sem
+   isto ele sai branco do sistema no meio da tela escura, e no iPhone o texto
+   fica preto no preto. O icone do calendario e invertido pelo mesmo motivo. */
+input[type=date]{background:var(--panel-2);border:2px solid var(--line-2);color:var(--ink);
+  border-radius:12px;padding:11px 13px;font:inherit;min-height:48px}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.85;cursor:pointer}
+#filtroDia{align-items:center;margin-top:10px}
+#filtroDia .btn{min-height:46px;padding:10px 16px}
 textarea{min-height:110px;resize:vertical;line-height:1.5}
 input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
   outline:3px solid var(--lime);outline-offset:2px}
@@ -352,6 +360,13 @@ input:focus,textarea:focus{border-color:var(--lime)}
           <button class="btn" type="button" data-act="somligar" id="btSom">Ativar avisos</button>
           <button class="btn fraco" type="button" data-act="sair">Sair</button>
         </div>
+        <div id="filtroDia" class="linhabtn" role="group" aria-label="Filtrar a fila por dia">
+          <button class="btn forte" type="button" data-act="fdia" data-dia="hoje" aria-pressed="true">Hoje</button>
+          <button class="btn" type="button" data-act="fdia" data-dia="ontem" aria-pressed="false">Ontem</button>
+          <button class="btn" type="button" data-act="fdia" data-dia="todos" aria-pressed="false">Todos</button>
+          <label class="sr" for="f_dia">Escolher outra data</label>
+          <input id="f_dia" type="date">
+        </div>
         <div id="filaResumo" style="margin-top:10px"></div>
         <div id="barranotif" hidden></div>
       </div>
@@ -375,7 +390,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
 (function(){
   "use strict";
 
-  var VERSAO = "2026-08-29.1";
+  var VERSAO = "2026-08-30.1";
 
   // ═══════════════════════════════════════════════════════════════
   // O QUE FALTA PREENCHER (a producao ainda esta montando)
@@ -592,6 +607,45 @@ input:focus,textarea:focus{border-color:var(--lime)}
     if(dif === 1) return "Ontem";
     return ("0"+d.getDate()).slice(-2) + "/" + ("0"+(d.getMonth()+1)).slice(-2);
   }
+  // ── FILTRO DE DIA ──────────────────────────────────────────────
+  // Sempre em hora LOCAL. Comparar por texto AAAA-MM-DD evita o erro classico
+  // de somar 24h em milissegundo, que erra no dia da virada de horario.
+  function diaISO(ms){
+    var d = new Date(ms || 0);
+    return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+  }
+  function diaDoFiltro(){
+    if(filtroDia === "todos") return null;
+    if(filtroDia === "hoje")  return diaISO(Date.now());
+    if(filtroDia === "ontem"){
+      var d = new Date(); d.setDate(d.getDate() - 1); return diaISO(d.getTime());
+    }
+    return filtroDia;
+  }
+  function noFiltro(c){
+    var alvo = diaDoFiltro();
+    return !alvo || diaISO(c.criadoEm) === alvo;
+  }
+  function rotuloFiltro(){
+    if(filtroDia === "todos") return "nenhum dia";
+    if(filtroDia === "hoje")  return "hoje";
+    if(filtroDia === "ontem") return "ontem";
+    var p = String(filtroDia).split("-");
+    return p.length === 3 ? p[2] + "/" + p[1] : filtroDia;
+  }
+  function pintarFiltro(){
+    var bs = document.querySelectorAll("#filtroDia [data-dia]"), i;
+    for(i=0;i<bs.length;i++){
+      var on = bs[i].getAttribute("data-dia") === filtroDia;
+      bs[i].classList.toggle("forte", on);
+      bs[i].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    var inp = $("#f_dia");
+    // o campo so mostra data quando a data E o filtro; nos atalhos ele limpa,
+    // senao ficaria marcando um dia que nao e o que a tela esta mostrando
+    if(inp) inp.value = (filtroDia === "hoje" || filtroDia === "ontem" || filtroDia === "todos") ? "" : filtroDia;
+  }
+
   function minDesde(ms){ return ms ? Math.round((Date.now() - ms) / 60000) : 0; }
   function faz(ms){
     if(!ms) return "";
@@ -628,6 +682,10 @@ input:focus,textarea:focus{border-color:var(--lime)}
   var souEquipe = false, meuNome = "", chamados = [], filaUnsub = null;
   var lugarEscolhido = "", somLigado = false, audioCtx = null;
   var jaAvisou = {}, ultimoAlerta = 0;
+  // FILTRO DE DIA da fila. "hoje" | "ontem" | "todos" | "AAAA-MM-DD".
+  // Nao fica guardado de proposito: recarregou, volta pra hoje. Guardar
+  // significaria abrir o app no sabado ainda filtrado na sexta.
+  var filtroDia = "hoje";
   // dobras da fila: concluido abre/fecha, conversa longa expande. So memoria
   // da tela: recarregou, volta ao padrao (concluido fechado), que e o certo.
   var eqAberto = {}, eqConversa = {};
@@ -1108,7 +1166,7 @@ input:focus,textarea:focus{border-color:var(--lime)}
   function pintarFila(){
     // tentativa de contato fica ANTES de concluido: ainda tem gente sem atendimento
     var ordem = { novo:0, a_caminho:1, contato:2, resolvido:3 };
-    var lista = chamados.slice().sort(function(a,b){
+    var lista = chamados.filter(noFiltro).sort(function(a,b){
       var da = ordem[stOk(a.status)], dbb = ordem[stOk(b.status)];
       if(da !== dbb) return da - dbb;
       return (a.criadoEm || 0) - (b.criadoEm || 0);
@@ -1120,16 +1178,33 @@ input:focus,textarea:focus{border-color:var(--lime)}
     // Aparecem mesmo zerados, menos o "esperando ha mais de X", que so faz
     // sentido quando existe: chip zerado ali seria alarme falso permanente.
     var nNovo = 0, nCam = 0, nCon = 0, nFeito = 0, nEsperando = 0, i;
+    // OS CHIPS SEGUEM O FILTRO (senao filtrar um dia nao serviria pra nada),
+    // mas o que esta EM ABERTO fora dele e contado a parte e avisado embaixo.
+    // Sem esse aviso, filtrar ontem esconderia um pedido de hoje sem ninguem
+    // perceber, que e a unica falha grave que este filtro poderia causar.
+    var nNovoGeral = 0, foraAbertos = 0;
     for(i=0;i<chamados.length;i++){
-      var s = stOk(chamados[i].status);
+      var sg = stOk(chamados[i].status);
+      if(sg === "novo") nNovoGeral++;
+      if(sg !== "resolvido" && !noFiltro(chamados[i])) foraAbertos++;
+    }
+    for(i=0;i<lista.length;i++){
+      var s = stOk(lista[i].status);
       if(s === "novo"){
         nNovo++;
-        if(minDesde(chamados[i].criadoEm) >= MIN_ESQUECIDO) nEsperando++;
+        if(minDesde(lista[i].criadoEm) >= MIN_ESQUECIDO) nEsperando++;
       }
       else if(s === "a_caminho") nCam++;
       else if(s === "contato") nCon++;
       else if(s === "resolvido") nFeito++;
     }
+    var avisoFora = foraAbertos
+      ? '<div class="offline" style="margin-top:8px">' +
+          (foraAbertos === 1
+            ? "1 pedido em aberto de outro dia está fora deste filtro."
+            : foraAbertos + " pedidos em aberto de outros dias estão fora deste filtro.") +
+          ' <button class="btn fraco" type="button" data-act="fdia" data-dia="todos">Ver todos</button></div>'
+      : "";
     $("#filaResumo").innerHTML =
       '<div class="linhabtn">' +
         '<span class="selo novo"><span class="pt"></span>' + nNovo + ' recebido' + (nNovo===1?"":"s") + '</span>' +
@@ -1139,11 +1214,19 @@ input:focus,textarea:focus{border-color:var(--lime)}
         (nEsperando ? '<span class="selo atrasado"><span class="pt"></span>' + nEsperando +
            ' esperando +' + MIN_ESQUECIDO + ' min</span>' : "") +
       '</div>' +
+      avisoFora +
       (somLigado ? "" : '<div class="offline" style="margin-top:8px">Alerta sonoro desligado: pedido novo só aparece olhando a tela.</div>');
-    document.title = (nNovo ? "(" + nNovo + ") " : "") + "Apoio à Mobilidade · Suhai Festival Interlagos";
+    // TITULO DA ABA COM O NUMERO GERAL, nunca o do filtro: e o que a pessoa ve
+    // com o app em segundo plano. Se seguisse o filtro, ficaria "(0)" com
+    // gente esperando.
+    document.title = (nNovoGeral ? "(" + nNovoGeral + ") " : "") + "Apoio à Mobilidade · Suhai Festival Interlagos";
 
     if(!lista.length){
-      $("#filaBox").innerHTML = '<div class="vazio">Nenhum pedido ainda.</div>';
+      $("#filaBox").innerHTML = '<div class="vazio">' +
+        (filtroDia === "todos" ? "Nenhum pedido ainda."
+                               : "Nenhum pedido em " + rotuloFiltro() + ".") +
+        (chamados.length ? ' <button class="btn fraco" type="button" data-act="fdia" data-dia="todos">Ver todos os dias</button>' : "") +
+        '</div>';
       return;
     }
 
@@ -1301,6 +1384,11 @@ input:focus,textarea:focus{border-color:var(--lime)}
     if(act === "lentefechar"){ fecharLente(false); return; }
     if(act === "lentegirar"){ lenteGirada = !lenteGirada; ajustarLente(); return; }
     if(act === "lugar"){ marcarLugar(b); return; }
+    if(act === "fdia"){
+      filtroDia = b.getAttribute("data-dia") || "hoje";
+      pintarFiltro(); pintarFila();
+      return;
+    }
     if(act === "novoPedido"){
       if(!confirm("Isto encerra o acompanhamento deste pedido na sua tela. A equipe continua vendo. Encerrar?")) return;
       if(meuId && FB_ON){
@@ -1420,6 +1508,14 @@ input:focus,textarea:focus{border-color:var(--lime)}
   // ═══════════════════════════════════════════════════════════════
   function iniciar(){
     pintarMapa(); pintarPontos(); pintarFixos(); pintarLugares();
+    pintarFiltro();
+    var campoDia = $("#f_dia");
+    if(campoDia) campoDia.addEventListener("change", function(){
+      // campo limpo volta pra hoje: campo de data vazio nao filtra nada e a
+      // tela ficaria sem dia nenhum selecionado
+      filtroDia = this.value || "hoje";
+      pintarFiltro(); pintarFila();
+    });
     if(!FB_ON){
       $("#secPedir").insertAdjacentHTML("beforeend",
         '<div class="offline" style="margin-top:12px">Este aparelho não conseguiu carregar o sistema. ' +
