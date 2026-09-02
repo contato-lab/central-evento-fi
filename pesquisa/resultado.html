@@ -76,6 +76,8 @@
 
   <div id="blocos"></div>
 
+  <div class="bloco"><h2>Quem se identificou</h2><div id="lIdent"></div></div>
+
   <div class="duas">
     <div class="bloco"><h2>O que mais atrapalhou</h2><div id="lAtrapalhou"></div></div>
     <div class="bloco"><h2>O que mais ajudou</h2><div id="lAjudou"></div></div>
@@ -87,7 +89,7 @@
 <script>
 (function(){
   "use strict";
-  var VERSAO = "2026-09-02.1";
+  var VERSAO = "2026-09-02.2";
   var firebaseConfig = {
     apiKey: "AIzaSyBMY82Mcp1rhNXHt6gQhTvyV4VAjIkU0bI",
     authDomain: "festival-interlagos-2026.firebaseapp.com",
@@ -188,13 +190,24 @@
     function listar(alvo, campo){
       var hh = "";
       v.slice().sort(function(a,b){ return (b.criadoEm||0) - (a.criadoEm||0); }).forEach(function(r){
-        if(r[campo]) hh += '<div class="fala">' + esc(r[campo]) +
-          '<span class="ed">' + esc(EDI[r.edicao] || "") + '</span></div>';
+        if(r[campo]){
+          var quem = [r.nome, r.veiculo].filter(Boolean).join(" · ");
+          hh += '<div class="fala">' + esc(r[campo]) +
+            '<span class="ed">' + esc([EDI[r.edicao] || "", quem].filter(Boolean).join(" · ")) + '</span></div>';
+        }
       });
       $(alvo).innerHTML = hh || '<p class="vazio">Nenhum comentário ainda.</p>';
     }
     listar("#lAtrapalhou", "atrapalhou");
     listar("#lAjudou", "ajudou");
+
+    var hi = "";
+    v.forEach(function(r){
+      if(!(r.nome || r.telefone || r.veiculo)) return;
+      hi += '<div class="fala">' + esc([r.nome, r.veiculo, r.telefone].filter(Boolean).join(" · ")) +
+        '<span class="ed">' + esc(EDI[r.edicao] || "") + '</span></div>';
+    });
+    $("#lIdent").innerHTML = hi || '<p class="vazio">Ninguém se identificou ainda. A identificação é opcional.</p>';
   }
 
   db.collection("pesq_imprensa").onSnapshot(function(snap){

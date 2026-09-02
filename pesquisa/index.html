@@ -39,6 +39,10 @@
     border-radius:11px;padding:13px;font:inherit;font-size:16px;min-height:96px;resize:vertical}
   textarea:focus{border-color:var(--lime);outline:none}
   .dica{color:var(--ink-3);font-size:.82rem;margin:6px 0 0}
+  .idgrid{display:flex;flex-direction:column;gap:8px}
+  .idgrid input{width:100%;background:var(--panel-2);border:2px solid var(--line);color:var(--ink);
+    border-radius:11px;padding:13px;font:inherit;font-size:16px}
+  .idgrid input:focus{border-color:var(--lime);outline:none}
   .npslegenda{display:flex;justify-content:space-between;color:var(--ink-3);font-size:.78rem;margin-top:6px}
   .enviarbox{position:sticky;bottom:0;padding:14px 0 18px;
     background:linear-gradient(transparent,var(--bg) 35%)}
@@ -60,7 +64,7 @@
     <img src="../logo.png" alt="Suhai Festival Interlagos">
     <h1>Pesquisa de satisfação · Imprensa</h1>
     <p class="desc">Você cobriu o Suhai Festival Interlagos 2026. Nos conte como foi o nosso atendimento, leva 2 a 3 minutos.</p>
-    <span class="selo-anon">100% anônima · nenhum dado pessoal é coletado</span>
+    <span class="selo-anon">Anônima por padrão · identifique-se só se quiser</span>
   </header>
 
   <form id="f" novalidate>
@@ -75,6 +79,16 @@
     <div class="q">
       <h2><span class="num">12.</span>O que mais ajudou sua cobertura?</h2>
       <textarea id="t_ajudou" maxlength="600" placeholder="Opcional"></textarea>
+    </div>
+
+    <div class="q">
+      <h2><span class="num">13.</span>Quer se identificar? <span style="color:var(--ink-3);font-weight:400">(opcional)</span></h2>
+      <p class="dica" style="margin:0 0 10px">A pesquisa continua valendo em branco. Preencha só se quiser que a gente possa te procurar sobre alguma resposta.</p>
+      <div class="idgrid">
+        <input id="t_nome" maxlength="80" placeholder="Nome" autocomplete="name">
+        <input id="t_telefone" maxlength="30" placeholder="Telefone / WhatsApp" inputmode="tel" autocomplete="tel">
+        <input id="t_veiculo" maxlength="80" placeholder="Veículo de imprensa" autocomplete="organization">
+      </div>
     </div>
 
     <div class="enviarbox">
@@ -94,7 +108,7 @@
 <script>
 (function(){
   "use strict";
-  var VERSAO = "2026-09-02.1";
+  var VERSAO = "2026-09-02.2";
   var firebaseConfig = {
     apiKey: "AIzaSyBMY82Mcp1rhNXHt6gQhTvyV4VAjIkU0bI",
     authDomain: "festival-interlagos-2026.firebaseapp.com",
@@ -203,6 +217,13 @@
     var aju = $("#t_ajudou").value.trim().slice(0, 600);
     if(atr) doc.atrapalhou = atr;
     if(aju) doc.ajudou = aju;
+    // identificacao opcional: em branco nem vira campo no banco
+    var nome = $("#t_nome").value.trim().slice(0, 80);
+    var tel  = $("#t_telefone").value.trim().slice(0, 30);
+    var vei  = $("#t_veiculo").value.trim().slice(0, 80);
+    if(nome) doc.nome = nome;
+    if(tel)  doc.telefone = tel;
+    if(vei)  doc.veiculo = vei;
 
     enviando = true;
     var bt = $("#btEnviar");
