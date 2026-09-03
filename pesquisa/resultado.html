@@ -44,6 +44,16 @@
     padding:10px 12px;margin:8px 0;font-size:.9rem;white-space:pre-wrap;word-break:break-word}
   .fala .ed{font-family:var(--mono);font-size:.7rem;color:var(--ink-3);display:block;margin-top:6px}
   .vazio{color:var(--ink-3);padding:8px 0}
+  /* quadros que dobram: a lista de quem se identificou e os comentarios
+     crescem sem parar, e no fim da pesquisa viram uma parede. Fechado, o
+     cabecalho continua dizendo QUANTOS tem la dentro. */
+  .bloco.dobra h2{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .bloco.dobra h2 .qtd{font-weight:400;color:var(--ink-3);font-size:.85rem;margin-left:auto}
+  .dobrar{min-height:34px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--ink-2);font:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
+  .dobrar:hover{border-color:var(--lime);color:var(--lime)}
+  .bloco.dobra.fechado h2{margin-bottom:0}
+  .bloco.dobra.fechado .miolo{display:none}
   .npsfaixa{display:flex;height:10px;border-radius:6px;overflow:hidden;margin-top:10px}
   .npsfaixa i{display:block}
   .npsleg{display:flex;gap:14px;margin-top:8px;font-size:.78rem;color:var(--ink-2);flex-wrap:wrap}
@@ -76,11 +86,20 @@
 
   <div id="blocos"></div>
 
-  <div class="bloco"><h2>Quem se identificou</h2><div id="lIdent"></div></div>
+  <div class="bloco dobra" data-dobra="ident"><h2>Quem se identificou
+    <span class="qtd" id="qIdent"></span>
+    <button class="dobrar" type="button" data-act="dobra" aria-expanded="true">Minimizar</button></h2>
+    <div class="miolo" id="lIdent"></div></div>
 
   <div class="duas">
-    <div class="bloco"><h2>O que mais atrapalhou</h2><div id="lAtrapalhou"></div></div>
-    <div class="bloco"><h2>O que mais ajudou</h2><div id="lAjudou"></div></div>
+    <div class="bloco dobra" data-dobra="atrapalhou"><h2>O que mais atrapalhou
+    <span class="qtd" id="qAtrapalhou"></span>
+    <button class="dobrar" type="button" data-act="dobra" aria-expanded="true">Minimizar</button></h2>
+    <div class="miolo" id="lAtrapalhou"></div></div>
+    <div class="bloco dobra" data-dobra="ajudou"><h2>O que mais ajudou
+    <span class="qtd" id="qAjudou"></span>
+    <button class="dobrar" type="button" data-act="dobra" aria-expanded="true">Minimizar</button></h2>
+    <div class="miolo" id="lAjudou"></div></div>
   </div>
 </div>
 
@@ -89,7 +108,7 @@
 <script>
 (function(){
   "use strict";
-  var VERSAO = "2026-09-02.2";
+  var VERSAO = "2026-09-02.3";
   var firebaseConfig = {
     apiKey: "AIzaSyBMY82Mcp1rhNXHt6gQhTvyV4VAjIkU0bI",
     authDomain: "festival-interlagos-2026.firebaseapp.com",
@@ -124,7 +143,28 @@
 
   var todas = [], filtro = "todas";
 
+  // estado das dobras fica no aparelho: quem fecha "quem se identificou" nao
+  // quer ver ele abrir de novo a cada resposta que chega
+  var DOBRAS = "pesq_res_dobras";
+  function lerDobras(){ try{ return JSON.parse(localStorage.getItem(DOBRAS) || "{}"); }catch(e){ return {}; } }
+  function aplicarDobras(){
+    var f = lerDobras(), bs = document.querySelectorAll(".bloco.dobra"), i;
+    for(i=0;i<bs.length;i++){
+      var fechado = !!f[bs[i].getAttribute("data-dobra")];
+      bs[i].classList.toggle("fechado", fechado);
+      var b = bs[i].querySelector(".dobrar");
+      if(b){ b.textContent = fechado ? "Expandir" : "Minimizar"; b.setAttribute("aria-expanded", fechado ? "false" : "true"); }
+    }
+  }
   document.addEventListener("click", function(ev){
+    var d = ev.target.closest('[data-act="dobra"]');
+    if(d){
+      var bl = d.closest(".bloco.dobra"), f = lerDobras(), k = bl.getAttribute("data-dobra");
+      f[k] = !f[k];
+      try{ localStorage.setItem(DOBRAS, JSON.stringify(f)); }catch(e){}
+      aplicarDobras();
+      return;
+    }
     var c = ev.target.closest(".chip"); if(!c) return;
     filtro = c.getAttribute("data-f");
     var cs = document.querySelectorAll(".chip");
@@ -188,28 +228,34 @@
     $("#blocos").innerHTML = h;
 
     function listar(alvo, campo){
-      var hh = "";
+      var hh = "", qt = 0;
       v.slice().sort(function(a,b){ return (b.criadoEm||0) - (a.criadoEm||0); }).forEach(function(r){
         if(r[campo]){
+          qt++;
           var quem = [r.nome, r.veiculo].filter(Boolean).join(" · ");
           hh += '<div class="fala">' + esc(r[campo]) +
             '<span class="ed">' + esc([EDI[r.edicao] || "", quem].filter(Boolean).join(" · ")) + '</span></div>';
         }
       });
       $(alvo).innerHTML = hh || '<p class="vazio">Nenhum comentário ainda.</p>';
+      var q = $(alvo.replace("#l", "#q"));
+      if(q) q.textContent = qt ? qt + " comentário" + (qt === 1 ? "" : "s") : "";
     }
     listar("#lAtrapalhou", "atrapalhou");
     listar("#lAjudou", "ajudou");
 
-    var hi = "";
+    var hi = "", qi = 0;
     v.forEach(function(r){
       if(!(r.nome || r.telefone || r.veiculo)) return;
+      qi++;
       hi += '<div class="fala">' + esc([r.nome, r.veiculo, r.telefone].filter(Boolean).join(" · ")) +
         '<span class="ed">' + esc(EDI[r.edicao] || "") + '</span></div>';
     });
     $("#lIdent").innerHTML = hi || '<p class="vazio">Ninguém se identificou ainda. A identificação é opcional.</p>';
+    $("#qIdent").textContent = qi ? qi + " pessoa" + (qi === 1 ? "" : "s") : "";
   }
 
+  aplicarDobras();
   db.collection("pesq_imprensa").onSnapshot(function(snap){
     todas = [];
     snap.forEach(function(d){ todas.push(d.data()); });
