@@ -2,52 +2,1033 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Comercial · Suhai Festival Interlagos</title>
-<meta name="theme-color" content="#0B0C0A">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel Comercial Festival Interlagos</title>
+<meta name="description" content="Gestão comercial de espaços, patrocinadores e interações do Festival Interlagos.">
 <meta name="robots" content="noindex,nofollow">
-<link rel="icon" href="../favicon.png">
-<link rel="apple-touch-icon" href="../apple-touch-icon.png">
-<noscript><meta http-equiv="refresh" content="0; url=https://interlagos-sponsor-cloud.lovable.app/"></noscript>
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="app.css">
 <style>
-  html,body{margin:0;height:100%;background:#0B0C0A}
-  main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;
-       color:#f5f5f0;font:600 15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;box-sizing:border-box}
-  a{color:#0B0C0A;background:#A6EC4D;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:800;text-transform:uppercase}
+  /* O app.css e o CSS compilado do app original (Tailwind). Aqui so entra o que
+     no original vinha de biblioteca em tempo de execucao: toasts (sonner),
+     posicao do menu de selecao e trava de rolagem do dialogo. */
+  .toaster{position:fixed;top:24px;right:24px;z-index:999999;display:flex;flex-direction:column;gap:14px;width:356px;max-width:calc(100vw - 32px);pointer-events:none}
+  .toast{pointer-events:auto;display:flex;align-items:center;gap:6px;padding:16px;border-radius:8px;border:1px solid;font-size:13px;line-height:1.4;box-shadow:0 4px 12px rgba(0,0,0,.1);font-family:inherit;animation:toast-in .35s cubic-bezier(.21,1.02,.73,1)}
+  .toast svg{width:20px;height:20px;flex-shrink:0}
+  .toast.sucesso{background:#ecfdf3;color:#008a2e;border-color:#bffcd9}
+  .toast.erro{background:#fff0f0;color:#e60000;border-color:#ffe0e1}
+  .toast.saindo{opacity:0;transform:translateY(-8px);transition:opacity .25s,transform .25s}
+  @keyframes toast-in{from{opacity:0;transform:translateY(-100%)}to{opacity:1;transform:none}}
+  @media (max-width:600px){.toaster{top:16px;right:16px;left:16px;width:auto}}
+  .menu-selecao{position:fixed}
+  body.dialogo-aberto{overflow:hidden}
 </style>
 </head>
 <body>
-<!--
-  Painel Comercial do Festival Interlagos.
+<div id="app"></div>
+<section id="toasts" class="toaster" aria-label="Notificações" aria-live="polite"></section>
 
-  O sistema mora no Lovable (interlagos-sponsor-cloud.lovable.app), porque precisa
-  de servidor, banco e login, coisas que o GitHub Pages nao roda. Esta pagina so
-  leva quem abre /comercial/ direto para o painel.
+<script type="module">
+/*
+ * Painel Comercial Festival Interlagos.
+ *
+ * Copia do app que estava no Lovable (interlagos-partner-hub), agora sem o
+ * Lovable: pagina estatica no GitHub Pages da Central e dados no Firebase.
+ * Telas, textos e classes sao os mesmos do original; o app.css e o CSS
+ * compilado dele.
+ *
+ * O que no original era servidor e virou o que:
+ *  - tabelas do Supabase  -> colecoes do Firestore com os mesmos campos
+ *  - login Supabase       -> Firebase Authentication (e-mail e senha, com
+ *                            confirmacao por e-mail)
+ *  - RLS "logado le e grava" -> regras do Firestore (ver regras no fim)
+ *  - regra dos 30 dias (trigger + cron diario) -> roda ao abrir o painel,
+ *                            antes de carregar os dados. Mesmo efeito para
+ *                            quem olha a tela, sem servidor.
+ *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
+ */
+var VERSAO = "2026-09-15.3";
 
-  Por que redireciona em vez de abrir dentro da pagina (iframe): testado em
-  15/09/2026, o painel do Lovable carrega em branco dentro de iframe no Chrome.
-  Um iframe de outro site (example.com) aparecia normal no mesmo teste, entao o
-  problema e do app do Lovable dentro de moldura, nao da Central.
+var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
-  Link direto para uma tela: /comercial/#/app/interacoes (o que vem depois do #
-  vira o caminho dentro do painel).
--->
-<main>
-  <span>Abrindo o painel comercial...</span>
-  <a id="abrir" href="https://interlagos-sponsor-cloud.lovable.app/">Abrir o painel comercial</a>
-</main>
-<script>
-var VERSAO = "2026-09-15.2";
-var ORIGEM = "https://interlagos-sponsor-cloud.lovable.app";
+var SDK = "https://www.gstatic.com/firebasejs/12.4.0/";
+var MODELO_IA = "gemini-2.5-flash";
+var URL_APP = "https://central.festivalinterlagos.com.br/comercial/";
 
-(function(){
-  var caminho = (location.hash || "").replace(/^#/, "");
-  // so aceita caminho interno do painel, nunca endereco de outro site
-  if (!/^\/[A-Za-z0-9\/_\-]*$/.test(caminho)) caminho = "/";
-  var destino = ORIGEM + caminho;
-  document.getElementById("abrir").href = destino;
-  location.replace(destino);
+var MODO_TESTE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]teste=1/.test(location.search);
+
+/* ------------------------------------------------------------------ icones */
+var ICONES = {
+"building-2": "<path d=\"M10 12h4\"/> <path d=\"M10 8h4\"/> <path d=\"M14 21v-3a2 2 0 0 0-4 0v3\"/> <path d=\"M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\"/> <path d=\"M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16\"/>",
+"calendar-days": "<path d=\"M8 2v4\"/> <path d=\"M16 2v4\"/> <rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/> <path d=\"M3 10h18\"/> <path d=\"M8 14h.01\"/> <path d=\"M12 14h.01\"/> <path d=\"M16 14h.01\"/> <path d=\"M8 18h.01\"/> <path d=\"M12 18h.01\"/> <path d=\"M16 18h.01\"/>",
+"check": "<path d=\"M20 6 9 17l-5-5\"/>",
+"chevron-down": "<path d=\"m6 9 6 6 6-6\"/>",
+"handshake": "<path d=\"m11 17 2 2a1 1 0 1 0 3-3\"/> <path d=\"m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4\"/> <path d=\"m21 3 1 11h-2\"/> <path d=\"M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3\"/> <path d=\"M3 4h8\"/>",
+"history": "<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/> <path d=\"M3 3v5h5\"/> <path d=\"M12 7v5l4 2\"/>",
+"loader-circle": "<path d=\"M21 12a9 9 0 1 1-6.219-8.56\"/>",
+"log-out": "<path d=\"m16 17 5-5-5-5\"/> <path d=\"M21 12H9\"/> <path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/>",
+"pencil": "<path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"/> <path d=\"m15 5 4 4\"/>",
+"plus": "<path d=\"M5 12h14\"/> <path d=\"M12 5v14\"/>",
+"search": "<path d=\"m21 21-4.34-4.34\"/> <circle cx=\"11\" cy=\"11\" r=\"8\"/>",
+"sparkles": "<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"/> <path d=\"M20 2v4\"/> <path d=\"M22 4h-4\"/> <circle cx=\"4\" cy=\"20\" r=\"2\"/>",
+"triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/> <path d=\"M12 9v4\"/> <path d=\"M12 17h.01\"/>",
+"x": "<path d=\"M18 6 6 18\"/> <path d=\"m6 6 12 12\"/>"
+};
+function icone(nome, cls) {
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide ' + (cls || "") + '" aria-hidden="true">' + ICONES[nome] + "</svg>";
+}
+
+/* ---------------------------------------------------------------- utilidades */
+function esc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+// O original junta classes com tailwind-merge (a ultima classe conflitante vence,
+// ex.: "h-9 ... h-11" vira so "h-11"). Mesma biblioteca e versao aqui.
+var twMerge = null;
+try { twMerge = (await import("https://cdn.jsdelivr.net/npm/tailwind-merge@3.6.0/+esm")).twMerge; } catch (e) {}
+function cn() {
+  var s = Array.prototype.filter.call(arguments, Boolean).join(" ");
+  return twMerge ? twMerge(s) : s;
+}
+function agoraIso() { return new Date().toISOString(); }
+function novoId() {
+  return (crypto.randomUUID ? crypto.randomUUID() : "id-" + Date.now().toString(36) + Math.random().toString(36).slice(2));
+}
+function formatCurrency(value) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
+}
+function formatDateTime(value) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
+}
+function formatDateOnly(value) {
+  // Datas de vencimento chegam como "AAAA-MM-DD"; montar ao meio-dia evita virar o dia por fuso.
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeZone: "America/Sao_Paulo" }).format(new Date(value + "T12:00:00-03:00"));
+}
+function hojeMais(dias) {
+  var hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  var d = new Date(hoje + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+function porNome(a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); }
+function porDataDesc(a, b) { return new Date(b.data) - new Date(a.data); }
+
+/* ------------------------------------------------------------------ toasts */
+function toast(tipo, texto) {
+  var el = document.createElement("div");
+  el.className = "toast " + (tipo === "success" ? "sucesso" : "erro");
+  el.setAttribute("role", "status");
+  var svg = tipo === "success"
+    ? '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>'
+    : '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>';
+  el.innerHTML = svg + "<span>" + esc(texto) + "</span>";
+  var box = document.getElementById("toasts");
+  box.prepend(el);
+  setTimeout(function () { el.classList.add("saindo"); setTimeout(function () { el.remove(); }, 260); }, 4000);
+}
+toast.success = function (t) { toast("success", t); };
+toast.error = function (t) { toast("error", t); };
+
+/* ----------------------------------------------------------- backend (Firebase) */
+var API = null;
+
+async function criarApiFirebase() {
+  var appMod = await import(SDK + "firebase-app.js");
+  var authMod = await import(SDK + "firebase-auth.js");
+  var fsMod = await import(SDK + "firebase-firestore.js");
+  var app = appMod.initializeApp(FIREBASE_CONFIG);
+  var auth = authMod.getAuth(app);
+  auth.languageCode = "pt-BR";
+  var db = fsMod.getFirestore(app);
+  var modeloIa = null;
+
+  async function listar(col) {
+    var snap = await fsMod.getDocs(fsMod.collection(db, col));
+    return snap.docs.map(function (d) { return Object.assign({}, d.data(), { id: d.id }); });
+  }
+
+  return {
+    aoMudarLogin: function (cb) { return authMod.onAuthStateChanged(auth, cb); },
+    usuario: function () { return auth.currentUser; },
+    entrar: async function (email, senha) {
+      var cred = await authMod.signInWithEmailAndPassword(auth, email, senha);
+      if (!cred.user.emailVerified) {
+        await authMod.signOut(auth);
+        var e = new Error("email-nao-confirmado");
+        e.code = "email-nao-confirmado";
+        throw e;
+      }
+      return cred.user;
+    },
+    criarConta: async function (nome, email, senha) {
+      var cred = await authMod.createUserWithEmailAndPassword(auth, email, senha);
+      try { await authMod.updateProfile(cred.user, { displayName: nome }); } catch (e) {}
+      try {
+        await fsMod.setDoc(fsMod.doc(db, "profiles", cred.user.uid), { nome: nome, created_at: agoraIso(), updated_at: agoraIso() });
+      } catch (e) {}
+      await authMod.sendEmailVerification(cred.user, { url: URL_APP });
+      await authMod.signOut(auth);
+      return { confirmar: true };
+    },
+    sair: function () { return authMod.signOut(auth); },
+    nomePerfil: async function (user) {
+      try {
+        var s = await fsMod.getDoc(fsMod.doc(db, "profiles", user.uid));
+        if (s.exists() && s.data().nome) return s.data().nome;
+      } catch (e) {}
+      return user.displayName || (user.email ? user.email.split("@")[0] : "Usuário");
+    },
+    listar: listar,
+    criar: async function (col, dados) {
+      var id = novoId();
+      var agora = agoraIso();
+      var doc = Object.assign({}, dados, { criado_por: auth.currentUser.uid, created_at: agora, updated_at: agora });
+      await fsMod.setDoc(fsMod.doc(db, col, id), doc);
+      return Object.assign({}, doc, { id: id });
+    },
+    atualizar: async function (col, id, dados) {
+      await fsMod.updateDoc(fsMod.doc(db, col, id), Object.assign({}, dados, { updated_at: agoraIso() }));
+    },
+    atualizarVarios: async function (lista) {
+      if (!lista.length) return;
+      var lote = fsMod.writeBatch(db);
+      var agora = agoraIso();
+      lista.forEach(function (it) { lote.update(fsMod.doc(db, it.col, it.id), Object.assign({}, it.dados, { updated_at: agora })); });
+      await lote.commit();
+    },
+    gerarTexto: async function (sistema, prompt) {
+      if (!modeloIa) {
+        var aiMod = await import(SDK + "firebase-ai.js");
+        var ai = aiMod.getAI(app, { backend: new aiMod.GoogleAIBackend() });
+        modeloIa = aiMod.getGenerativeModel(ai, { model: MODELO_IA, systemInstruction: sistema });
+      }
+      var r = await modeloIa.generateContent(prompt);
+      return r.response.text();
+    },
+  };
+}
+
+/* Banco de mentira so para conferir as telas em localhost (?teste=1). */
+async function criarApiTeste() {
+  var semente = await (await fetch("../seed.json")).json();
+  var dados = { espacos: semente.espacos, patrocinadores: semente.patrocinadores, interacoes: semente.interacoes };
+  var ouvinte = null;
+  var user = { uid: "teste", email: "eric@teste.local", displayName: "Eric Pereira Felix", emailVerified: true };
+  var logado = !/[?&]deslogado=1/.test(location.search);
+  function espera(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  return {
+    aoMudarLogin: function (cb) { ouvinte = cb; setTimeout(function () { cb(logado ? user : null); }, 300); return function () {}; },
+    usuario: function () { return logado ? user : null; },
+    entrar: async function () { await espera(400); logado = true; ouvinte(user); return user; },
+    criarConta: async function () { await espera(400); return { confirmar: true }; },
+    sair: async function () { logado = false; ouvinte(null); },
+    nomePerfil: async function () { return "Eric Pereira Felix"; },
+    listar: async function (col) { await espera(700); return JSON.parse(JSON.stringify(dados[col])); },
+    criar: async function (col, d) { await espera(300); var doc = Object.assign({}, d, { id: novoId(), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }); dados[col].push(doc); return doc; },
+    atualizar: async function (col, id, d) { await espera(300); var it = dados[col].find(function (x) { return x.id === id; }); Object.assign(it, d, { updated_at: agoraIso() }); },
+    atualizarVarios: async function (lista) { lista.forEach(function (it) { var x = dados[it.col].find(function (y) { return y.id === it.id; }); Object.assign(x, it.dados); }); },
+    gerarTexto: async function () { await espera(900); return "Ligar para o contato até sexta, 18/09, e confirmar a proposta revisada."; },
+  };
+}
+
+/* ------------------------------------------------------ regras de negocio */
+var ERRO_ESPACOS = "Não foi possível carregar os espaços.";
+
+// Equivale ao atualizar_contratos_em_risco() do banco original.
+async function aplicarRegraContratos() {
+  var limite = hojeMais(30);
+  var patrocinadores = await API.listar("patrocinadores");
+  var espacos = await API.listar("espacos");
+  var mudancas = [];
+  var emRisco = {};
+  patrocinadores.forEach(function (p) {
+    var vence = p.data_vencimento_contrato && p.data_vencimento_contrato <= limite;
+    if (p.status !== "encerrado" && vence && p.status !== "em_risco_de_renovacao") {
+      mudancas.push({ col: "patrocinadores", id: p.id, dados: { status: "em_risco_de_renovacao" } });
+      p.status = "em_risco_de_renovacao";
+    }
+    if (p.status === "em_risco_de_renovacao" && vence && p.espaco_vinculado_id) emRisco[p.espaco_vinculado_id] = true;
+  });
+  espacos.forEach(function (e) {
+    if (emRisco[e.id] && e.status !== "disponivel") mudancas.push({ col: "espacos", id: e.id, dados: { status: "disponivel" } });
+  });
+  await API.atualizarVarios(mudancas);
+}
+
+async function getSpaces() {
+  var r;
+  try { r = await Promise.all([API.listar("espacos"), API.listar("patrocinadores")]); }
+  catch (e) { throw new Error(ERRO_ESPACOS); }
+  var risco = {};
+  r[1].forEach(function (s) {
+    if (s.status === "em_risco_de_renovacao" && s.espaco_vinculado_id) risco[s.espaco_vinculado_id] = s.nome;
+  });
+  return r[0].sort(porNome).map(function (space) {
+    return {
+      id: space.id, nome: space.nome, categoria: space.categoria, valor: Number(space.valor), status: space.status, updated_at: space.updated_at,
+      patrocinadorEmRisco: space.status === "disponivel" ? (risco[space.id] || null) : null,
+    };
+  });
+}
+
+async function getSpacesOverview() {
+  var r;
+  try { r = await Promise.all([API.listar("patrocinadores"), API.listar("espacos"), API.listar("interacoes")]); }
+  catch (e) { throw new Error("Não foi possível calcular os indicadores."); }
+  var nomes = {};
+  r[0].forEach(function (p) { nomes[p.id] = p.nome; });
+  return {
+    patrocinadoresEmRisco: r[0].filter(function (p) { return p.status === "em_risco_de_renovacao"; }).length,
+    espacosDisponiveis: r[1].filter(function (e) { return e.status === "disponivel"; }).length,
+    patrocinadoresAtivos: r[0].filter(function (p) { return p.status === "ativo"; }).length,
+    atividadeRecente: r[2].sort(porDataDesc).slice(0, 10).map(function (i) {
+      return { id: i.id, data: i.data, observacao: i.observacao, patrocinador: nomes[i.patrocinador_id] || "Patrocinador" };
+    }),
+  };
+}
+
+async function saveSpace(data) {
+  var nome = String(data.nome || "").trim();
+  var categoria = String(data.categoria || "").trim();
+  var ok = nome.length >= 1 && nome.length <= 120 && categoria.length >= 1 && categoria.length <= 120 &&
+    isFinite(data.valor) && data.valor >= 0 && ["disponivel", "reservado", "vendido"].indexOf(data.status) >= 0;
+  if (!ok) throw new Error("Não foi possível salvar o espaço.");
+  var payload = { nome: nome, categoria: categoria, valor: data.valor, status: data.status };
+  try {
+    if (data.id) await API.atualizar("espacos", data.id, payload);
+    else await API.criar("espacos", payload);
+  } catch (e) { throw new Error("Não foi possível salvar o espaço."); }
+}
+
+async function changeSpaceStatus(id, status) {
+  try { await API.atualizar("espacos", id, { status: status }); }
+  catch (e) { throw new Error("Não foi possível alterar o status."); }
+}
+
+async function getSponsors() {
+  var r;
+  try { r = await Promise.all([API.listar("patrocinadores"), API.listar("espacos")]); }
+  catch (e) { throw new Error("Não foi possível carregar os patrocinadores."); }
+  var espacos = {};
+  r[1].forEach(function (e) { espacos[e.id] = e.nome; });
+  return r[0].sort(porNome).map(function (s) {
+    return {
+      id: s.id, nome: s.nome, contato: s.contato, responsavelComercial: s.responsavel_comercial,
+      dataVencimentoContrato: s.data_vencimento_contrato, status: s.status,
+      espacoVinculado: s.espaco_vinculado_id ? (espacos[s.espaco_vinculado_id] || null) : null,
+    };
+  });
+}
+
+async function getInteractions() {
+  var r;
+  try { r = await Promise.all([API.listar("interacoes"), API.listar("patrocinadores")]); }
+  catch (e) { throw new Error("Não foi possível carregar as interações."); }
+  var nomes = {};
+  r[1].forEach(function (p) { nomes[p.id] = p.nome; });
+  return r[0].sort(porDataDesc).map(function (i) {
+    return { id: i.id, data: i.data, observacao: i.observacao, proximoPasso: i.proximo_passo, patrocinadorId: i.patrocinador_id, patrocinador: nomes[i.patrocinador_id] || "Patrocinador" };
+  });
+}
+
+async function suggestNextStep(interactionId) {
+  var todas, patrocinadores;
+  try { var r = await Promise.all([API.listar("interacoes"), API.listar("patrocinadores")]); todas = r[0]; patrocinadores = r[1]; }
+  catch (e) { throw new Error("Interação não encontrada."); }
+  var current = todas.find(function (i) { return i.id === interactionId; });
+  if (!current) throw new Error("Interação não encontrada.");
+  var sponsor = patrocinadores.find(function (p) { return p.id === current.patrocinador_id; });
+  var previous = todas
+    .filter(function (i) { return i.patrocinador_id === current.patrocinador_id && new Date(i.data) < new Date(current.data); })
+    .sort(porDataDesc).slice(0, 8);
+  var history = previous.length
+    ? previous.map(function (item) {
+        return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date(item.data)) +
+          " — Observação: " + item.observacao + "\nPróximo passo registrado: " + item.proximo_passo;
+      }).join("\n\n")
+    : "Não há interações anteriores.";
+  var system = "Você é um assistente de vendas do Festival Interlagos. Sugira somente um próximo passo comercial em português do Brasil, curto, direto, prático e acionável. Não use título, lista, saudação ou explicação. Não invente fatos.";
+  var prompt = "Patrocinador: " + ((sponsor && sponsor.nome) || "Patrocinador") + "\n\nObservação atual:\n" + current.observacao +
+    "\n\nHistórico anterior, do mais recente para o mais antigo:\n" + history;
+  var suggestion;
+  try { suggestion = String((await API.gerarTexto(system, prompt)) || "").trim(); }
+  catch (e) { throw new Error("Não foi possível gerar a sugestão."); }
+  if (!suggestion) throw new Error("A IA não retornou uma sugestão.");
+  var shortSuggestion = suggestion.slice(0, 500);
+  try { await API.atualizar("interacoes", current.id, { proximo_passo: shortSuggestion }); }
+  catch (e) { throw new Error("A sugestão foi criada, mas não pôde ser salva."); }
+  return { suggestion: shortSuggestion };
+}
+
+/* ------------------------------------------------------------------- estado */
+var S = {
+  authPronto: false,
+  user: null,
+  nome: "Usuário",
+  saindo: false,
+  regraAplicada: false,
+  spaces: null, spacesErro: null, spacesCarregando: false,
+  overview: null, overviewErro: null, overviewCarregando: false,
+  sponsors: null, sponsorsErro: null, sponsorsCarregando: false,
+  interactions: null, interactionsErro: null, interactionsCarregando: false,
+  statusMudando: false,
+  sugerindo: null,
+  auth: { mode: "login", name: "", email: "", password: "", error: "", message: "", loading: false },
+  form: { aberto: false, espaco: null, salvando: false },
+};
+
+/* ------------------------------------------------------------------ rotas */
+function rotaAtual() {
+  var h = location.hash.replace(/^#/, "") || "/";
+  var partes = h.split("?");
+  var params = new URLSearchParams(partes[1] || "");
+  return { caminho: partes[0], params: params };
+}
+function irPara(caminho, substituir) {
+  var alvo = "#" + caminho;
+  if (substituir) history.replaceState(null, "", alvo); else location.hash = alvo;
+  render();
+}
+function trocarParametro(nome, valor) {
+  var r = rotaAtual();
+  if (valor) r.params.set(nome, valor); else r.params.delete(nome);
+  var q = r.params.toString();
+  history.replaceState(null, "", "#" + r.caminho + (q ? "?" + q : ""));
+}
+
+/* ------------------------------------------------------------ componentes */
+var BTN = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0";
+var BTN_V = {
+  default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+  outline: "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+  ghost: "hover:bg-accent hover:text-accent-foreground",
+};
+var BTN_T = { default: "h-9 px-4 py-2", lg: "h-10 rounded-md px-8", icon: "h-9 w-9" };
+function btnCls(variant, size, extra) { return cn(BTN, BTN_V[variant || "default"], BTN_T[size || "default"], extra); }
+var INPUT = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
+var LABEL = "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70";
+var SELECT_TRIGGER = "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background cursor-pointer data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1";
+var SELECT_CONTENT = "relative z-50 min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover text-popover-foreground shadow-md";
+var SELECT_ITEM = "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground";
+var BADGE = "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
+var TR = "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted";
+var TH = "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]";
+var TD = "p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]";
+var SKELETON = "animate-pulse rounded-md bg-primary/10";
+
+var STATUS_ESPACO = {
+  disponivel: { label: "Disponível", className: "border-success/30 bg-success/10 text-success" },
+  reservado: { label: "Reservado", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
+  vendido: { label: "Vendido", className: "border-foreground/15 bg-foreground/8 text-foreground" },
+};
+var STATUS_PATROCINADOR = {
+  ativo: { label: "Ativo", className: "border-success/30 bg-success/10 text-success" },
+  em_risco_de_renovacao: { label: "Em risco de renovação", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
+  encerrado: { label: "Encerrado", className: "border-foreground/15 bg-foreground/8 text-foreground" },
+};
+
+function pageLoading(label) {
+  return '<div role="status" aria-live="polite" class="flex min-h-screen flex-col items-center justify-center gap-3 bg-background text-muted-foreground">' +
+    icone("loader-circle", "size-7 animate-spin text-primary") + '<span class="text-sm font-medium">' + esc(label) + "</span></div>";
+}
+function loadingList(label, rows) {
+  var h = '<div role="status" aria-live="polite" aria-busy="true" class="space-y-3"><span class="sr-only">' + esc(label) + "</span>";
+  for (var i = 0; i < (rows || 4); i++) h += '<div class="' + SKELETON + ' h-20 w-full rounded-none"></div>';
+  return h + "</div>";
+}
+function emptyList(nomeIcone, title, description) {
+  return '<div class="border border-dashed border-border px-4 py-14 text-center">' + icone(nomeIcone, "mx-auto size-7 text-muted-foreground") +
+    '<p class="mt-3 font-semibold">' + esc(title) + "</p>" +
+    (description ? '<p class="mt-1 text-sm text-muted-foreground">' + esc(description) + "</p>" : "") + "</div>";
+}
+function errorList(message, acao, retrying) {
+  return '<div role="alert" class="border border-destructive/40 bg-destructive/5 px-4 py-8 text-center"><p class="font-semibold">' + esc(message) + "</p>" +
+    '<button type="button" class="' + btnCls("outline", "default", "mt-4") + '" data-acao="' + acao + '"' + (retrying ? " disabled" : "") + ">" +
+    (retrying ? icone("loader-circle", "animate-spin") : "") + "Tentar de novo</button></div>";
+}
+function badge(detail, extra) {
+  return '<div class="' + cn(BADGE, "text-foreground", extra, detail.className) + '">' + esc(detail.label) + "</div>";
+}
+
+/* ------------------------------------------------------------- tela: auth */
+function telaAuth() {
+  var a = S.auth;
+  var login = a.mode === "login";
+  var aba = function (modo, texto) {
+    var ativo = a.mode === modo;
+    return '<button type="button" role="tab" aria-selected="' + ativo + '" data-acao="modo" data-modo="' + modo + '" class="h-11 border-b-2 text-sm font-medium ' +
+      (ativo ? "border-primary text-primary" : "border-transparent text-muted-foreground") + '">' + texto + "</button>";
+  };
+  return '<main class="grid min-h-screen bg-background lg:grid-cols-[minmax(0,1fr)_minmax(440px,0.72fr)]">' +
+    '<section class="hidden border-r border-border bg-foreground p-12 text-background lg:flex lg:flex-col lg:justify-between">' +
+      '<img src="logo-festival.png" alt="Festival Interlagos" class="w-64 brightness-0 invert">' +
+      '<div class="max-w-xl"><p class="mb-4 text-sm font-semibold uppercase text-primary">Gestão comercial</p>' +
+      '<h1 class="text-5xl font-bold leading-tight">Patrocínios e espaços em uma única pista.</h1></div>' +
+      '<p class="text-sm text-background/65">Painel Comercial Festival Interlagos</p>' +
+    "</section>" +
+    '<section class="flex items-center justify-center px-5 py-10 sm:px-10"><div class="w-full max-w-md">' +
+      '<div class="mb-10 flex items-center gap-3 lg:hidden"><img src="logo-festival.png" alt="Festival Interlagos" class="h-12 w-auto">' +
+      '<span class="font-bold uppercase">Painel Comercial Festival Interlagos</span></div>' +
+      '<p class="text-sm font-semibold text-primary">Acesso reservado</p>' +
+      '<h2 class="mt-2 text-3xl font-bold">' + (login ? "Bem-vindo de volta" : "Criar sua conta") + "</h2>" +
+      '<p class="mt-2 text-sm text-muted-foreground">' + (login ? "Entre para acessar o painel." : "Use seu e-mail profissional para começar.") + "</p>" +
+      '<div class="mt-8 grid grid-cols-2 border-b border-border" role="tablist" aria-label="Acesso">' + aba("login", "Entrar") + aba("signup", "Criar conta") + "</div>" +
+      '<form id="form-auth" class="mt-7 space-y-5">' +
+        (login ? "" : '<div class="space-y-2"><label class="' + LABEL + '" for="name">Nome</label><input id="name" autocomplete="name" class="' + INPUT + '" value="' + esc(a.name) + '" required></div>') +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="email">E-mail</label><input id="email" type="email" autocomplete="email" class="' + INPUT + '" value="' + esc(a.email) + '" required></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="password">Senha</label><input id="password" type="password" minlength="6" autocomplete="' + (login ? "current-password" : "new-password") + '" class="' + INPUT + '" value="' + esc(a.password) + '" required></div>' +
+        (a.error ? '<p role="alert" class="text-sm text-destructive">' + esc(a.error) + "</p>" : "") +
+        (a.message ? '<p role="status" class="rounded-md border border-border bg-accent p-3 text-sm text-accent-foreground">' + esc(a.message) + "</p>" : "") +
+        '<button type="submit" class="' + btnCls("default", "lg", "w-full") + '"' + (a.loading ? " disabled" : "") + ">" +
+          (a.loading ? icone("loader-circle", "animate-spin") : "") + (login ? "Entrar" : "Criar conta") + "</button>" +
+      "</form>" +
+    "</div></section></main>";
+}
+
+function mensagemErroCadastro(e) {
+  var c = (e && e.code) || "";
+  if (c === "auth/email-already-in-use") return "Este e-mail já tem uma conta.";
+  if (c === "auth/invalid-email") return "E-mail inválido.";
+  if (c === "auth/weak-password") return "A senha precisa ter pelo menos 6 caracteres.";
+  return "Não foi possível criar a conta. Tente novamente.";
+}
+
+async function enviarAuth() {
+  var a = S.auth;
+  a.error = ""; a.message = ""; a.loading = true;
+  render();
+  if (a.mode === "signup") {
+    try {
+      await API.criarConta(a.name.trim(), a.email, a.password);
+      a.loading = false;
+      a.message = "Conta criada. Confira seu e-mail para confirmar o acesso.";
+    } catch (e) {
+      a.loading = false;
+      a.error = mensagemErroCadastro(e);
+    }
+    render();
+    return;
+  }
+  try {
+    await API.entrar(a.email, a.password);
+    a.loading = false; a.password = "";
+    irPara("/app/espacos");
+  } catch (e) {
+    a.loading = false;
+    a.error = "E-mail ou senha incorretos.";
+    render();
+  }
+}
+
+/* ------------------------------------------------------------ casca do app */
+var NAV = [
+  { to: "/app/espacos", label: "Painel de Espaços", shortLabel: "Espaços", icon: "building-2" },
+  { to: "/app/patrocinadores", label: "Cadastro de Patrocinador", shortLabel: "Patrocinadores", icon: "handshake" },
+  { to: "/app/interacoes", label: "Histórico de Interações", shortLabel: "Interações", icon: "history" },
+];
+
+function casca(conteudo, caminho) {
+  var lateral = NAV.map(function (item) {
+    var ativo = caminho === item.to;
+    return '<a href="#' + item.to + '" class="' + cn("flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-foreground/65 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground", ativo && "bg-sidebar-primary text-sidebar-primary-foreground") + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
+      icone(item.icon, "size-4") + esc(item.label) + "</a>";
+  }).join("");
+  var inferior = NAV.map(function (item) {
+    var ativo = caminho === item.to;
+    return '<a href="#' + item.to + '" class="' + cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] font-medium leading-tight text-muted-foreground", ativo && "bg-accent text-accent-foreground") + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
+      icone(item.icon, "size-5") + "<span>" + esc(item.shortLabel) + "</span></a>";
+  }).join("");
+  return '<div class="min-h-screen bg-background text-foreground">' +
+    '<header class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">' +
+      '<div class="mx-auto flex h-16 max-w-screen-2xl items-center justify-between gap-4 px-4 sm:px-6">' +
+        '<a href="#/app/espacos" class="flex min-w-0 items-center gap-3"><img src="logo-festival.png" alt="Festival Interlagos" class="h-9 w-auto shrink-0">' +
+        '<span class="hidden h-6 w-px bg-border sm:block"></span><span class="hidden truncate text-sm font-bold uppercase sm:block">Painel Comercial Festival Interlagos</span></a>' +
+        '<div class="flex items-center gap-2 sm:gap-4"><span class="max-w-28 truncate text-sm font-medium sm:max-w-52">' + esc(S.nome) + "</span>" +
+        '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Sair" title="Sair" data-acao="sair"' + (S.saindo ? " disabled" : "") + ">" + icone("log-out") + "</button></div>" +
+      "</div>" +
+    "</header>" +
+    '<div class="mx-auto grid max-w-screen-2xl md:grid-cols-[260px_1fr]">' +
+      '<aside class="hidden min-h-[calc(100vh-4rem)] border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block"><nav aria-label="Navegação principal" class="space-y-1">' + lateral + "</nav></aside>" +
+      '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + conteudo + "</main>" +
+    "</div>" +
+    '<nav aria-label="Navegação principal" class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-border bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
+  "</div>";
+}
+
+/* --------------------------------------------------- tela: painel de espacos */
+function statusSelect(space, disabled) {
+  var detail = STATUS_ESPACO[space.status] || STATUS_ESPACO.disponivel;
+  return '<button type="button" role="combobox" aria-label="Alterar status" data-acao="menu-status" data-id="' + esc(space.id) + '" class="' + cn(SELECT_TRIGGER, "h-9 w-full border-0 p-0 shadow-none focus:ring-0 md:w-36") + '"' + (disabled ? " disabled" : "") + ">" +
+    badge(detail) + icone("chevron-down", "h-4 w-4 opacity-50") + "</button>";
+}
+function riskNote(sponsor) {
+  return '<div class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-warning-foreground">' + icone("triangle-alert", "size-3.5") + "Disponível por risco de renovação: " + esc(sponsor) + "</div>";
+}
+function indicador(label, value, highlight) {
+  return '<div class="' + cn("border border-border bg-card px-5 py-5", highlight && "border-primary bg-primary/8") + '"><span class="block text-4xl font-black leading-none">' + value + "</span>" +
+    '<span class="mt-2 block text-xs font-bold uppercase leading-snug text-muted-foreground">' + esc(label) + "</span></div>";
+}
+var ROTULO_FILTRO = { todos: "Todos os status", disponivel: "Disponível", reservado: "Reservado", vendido: "Vendido" };
+
+function filtroAtual() {
+  var r = rotaAtual();
+  var bruto = r.params.get("status") || "todos";
+  return { search: r.params.get("q") || "", filter: ["disponivel", "reservado", "vendido"].indexOf(bruto) >= 0 ? bruto : "todos" };
+}
+
+function blocoVisaoGeral() {
+  if (S.overviewErro) return errorList(S.overviewErro, "recarregar-overview", S.overviewCarregando);
+  var o = S.overview;
+  var numeros = o
+    ? indicador("Patrocinadores em risco de renovação", o.patrocinadoresEmRisco, true) + indicador("Espaços disponíveis", o.espacosDisponiveis) + indicador("Patrocinadores ativos", o.patrocinadoresAtivos)
+    : '<div class="' + SKELETON + ' h-24 w-full rounded-none"></div><div class="' + SKELETON + ' h-24 w-full rounded-none"></div><div class="' + SKELETON + ' h-24 w-full rounded-none"></div>';
+  var lista;
+  if (!o) {
+    lista = '<div role="status" aria-live="polite" aria-busy="true" class="space-y-3 p-4"><span class="sr-only">Carregando atividade recente...</span>' +
+      '<div class="' + SKELETON + ' h-12 w-full rounded-none"></div><div class="' + SKELETON + ' h-12 w-full rounded-none"></div><div class="' + SKELETON + ' h-12 w-full rounded-none"></div></div>';
+  } else if (!o.atividadeRecente.length) {
+    lista = '<p class="px-4 py-8 text-center text-sm text-muted-foreground">Nenhuma interação registrada ainda</p>';
+  } else {
+    lista = '<ul class="divide-y divide-border">' + o.atividadeRecente.map(function (item) {
+      return '<li class="px-4 py-4 sm:px-5"><div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">' +
+        '<span class="break-words font-bold">' + esc(item.patrocinador) + "</span>" +
+        '<span class="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">' + icone("calendar-days", "size-3.5") + " " + esc(formatDateTime(item.data)) + "</span></div>" +
+        '<p class="mt-1.5 line-clamp-2 break-words text-sm text-muted-foreground">' + esc(item.observacao) + "</p></li>";
+    }).join("") + "</ul>";
+  }
+  return '<div class="grid gap-3 sm:grid-cols-3">' + numeros + "</div>" +
+    '<div class="border border-border bg-card"><div class="flex items-center gap-2 border-b border-border px-4 py-4 sm:px-5">' + icone("history", "size-4 text-primary") +
+    '<h2 class="text-sm font-black uppercase">Atividade recente</h2></div>' + lista + "</div>";
+}
+
+function blocoListaEspacos() {
+  if (S.spacesErro) return errorList(S.spacesErro, "recarregar-espacos", S.spacesCarregando);
+  if (!S.spaces) return loadingList("Carregando espaços...");
+  if (!S.spaces.length) return emptyList("building-2", "Nenhum espaço cadastrado ainda", "Use o botão Novo espaço para cadastrar o primeiro.");
+  var f = filtroAtual();
+  var term = f.search.trim().toLocaleLowerCase("pt-BR");
+  var filtered = S.spaces.filter(function (space) {
+    return (f.filter === "todos" || space.status === f.filter) && (!term || space.nome.toLocaleLowerCase("pt-BR").indexOf(term) >= 0);
+  });
+  if (!filtered.length) return emptyList("building-2", "Nenhum espaço encontrado", "Ajuste a busca ou o filtro de status.");
+  var linhas = filtered.map(function (space) {
+    return '<tr class="' + cn(TR, space.patrocinadorEmRisco && "bg-primary/8 hover:bg-primary/12") + '">' +
+      '<td class="' + cn(TD, "px-5 py-4 font-bold") + '">' + esc(space.nome) + (space.patrocinadorEmRisco ? riskNote(space.patrocinadorEmRisco) : "") + "</td>" +
+      '<td class="' + TD + '">' + esc(space.categoria) + "</td>" +
+      '<td class="' + cn(TD, "font-semibold") + '">' + esc(formatCurrency(space.valor)) + "</td>" +
+      '<td class="' + TD + '">' + statusSelect(space, S.statusMudando) + "</td>" +
+      '<td class="' + TD + '"><button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar ' + esc(space.nome) + '" title="Editar espaço" data-acao="editar" data-id="' + esc(space.id) + '">' + icone("pencil") + "</button></td></tr>";
+  }).join("");
+  var cards = filtered.map(function (space) {
+    return '<article class="' + cn("border border-border bg-card p-4", space.patrocinadorEmRisco && "border-primary bg-primary/8") + '">' +
+      '<div class="flex items-start justify-between gap-3"><div class="min-w-0"><h2 class="break-words font-bold">' + esc(space.nome) + "</h2>" +
+      '<p class="mt-1 text-sm text-muted-foreground">' + esc(space.categoria) + "</p></div>" +
+      '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar ' + esc(space.nome) + '" data-acao="editar" data-id="' + esc(space.id) + '">' + icone("pencil") + "</button></div>" +
+      (space.patrocinadorEmRisco ? riskNote(space.patrocinadorEmRisco) : "") +
+      '<div class="mt-5 flex items-end justify-between gap-4 border-t border-border pt-4"><div><span class="block text-xs font-bold uppercase text-muted-foreground">Valor</span>' +
+      '<span class="mt-1 block font-bold">' + esc(formatCurrency(space.valor)) + "</span></div>" +
+      '<div class="w-44">' + statusSelect(space, S.statusMudando) + "</div></div></article>";
+  }).join("");
+  var th = function (cls, txt) { return '<th class="' + cn(TH, cls) + '">' + txt + "</th>"; };
+  return '<div class="hidden overflow-hidden border border-border bg-card md:block"><div class="relative w-full overflow-auto"><table class="w-full caption-bottom text-sm">' +
+    '<thead class="[&_tr]:border-b bg-foreground text-background"><tr class="' + cn(TR, "hover:bg-foreground") + '">' +
+      th("px-5 text-xs font-bold uppercase text-background", "Espaço") + th("text-xs font-bold uppercase text-background", "Categoria") +
+      th("text-xs font-bold uppercase text-background", "Valor") + th("text-xs font-bold uppercase text-background", "Status") +
+      th("w-14", '<span class="sr-only">Editar</span>') +
+    '</tr></thead><tbody class="[&_tr:last-child]:border-0">' + linhas + "</tbody></table></div></div>" +
+    '<div class="grid gap-3 md:hidden">' + cards + "</div>";
+}
+
+function telaEspacos() {
+  var f = filtroAtual();
+  return '<section class="space-y-7">' +
+    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
+      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span>Gestão comercial</div>' +
+      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Painel de Espaços</h1>' +
+      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Acompanhe disponibilidade, valores e vínculos comerciais do Festival Interlagos.</p></div>' +
+      '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="novo">' + icone("plus") + " Novo espaço</button>" +
+    "</header>" +
+    '<div id="bloco-overview" class="space-y-7">' + blocoVisaoGeral() + "</div>" +
+    '<div class="grid gap-3 sm:grid-cols-[minmax(240px,1fr)_220px]">' +
+      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+      '<input id="busca" aria-label="Buscar por nome do espaço" placeholder="Buscar por nome do espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.search) + '"></div>' +
+      '<button type="button" role="combobox" aria-label="Filtrar por status" data-acao="menu-filtro" class="' + cn(SELECT_TRIGGER, "h-11 bg-card") + '"><span>' + esc(ROTULO_FILTRO[f.filter]) + "</span>" + icone("chevron-down", "h-4 w-4 opacity-50") + "</button>" +
+    "</div>" +
+    '<div id="bloco-lista">' + blocoListaEspacos() + "</div>" +
+  "</section>" + (S.form.aberto ? dialogoEspaco() : "");
+}
+
+function dialogoEspaco() {
+  var space = S.form.espaco;
+  var valor = space ? space.valor.toFixed(2).replace(".", ",") : "";
+  var statusInicial = space ? space.status : "disponivel";
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (space ? "Editar espaço" : "Novo espaço") + "</h2>" +
+      '<p class="text-sm text-muted-foreground">Preencha os dados comerciais e defina a situação atual.</p></div>' +
+      '<form id="form-espaco" class="space-y-5 pt-2">' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="space-name">Nome do espaço</label><input id="space-name" name="nome" class="' + INPUT + '" value="' + esc(space ? space.nome : "") + '" required maxlength="120"></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="space-category">Categoria</label><input id="space-category" name="categoria" class="' + INPUT + '" value="' + esc(space ? space.categoria : "") + '" required maxlength="120"></div>' +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="space-value">Valor (R$)</label><input id="space-value" name="valor" inputmode="decimal" placeholder="0,00" class="' + INPUT + '" value="' + esc(valor) + '" required></div>' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="space-status">Status</label><input type="hidden" name="status" id="space-status-valor" value="' + statusInicial + '">' +
+          '<button type="button" id="space-status" role="combobox" data-acao="menu-form-status" class="' + SELECT_TRIGGER + '"><span>' + esc(STATUS_ESPACO[statusInicial].label) + "</span>" + icone("chevron-down", "h-4 w-4 opacity-50") + "</button></div>" +
+        "</div>" +
+        '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
+          '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form">Cancelar</button>' +
+          '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.form.salvando ? " disabled" : "") + ">" + (S.form.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar espaço</button>" +
+        "</div>" +
+      "</form>" +
+      '<button type="button" data-acao="fechar-form" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
+    "</div>";
+}
+
+/* ---------------------------------------------- tela: cadastro de patrocinador */
+function telaPatrocinadores() {
+  var corpo;
+  if (S.sponsorsErro) corpo = errorList(S.sponsorsErro, "recarregar-patrocinadores", S.sponsorsCarregando);
+  else if (!S.sponsors) corpo = loadingList("Carregando patrocinadores...");
+  else if (!S.sponsors.length) corpo = emptyList("handshake", "Nenhum patrocinador cadastrado ainda");
+  else {
+    var semEspaco = '<span class="text-muted-foreground">Sem espaço</span>';
+    var th = function (cls, txt) { return '<th class="' + cn(TH, cls) + '">' + txt + "</th>"; };
+    var linhas = S.sponsors.map(function (s) {
+      var detail = STATUS_PATROCINADOR[s.status] || STATUS_PATROCINADOR.ativo;
+      return '<tr class="' + cn(TR, s.status === "em_risco_de_renovacao" && "bg-primary/8 hover:bg-primary/12") + '">' +
+        '<td class="' + cn(TD, "px-5 py-4 font-bold") + '">' + esc(s.nome) + "</td>" +
+        '<td class="' + cn(TD, "max-w-56 truncate") + '">' + esc(s.contato) + "</td>" +
+        '<td class="' + TD + '">' + (s.espacoVinculado ? esc(s.espacoVinculado) : semEspaco) + "</td>" +
+        '<td class="' + TD + '">' + esc(s.responsavelComercial) + "</td>" +
+        '<td class="' + cn(TD, "whitespace-nowrap") + '">' + esc(formatDateOnly(s.dataVencimentoContrato)) + "</td>" +
+        '<td class="' + TD + '">' + badge(detail, "shrink-0 whitespace-nowrap") + "</td></tr>";
+    }).join("");
+    var cards = S.sponsors.map(function (s) {
+      var detail = STATUS_PATROCINADOR[s.status] || STATUS_PATROCINADOR.ativo;
+      return '<article class="' + cn("border border-border bg-card p-4", s.status === "em_risco_de_renovacao" && "border-primary bg-primary/8") + '">' +
+        '<div class="flex items-start justify-between gap-3"><h2 class="min-w-0 break-words font-bold">' + esc(s.nome) + "</h2>" + badge(detail, "shrink-0 whitespace-nowrap") + "</div>" +
+        '<dl class="mt-4 space-y-3 text-sm">' +
+          '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Contato</dt><dd class="mt-0.5 break-words">' + esc(s.contato) + "</dd></div>" +
+          '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Espaço vinculado</dt><dd class="mt-0.5">' + (s.espacoVinculado ? esc(s.espacoVinculado) : semEspaco) + "</dd></div>" +
+          '<div class="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-3">' +
+            '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Responsável</dt><dd class="mt-0.5">' + esc(s.responsavelComercial) + "</dd></div>" +
+            '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Vencimento</dt><dd class="mt-0.5 flex items-center gap-1.5">' + icone("calendar-days", "size-3.5 text-muted-foreground") + esc(formatDateOnly(s.dataVencimentoContrato)) + "</dd></div>" +
+          "</div>" +
+        "</dl></article>";
+    }).join("");
+    corpo = '<div class="hidden overflow-hidden border border-border bg-card md:block"><div class="relative w-full overflow-auto"><table class="w-full caption-bottom text-sm">' +
+      '<thead class="[&_tr]:border-b bg-foreground text-background"><tr class="' + cn(TR, "hover:bg-foreground") + '">' +
+        th("px-5 text-xs font-bold uppercase text-background", "Patrocinador") + th("text-xs font-bold uppercase text-background", "Contato") +
+        th("text-xs font-bold uppercase text-background", "Espaço vinculado") + th("text-xs font-bold uppercase text-background", "Responsável") +
+        th("text-xs font-bold uppercase text-background", "Vencimento") + th("text-xs font-bold uppercase text-background", "Status") +
+      '</tr></thead><tbody class="[&_tr:last-child]:border-0">' + linhas + "</tbody></table></div></div>" +
+      '<div class="grid gap-3 md:hidden">' + cards + "</div>";
+  }
+  return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
+    '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Carteira comercial</div>' +
+    '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Cadastro de Patrocinador</h1>' +
+    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Contato, espaço vinculado, responsável comercial e vencimento de contrato de cada patrocinador.</p>' +
+    "</header>" + corpo + "</section>";
+}
+
+/* ---------------------------------------------- tela: historico de interacoes */
+function telaInteracoes() {
+  var corpo;
+  if (S.interactionsErro) corpo = errorList(S.interactionsErro, "recarregar-interacoes", S.interactionsCarregando);
+  else if (!S.interactions) corpo = loadingList("Carregando interações...", 3);
+  else if (!S.interactions.length) corpo = emptyList("history", "Nenhuma interação registrada ainda");
+  else {
+    corpo = '<div class="grid gap-4">' + S.interactions.map(function (it) {
+      var gerando = S.sugerindo === it.id;
+      return '<article class="border border-border bg-card">' +
+        '<div class="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">' +
+          '<div class="min-w-0"><h2 class="break-words text-lg font-black uppercase">' + esc(it.patrocinador) + "</h2>" +
+          '<div class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">' + icone("calendar-days", "size-3.5") + " " + esc(formatDateTime(it.data)) + "</div></div>" +
+          '<button type="button" class="' + btnCls("outline", "default", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="sugerir" data-id="' + esc(it.id) + '"' + (S.sugerindo ? " disabled" : "") + ">" +
+            (gerando ? icone("loader-circle", "animate-spin") : icone("sparkles")) + (gerando ? "Sugerindo..." : "Sugerir próximo passo") + "</button>" +
+        "</div>" +
+        '<div class="space-y-5 px-4 py-5 sm:px-5">' +
+          '<div><span class="text-xs font-bold uppercase text-muted-foreground">Observação</span><p class="mt-2 break-words text-sm leading-6">' + esc(it.observacao) + "</p></div>" +
+          '<div class="border-l-4 border-primary bg-primary/8 px-4 py-3">' +
+            '<div class="' + cn(BADGE, "text-foreground border-primary/30 bg-primary/15") + '">Próximo passo</div>' +
+            (it.proximoPasso
+              ? '<p class="mt-2 whitespace-pre-line break-words text-sm font-semibold leading-6">' + esc(it.proximoPasso) + "</p>"
+              : '<p class="mt-2 text-sm text-muted-foreground">Ainda sem próximo passo. Use o botão para gerar uma sugestão.</p>') +
+          "</div>" +
+        "</div></article>";
+    }).join("") + "</div>";
+  }
+  return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
+    '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Relacionamento comercial</div>' +
+    '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Histórico de Interações</h1>' +
+    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Consulte as conversas registradas e gere abordagens comerciais com base no histórico de cada patrocinador.</p>' +
+    "</header>" + corpo + "</section>";
+}
+
+/* --------------------------------------------------------- carregar dados */
+async function carregar(chave, fn) {
+  S[chave + "Carregando"] = true;
+  S[chave + "Erro"] = null;
+  render();
+  try { S[chave] = await fn(); }
+  catch (e) { S[chave] = null; S[chave + "Erro"] = e.message; }
+  S[chave + "Carregando"] = false;
+  render();
+}
+function recarregarEspacos() { return Promise.all([carregar("spaces", getSpaces), carregar("overview", getSpacesOverview)]); }
+
+var TITULOS = {
+  "/auth": "Entrar — Painel Comercial Festival Interlagos",
+  "/app/espacos": "Painel de Espaços — Painel Comercial Festival Interlagos",
+  "/app/patrocinadores": "Cadastro de Patrocinador — Painel Comercial Festival Interlagos",
+  "/app/interacoes": "Histórico de Interações — Painel Comercial Festival Interlagos",
+};
+
+async function prepararTela(caminho) {
+  if (!S.regraAplicada) {
+    S.regraAplicada = true;
+    try { await aplicarRegraContratos(); } catch (e) {}
+  }
+  if (caminho === "/app/espacos" && !S.spaces && !S.spacesCarregando) recarregarEspacos();
+  if (caminho === "/app/patrocinadores" && !S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
+  if (caminho === "/app/interacoes" && !S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions);
+}
+
+/* ------------------------------------------------------------------ render */
+var ultimaRota = null;
+function render() {
+  var raiz = document.getElementById("app");
+  var r = rotaAtual();
+  var caminho = r.caminho;
+  if (!S.authPronto) { raiz.innerHTML = pageLoading(caminho === "/auth" ? "Carregando acesso..." : "Carregando painel..."); return; }
+  if (caminho === "/" || !TITULOS[caminho]) { irPara(S.user ? "/app/espacos" : "/auth", true); return; }
+  if (caminho === "/auth" && S.user) { irPara("/app/espacos", true); return; }
+  if (caminho !== "/auth" && !S.user) { irPara("/auth", true); return; }
+  document.title = TITULOS[caminho];
+
+  // preserva o foco e o cursor da busca entre renderizacoes
+  var ativo = document.activeElement;
+  var foco = ativo && ativo.id ? { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd } : null;
+
+  if (caminho === "/auth") raiz.innerHTML = telaAuth();
+  else {
+    var tela = caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : telaInteracoes();
+    raiz.innerHTML = casca(tela, caminho);
+    if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
+  }
+  ultimaRota = caminho;
+  document.body.classList.toggle("dialogo-aberto", S.form.aberto);
+
+  if (foco) {
+    var el = document.getElementById(foco.id);
+    if (el) { el.focus(); try { if (foco.ini != null) el.setSelectionRange(foco.ini, foco.fim); } catch (e) {} }
+  }
+}
+
+/* --------------------------------------------------------- menu de selecao */
+var menuAberto = null;
+function fecharMenu() { if (menuAberto) { menuAberto.remove(); menuAberto = null; } }
+function abrirMenu(gatilho, opcoes, atual, aoEscolher) {
+  fecharMenu();
+  var ret = gatilho.getBoundingClientRect();
+  var menu = document.createElement("div");
+  menu.setAttribute("role", "listbox");
+  menu.className = cn(SELECT_CONTENT, "menu-selecao");
+  menu.setAttribute("data-state", "open");
+  menu.style.left = ret.left + "px";
+  menu.style.minWidth = Math.max(ret.width, 128) + "px";
+  var abaixo = window.innerHeight - ret.bottom;
+  var altura = opcoes.length * 32 + 10;
+  if (abaixo < altura + 8 && ret.top > altura) menu.style.bottom = (window.innerHeight - ret.top + 4) + "px";
+  else menu.style.top = (ret.bottom + 4) + "px";
+  menu.innerHTML = '<div class="p-1">' + opcoes.map(function (o) {
+    var sel = o.valor === atual;
+    return '<div role="option" tabindex="-1" aria-selected="' + sel + '" data-valor="' + o.valor + '" class="' + cn(SELECT_ITEM, "hover:bg-accent hover:text-accent-foreground cursor-pointer") + '">' +
+      '<span class="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">' + (sel ? icone("check", "h-4 w-4") : "") + "</span>" + esc(o.rotulo) + "</div>";
+  }).join("") + "</div>";
+  menu.addEventListener("click", function (ev) {
+    var item = ev.target.closest("[data-valor]");
+    if (!item) return;
+    fecharMenu();
+    aoEscolher(item.getAttribute("data-valor"));
+  });
+  document.body.appendChild(menu);
+  menuAberto = menu;
+}
+var OPCOES_STATUS = [{ valor: "disponivel", rotulo: "Disponível" }, { valor: "reservado", rotulo: "Reservado" }, { valor: "vendido", rotulo: "Vendido" }];
+
+/* ------------------------------------------------------------------ eventos */
+document.addEventListener("click", async function (ev) {
+  if (menuAberto && !menuAberto.contains(ev.target) && !ev.target.closest('[role="combobox"]')) fecharMenu();
+  var alvo = ev.target.closest("[data-acao]");
+  if (!alvo || alvo.disabled) return;
+  var acao = alvo.getAttribute("data-acao");
+  var id = alvo.getAttribute("data-id");
+
+  if (acao === "modo") { S.auth.mode = alvo.getAttribute("data-modo"); render(); return; }
+  if (acao === "sair") {
+    S.saindo = true; render();
+    await API.sair();
+    return;
+  }
+  if (acao === "novo") { S.form = { aberto: true, espaco: null, salvando: false }; render(); setTimeout(function () { var el = document.getElementById("space-name"); if (el) el.focus(); }, 0); return; }
+  if (acao === "editar") {
+    var sp = (S.spaces || []).find(function (x) { return x.id === id; });
+    S.form = { aberto: true, espaco: sp || null, salvando: false }; render(); return;
+  }
+  if (acao === "fechar-form") { if (!S.form.salvando) { S.form.aberto = false; fecharMenu(); render(); } return; }
+  if (acao === "menu-filtro") {
+    var f = filtroAtual();
+    abrirMenu(alvo, [{ valor: "todos", rotulo: "Todos os status" }].concat(OPCOES_STATUS), f.filter, function (valor) {
+      trocarParametro("status", valor);
+      alvo.querySelector("span").textContent = ROTULO_FILTRO[valor];
+      document.getElementById("bloco-lista").innerHTML = blocoListaEspacos();
+    });
+    return;
+  }
+  if (acao === "menu-status") {
+    var espaco = (S.spaces || []).find(function (x) { return x.id === id; });
+    abrirMenu(alvo, OPCOES_STATUS, espaco && espaco.status, async function (valor) {
+      if (!espaco || valor === espaco.status) return;
+      S.statusMudando = true; render();
+      try {
+        await changeSpaceStatus(id, valor);
+        S.statusMudando = false;
+        await recarregarEspacos();
+        toast.success("Status do espaço atualizado.");
+      } catch (e) {
+        S.statusMudando = false; render();
+        toast.error(e.message);
+      }
+    });
+    return;
+  }
+  if (acao === "menu-form-status") {
+    var campo = document.getElementById("space-status-valor");
+    abrirMenu(alvo, OPCOES_STATUS, campo.value, function (valor) {
+      campo.value = valor;
+      alvo.querySelector("span").textContent = STATUS_ESPACO[valor].label;
+    });
+    return;
+  }
+  if (acao === "sugerir") {
+    S.sugerindo = id; render();
+    try {
+      await suggestNextStep(id);
+      S.sugerindo = null;
+      S.overview = null;
+      await carregar("interactions", getInteractions);
+      toast.success("Próximo passo sugerido e salvo.");
+    } catch (e) {
+      S.sugerindo = null; render();
+      toast.error(e.message);
+    }
+    return;
+  }
+  if (acao === "recarregar-espacos") { carregar("spaces", getSpaces); return; }
+  if (acao === "recarregar-overview") { carregar("overview", getSpacesOverview); return; }
+  if (acao === "recarregar-patrocinadores") { carregar("sponsors", getSponsors); return; }
+  if (acao === "recarregar-interacoes") { carregar("interactions", getInteractions); return; }
+});
+
+document.addEventListener("input", function (ev) {
+  var el = ev.target;
+  if (el.id === "busca") {
+    trocarParametro("q", el.value);
+    document.getElementById("bloco-lista").innerHTML = blocoListaEspacos();
+    return;
+  }
+  if (el.id === "name") S.auth.name = el.value;
+  if (el.id === "email") S.auth.email = el.value;
+  if (el.id === "password") S.auth.password = el.value;
+});
+
+document.addEventListener("submit", async function (ev) {
+  if (ev.target.id === "form-auth") { ev.preventDefault(); enviarAuth(); return; }
+  if (ev.target.id === "form-espaco") {
+    ev.preventDefault();
+    var form = new FormData(ev.target);
+    var rawValue = String(form.get("valor") || "").replace(/\./g, "").replace(",", ".");
+    var space = S.form.espaco;
+    var data = {
+      id: space ? space.id : undefined,
+      nome: String(form.get("nome") || ""),
+      categoria: String(form.get("categoria") || ""),
+      valor: Number(rawValue),
+      status: String(form.get("status") || "disponivel"),
+    };
+    S.form.salvando = true;
+    var btn = ev.target.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.insertAdjacentHTML("afterbegin", icone("loader-circle", "animate-spin")); }
+    try {
+      await saveSpace(data);
+      S.form = { aberto: false, espaco: null, salvando: false };
+      await recarregarEspacos();
+      toast.success(space ? "Espaço atualizado com sucesso." : "Espaço criado com sucesso.");
+    } catch (e) {
+      S.form.salvando = false;
+      if (btn) { btn.disabled = false; var sp = btn.querySelector(".animate-spin"); if (sp) sp.remove(); }
+      toast.error(e.message);
+    }
+  }
+});
+
+document.addEventListener("keydown", function (ev) {
+  if (ev.key !== "Escape") return;
+  if (menuAberto) { fecharMenu(); return; }
+  if (S.form.aberto && !S.form.salvando) { S.form.aberto = false; render(); }
+});
+window.addEventListener("hashchange", render);
+window.addEventListener("resize", fecharMenu);
+window.addEventListener("scroll", fecharMenu, true);
+
+/* ------------------------------------------------------------------- inicio */
+(async function iniciar() {
+  render();
+  try {
+    API = MODO_TESTE ? await criarApiTeste() : await criarApiFirebase();
+  } catch (e) {
+    document.getElementById("app").innerHTML = pageLoading("Não foi possível carregar o painel. Recarregue a página.");
+    return;
+  }
+  API.aoMudarLogin(async function (user) {
+    if (user && !user.emailVerified) user = null;
+    S.user = user;
+    if (user) {
+      S.nome = await API.nomePerfil(user);
+    } else {
+      S.saindo = false;
+      S.regraAplicada = false;
+      S.spaces = S.overview = S.sponsors = S.interactions = null;
+      S.form = { aberto: false, espaco: null, salvando: false };
+      ultimaRota = null;
+    }
+    S.authPronto = true;
+    render();
+  });
 })();
+
+/*
+ * Regras do Firestore publicadas no projeto (copia):
+ *
+ * rules_version = '2';
+ * service cloud.firestore {
+ *   match /databases/{database}/documents {
+ *     function logado() { return request.auth != null && request.auth.token.email_verified == true; }
+ *     function tabela() {
+ *       return logado() && (
+ *         (request.method == 'create' && request.resource.data.criado_por == request.auth.uid) ||
+ *         (request.method == 'update' && request.resource.data.criado_por == resource.data.criado_por) ||
+ *         request.method == 'delete');
+ *     }
+ *     match /espacos/{id}        { allow read: if logado(); allow write: if tabela(); }
+ *     match /patrocinadores/{id} { allow read: if logado(); allow write: if tabela(); }
+ *     match /interacoes/{id}     { allow read: if logado(); allow write: if tabela(); }
+ *     match /profiles/{uid}      { allow read, create, update: if request.auth != null && request.auth.uid == uid; }
+ *   }
+ * }
+ */
 </script>
 </body>
 </html>
