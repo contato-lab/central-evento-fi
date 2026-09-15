@@ -22,6 +22,12 @@
   @media (max-width:600px){.toaster{top:16px;right:16px;left:16px;width:auto}}
   .menu-selecao{position:fixed}
   body.dialogo-aberto{overflow:hidden}
+  /* classes que o app original nao usava e por isso nao estao no app.css */
+  .overflow-x-auto{overflow-x:auto}
+  .justify-end{justify-content:flex-end}
+  .h-64{height:16rem}
+  .bg-destructive\/10{background-color:color-mix(in oklab,var(--destructive) 10%,transparent)}
+  @media (min-width:640px){.sm\:p-3{padding:.75rem}}
   /* mapa de espacos: cores por status, mesmas dos selos da lista */
   .mapa-svg{display:block;width:100%;min-width:1100px;height:auto;font-family:inherit}
   .mapa-svg .zona{fill:var(--muted);stroke:var(--border)}
@@ -69,7 +75,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-15.4";
+var VERSAO = "2026-09-15.5";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
