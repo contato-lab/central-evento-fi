@@ -8,57 +8,45 @@
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="../favicon.png">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<noscript><meta http-equiv="refresh" content="0; url=https://interlagos-sponsor-cloud.lovable.app/"></noscript>
 <style>
-  html,body{margin:0;height:100%;background:#0B0C0A;overflow:hidden}
-  #painel{position:fixed;inset:0;width:100%;height:100%;border:0;background:#f7f7f5}
-  #aviso{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-         color:#f5f5f0;font:600 15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;padding:24px}
-  #aviso a{color:#0B0C0A;background:#A6EC4D;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:800;text-transform:uppercase}
-  #aviso[hidden]{display:none}
+  html,body{margin:0;height:100%;background:#0B0C0A}
+  main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;
+       color:#f5f5f0;font:600 15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;box-sizing:border-box}
+  a{color:#0B0C0A;background:#A6EC4D;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:800;text-transform:uppercase}
 </style>
 </head>
 <body>
 <!--
   Painel Comercial do Festival Interlagos.
 
-  O sistema em si mora no Lovable (interlagos-sponsor-cloud.lovable.app), porque
-  precisa de servidor, banco e login, coisas que o GitHub Pages nao roda. Esta
-  pagina so abre o painel dentro do endereco da Central, em tela cheia.
+  O sistema mora no Lovable (interlagos-sponsor-cloud.lovable.app), porque precisa
+  de servidor, banco e login, coisas que o GitHub Pages nao roda. Esta pagina so
+  leva quem abre /comercial/ direto para o painel.
+
+  Por que redireciona em vez de abrir dentro da pagina (iframe): testado em
+  15/09/2026, o painel do Lovable carrega em branco dentro de iframe no Chrome.
+  Um iframe de outro site (example.com) aparecia normal no mesmo teste, entao o
+  problema e do app do Lovable dentro de moldura, nao da Central.
 
   Link direto para uma tela: /comercial/#/app/interacoes (o que vem depois do #
   vira o caminho dentro do painel).
 -->
-<iframe id="painel" title="Painel Comercial Festival Interlagos" allow="clipboard-write"></iframe>
-<div id="aviso" hidden>
-  <span>Não foi possível abrir o painel aqui.</span>
-  <a id="abrir" href="https://interlagos-sponsor-cloud.lovable.app/" target="_top" rel="noopener">Abrir o painel comercial</a>
-</div>
-<noscript>
-  <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0B0C0A">
-    <a href="https://interlagos-sponsor-cloud.lovable.app/" style="color:#0B0C0A;background:#A6EC4D;padding:12px 20px;border-radius:6px;font:800 15px system-ui;text-decoration:none">ABRIR O PAINEL COMERCIAL</a>
-  </div>
-</noscript>
+<main>
+  <span>Abrindo o painel comercial...</span>
+  <a id="abrir" href="https://interlagos-sponsor-cloud.lovable.app/">Abrir o painel comercial</a>
+</main>
 <script>
-var VERSAO = "2026-09-15.1";
+var VERSAO = "2026-09-15.2";
 var ORIGEM = "https://interlagos-sponsor-cloud.lovable.app";
 
 (function(){
-  var frame = document.getElementById("painel");
-  var aviso = document.getElementById("aviso");
   var caminho = (location.hash || "").replace(/^#/, "");
   // so aceita caminho interno do painel, nunca endereco de outro site
   if (!/^\/[A-Za-z0-9\/_\-]*$/.test(caminho)) caminho = "/";
   var destino = ORIGEM + caminho;
-
   document.getElementById("abrir").href = destino;
-  frame.src = destino;
-
-  // se o painel nao responder em 20s, mostra o botao para abrir fora daqui
-  var carregou = false;
-  frame.addEventListener("load", function(){ carregou = true; aviso.hidden = true; });
-  setTimeout(function(){
-    if (!carregou) { frame.style.display = "none"; aviso.hidden = false; }
-  }, 20000);
+  location.replace(destino);
 })();
 </script>
 </body>
