@@ -22,6 +22,27 @@
   @media (max-width:600px){.toaster{top:16px;right:16px;left:16px;width:auto}}
   .menu-selecao{position:fixed}
   body.dialogo-aberto{overflow:hidden}
+  /* mapa de espacos: cores por status, mesmas dos selos da lista */
+  .mapa-svg{display:block;width:100%;min-width:1100px;height:auto;font-family:inherit}
+  .mapa-svg .zona{fill:var(--muted);stroke:var(--border)}
+  .mapa-svg .cel{cursor:pointer}
+  .mapa-svg .cel rect{stroke-width:1.5;transition:opacity .15s}
+  .mapa-svg .cel:hover rect,.mapa-svg .cel:focus-visible rect{opacity:.8}
+  .mapa-svg .cel:focus-visible{outline:none}
+  .mapa-svg .cel:focus-visible rect{stroke:var(--ring);stroke-width:3}
+  .mapa-svg .st-disponivel rect{fill:color-mix(in oklab,var(--success) 16%,white);stroke:var(--success)}
+  .mapa-svg .st-reservado rect{fill:color-mix(in oklab,var(--warning) 45%,white);stroke:var(--warning-foreground)}
+  .mapa-svg .st-vendido rect{fill:var(--foreground);stroke:var(--foreground)}
+  .mapa-svg .st-vendido text{fill:var(--background)}
+  .mapa-svg .st-nenhum rect{fill:var(--card);stroke:var(--border);stroke-dasharray:3 2}
+  .mapa-svg .st-nenhum text{fill:var(--muted-foreground)}
+  .mapa-svg .risco rect{stroke:var(--destructive);stroke-width:2.5;stroke-dasharray:4 2}
+  .mapa-svg text{fill:var(--foreground);pointer-events:none}
+  .mapa-svg .t-cod{font-weight:800;font-size:11px}
+  .mapa-svg .t-rot{font-size:9px}
+  .mapa-svg .t-m2{font-size:8px;opacity:.75}
+  .mapa-svg .t-zona{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .mapa-svg .t-nota{font-size:10px;fill:var(--muted-foreground)}
 </style>
 </head>
 <body>
@@ -29,6 +50,7 @@
 <section id="toasts" class="toaster" aria-label="Notificações" aria-live="polite"></section>
 
 <script type="module">
+import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from "./mapa.js";
 /*
  * Painel Comercial Festival Interlagos.
  *
@@ -47,7 +69,7 @@
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-15.3";
+var VERSAO = "2026-09-15.4";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -59,6 +81,7 @@ var MODO_TESTE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]te
 
 /* ------------------------------------------------------------------ icones */
 var ICONES = {
+"map": "<path d=\"M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z\"/> <path d=\"M15 5.764v15\"/> <path d=\"M9 3.236v15\"/>",
 "building-2": "<path d=\"M10 12h4\"/> <path d=\"M10 8h4\"/> <path d=\"M14 21v-3a2 2 0 0 0-4 0v3\"/> <path d=\"M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\"/> <path d=\"M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16\"/>",
 "calendar-days": "<path d=\"M8 2v4\"/> <path d=\"M16 2v4\"/> <rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/> <path d=\"M3 10h18\"/> <path d=\"M8 14h.01\"/> <path d=\"M12 14h.01\"/> <path d=\"M16 14h.01\"/> <path d=\"M8 18h.01\"/> <path d=\"M12 18h.01\"/> <path d=\"M16 18h.01\"/>",
 "check": "<path d=\"M20 6 9 17l-5-5\"/>",
@@ -181,8 +204,8 @@ async function criarApiFirebase() {
       return user.displayName || (user.email ? user.email.split("@")[0] : "Usuário");
     },
     listar: listar,
-    criar: async function (col, dados) {
-      var id = novoId();
+    criar: async function (col, dados, idFixo) {
+      var id = idFixo || novoId();
       var agora = agoraIso();
       var doc = Object.assign({}, dados, { criado_por: auth.currentUser.uid, created_at: agora, updated_at: agora });
       await fsMod.setDoc(fsMod.doc(db, col, id), doc);
@@ -214,6 +237,13 @@ async function criarApiFirebase() {
 async function criarApiTeste() {
   var semente = await (await fetch("../seed.json")).json();
   var dados = { espacos: semente.espacos, patrocinadores: semente.patrocinadores, interacoes: semente.interacoes };
+  // espacos do mapa, com status variados so para enxergar o desenho
+  todosEspacos().forEach(function (e, i) {
+    var st = i % 7 === 0 ? "reservado" : (i % 3 === 0 ? "vendido" : "disponivel");
+    if (i % 11 === 0) return; // alguns ficam sem cadastro, para ver o estado "sem cadastro"
+    dados.espacos.push(Object.assign({}, e, { id: e.mapa, status: st, criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }));
+  });
+  dados.patrocinadores[2].espaco_vinculado_id = "moto:box:07"; // Nexo Motors (em risco) aponta para um box do mapa
   var ouvinte = null;
   var user = { uid: "teste", email: "eric@teste.local", displayName: "Eric Pereira Felix", emailVerified: true };
   var logado = !/[?&]deslogado=1/.test(location.search);
@@ -226,7 +256,7 @@ async function criarApiTeste() {
     sair: async function () { logado = false; ouvinte(null); },
     nomePerfil: async function () { return "Eric Pereira Felix"; },
     listar: async function (col) { await espera(700); return JSON.parse(JSON.stringify(dados[col])); },
-    criar: async function (col, d) { await espera(300); var doc = Object.assign({}, d, { id: novoId(), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }); dados[col].push(doc); return doc; },
+    criar: async function (col, d, idFixo) { await espera(300); var doc = Object.assign({}, d, { id: idFixo || novoId(), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }); dados[col].push(doc); return doc; },
     atualizar: async function (col, id, d) { await espera(300); var it = dados[col].find(function (x) { return x.id === id; }); Object.assign(it, d, { updated_at: agoraIso() }); },
     atualizarVarios: async function (lista) { lista.forEach(function (it) { var x = dados[it.col].find(function (y) { return y.id === it.id; }); Object.assign(x, it.dados); }); },
     gerarTexto: async function () { await espera(900); return "Ligar para o contato até sexta, 18/09, e confirmar a proposta revisada."; },
@@ -261,14 +291,20 @@ async function getSpaces() {
   var r;
   try { r = await Promise.all([API.listar("espacos"), API.listar("patrocinadores")]); }
   catch (e) { throw new Error(ERRO_ESPACOS); }
-  var risco = {};
+  var risco = {}, vinculado = {};
   r[1].forEach(function (s) {
-    if (s.status === "em_risco_de_renovacao" && s.espaco_vinculado_id) risco[s.espaco_vinculado_id] = s.nome;
+    if (!s.espaco_vinculado_id) return;
+    if (s.status !== "encerrado" || !vinculado[s.espaco_vinculado_id]) vinculado[s.espaco_vinculado_id] = { nome: s.nome, status: s.status };
+    if (s.status === "em_risco_de_renovacao") risco[s.espaco_vinculado_id] = s.nome;
   });
   return r[0].sort(porNome).map(function (space) {
     return {
       id: space.id, nome: space.nome, categoria: space.categoria, valor: Number(space.valor), status: space.status, updated_at: space.updated_at,
       patrocinadorEmRisco: space.status === "disponivel" ? (risco[space.id] || null) : null,
+      patrocinador: vinculado[space.id] || null,
+      mapa: space.mapa || null, edicao: space.edicao || null, zona: space.zona || null, codigo: space.codigo || null, tipo: space.tipo || null,
+      metragem: space.metragem == null ? null : Number(space.metragem),
+      ocupante2026: space.ocupante_2026 || "",
     };
   });
 }
@@ -295,10 +331,16 @@ async function saveSpace(data) {
   var ok = nome.length >= 1 && nome.length <= 120 && categoria.length >= 1 && categoria.length <= 120 &&
     isFinite(data.valor) && data.valor >= 0 && ["disponivel", "reservado", "vendido"].indexOf(data.status) >= 0;
   if (!ok) throw new Error("Não foi possível salvar o espaço.");
-  var payload = { nome: nome, categoria: categoria, valor: data.valor, status: data.status };
+  var payload = { nome: nome, categoria: categoria, valor: data.valor, status: data.status,
+    metragem: data.metragem == null || !isFinite(data.metragem) ? null : data.metragem,
+    ocupante_2026: String(data.ocupante2026 || "").trim().slice(0, 120) };
+  if (!data.id && data.mapa) {
+    // espaco criado a partir do mapa: guarda a posicao para o desenho achar o documento
+    payload.mapa = data.mapa; payload.edicao = data.edicao; payload.zona = data.zona; payload.codigo = data.codigo; payload.tipo = data.tipo;
+  }
   try {
     if (data.id) await API.atualizar("espacos", data.id, payload);
-    else await API.criar("espacos", payload);
+    else await API.criar("espacos", payload, data.mapa || null);
   } catch (e) { throw new Error("Não foi possível salvar o espaço."); }
 }
 
@@ -376,7 +418,8 @@ var S = {
   statusMudando: false,
   sugerindo: null,
   auth: { mode: "login", name: "", email: "", password: "", error: "", message: "", loading: false },
-  form: { aberto: false, espaco: null, salvando: false },
+  form: { aberto: false, espaco: null, salvando: false, prefill: null },
+  detalhe: null,
 };
 
 /* ------------------------------------------------------------------ rotas */
@@ -609,36 +652,217 @@ function blocoListaEspacos() {
   if (!S.spaces.length) return emptyList("building-2", "Nenhum espaço cadastrado ainda", "Use o botão Novo espaço para cadastrar o primeiro.");
   var f = filtroAtual();
   var term = f.search.trim().toLocaleLowerCase("pt-BR");
+  var edicao = edicaoAtual();
   var filtered = S.spaces.filter(function (space) {
-    return (f.filter === "todos" || space.status === f.filter) && (!term || space.nome.toLocaleLowerCase("pt-BR").indexOf(term) >= 0);
-  });
+    if (space.edicao && space.edicao !== edicao) return false;
+    var texto = [space.nome, space.ocupante2026, space.patrocinador && space.patrocinador.nome, space.codigo].join(" ").toLocaleLowerCase("pt-BR");
+    return (f.filter === "todos" || space.status === f.filter) && (!term || texto.indexOf(term) >= 0);
+  }).sort(function (a, b) { return (a.mapa ? 0 : 1) - (b.mapa ? 0 : 1) || porNome(a, b); });
   if (!filtered.length) return emptyList("building-2", "Nenhum espaço encontrado", "Ajuste a busca ou o filtro de status.");
   var linhas = filtered.map(function (space) {
     return '<tr class="' + cn(TR, space.patrocinadorEmRisco && "bg-primary/8 hover:bg-primary/12") + '">' +
       '<td class="' + cn(TD, "px-5 py-4 font-bold") + '">' + esc(space.nome) + (space.patrocinadorEmRisco ? riskNote(space.patrocinadorEmRisco) : "") + "</td>" +
+      '<td class="' + cn(TD, "whitespace-nowrap") + '">' + esc(rotuloLocal(space)) + "</td>" +
       '<td class="' + TD + '">' + esc(space.categoria) + "</td>" +
-      '<td class="' + cn(TD, "font-semibold") + '">' + esc(formatCurrency(space.valor)) + "</td>" +
+      '<td class="' + TD + '">' + (space.patrocinador ? esc(space.patrocinador.nome) : (space.ocupante2026 ? '<span class="text-muted-foreground">2026: ' + esc(space.ocupante2026) + "</span>" : '<span class="text-muted-foreground">Vazio</span>')) + "</td>" +
+      '<td class="' + cn(TD, "font-semibold whitespace-nowrap") + '">' + (space.valor ? esc(formatCurrency(space.valor)) : '<span class="text-muted-foreground">A definir</span>') + "</td>" +
       '<td class="' + TD + '">' + statusSelect(space, S.statusMudando) + "</td>" +
       '<td class="' + TD + '"><button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar ' + esc(space.nome) + '" title="Editar espaço" data-acao="editar" data-id="' + esc(space.id) + '">' + icone("pencil") + "</button></td></tr>";
   }).join("");
   var cards = filtered.map(function (space) {
     return '<article class="' + cn("border border-border bg-card p-4", space.patrocinadorEmRisco && "border-primary bg-primary/8") + '">' +
       '<div class="flex items-start justify-between gap-3"><div class="min-w-0"><h2 class="break-words font-bold">' + esc(space.nome) + "</h2>" +
-      '<p class="mt-1 text-sm text-muted-foreground">' + esc(space.categoria) + "</p></div>" +
+      '<p class="mt-1 text-sm text-muted-foreground">' + esc(rotuloLocal(space)) + " · " + esc(space.categoria) + "</p>" +
+      (space.patrocinador ? '<p class="mt-1 text-sm font-semibold">' + esc(space.patrocinador.nome) + "</p>" : (space.ocupante2026 ? '<p class="mt-1 text-sm text-muted-foreground">2026: ' + esc(space.ocupante2026) + "</p>" : "")) + "</div>" +
       '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar ' + esc(space.nome) + '" data-acao="editar" data-id="' + esc(space.id) + '">' + icone("pencil") + "</button></div>" +
       (space.patrocinadorEmRisco ? riskNote(space.patrocinadorEmRisco) : "") +
       '<div class="mt-5 flex items-end justify-between gap-4 border-t border-border pt-4"><div><span class="block text-xs font-bold uppercase text-muted-foreground">Valor</span>' +
-      '<span class="mt-1 block font-bold">' + esc(formatCurrency(space.valor)) + "</span></div>" +
+      '<span class="mt-1 block font-bold">' + (space.valor ? esc(formatCurrency(space.valor)) : '<span class="text-muted-foreground">A definir</span>') + "</span></div>" +
       '<div class="w-44">' + statusSelect(space, S.statusMudando) + "</div></div></article>";
   }).join("");
   var th = function (cls, txt) { return '<th class="' + cn(TH, cls) + '">' + txt + "</th>"; };
   return '<div class="hidden overflow-hidden border border-border bg-card md:block"><div class="relative w-full overflow-auto"><table class="w-full caption-bottom text-sm">' +
     '<thead class="[&_tr]:border-b bg-foreground text-background"><tr class="' + cn(TR, "hover:bg-foreground") + '">' +
-      th("px-5 text-xs font-bold uppercase text-background", "Espaço") + th("text-xs font-bold uppercase text-background", "Categoria") +
+      th("px-5 text-xs font-bold uppercase text-background", "Espaço") + th("text-xs font-bold uppercase text-background", "Local") +
+      th("text-xs font-bold uppercase text-background", "Categoria") + th("text-xs font-bold uppercase text-background", "Marca") +
       th("text-xs font-bold uppercase text-background", "Valor") + th("text-xs font-bold uppercase text-background", "Status") +
       th("w-14", '<span class="sr-only">Editar</span>') +
     '</tr></thead><tbody class="[&_tr:last-child]:border-0">' + linhas + "</tbody></table></div></div>" +
     '<div class="grid gap-3 md:hidden">' + cards + "</div>";
+}
+
+
+/* ---------------------------------------------------------- mapa de espacos */
+function edicaoAtual() {
+  var e = rotaAtual().params.get("edicao");
+  return EDICOES.some(function (x) { return x.id === e; }) ? e : EDICOES[0].id;
+}
+function espacosPorChave() {
+  var m = {};
+  (S.spaces || []).forEach(function (sp) { if (sp.mapa) m[sp.mapa] = sp; });
+  return m;
+}
+function zonaInfo(id) { return ZONAS.find(function (z) { return z.id === id; }) || { id: id, titulo: id }; }
+function rotuloLocal(sp) {
+  if (!sp.mapa) return "Sem posição no mapa";
+  var ed = EDICOES.find(function (e) { return e.id === sp.edicao; });
+  return zonaInfo(sp.zona).titulo.split(" · ")[0] + " " + sp.codigo + (ed ? " · " + ed.curto : "");
+}
+function truncar(txt, max) {
+  txt = String(txt || "");
+  return txt.length > max ? txt.slice(0, Math.max(1, max - 1)) + "…" : txt;
+}
+function escXml(v) { return esc(v); }
+
+// Desenha a edicao inteira em SVG: zonas empilhadas, cada espaco e uma celula clicavel.
+function desenharMapa(edicao) {
+  var W = 1240, PAD = 16, GAP = 6, y = PAD;
+  var porChave = espacosPorChave();
+  var partes = [];
+  var zonas = MAPA[edicao] || {};
+  ZONAS.forEach(function (zona) {
+    var itens = zonas[zona.id];
+    if (!itens || !itens.length) return;
+    var x = PAD + 12, linhaY = y + 40, alturaLinha = 0, cont = { disponivel: 0, reservado: 0, vendido: 0, nenhum: 0 };
+    var celulas = [];
+    itens.forEach(function (item) {
+      var t = TIPOS[item.tipo];
+      if (x + t.w > W - PAD - 12) { x = PAD + 12; linhaY += alturaLinha + GAP; alturaLinha = 0; }
+      var chave = chaveMapa(edicao, zona.id, item.codigo);
+      var doc = porChave[chave];
+      var st = doc ? doc.status : "nenhum";
+      cont[st] = (cont[st] || 0) + 1;
+      var risco = doc && doc.patrocinadorEmRisco;
+      var patro = doc && doc.patrocinador ? doc.patrocinador.nome : "";
+      var ocupante = (doc ? doc.ocupante2026 : item.ocupante) || "";
+      var nome = doc ? doc.nome : nomeEspaco(edicao, zona.id, item);
+      var maxChars = Math.max(4, Math.floor((t.w - 8) / 5.4));
+      var rot = patro || ocupante;
+      var tit = nome + "\n" + (doc ? STATUS_ESPACO[doc.status].label : "Sem cadastro") +
+        (patro ? "\nPatrocinador: " + patro : "") + (ocupante ? "\nOcupante 2026: " + ocupante : "") +
+        (item.m2 ? "\n" + item.m2 + " m²" : "") + (risco ? "\nRisco de renovação: " + risco : "");
+      celulas.push(
+        '<g class="cel st-' + st + (risco ? " risco" : "") + '" data-acao="mapa-espaco" data-mapa="' + escXml(chave) + '" role="button" tabindex="0" aria-label="' + escXml(nome) + '">' +
+          "<title>" + escXml(tit) + "</title>" +
+          '<rect x="' + x + '" y="' + linhaY + '" width="' + t.w + '" height="' + t.h + '" rx="4"/>' +
+          '<text class="t-cod" x="' + (x + 5) + '" y="' + (linhaY + 14) + '">' + escXml(item.rotulo && t.w >= 88 ? truncar(item.rotulo, maxChars) : item.codigo) + "</text>" +
+          (rot ? '<text class="t-rot" x="' + (x + 5) + '" y="' + (linhaY + 27) + '">' + escXml(truncar(rot, maxChars)) + "</text>" : "") +
+          (item.m2 && t.h >= 54 ? '<text class="t-m2" x="' + (x + 5) + '" y="' + (linhaY + t.h - 6) + '">' + escXml(item.m2 + " m²") + "</text>" : "") +
+        "</g>");
+      x += t.w + GAP;
+      if (t.h > alturaLinha) alturaLinha = t.h;
+    });
+    var alturaZona = (linhaY + alturaLinha + 12) - y;
+    var resumo = [
+      cont.disponivel + " disp.", cont.reservado + " res.", cont.vendido + " vend.",
+    ].concat(cont.nenhum ? [cont.nenhum + " sem cadastro"] : []).join(" · ");
+    partes.push(
+      '<g><rect class="zona" x="' + PAD + '" y="' + y + '" width="' + (W - PAD * 2) + '" height="' + alturaZona + '" rx="8"/>' +
+      '<text class="t-zona" x="' + (PAD + 12) + '" y="' + (y + 20) + '">' + escXml(zona.titulo) + "</text>" +
+      '<text class="t-nota" x="' + (PAD + 12) + '" y="' + (y + 32) + '">' + escXml(zona.nota || "") + "</text>" +
+      '<text class="t-nota" x="' + (W - PAD - 12) + '" y="' + (y + 20) + '" text-anchor="end">' + escXml(resumo) + "</text>" +
+      celulas.join("") + "</g>");
+    y += alturaZona + 14;
+  });
+  return '<svg class="mapa-svg" viewBox="0 0 ' + W + " " + (y + 2) + '" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Mapa de espaços da ' + escXml(edicao === "auto" ? "Edição Auto" : "Edição Moto") + '">' + partes.join("") + "</svg>";
+}
+
+function contagemEdicao(edicao) {
+  var c = { total: 0, disponivel: 0, reservado: 0, vendido: 0, risco: 0, semCadastro: 0 };
+  var porChave = espacosPorChave();
+  var zonas = MAPA[edicao] || {};
+  ZONAS.forEach(function (zona) {
+    (zonas[zona.id] || []).forEach(function (item) {
+      c.total++;
+      var doc = porChave[chaveMapa(edicao, zona.id, item.codigo)];
+      if (!doc) { c.semCadastro++; return; }
+      c[doc.status] = (c[doc.status] || 0) + 1;
+      if (doc.patrocinadorEmRisco) c.risco++;
+    });
+  });
+  return c;
+}
+
+function blocoMapa() {
+  var edicao = edicaoAtual();
+  var abas = EDICOES.map(function (e) {
+    var ativo = e.id === edicao;
+    return '<button type="button" role="tab" aria-selected="' + ativo + '" data-acao="edicao" data-edicao="' + e.id + '" class="' +
+      cn("h-11 border-b-2 px-4 text-sm font-bold uppercase", ativo ? "border-primary text-primary" : "border-transparent text-muted-foreground") + '">' + esc(e.rotulo) + "</button>";
+  }).join("");
+  var corpo;
+  if (S.spacesErro) corpo = errorList(S.spacesErro, "recarregar-espacos", S.spacesCarregando);
+  else if (!S.spaces) corpo = '<div role="status" aria-live="polite" aria-busy="true" class="p-4"><span class="sr-only">Carregando mapa...</span><div class="' + SKELETON + ' h-64 w-full rounded-none"></div></div>';
+  else {
+    var c = contagemEdicao(edicao);
+    var chip = function (n, txt, cls) { return '<span class="' + cn(BADGE, "text-foreground", cls) + '">' + n + " " + txt + "</span>"; };
+    corpo =
+      '<div class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-xs sm:px-5">' +
+        chip(c.disponivel, "disponíveis", STATUS_ESPACO.disponivel.className) + chip(c.reservado, "reservados", STATUS_ESPACO.reservado.className) +
+        chip(c.vendido, "vendidos", STATUS_ESPACO.vendido.className) +
+        (c.risco ? chip(c.risco, "em risco de renovação", "border-destructive/40 bg-destructive/10 text-destructive") : "") +
+        (c.semCadastro ? chip(c.semCadastro, "sem cadastro", "border-dashed text-muted-foreground") : "") +
+        '<span class="ml-auto text-muted-foreground">' + c.total + " espaços no mapa · toque em um espaço para ver e mudar o status</span>" +
+      "</div>" +
+      '<div class="overflow-x-auto p-2 sm:p-3">' + desenharMapa(edicao) + "</div>";
+  }
+  return '<div class="border border-border bg-card">' +
+    '<div class="flex flex-col gap-3 border-b border-border px-4 pt-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">' +
+      '<div><div class="flex items-center gap-2">' + icone("map", "size-4 text-primary") + '<h2 class="text-sm font-black uppercase">Mapa de espaços</h2></div>' +
+      '<p class="mt-1 text-xs text-muted-foreground">Base: plantas de 2026. Verde = disponível, amarelo = reservado, preto = vendido, borda vermelha = renovação em risco.</p></div>' +
+      '<div role="tablist" aria-label="Edição" class="flex">' + abas + "</div>" +
+    "</div>" + corpo + "</div>";
+}
+
+// Encontra o item do catalogo pela chave "edicao:zona:codigo".
+function itemDoMapa(chave) {
+  var p = String(chave || "").split(":");
+  if (p.length !== 3) return null;
+  var itens = ((MAPA[p[0]] || {})[p[1]]) || [];
+  var item = itens.find(function (i) { return i.codigo === p[2]; });
+  return item ? { edicao: p[0], zona: p[1], item: item } : null;
+}
+
+function dialogoDetalhe() {
+  var ref = itemDoMapa(S.detalhe);
+  if (!ref) return "";
+  var doc = espacosPorChave()[S.detalhe] || null;
+  var t = TIPOS[ref.item.tipo];
+  var nome = doc ? doc.nome : nomeEspaco(ref.edicao, ref.zona, ref.item);
+  var ed = EDICOES.find(function (e) { return e.id === ref.edicao; });
+  var linha = function (rot, val) {
+    return '<div class="flex justify-between gap-4 border-b border-border py-2 text-sm"><dt class="text-xs font-bold uppercase text-muted-foreground">' + rot + "</dt><dd class=\"text-right\">" + val + "</dd></div>";
+  };
+  var patro = doc && doc.patrocinador
+    ? esc(doc.patrocinador.nome) + " " + badge(STATUS_PATROCINADOR[doc.patrocinador.status] || STATUS_PATROCINADOR.ativo, "ml-1")
+    : '<span class="text-muted-foreground">Nenhum</span>';
+  var ocupante = (doc ? doc.ocupante2026 : ref.item.ocupante) || "";
+  var m2 = doc && doc.metragem != null ? doc.metragem : ref.item.m2;
+  var corpo = "<dl>" +
+    linha("Local", esc(zonaInfo(ref.zona).titulo) + " · " + esc(ref.item.codigo) + " · " + esc(ed ? ed.curto : ref.edicao)) +
+    linha("Categoria", esc(doc ? doc.categoria : t.categoria)) +
+    linha("Metragem", m2 ? esc(String(m2).replace(".", ",")) + " m²" : '<span class="text-muted-foreground">Não informada</span>') +
+    linha("Ocupante 2026", ocupante ? esc(ocupante) : '<span class="text-muted-foreground">Vazio em 2026</span>') +
+    linha("Patrocinador vinculado", patro) +
+    (doc ? linha("Valor", doc.valor ? esc(formatCurrency(doc.valor)) : '<span class="text-muted-foreground">A definir</span>') : "") +
+    "</dl>";
+  var acoes;
+  if (doc) {
+    acoes = '<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">' +
+      '<div class="w-44">' + statusSelect(doc, S.statusMudando) + "</div>" +
+      '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="editar" data-id="' + esc(doc.id) + '">' + icone("pencil") + " Editar espaço</button></div>" +
+      (doc.patrocinadorEmRisco ? '<div class="mt-3">' + riskNote(doc.patrocinadorEmRisco) + "</div>" : "");
+  } else {
+    acoes = '<div class="mt-4 border border-dashed border-border p-3 text-sm text-muted-foreground">Este espaço está no mapa, mas ainda não tem cadastro no painel.</div>' +
+      '<div class="mt-3 flex justify-end"><button type="button" class="' + btnCls("default", "default", "font-bold uppercase") + '" data-acao="novo-mapa" data-mapa="' + esc(S.detalhe) + '">' + icone("plus") + " Cadastrar este espaço</button></div>";
+  }
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-detalhe"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-detalhe" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-detalhe" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + esc(nome) + "</h2>" +
+      '<p class="text-sm text-muted-foreground">' + (doc ? badge(STATUS_ESPACO[doc.status]) : '<span class="' + cn(BADGE, "border-dashed text-muted-foreground") + '">Sem cadastro</span>') + "</p></div>" +
+      corpo + acoes +
+      '<button type="button" data-acao="fechar-detalhe" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
+    "</div>";
 }
 
 function telaEspacos() {
@@ -651,26 +875,40 @@ function telaEspacos() {
       '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="novo">' + icone("plus") + " Novo espaço</button>" +
     "</header>" +
     '<div id="bloco-overview" class="space-y-7">' + blocoVisaoGeral() + "</div>" +
+    '<div id="bloco-mapa">' + blocoMapa() + "</div>" +
     '<div class="grid gap-3 sm:grid-cols-[minmax(240px,1fr)_220px]">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
       '<input id="busca" aria-label="Buscar por nome do espaço" placeholder="Buscar por nome do espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.search) + '"></div>' +
       '<button type="button" role="combobox" aria-label="Filtrar por status" data-acao="menu-filtro" class="' + cn(SELECT_TRIGGER, "h-11 bg-card") + '"><span>' + esc(ROTULO_FILTRO[f.filter]) + "</span>" + icone("chevron-down", "h-4 w-4 opacity-50") + "</button>" +
     "</div>" +
     '<div id="bloco-lista">' + blocoListaEspacos() + "</div>" +
-  "</section>" + (S.form.aberto ? dialogoEspaco() : "");
+  "</section>" + (S.detalhe && !S.form.aberto ? dialogoDetalhe() : "") + (S.form.aberto ? dialogoEspaco() : "");
 }
 
 function dialogoEspaco() {
   var space = S.form.espaco;
+  var pre = S.form.prefill || {};
   var valor = space ? space.valor.toFixed(2).replace(".", ",") : "";
   var statusInicial = space ? space.status : "disponivel";
+  var metragem = space ? space.metragem : pre.metragem;
+  var ocupante = space ? space.ocupante2026 : (pre.ocupante_2026 || "");
+  var local = space && space.mapa ? rotuloLocal(space) : (pre.mapa ? rotuloLocal(pre) : "");
+  var ocultos = !space && pre.mapa
+    ? ["mapa", "edicao", "zona", "codigo", "tipo"].map(function (k) { return '<input type="hidden" name="' + k + '" value="' + esc(pre[k]) + '">'; }).join("")
+    : "";
   return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form"></div>' +
     '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
       '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (space ? "Editar espaço" : "Novo espaço") + "</h2>" +
       '<p class="text-sm text-muted-foreground">Preencha os dados comerciais e defina a situação atual.</p></div>' +
       '<form id="form-espaco" class="space-y-5 pt-2">' +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="space-name">Nome do espaço</label><input id="space-name" name="nome" class="' + INPUT + '" value="' + esc(space ? space.nome : "") + '" required maxlength="120"></div>' +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="space-category">Categoria</label><input id="space-category" name="categoria" class="' + INPUT + '" value="' + esc(space ? space.categoria : "") + '" required maxlength="120"></div>' +
+        ocultos +
+        (local ? '<div class="border border-border bg-muted px-3 py-2 text-sm"><span class="text-xs font-bold uppercase text-muted-foreground">Local no mapa</span><div class="font-semibold">' + esc(local) + "</div></div>" : "") +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="space-name">Nome do espaço</label><input id="space-name" name="nome" class="' + INPUT + '" value="' + esc(space ? space.nome : (pre.nome || "")) + '" required maxlength="120"></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="space-category">Categoria</label><input id="space-category" name="categoria" class="' + INPUT + '" value="' + esc(space ? space.categoria : (pre.categoria || "")) + '" required maxlength="120"></div>' +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="space-m2">Metragem (m²)</label><input id="space-m2" name="metragem" inputmode="decimal" placeholder="Ex.: 225" class="' + INPUT + '" value="' + esc(metragem == null ? "" : String(metragem).replace(".", ",")) + '"></div>' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="space-ocupante">Ocupante em 2026</label><input id="space-ocupante" name="ocupante_2026" placeholder="Marca que ocupou em 2026" class="' + INPUT + '" value="' + esc(ocupante) + '" maxlength="120"></div>' +
+        "</div>" +
         '<div class="grid gap-5 sm:grid-cols-2">' +
           '<div class="space-y-2"><label class="' + LABEL + '" for="space-value">Valor (R$)</label><input id="space-value" name="valor" inputmode="decimal" placeholder="0,00" class="' + INPUT + '" value="' + esc(valor) + '" required></div>' +
           '<div class="space-y-2"><label class="' + LABEL + '" for="space-status">Status</label><input type="hidden" name="status" id="space-status-valor" value="' + statusInicial + '">' +
@@ -818,7 +1056,7 @@ function render() {
     if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
   }
   ultimaRota = caminho;
-  document.body.classList.toggle("dialogo-aberto", S.form.aberto);
+  document.body.classList.toggle("dialogo-aberto", S.form.aberto || !!S.detalhe);
 
   if (foco) {
     var el = document.getElementById(foco.id);
@@ -872,12 +1110,30 @@ document.addEventListener("click", async function (ev) {
     await API.sair();
     return;
   }
-  if (acao === "novo") { S.form = { aberto: true, espaco: null, salvando: false }; render(); setTimeout(function () { var el = document.getElementById("space-name"); if (el) el.focus(); }, 0); return; }
+  if (acao === "novo") { S.form = { aberto: true, espaco: null, salvando: false, prefill: null }; render(); setTimeout(function () { var el = document.getElementById("space-name"); if (el) el.focus(); }, 0); return; }
+  if (acao === "novo-mapa") {
+    var ref = itemDoMapa(alvo.getAttribute("data-mapa"));
+    if (!ref) return;
+    var t = TIPOS[ref.item.tipo];
+    S.form = { aberto: true, espaco: null, salvando: false, prefill: {
+      mapa: chaveMapa(ref.edicao, ref.zona, ref.item.codigo), edicao: ref.edicao, zona: ref.zona, codigo: ref.item.codigo, tipo: ref.item.tipo,
+      nome: nomeEspaco(ref.edicao, ref.zona, ref.item), categoria: t.categoria, metragem: ref.item.m2, ocupante_2026: ref.item.ocupante || "",
+    } };
+    render(); return;
+  }
   if (acao === "editar") {
     var sp = (S.spaces || []).find(function (x) { return x.id === id; });
-    S.form = { aberto: true, espaco: sp || null, salvando: false }; render(); return;
+    S.form = { aberto: true, espaco: sp || null, salvando: false, prefill: null }; render(); return;
   }
   if (acao === "fechar-form") { if (!S.form.salvando) { S.form.aberto = false; fecharMenu(); render(); } return; }
+  if (acao === "mapa-espaco") { S.detalhe = alvo.getAttribute("data-mapa"); fecharMenu(); render(); return; }
+  if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
+  if (acao === "edicao") {
+    trocarParametro("edicao", alvo.getAttribute("data-edicao"));
+    fecharMenu();
+    render();
+    return;
+  }
   if (acao === "menu-filtro") {
     var f = filtroAtual();
     abrirMenu(alvo, [{ valor: "todos", rotulo: "Todos os status" }].concat(OPCOES_STATUS), f.filter, function (valor) {
@@ -951,19 +1207,24 @@ document.addEventListener("submit", async function (ev) {
     var form = new FormData(ev.target);
     var rawValue = String(form.get("valor") || "").replace(/\./g, "").replace(",", ".");
     var space = S.form.espaco;
+    var rawM2 = String(form.get("metragem") || "").replace(/\./g, "").replace(",", ".").trim();
     var data = {
       id: space ? space.id : undefined,
       nome: String(form.get("nome") || ""),
       categoria: String(form.get("categoria") || ""),
       valor: Number(rawValue),
       status: String(form.get("status") || "disponivel"),
+      metragem: rawM2 === "" ? null : Number(rawM2),
+      ocupante2026: String(form.get("ocupante_2026") || ""),
+      mapa: form.get("mapa") || null, edicao: form.get("edicao") || null, zona: form.get("zona") || null,
+      codigo: form.get("codigo") || null, tipo: form.get("tipo") || null,
     };
     S.form.salvando = true;
     var btn = ev.target.querySelector('button[type="submit"]');
     if (btn) { btn.disabled = true; btn.insertAdjacentHTML("afterbegin", icone("loader-circle", "animate-spin")); }
     try {
       await saveSpace(data);
-      S.form = { aberto: false, espaco: null, salvando: false };
+      S.form = { aberto: false, espaco: null, salvando: false, prefill: null };
       await recarregarEspacos();
       toast.success(space ? "Espaço atualizado com sucesso." : "Espaço criado com sucesso.");
     } catch (e) {
@@ -975,9 +1236,13 @@ document.addEventListener("submit", async function (ev) {
 });
 
 document.addEventListener("keydown", function (ev) {
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.closest && ev.target.closest('[data-acao="mapa-espaco"]')) {
+    ev.preventDefault(); ev.target.closest('[data-acao="mapa-espaco"]').click(); return;
+  }
   if (ev.key !== "Escape") return;
   if (menuAberto) { fecharMenu(); return; }
-  if (S.form.aberto && !S.form.salvando) { S.form.aberto = false; render(); }
+  if (S.form.aberto && !S.form.salvando) { S.form.aberto = false; render(); return; }
+  if (S.detalhe) { S.detalhe = null; render(); }
 });
 window.addEventListener("hashchange", render);
 window.addEventListener("resize", fecharMenu);
@@ -1001,7 +1266,8 @@ window.addEventListener("scroll", fecharMenu, true);
       S.saindo = false;
       S.regraAplicada = false;
       S.spaces = S.overview = S.sponsors = S.interactions = null;
-      S.form = { aberto: false, espaco: null, salvando: false };
+      S.form = { aberto: false, espaco: null, salvando: false, prefill: null };
+      S.detalhe = null;
       ultimaRota = null;
     }
     S.authPronto = true;
