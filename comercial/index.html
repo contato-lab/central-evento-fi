@@ -224,7 +224,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-16.10";
+var VERSAO = "2026-09-16.11";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -976,7 +976,7 @@ function telaAuth() {
   var degrade = '<span class="marca-degrade" aria-hidden="true"><i style="width:56px"></i><i style="width:40px"></i><i style="width:28px"></i><i style="width:20px"></i><i style="width:12px"></i><i style="width:8px"></i></span>';
   return '<main class="grid min-h-screen bg-background lg:grid-cols-[minmax(0,1fr)_minmax(440px,0.72fr)]">' +
     '<section class="marca-hero hidden border-r border-border p-12 lg:flex lg:flex-col lg:justify-between">' + chevrons +
-      '<img src="logo-festival-branco.png" alt="Suhai Festival Interlagos" class="relative w-56 self-start">' +
+      '<img src="logo-festival-branco.png?v=2" alt="Suhai Festival Interlagos" class="relative w-56 self-start">' +
       '<div class="relative max-w-xl"><span class="marca-pilula text-primary" style="border-color:var(--marca-verde)">Gestão comercial</span>' +
       '<h1 class="mt-6 text-6xl uppercase">Patrocínios e espaços<br>em uma <span class="text-primary">única pista</span>.</h1>' +
       '<p class="mt-5 max-w-md text-sm text-muted-foreground">Mapa dos espaços por edição, carteira de patrocinadores, marcas desejo e tudo o que foi prometido a cada cliente.</p>' +
@@ -984,7 +984,7 @@ function telaAuth() {
       '<p class="relative text-xs font-bold uppercase tracking-widest text-muted-foreground">Suhai Festival Interlagos 2026</p>' +
     "</section>" +
     '<section class="flex items-center justify-center px-5 py-10 sm:px-10"><div class="w-full max-w-md">' +
-      '<div class="mb-10 flex items-center gap-3 lg:hidden"><img src="logo-festival-branco.png" alt="Suhai Festival Interlagos" class="h-12 w-auto"></div>' +
+      '<div class="mb-10 flex items-center gap-3 lg:hidden"><img src="logo-festival-branco.png?v=2" alt="Suhai Festival Interlagos" class="h-12 w-auto"></div>' +
       '<p class="text-sm font-semibold uppercase tracking-widest text-primary">Acesso reservado</p>' +
       '<h2 class="mt-2 text-4xl uppercase">' + (login ? "Bem-vindo de volta" : "Criar sua conta") + "</h2>" +
       '<p class="mt-2 text-sm text-muted-foreground">' + (login ? "Entre para acessar o painel." : "Use seu e-mail profissional para começar.") + "</p>" +
@@ -1062,7 +1062,7 @@ function casca(conteudo, caminho) {
   return '<div class="min-h-screen bg-background text-foreground">' +
     '<header class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">' +
       '<div class="mx-auto flex h-16 max-w-screen-2xl items-center justify-between gap-4 px-4 sm:px-6">' +
-        '<a href="#/app/inicio" class="flex min-w-0 items-center gap-3"><img src="logo-festival-branco.png" alt="Suhai Festival Interlagos" class="h-10 w-auto shrink-0">' +
+        '<a href="#/app/inicio" class="flex min-w-0 items-center gap-3"><img src="logo-festival-branco.png?v=2" alt="Suhai Festival Interlagos" class="h-10 w-auto shrink-0">' +
         '<span class="hidden h-6 w-px bg-border sm:block"></span><span class="hidden truncate text-sm font-bold uppercase tracking-wider sm:block">Painel Comercial</span></a>' +
         '<div class="flex items-center gap-2 sm:gap-4"><span class="flex min-w-0 items-center gap-2"><span class="max-w-28 truncate text-sm font-medium sm:max-w-52">' + esc(S.nome) + "</span>" +
         (ehAdmin() ? '<span class="' + cn(BADGE, "hidden text-foreground border-primary/30 bg-primary/15 sm:inline-flex") + '">' + esc(PAPEIS[S.papel]) + "</span>" : "") + "</span>" +
