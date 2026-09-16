@@ -28,6 +28,8 @@
   .h-64{height:16rem}
   .bg-destructive\/10{background-color:color-mix(in oklab,var(--destructive) 10%,transparent)}
   @media (min-width:640px){.sm\:p-3{padding:.75rem}}
+  .gap-x-3{column-gap:.75rem}.gap-y-1{row-gap:.25rem}.mr-1{margin-right:.25rem}
+  @media (min-width:1024px){.lg\:grid-cols-\[minmax\(220px\,1\.4fr\)_1fr_1fr_1fr_1fr\]{grid-template-columns:minmax(220px,1.4fr) 1fr 1fr 1fr 1fr}}
   /* mapa de espacos: cores por status, mesmas dos selos da lista */
   .mapa-svg{display:block;width:100%;min-width:1100px;height:auto;font-family:inherit}
   .mapa-svg .zona{fill:var(--muted);stroke:var(--border)}
@@ -75,7 +77,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-15.5";
+var VERSAO = "2026-09-16.1";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -87,6 +89,9 @@ var MODO_TESTE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]te
 
 /* ------------------------------------------------------------------ icones */
 var ICONES = {
+"users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/> <path d=\"M16 3.128a4 4 0 0 1 0 7.744\"/> <path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/> <circle cx=\"9\" cy=\"7\" r=\"4\"/>",
+"shield-check": "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"/> <path d=\"m9 12 2 2 4-4\"/>",
+"user-round": "<circle cx=\"12\" cy=\"8\" r=\"5\"/> <path d=\"M20 21a8 8 0 0 0-16 0\"/>",
 "map": "<path d=\"M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z\"/> <path d=\"M15 5.764v15\"/> <path d=\"M9 3.236v15\"/>",
 "building-2": "<path d=\"M10 12h4\"/> <path d=\"M10 8h4\"/> <path d=\"M14 21v-3a2 2 0 0 0-4 0v3\"/> <path d=\"M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\"/> <path d=\"M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16\"/>",
 "calendar-days": "<path d=\"M8 2v4\"/> <path d=\"M16 2v4\"/> <rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/> <path d=\"M3 10h18\"/> <path d=\"M8 14h.01\"/> <path d=\"M12 14h.01\"/> <path d=\"M16 14h.01\"/> <path d=\"M8 18h.01\"/> <path d=\"M12 18h.01\"/> <path d=\"M16 18h.01\"/>",
@@ -195,19 +200,26 @@ async function criarApiFirebase() {
       var cred = await authMod.createUserWithEmailAndPassword(auth, email, senha);
       try { await authMod.updateProfile(cred.user, { displayName: nome }); } catch (e) {}
       try {
-        await fsMod.setDoc(fsMod.doc(db, "profiles", cred.user.uid), { nome: nome, created_at: agoraIso(), updated_at: agoraIso() });
+        await fsMod.setDoc(fsMod.doc(db, "profiles", cred.user.uid), { nome: nome, email: email, papel: "vendedor", created_at: agoraIso(), updated_at: agoraIso() });
       } catch (e) {}
       await authMod.sendEmailVerification(cred.user, { url: URL_APP });
       await authMod.signOut(auth);
       return { confirmar: true };
     },
     sair: function () { return authMod.signOut(auth); },
-    nomePerfil: async function (user) {
+    perfil: async function (user) {
+      var nomePadrao = user.displayName || (user.email ? user.email.split("@")[0] : "Usuário");
       try {
         var s = await fsMod.getDoc(fsMod.doc(db, "profiles", user.uid));
-        if (s.exists() && s.data().nome) return s.data().nome;
+        if (s.exists()) {
+          var d = s.data();
+          if (!d.email && user.email) { try { await fsMod.updateDoc(fsMod.doc(db, "profiles", user.uid), { email: user.email }); } catch (e2) {} }
+          return { nome: d.nome || nomePadrao, papel: d.papel || "vendedor", email: d.email || user.email || "" };
+        }
+        // conta antiga sem perfil: cria como vendedor
+        await fsMod.setDoc(fsMod.doc(db, "profiles", user.uid), { nome: nomePadrao, email: user.email || "", papel: "vendedor", created_at: agoraIso(), updated_at: agoraIso() });
       } catch (e) {}
-      return user.displayName || (user.email ? user.email.split("@")[0] : "Usuário");
+      return { nome: nomePadrao, papel: "vendedor", email: user.email || "" };
     },
     listar: listar,
     criar: async function (col, dados, idFixo) {
@@ -250,6 +262,15 @@ async function criarApiTeste() {
     dados.espacos.push(Object.assign({}, e, { id: e.mapa, status: st, criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }));
   });
   dados.patrocinadores[2].espaco_vinculado_id = "moto:box:07"; // Nexo Motors (em risco) aponta para um box do mapa
+  dados.profiles = [
+    { id: "teste", nome: "Eric Pereira Felix", email: "eric@teste.local", papel: "dono" },
+    { id: "v1", nome: "Igor Souza", email: "igor@teste.local", papel: "vendedor" },
+    { id: "v2", nome: "Pedro Paulo", email: "pedro@teste.local", papel: "admin" },
+  ];
+  var papelTeste = (location.search.match(/[?&]papel=(\w+)/) || [])[1] || "dono";
+  dados.patrocinadores[0].vendedor_uid = "v1"; dados.patrocinadores[0].vendedor_nome = "Igor Souza"; dados.patrocinadores[0].master = true;
+  dados.patrocinadores[1].tipo = "merchandising"; dados.patrocinadores[1].vendedor_uid = "teste"; dados.patrocinadores[1].vendedor_nome = "Eric Pereira Felix";
+  dados.espacos.forEach(function (e, i) { if (e.status !== "disponivel" && i % 2) { e.vendedor_uid = "v1"; e.vendedor_nome = "Igor Souza"; } });
   var ouvinte = null;
   var user = { uid: "teste", email: "eric@teste.local", displayName: "Eric Pereira Felix", emailVerified: true };
   var logado = !/[?&]deslogado=1/.test(location.search);
@@ -260,7 +281,7 @@ async function criarApiTeste() {
     entrar: async function () { await espera(400); logado = true; ouvinte(user); return user; },
     criarConta: async function () { await espera(400); return { confirmar: true }; },
     sair: async function () { logado = false; ouvinte(null); },
-    nomePerfil: async function () { return "Eric Pereira Felix"; },
+    perfil: async function () { return { nome: "Eric Pereira Felix", papel: papelTeste, email: "eric@teste.local" }; },
     listar: async function (col) { await espera(700); return JSON.parse(JSON.stringify(dados[col])); },
     criar: async function (col, d, idFixo) { await espera(300); var doc = Object.assign({}, d, { id: idFixo || novoId(), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }); dados[col].push(doc); return doc; },
     atualizar: async function (col, id, d) { await espera(300); var it = dados[col].find(function (x) { return x.id === id; }); Object.assign(it, d, { updated_at: agoraIso() }); },
@@ -311,6 +332,8 @@ async function getSpaces() {
       mapa: space.mapa || null, edicao: space.edicao || null, zona: space.zona || null, codigo: space.codigo || null, tipo: space.tipo || null,
       metragem: space.metragem == null ? null : Number(space.metragem),
       ocupante2026: space.ocupante_2026 || "",
+      vendedorUid: space.vendedor_uid || null,
+      vendedorNome: space.vendedor_nome || "",
     };
   });
 }
@@ -337,9 +360,11 @@ async function saveSpace(data) {
   var ok = nome.length >= 1 && nome.length <= 120 && categoria.length >= 1 && categoria.length <= 120 &&
     isFinite(data.valor) && data.valor >= 0 && ["disponivel", "reservado", "vendido"].indexOf(data.status) >= 0;
   if (!ok) throw new Error("Não foi possível salvar o espaço.");
+  var vend = data.vendedorUid ? perfilPorUid(data.vendedorUid) : null;
   var payload = { nome: nome, categoria: categoria, valor: data.valor, status: data.status,
     metragem: data.metragem == null || !isFinite(data.metragem) ? null : data.metragem,
-    ocupante_2026: String(data.ocupante2026 || "").trim().slice(0, 120) };
+    ocupante_2026: String(data.ocupante2026 || "").trim().slice(0, 120),
+    vendedor_uid: vend ? vend.id : null, vendedor_nome: vend ? vend.nome : "" };
   if (!data.id && data.mapa) {
     // espaco criado a partir do mapa: guarda a posicao para o desenho achar o documento
     payload.mapa = data.mapa; payload.edicao = data.edicao; payload.zona = data.zona; payload.codigo = data.codigo; payload.tipo = data.tipo;
@@ -350,8 +375,12 @@ async function saveSpace(data) {
   } catch (e) { throw new Error("Não foi possível salvar o espaço."); }
 }
 
-async function changeSpaceStatus(id, status) {
-  try { await API.atualizar("espacos", id, { status: status }); }
+async function changeSpaceStatus(id, status, espaco) {
+  var dados = { status: status };
+  // quem reserva ou vende vira o responsavel; espaco liberado fica sem responsavel
+  if (status === "disponivel") { dados.vendedor_uid = null; dados.vendedor_nome = ""; }
+  else if (!espaco || !espaco.vendedorUid) { dados.vendedor_uid = S.uid; dados.vendedor_nome = S.nome; }
+  try { await API.atualizar("espacos", id, dados); }
   catch (e) { throw new Error("Não foi possível alterar o status."); }
 }
 
@@ -363,11 +392,39 @@ async function getSponsors() {
   r[1].forEach(function (e) { espacos[e.id] = e.nome; });
   return r[0].sort(porNome).map(function (s) {
     return {
-      id: s.id, nome: s.nome, contato: s.contato, responsavelComercial: s.responsavel_comercial,
+      id: s.id, nome: s.nome, contato: s.contato || "", responsavelComercial: s.vendedor_nome || s.responsavel_comercial || "",
       dataVencimentoContrato: s.data_vencimento_contrato, status: s.status,
+      espacoVinculadoId: s.espaco_vinculado_id || null,
       espacoVinculado: s.espaco_vinculado_id ? (espacos[s.espaco_vinculado_id] || null) : null,
+      tipo: TIPO_PATROCINADOR[s.tipo] ? s.tipo : "patrocinador",
+      master: s.master === true,
+      vendedorUid: s.vendedor_uid || null,
+      vendedorNome: s.vendedor_nome || "",
     };
   });
+}
+
+async function saveSponsor(data) {
+  var nome = String(data.nome || "").trim();
+  var contato = String(data.contato || "").trim();
+  var venc = String(data.dataVencimentoContrato || "").trim();
+  var ok = nome.length >= 1 && nome.length <= 120 && contato.length >= 1 && contato.length <= 200 &&
+    /^\d{4}-\d{2}-\d{2}$/.test(venc) && TIPO_PATROCINADOR[data.tipo] && STATUS_PATROCINADOR[data.status];
+  if (!ok) throw new Error("Não foi possível salvar o patrocinador. Confira os campos.");
+  var vend = data.vendedorUid ? perfilPorUid(data.vendedorUid) : null;
+  var payload = {
+    nome: nome, contato: contato, tipo: data.tipo, status: data.status, data_vencimento_contrato: venc,
+    espaco_vinculado_id: data.espacoVinculadoId || null,
+    vendedor_uid: vend ? vend.id : null, vendedor_nome: vend ? vend.nome : "",
+    responsavel_comercial: vend ? vend.nome : (data.responsavelComercial || ""),
+  };
+  if (ehAdmin()) payload.master = data.master === true;
+  else if (!data.id) payload.master = false;
+  try {
+    if (data.id) await API.atualizar("patrocinadores", data.id, payload);
+    else await API.criar("patrocinadores", payload);
+  } catch (e) { throw new Error("Não foi possível salvar o patrocinador."); }
+  try { await aplicarRegraContratos(); } catch (e) {}
 }
 
 async function getInteractions() {
@@ -377,7 +434,8 @@ async function getInteractions() {
   var nomes = {};
   r[1].forEach(function (p) { nomes[p.id] = p.nome; });
   return r[0].sort(porDataDesc).map(function (i) {
-    return { id: i.id, data: i.data, observacao: i.observacao, proximoPasso: i.proximo_passo, patrocinadorId: i.patrocinador_id, patrocinador: nomes[i.patrocinador_id] || "Patrocinador" };
+    var quem = perfilPorUid(i.criado_por);
+    return { id: i.id, data: i.data, observacao: i.observacao, proximoPasso: i.proximo_passo, patrocinadorId: i.patrocinador_id, patrocinador: nomes[i.patrocinador_id] || "Patrocinador", registradoPor: quem ? quem.nome : "" };
   });
 }
 
@@ -426,7 +484,26 @@ var S = {
   auth: { mode: "login", name: "", email: "", password: "", error: "", message: "", loading: false },
   form: { aberto: false, espaco: null, salvando: false, prefill: null },
   detalhe: null,
+  uid: null,
+  papel: "vendedor",
+  perfis: null,
+  formPatro: { aberto: false, patro: null, salvando: false },
+  fp: { q: "", tipo: "todos", status: "todos", vendedor: "todos", master: "todos" },
+  papelMudando: false,
 };
+
+var PAPEIS = { dono: "Dono do sistema", admin: "Administrador", vendedor: "Vendedor" };
+var TIPO_PATROCINADOR = { patrocinador: "Patrocinador", merchandising: "Merchandising", parceiro: "Parceiro" };
+function ehAdmin() { return S.papel === "admin" || S.papel === "dono"; }
+function ehDono() { return S.papel === "dono"; }
+function primeiroNome(nome) { return String(nome || "").trim().split(/\s+/)[0] || ""; }
+function perfilPorUid(uid) { return (S.perfis || []).find(function (p) { return p.id === uid; }) || null; }
+async function getProfiles() {
+  var lista;
+  try { lista = await API.listar("profiles"); } catch (e) { return []; }
+  return lista.map(function (p) { return { id: p.id, nome: p.nome || "Sem nome", email: p.email || "", papel: PAPEIS[p.papel] ? p.papel : "vendedor" }; })
+    .sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
+}
 
 /* ------------------------------------------------------------------ rotas */
 function rotaAtual() {
@@ -576,15 +653,18 @@ var NAV = [
   { to: "/app/espacos", label: "Painel de Espaços", shortLabel: "Espaços", icon: "building-2" },
   { to: "/app/patrocinadores", label: "Cadastro de Patrocinador", shortLabel: "Patrocinadores", icon: "handshake" },
   { to: "/app/interacoes", label: "Histórico de Interações", shortLabel: "Interações", icon: "history" },
+  { to: "/app/equipe", label: "Equipe", shortLabel: "Equipe", icon: "users", admin: true },
 ];
+function navVisivel() { return NAV.filter(function (i) { return !i.admin || ehAdmin(); }); }
 
 function casca(conteudo, caminho) {
-  var lateral = NAV.map(function (item) {
+  var itensNav = navVisivel();
+  var lateral = itensNav.map(function (item) {
     var ativo = caminho === item.to;
     return '<a href="#' + item.to + '" class="' + cn("flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-foreground/65 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground", ativo && "bg-sidebar-primary text-sidebar-primary-foreground") + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
       icone(item.icon, "size-4") + esc(item.label) + "</a>";
   }).join("");
-  var inferior = NAV.map(function (item) {
+  var inferior = itensNav.map(function (item) {
     var ativo = caminho === item.to;
     return '<a href="#' + item.to + '" class="' + cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] font-medium leading-tight text-muted-foreground", ativo && "bg-accent text-accent-foreground") + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
       icone(item.icon, "size-5") + "<span>" + esc(item.shortLabel) + "</span></a>";
@@ -594,7 +674,8 @@ function casca(conteudo, caminho) {
       '<div class="mx-auto flex h-16 max-w-screen-2xl items-center justify-between gap-4 px-4 sm:px-6">' +
         '<a href="#/app/espacos" class="flex min-w-0 items-center gap-3"><img src="logo-festival.png" alt="Festival Interlagos" class="h-9 w-auto shrink-0">' +
         '<span class="hidden h-6 w-px bg-border sm:block"></span><span class="hidden truncate text-sm font-bold uppercase sm:block">Painel Comercial Festival Interlagos</span></a>' +
-        '<div class="flex items-center gap-2 sm:gap-4"><span class="max-w-28 truncate text-sm font-medium sm:max-w-52">' + esc(S.nome) + "</span>" +
+        '<div class="flex items-center gap-2 sm:gap-4"><span class="flex min-w-0 items-center gap-2"><span class="max-w-28 truncate text-sm font-medium sm:max-w-52">' + esc(S.nome) + "</span>" +
+        (ehAdmin() ? '<span class="' + cn(BADGE, "hidden text-foreground border-primary/30 bg-primary/15 sm:inline-flex") + '">' + esc(PAPEIS[S.papel]) + "</span>" : "") + "</span>" +
         '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Sair" title="Sair" data-acao="sair"' + (S.saindo ? " disabled" : "") + ">" + icone("log-out") + "</button></div>" +
       "</div>" +
     "</header>" +
@@ -602,7 +683,7 @@ function casca(conteudo, caminho) {
       '<aside class="hidden min-h-[calc(100vh-4rem)] border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block"><nav aria-label="Navegação principal" class="space-y-1">' + lateral + "</nav></aside>" +
       '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + conteudo + "</main>" +
     "</div>" +
-    '<nav aria-label="Navegação principal" class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-border bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
+    '<nav aria-label="Navegação principal" class="' + cn("fixed inset-x-0 bottom-0 z-40 grid border-t border-border", itensNav.length === 4 ? "grid-cols-4" : "grid-cols-3") + ' bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
   "</div>";
 }
 
@@ -670,7 +751,8 @@ function blocoListaEspacos() {
       '<td class="' + cn(TD, "px-5 py-4 font-bold") + '">' + esc(space.nome) + (space.patrocinadorEmRisco ? riskNote(space.patrocinadorEmRisco) : "") + "</td>" +
       '<td class="' + cn(TD, "whitespace-nowrap") + '">' + esc(rotuloLocal(space)) + "</td>" +
       '<td class="' + TD + '">' + esc(space.categoria) + "</td>" +
-      '<td class="' + TD + '">' + (space.patrocinador ? esc(space.patrocinador.nome) : (space.ocupante2026 ? '<span class="text-muted-foreground">2026: ' + esc(space.ocupante2026) + "</span>" : '<span class="text-muted-foreground">Vazio</span>')) + "</td>" +
+      '<td class="' + TD + '">' + (space.patrocinador ? esc(space.patrocinador.nome) : (space.ocupante2026 ? '<span class="text-muted-foreground">2026: ' + esc(space.ocupante2026) + "</span>" : '<span class="text-muted-foreground">Vazio</span>')) +
+        (space.vendedorNome ? '<div class="text-xs text-muted-foreground">Vendedor: ' + esc(space.vendedorNome) + "</div>" : "") + "</td>" +
       '<td class="' + cn(TD, "font-semibold whitespace-nowrap") + '">' + (space.valor ? esc(formatCurrency(space.valor)) : '<span class="text-muted-foreground">A definir</span>') + "</td>" +
       '<td class="' + TD + '">' + statusSelect(space, S.statusMudando) + "</td>" +
       '<td class="' + TD + '"><button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar ' + esc(space.nome) + '" title="Editar espaço" data-acao="editar" data-id="' + esc(space.id) + '">' + icone("pencil") + "</button></td></tr>";
@@ -697,6 +779,29 @@ function blocoListaEspacos() {
     '<div class="grid gap-3 md:hidden">' + cards + "</div>";
 }
 
+
+/* ------------------------------------------------------- selects nativos */
+var SELECT_NATIVO = "flex h-9 w-full items-center rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+function selectNativo(id, name, opcoes, valor, extra) {
+  return '<select id="' + id + '" name="' + name + '" class="' + cn(SELECT_NATIVO, extra && extra.className) + '"' + (extra && extra.disabled ? " disabled" : "") + ">" +
+    opcoes.map(function (o) {
+      if (o.grupo) return '<optgroup label="' + esc(o.grupo) + '">' + o.itens.map(function (i) { return '<option value="' + esc(i.valor) + '"' + (i.valor === valor ? " selected" : "") + ">" + esc(i.rotulo) + "</option>"; }).join("") + "</optgroup>";
+      return '<option value="' + esc(o.valor) + '"' + (o.valor === valor ? " selected" : "") + ">" + esc(o.rotulo) + "</option>";
+    }).join("") + "</select>";
+}
+function selectVendedor(id, name, valor, permitirVazio, extra) {
+  var opcoes = (permitirVazio ? [{ valor: "", rotulo: "Ninguém ainda" }] : []).concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: p.nome + (p.id === S.uid ? " (eu)" : "") }; }));
+  if (valor && !(S.perfis || []).some(function (p) { return p.id === valor; })) opcoes.push({ valor: valor, rotulo: "Vendedor sem cadastro" });
+  return selectNativo(id, name, opcoes, valor || "", extra);
+}
+function opcoesEspacos(atualId) {
+  var grupos = {};
+  (S.spaces || []).forEach(function (sp) {
+    var ed = sp.edicao ? (EDICOES.find(function (e) { return e.id === sp.edicao; }) || {}).rotulo : "Sem posição no mapa";
+    (grupos[ed] = grupos[ed] || []).push({ valor: sp.id, rotulo: (sp.codigo ? zonaInfo(sp.zona).titulo.split(" · ")[0] + " " + sp.codigo + " · " : "") + sp.nome + " (" + (STATUS_ESPACO[sp.status] || STATUS_ESPACO.disponivel).label.toLowerCase() + (sp.patrocinador && sp.id !== atualId ? ", " + sp.patrocinador.nome : "") + ")" });
+  });
+  return [{ valor: "", rotulo: "Sem espaço" }].concat(Object.keys(grupos).map(function (g) { return { grupo: g, itens: grupos[g] }; }));
+}
 
 /* ---------------------------------------------------------- mapa de espacos */
 function edicaoAtual() {
@@ -745,7 +850,7 @@ function desenharMapa(edicao) {
       var maxChars = Math.max(4, Math.floor((t.w - 8) / 5.4));
       var rot = patro || ocupante;
       var tit = nome + "\n" + (doc ? STATUS_ESPACO[doc.status].label : "Sem cadastro") +
-        (patro ? "\nPatrocinador: " + patro : "") + (ocupante ? "\nOcupante 2026: " + ocupante : "") +
+        (patro ? "\nPatrocinador: " + patro : "") + (ocupante ? "\nOcupante 2026: " + ocupante : "") + (doc && doc.vendedorNome ? "\nVendedor: " + doc.vendedorNome : "") +
         (item.m2 ? "\n" + item.m2 + " m²" : "") + (risco ? "\nRisco de renovação: " + risco : "");
       celulas.push(
         '<g class="cel st-' + st + (risco ? " risco" : "") + '" data-acao="mapa-espaco" data-mapa="' + escXml(chave) + '" role="button" tabindex="0" aria-label="' + escXml(nome) + '">' +
@@ -753,6 +858,7 @@ function desenharMapa(edicao) {
           '<rect x="' + x + '" y="' + linhaY + '" width="' + t.w + '" height="' + t.h + '" rx="4"/>' +
           '<text class="t-cod" x="' + (x + 5) + '" y="' + (linhaY + 14) + '">' + escXml(item.rotulo && t.w >= 88 ? truncar(item.rotulo, maxChars) : item.codigo) + "</text>" +
           (rot ? '<text class="t-rot" x="' + (x + 5) + '" y="' + (linhaY + 27) + '">' + escXml(truncar(rot, maxChars)) + "</text>" : "") +
+          (doc && doc.status !== "disponivel" && doc.vendedorNome && t.h >= 58 ? '<text class="t-rot" x="' + (x + 5) + '" y="' + (linhaY + 39) + '">' + escXml(truncar("↳ " + primeiroNome(doc.vendedorNome), maxChars)) + "</text>" : "") +
           (item.m2 && t.h >= 54 ? '<text class="t-m2" x="' + (x + 5) + '" y="' + (linhaY + t.h - 6) + '">' + escXml(item.m2 + " m²") + "</text>" : "") +
         "</g>");
       x += t.w + GAP;
@@ -850,6 +956,7 @@ function dialogoDetalhe() {
     linha("Metragem", m2 ? esc(String(m2).replace(".", ",")) + " m²" : '<span class="text-muted-foreground">Não informada</span>') +
     linha("Ocupante 2026", ocupante ? esc(ocupante) : '<span class="text-muted-foreground">Vazio em 2026</span>') +
     linha("Patrocinador vinculado", patro) +
+    (doc ? linha("Vendedor responsável", doc.vendedorNome ? esc(doc.vendedorNome) : '<span class="text-muted-foreground">Ninguém ainda</span>') : "") +
     (doc ? linha("Valor", doc.valor ? esc(formatCurrency(doc.valor)) : '<span class="text-muted-foreground">A definir</span>') : "") +
     "</dl>";
   var acoes;
@@ -915,6 +1022,7 @@ function dialogoEspaco() {
           '<div class="space-y-2"><label class="' + LABEL + '" for="space-m2">Metragem (m²)</label><input id="space-m2" name="metragem" inputmode="decimal" placeholder="Ex.: 225" class="' + INPUT + '" value="' + esc(metragem == null ? "" : String(metragem).replace(".", ",")) + '"></div>' +
           '<div class="space-y-2"><label class="' + LABEL + '" for="space-ocupante">Ocupante em 2026</label><input id="space-ocupante" name="ocupante_2026" placeholder="Marca que ocupou em 2026" class="' + INPUT + '" value="' + esc(ocupante) + '" maxlength="120"></div>' +
         "</div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="space-vendedor">Vendedor responsável</label>' + selectVendedor("space-vendedor", "vendedor_uid", space ? space.vendedorUid : null, true) + "</div>" +
         '<div class="grid gap-5 sm:grid-cols-2">' +
           '<div class="space-y-2"><label class="' + LABEL + '" for="space-value">Valor (R$)</label><input id="space-value" name="valor" inputmode="decimal" placeholder="0,00" class="' + INPUT + '" value="' + esc(valor) + '" required></div>' +
           '<div class="space-y-2"><label class="' + LABEL + '" for="space-status">Status</label><input type="hidden" name="status" id="space-status-valor" value="' + statusInicial + '">' +
@@ -930,49 +1038,171 @@ function dialogoEspaco() {
 }
 
 /* ---------------------------------------------- tela: cadastro de patrocinador */
+function badgeMaster() {
+  return '<span class="' + cn(BADGE, "text-foreground border-foreground/20 bg-foreground text-background") + '" title="Patrocinador Master: pagou mais e tem mais direitos no festival">' + icone("shield-check", "mr-1 size-3") + "Master</span>";
+}
+
+function patrocinadoresFiltrados() {
+  var f = S.fp;
+  var term = f.q.trim().toLocaleLowerCase("pt-BR");
+  return (S.sponsors || []).filter(function (p) {
+    if (f.tipo !== "todos" && p.tipo !== f.tipo) return false;
+    if (f.status !== "todos" && p.status !== f.status) return false;
+    if (f.vendedor !== "todos" && (p.vendedorUid || "") !== f.vendedor) return false;
+    if (f.master === "sim" && !p.master) return false;
+    if (f.master === "nao" && p.master) return false;
+    if (term) {
+      var texto = [p.nome, p.contato, p.espacoVinculado, p.responsavelComercial].join(" ").toLocaleLowerCase("pt-BR");
+      if (texto.indexOf(term) < 0) return false;
+    }
+    return true;
+  }).sort(function (a, b) { return (b.master ? 1 : 0) - (a.master ? 1 : 0) || porNome(a, b); });
+}
+
+function blocoListaPatrocinadores() {
+  if (S.sponsorsErro) return errorList(S.sponsorsErro, "recarregar-patrocinadores", S.sponsorsCarregando);
+  if (!S.sponsors) return loadingList("Carregando patrocinadores...");
+  if (!S.sponsors.length) return emptyList("handshake", "Nenhum patrocinador cadastrado ainda", "Use o botão Novo patrocinador para cadastrar o primeiro.");
+  var lista = patrocinadoresFiltrados();
+  if (!lista.length) return emptyList("handshake", "Nenhum patrocinador encontrado", "Ajuste a busca ou os filtros.");
+  var semEspaco = '<span class="text-muted-foreground">Sem espaço</span>';
+  var semVendedor = '<span class="text-muted-foreground">Ninguém ainda</span>';
+  var th = function (cls, txt) { return '<th class="' + cn(TH, cls) + '">' + txt + "</th>"; };
+  var editar = function (p) {
+    return '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar ' + esc(p.nome) + '" title="Editar patrocinador" data-acao="editar-patro" data-id="' + esc(p.id) + '">' + icone("pencil") + "</button>";
+  };
+  var linhas = lista.map(function (p) {
+    var detail = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
+    return '<tr class="' + cn(TR, p.status === "em_risco_de_renovacao" && "bg-primary/8 hover:bg-primary/12") + '">' +
+      '<td class="' + cn(TD, "px-5 py-4 font-bold") + '"><div class="flex flex-wrap items-center gap-2">' + esc(p.nome) + (p.master ? badgeMaster() : "") + "</div>" +
+        '<div class="text-xs font-normal text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + "</div></td>" +
+      '<td class="' + cn(TD, "max-w-56 truncate") + '">' + esc(p.contato) + "</td>" +
+      '<td class="' + TD + '">' + (p.espacoVinculado ? esc(p.espacoVinculado) : semEspaco) + "</td>" +
+      '<td class="' + TD + '">' + (p.responsavelComercial ? esc(p.responsavelComercial) : semVendedor) + "</td>" +
+      '<td class="' + cn(TD, "whitespace-nowrap") + '">' + esc(formatDateOnly(p.dataVencimentoContrato)) + "</td>" +
+      '<td class="' + TD + '">' + badge(detail, "shrink-0 whitespace-nowrap") + "</td>" +
+      '<td class="' + TD + '">' + editar(p) + "</td></tr>";
+  }).join("");
+  var cards = lista.map(function (p) {
+    var detail = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
+    return '<article class="' + cn("border border-border bg-card p-4", p.status === "em_risco_de_renovacao" && "border-primary bg-primary/8") + '">' +
+      '<div class="flex items-start justify-between gap-3"><div class="min-w-0"><h2 class="break-words font-bold">' + esc(p.nome) + "</h2>" +
+      '<div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + (p.master ? badgeMaster() : "") + "</div></div>" +
+      '<div class="flex shrink-0 items-center gap-1">' + badge(detail, "shrink-0 whitespace-nowrap") + editar(p) + "</div></div>" +
+      '<dl class="mt-4 space-y-3 text-sm">' +
+        '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Contato</dt><dd class="mt-0.5 break-words">' + esc(p.contato) + "</dd></div>" +
+        '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Espaço vinculado</dt><dd class="mt-0.5">' + (p.espacoVinculado ? esc(p.espacoVinculado) : semEspaco) + "</dd></div>" +
+        '<div class="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-3">' +
+          '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Vendedor</dt><dd class="mt-0.5">' + (p.responsavelComercial ? esc(p.responsavelComercial) : semVendedor) + "</dd></div>" +
+          '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Vencimento</dt><dd class="mt-0.5 flex items-center gap-1.5">' + icone("calendar-days", "size-3.5 text-muted-foreground") + esc(formatDateOnly(p.dataVencimentoContrato)) + "</dd></div>" +
+        "</div>" +
+      "</dl></article>";
+  }).join("");
+  return '<div class="hidden overflow-hidden border border-border bg-card md:block"><div class="relative w-full overflow-auto"><table class="w-full caption-bottom text-sm">' +
+    '<thead class="[&_tr]:border-b bg-foreground text-background"><tr class="' + cn(TR, "hover:bg-foreground") + '">' +
+      th("px-5 text-xs font-bold uppercase text-background", "Patrocinador") + th("text-xs font-bold uppercase text-background", "Contato") +
+      th("text-xs font-bold uppercase text-background", "Espaço vinculado") + th("text-xs font-bold uppercase text-background", "Vendedor") +
+      th("text-xs font-bold uppercase text-background", "Vencimento") + th("text-xs font-bold uppercase text-background", "Status") +
+      th("w-14", '<span class="sr-only">Editar</span>') +
+    '</tr></thead><tbody class="[&_tr:last-child]:border-0">' + linhas + "</tbody></table></div></div>" +
+    '<div class="grid gap-3 md:hidden">' + cards + "</div>";
+}
+
 function telaPatrocinadores() {
+  var f = S.fp;
+  var vendedores = [{ valor: "todos", rotulo: "Todos os vendedores" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  return '<section class="space-y-7">' +
+    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
+      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Carteira comercial</div>' +
+      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Cadastro de Patrocinador</h1>' +
+      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Contato, tipo, vendedor responsável, espaço vinculado e vencimento de contrato de cada patrocinador.</p></div>' +
+      '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="novo-patro">' + icone("plus") + " Novo patrocinador</button>" +
+    "</header>" +
+    '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1.4fr)_1fr_1fr_1fr_1fr]">' +
+      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+      '<input id="busca-patro" aria-label="Buscar patrocinador" placeholder="Buscar por nome, contato ou espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
+      selectNativo("filtro-tipo", "filtro-tipo", [{ valor: "todos", rotulo: "Todos os tipos" }].concat(Object.keys(TIPO_PATROCINADOR).map(function (k) { return { valor: k, rotulo: TIPO_PATROCINADOR[k] }; })), f.tipo, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-status", "filtro-status", [{ valor: "todos", rotulo: "Todos os status" }].concat(Object.keys(STATUS_PATROCINADOR).map(function (k) { return { valor: k, rotulo: STATUS_PATROCINADOR[k].label }; })), f.status, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-vendedor", "filtro-vendedor", vendedores, f.vendedor, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-master", "filtro-master", [{ valor: "todos", rotulo: "Master e comuns" }, { valor: "sim", rotulo: "Só Master" }, { valor: "nao", rotulo: "Só comuns" }], f.master, { className: "h-11 bg-card" }) +
+    "</div>" +
+    '<div id="bloco-lista-patro">' + blocoListaPatrocinadores() + "</div>" +
+  "</section>" + (S.formPatro.aberto ? dialogoPatrocinador() : "");
+}
+
+function dialogoPatrocinador() {
+  var p = S.formPatro.patro;
+  var admin = ehAdmin();
+  var tipos = Object.keys(TIPO_PATROCINADOR).map(function (k) { return { valor: k, rotulo: TIPO_PATROCINADOR[k] }; });
+  var status = Object.keys(STATUS_PATROCINADOR).map(function (k) { return { valor: k, rotulo: STATUS_PATROCINADOR[k].label }; });
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-patro"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-patro" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-patro" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (p ? "Editar patrocinador" : "Novo patrocinador") + "</h2>" +
+      '<p class="text-sm text-muted-foreground">Quem é o cliente, quem cuida dele e o que ele ocupa no festival.</p></div>' +
+      '<form id="form-patro" class="space-y-5 pt-2">' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-nome">Nome da marca</label><input id="patro-nome" name="nome" class="' + INPUT + '" value="' + esc(p ? p.nome : "") + '" required maxlength="120"></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-contato">Contato</label><input id="patro-contato" name="contato" placeholder="Nome · e-mail ou telefone" class="' + INPUT + '" value="' + esc(p ? p.contato : "") + '" required maxlength="200"></div>' +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-tipo">Tipo</label>' + selectNativo("patro-tipo", "tipo", tipos, p ? p.tipo : "patrocinador") + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-vendedor">Vendedor responsável</label>' + selectVendedor("patro-vendedor", "vendedor_uid", p ? p.vendedorUid : S.uid, true) + "</div>" +
+        "</div>" +
+        '<label class="' + cn("flex items-start gap-3 border border-border p-3 text-sm", !admin && "opacity-60") + '"><input type="checkbox" name="master" value="sim" class="mt-0.5 size-4"' + (p && p.master ? " checked" : "") + (admin ? "" : " disabled") + ">" +
+          '<span><span class="font-bold">Patrocinador Master</span><br><span class="text-xs text-muted-foreground">' + (admin ? "Marca que pagou mais e tem mais direitos no festival. Ganha prioridade na renovação e alerta vermelho." : "Só um administrador pode marcar ou desmarcar o selo Master.") + "</span></span></label>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-espaco">Espaço vinculado</label>' + selectNativo("patro-espaco", "espaco_vinculado_id", opcoesEspacos(p ? p.id : null), p ? (p.espacoVinculadoId || "") : "") +
+          (S.spaces ? "" : '<p class="text-xs text-muted-foreground">Carregando a lista de espaços...</p>') + "</div>" +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-venc">Vencimento do contrato</label><input id="patro-venc" name="data_vencimento_contrato" type="date" class="' + INPUT + '" value="' + esc(p ? p.dataVencimentoContrato : "") + '" required></div>' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-status">Status</label>' + selectNativo("patro-status", "status", status, p ? p.status : "ativo") + "</div>" +
+        "</div>" +
+        '<p class="text-xs text-muted-foreground">Contrato a 30 dias ou menos do vencimento vira "Em risco de renovação" sozinho, e o espaço vinculado volta a ficar disponível.</p>' +
+        '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
+          '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-patro">Cancelar</button>' +
+          '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.formPatro.salvando ? " disabled" : "") + ">" + (S.formPatro.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar patrocinador</button>" +
+        "</div>" +
+      "</form>" +
+      '<button type="button" data-acao="fechar-form-patro" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
+    "</div>";
+}
+
+/* ------------------------------------------------------------- tela: equipe */
+function telaEquipe() {
   var corpo;
-  if (S.sponsorsErro) corpo = errorList(S.sponsorsErro, "recarregar-patrocinadores", S.sponsorsCarregando);
-  else if (!S.sponsors) corpo = loadingList("Carregando patrocinadores...");
-  else if (!S.sponsors.length) corpo = emptyList("handshake", "Nenhum patrocinador cadastrado ainda");
+  if (!S.perfis) corpo = loadingList("Carregando equipe...", 3);
+  else if (!S.perfis.length) corpo = emptyList("users", "Nenhuma pessoa cadastrada ainda");
   else {
-    var semEspaco = '<span class="text-muted-foreground">Sem espaço</span>';
     var th = function (cls, txt) { return '<th class="' + cn(TH, cls) + '">' + txt + "</th>"; };
-    var linhas = S.sponsors.map(function (s) {
-      var detail = STATUS_PATROCINADOR[s.status] || STATUS_PATROCINADOR.ativo;
-      return '<tr class="' + cn(TR, s.status === "em_risco_de_renovacao" && "bg-primary/8 hover:bg-primary/12") + '">' +
-        '<td class="' + cn(TD, "px-5 py-4 font-bold") + '">' + esc(s.nome) + "</td>" +
-        '<td class="' + cn(TD, "max-w-56 truncate") + '">' + esc(s.contato) + "</td>" +
-        '<td class="' + TD + '">' + (s.espacoVinculado ? esc(s.espacoVinculado) : semEspaco) + "</td>" +
-        '<td class="' + TD + '">' + esc(s.responsavelComercial) + "</td>" +
-        '<td class="' + cn(TD, "whitespace-nowrap") + '">' + esc(formatDateOnly(s.dataVencimentoContrato)) + "</td>" +
-        '<td class="' + TD + '">' + badge(detail, "shrink-0 whitespace-nowrap") + "</td></tr>";
+    var papelDe = function (p) {
+      var selo = '<span class="' + cn(BADGE, "text-foreground", p.papel === "dono" ? "border-foreground/20 bg-foreground text-background" : p.papel === "admin" ? "border-primary/30 bg-primary/15" : "") + '">' + esc(PAPEIS[p.papel]) + "</span>";
+      if (!ehDono() || p.papel === "dono" || p.id === S.uid) return selo;
+      return selectNativo("papel-" + p.id, "papel", [{ valor: "vendedor", rotulo: "Vendedor" }, { valor: "admin", rotulo: "Administrador" }], p.papel, { className: "w-44", disabled: S.papelMudando });
+    };
+    var linhas = S.perfis.map(function (p) {
+      return '<tr class="' + cn(TR, p.id === S.uid && "bg-primary/8 hover:bg-primary/12") + '">' +
+        '<td class="' + cn(TD, "px-5 py-4 font-bold") + '">' + esc(p.nome) + (p.id === S.uid ? ' <span class="text-xs font-normal text-muted-foreground">(eu)</span>' : "") + "</td>" +
+        '<td class="' + TD + '">' + (p.email ? esc(p.email) : '<span class="text-muted-foreground">Sem e-mail</span>') + "</td>" +
+        '<td class="' + TD + '">' + papelDe(p) + "</td></tr>";
     }).join("");
-    var cards = S.sponsors.map(function (s) {
-      var detail = STATUS_PATROCINADOR[s.status] || STATUS_PATROCINADOR.ativo;
-      return '<article class="' + cn("border border-border bg-card p-4", s.status === "em_risco_de_renovacao" && "border-primary bg-primary/8") + '">' +
-        '<div class="flex items-start justify-between gap-3"><h2 class="min-w-0 break-words font-bold">' + esc(s.nome) + "</h2>" + badge(detail, "shrink-0 whitespace-nowrap") + "</div>" +
-        '<dl class="mt-4 space-y-3 text-sm">' +
-          '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Contato</dt><dd class="mt-0.5 break-words">' + esc(s.contato) + "</dd></div>" +
-          '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Espaço vinculado</dt><dd class="mt-0.5">' + (s.espacoVinculado ? esc(s.espacoVinculado) : semEspaco) + "</dd></div>" +
-          '<div class="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-3">' +
-            '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Responsável</dt><dd class="mt-0.5">' + esc(s.responsavelComercial) + "</dd></div>" +
-            '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Vencimento</dt><dd class="mt-0.5 flex items-center gap-1.5">' + icone("calendar-days", "size-3.5 text-muted-foreground") + esc(formatDateOnly(s.dataVencimentoContrato)) + "</dd></div>" +
-          "</div>" +
-        "</dl></article>";
+    var cards = S.perfis.map(function (p) {
+      return '<article class="' + cn("border border-border bg-card p-4", p.id === S.uid && "border-primary bg-primary/8") + '">' +
+        '<h2 class="break-words font-bold">' + esc(p.nome) + (p.id === S.uid ? ' <span class="text-xs font-normal text-muted-foreground">(eu)</span>' : "") + "</h2>" +
+        '<p class="mt-1 break-words text-sm text-muted-foreground">' + (p.email ? esc(p.email) : "Sem e-mail") + "</p>" +
+        '<div class="mt-3">' + papelDe(p) + "</div></article>";
     }).join("");
     corpo = '<div class="hidden overflow-hidden border border-border bg-card md:block"><div class="relative w-full overflow-auto"><table class="w-full caption-bottom text-sm">' +
       '<thead class="[&_tr]:border-b bg-foreground text-background"><tr class="' + cn(TR, "hover:bg-foreground") + '">' +
-        th("px-5 text-xs font-bold uppercase text-background", "Patrocinador") + th("text-xs font-bold uppercase text-background", "Contato") +
-        th("text-xs font-bold uppercase text-background", "Espaço vinculado") + th("text-xs font-bold uppercase text-background", "Responsável") +
-        th("text-xs font-bold uppercase text-background", "Vencimento") + th("text-xs font-bold uppercase text-background", "Status") +
+        th("px-5 text-xs font-bold uppercase text-background", "Nome") + th("text-xs font-bold uppercase text-background", "E-mail") + th("text-xs font-bold uppercase text-background", "Papel") +
       '</tr></thead><tbody class="[&_tr:last-child]:border-0">' + linhas + "</tbody></table></div></div>" +
       '<div class="grid gap-3 md:hidden">' + cards + "</div>";
   }
   return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
-    '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Carteira comercial</div>' +
-    '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Cadastro de Patrocinador</h1>' +
-    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Contato, espaço vinculado, responsável comercial e vencimento de contrato de cada patrocinador.</p>' +
+    '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Acesso</div>' +
+    '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Equipe</h1>' +
+    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Quem tem login no painel e o que cada pessoa pode fazer. Conta nova entra como Vendedor. ' + (ehDono() ? "Você, como dono do sistema, decide quem é Administrador." : "Só o dono do sistema muda papéis.") + "</p>" +
+    '<div class="mt-4 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">' +
+      '<div class="border border-border bg-card p-3"><span class="font-bold text-foreground">Vendedor</span><br>Vê tudo. Cadastra e edita patrocinadores, espaços e interações.</div>' +
+      '<div class="border border-border bg-card p-3"><span class="font-bold text-foreground">Administrador</span><br>Tudo do vendedor, mais o selo Master, os alertas e, em breve, a fila de prioridade.</div>' +
+      '<div class="border border-border bg-card p-3"><span class="font-bold text-foreground">Dono do sistema</span><br>Define quem é administrador.</div>' +
+    "</div>" +
     "</header>" + corpo + "</section>";
 }
 
@@ -988,7 +1218,8 @@ function telaInteracoes() {
       return '<article class="border border-border bg-card">' +
         '<div class="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">' +
           '<div class="min-w-0"><h2 class="break-words text-lg font-black uppercase">' + esc(it.patrocinador) + "</h2>" +
-          '<div class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">' + icone("calendar-days", "size-3.5") + " " + esc(formatDateTime(it.data)) + "</div></div>" +
+          '<div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"><span class="flex items-center gap-1.5">' + icone("calendar-days", "size-3.5") + " " + esc(formatDateTime(it.data)) + "</span>" +
+          (it.registradoPor ? '<span class="flex items-center gap-1.5">' + icone("user-round", "size-3.5") + " Registrado por " + esc(it.registradoPor) + "</span>" : "") + "</div></div>" +
           '<button type="button" class="' + btnCls("outline", "default", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="sugerir" data-id="' + esc(it.id) + '"' + (S.sugerindo ? " disabled" : "") + ">" +
             (gerando ? icone("loader-circle", "animate-spin") : icone("sparkles")) + (gerando ? "Sugerindo..." : "Sugerir próximo passo") + "</button>" +
         "</div>" +
@@ -1027,6 +1258,7 @@ var TITULOS = {
   "/app/espacos": "Painel de Espaços — Painel Comercial Festival Interlagos",
   "/app/patrocinadores": "Cadastro de Patrocinador — Painel Comercial Festival Interlagos",
   "/app/interacoes": "Histórico de Interações — Painel Comercial Festival Interlagos",
+  "/app/equipe": "Equipe — Painel Comercial Festival Interlagos",
 };
 
 async function prepararTela(caminho) {
@@ -1035,7 +1267,11 @@ async function prepararTela(caminho) {
     try { await aplicarRegraContratos(); } catch (e) {}
   }
   if (caminho === "/app/espacos" && !S.spaces && !S.spacesCarregando) recarregarEspacos();
-  if (caminho === "/app/patrocinadores" && !S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
+  if (caminho === "/app/patrocinadores") {
+    if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
+    if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // lista de espacos do formulario
+  }
+  if (caminho === "/app/equipe") { getProfiles().then(function (p) { S.perfis = p; render(); }); }
   if (caminho === "/app/interacoes" && !S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions);
 }
 
@@ -1049,6 +1285,7 @@ function render() {
   if (caminho === "/" || !TITULOS[caminho]) { irPara(S.user ? "/app/espacos" : "/auth", true); return; }
   if (caminho === "/auth" && S.user) { irPara("/app/espacos", true); return; }
   if (caminho !== "/auth" && !S.user) { irPara("/auth", true); return; }
+  if (caminho === "/app/equipe" && !ehAdmin()) { irPara("/app/espacos", true); return; }
   document.title = TITULOS[caminho];
 
   // preserva o foco e o cursor da busca entre renderizacoes
@@ -1057,12 +1294,12 @@ function render() {
 
   if (caminho === "/auth") raiz.innerHTML = telaAuth();
   else {
-    var tela = caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : telaInteracoes();
+    var tela = caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/equipe" ? telaEquipe() : telaInteracoes();
     raiz.innerHTML = casca(tela, caminho);
     if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
   }
   ultimaRota = caminho;
-  document.body.classList.toggle("dialogo-aberto", S.form.aberto || !!S.detalhe);
+  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || !!S.detalhe);
 
   if (foco) {
     var el = document.getElementById(foco.id);
@@ -1133,6 +1370,12 @@ document.addEventListener("click", async function (ev) {
   }
   if (acao === "fechar-form") { if (!S.form.salvando) { S.form.aberto = false; fecharMenu(); render(); } return; }
   if (acao === "mapa-espaco") { S.detalhe = alvo.getAttribute("data-mapa"); fecharMenu(); render(); return; }
+  if (acao === "novo-patro") { S.formPatro = { aberto: true, patro: null, salvando: false }; render(); setTimeout(function () { var el = document.getElementById("patro-nome"); if (el) el.focus(); }, 0); return; }
+  if (acao === "editar-patro") {
+    var pt = (S.sponsors || []).find(function (x) { return x.id === id; });
+    S.formPatro = { aberto: true, patro: pt || null, salvando: false }; render(); return;
+  }
+  if (acao === "fechar-form-patro") { if (!S.formPatro.salvando) { S.formPatro.aberto = false; render(); } return; }
   if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
   if (acao === "edicao") {
     trocarParametro("edicao", alvo.getAttribute("data-edicao"));
@@ -1155,7 +1398,7 @@ document.addEventListener("click", async function (ev) {
       if (!espaco || valor === espaco.status) return;
       S.statusMudando = true; render();
       try {
-        await changeSpaceStatus(id, valor);
+        await changeSpaceStatus(id, valor, espaco);
         S.statusMudando = false;
         await recarregarEspacos();
         toast.success("Status do espaço atualizado.");
@@ -1201,13 +1444,72 @@ document.addEventListener("input", function (ev) {
     document.getElementById("bloco-lista").innerHTML = blocoListaEspacos();
     return;
   }
+  if (el.id === "busca-patro") {
+    S.fp.q = el.value;
+    document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
+    return;
+  }
   if (el.id === "name") S.auth.name = el.value;
   if (el.id === "email") S.auth.email = el.value;
   if (el.id === "password") S.auth.password = el.value;
 });
 
+document.addEventListener("change", async function (ev) {
+  var el = ev.target;
+  var filtros = { "filtro-tipo": "tipo", "filtro-status": "status", "filtro-vendedor": "vendedor", "filtro-master": "master" };
+  if (filtros[el.id]) {
+    S.fp[filtros[el.id]] = el.value;
+    document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
+    return;
+  }
+  if (el.id && el.id.indexOf("papel-") === 0 && ehDono()) {
+    var uid = el.id.slice(6);
+    var novoPapel = el.value === "admin" ? "admin" : "vendedor";
+    S.papelMudando = true; render();
+    try {
+      await API.atualizar("profiles", uid, { papel: novoPapel });
+      S.perfis = await getProfiles();
+      S.papelMudando = false; render();
+      var quem = perfilPorUid(uid);
+      toast.success((quem ? quem.nome : "Pessoa") + " agora é " + PAPEIS[novoPapel].toLowerCase() + ".");
+    } catch (e) {
+      S.papelMudando = false; render();
+      toast.error("Não foi possível mudar o papel.");
+    }
+  }
+});
+
 document.addEventListener("submit", async function (ev) {
   if (ev.target.id === "form-auth") { ev.preventDefault(); enviarAuth(); return; }
+  if (ev.target.id === "form-patro") {
+    ev.preventDefault();
+    var fp = new FormData(ev.target);
+    var atual = S.formPatro.patro;
+    var dadosP = {
+      id: atual ? atual.id : undefined,
+      nome: String(fp.get("nome") || ""), contato: String(fp.get("contato") || ""),
+      tipo: String(fp.get("tipo") || "patrocinador"), status: String(fp.get("status") || "ativo"),
+      vendedorUid: fp.get("vendedor_uid") || null, espacoVinculadoId: fp.get("espaco_vinculado_id") || null,
+      dataVencimentoContrato: String(fp.get("data_vencimento_contrato") || ""),
+      master: ehAdmin() ? fp.get("master") === "sim" : (atual ? atual.master : false),
+      responsavelComercial: atual ? atual.responsavelComercial : "",
+    };
+    S.formPatro.salvando = true;
+    var btnP = ev.target.querySelector('button[type="submit"]');
+    if (btnP) { btnP.disabled = true; btnP.insertAdjacentHTML("afterbegin", icone("loader-circle", "animate-spin")); }
+    try {
+      await saveSponsor(dadosP);
+      S.formPatro = { aberto: false, patro: null, salvando: false };
+      S.spaces = null; S.overview = null;
+      await Promise.all([carregar("sponsors", getSponsors), carregar("spaces", getSpaces)]);
+      toast.success(atual ? "Patrocinador atualizado com sucesso." : "Patrocinador criado com sucesso.");
+    } catch (e) {
+      S.formPatro.salvando = false;
+      if (btnP) { btnP.disabled = false; var spP = btnP.querySelector(".animate-spin"); if (spP) spP.remove(); }
+      toast.error(e.message);
+    }
+    return;
+  }
   if (ev.target.id === "form-espaco") {
     ev.preventDefault();
     var form = new FormData(ev.target);
@@ -1222,6 +1524,7 @@ document.addEventListener("submit", async function (ev) {
       status: String(form.get("status") || "disponivel"),
       metragem: rawM2 === "" ? null : Number(rawM2),
       ocupante2026: String(form.get("ocupante_2026") || ""),
+      vendedorUid: form.get("vendedor_uid") || null,
       mapa: form.get("mapa") || null, edicao: form.get("edicao") || null, zona: form.get("zona") || null,
       codigo: form.get("codigo") || null, tipo: form.get("tipo") || null,
     };
@@ -1248,6 +1551,7 @@ document.addEventListener("keydown", function (ev) {
   if (ev.key !== "Escape") return;
   if (menuAberto) { fecharMenu(); return; }
   if (S.form.aberto && !S.form.salvando) { S.form.aberto = false; render(); return; }
+  if (S.formPatro.aberto && !S.formPatro.salvando) { S.formPatro.aberto = false; render(); return; }
   if (S.detalhe) { S.detalhe = null; render(); }
 });
 window.addEventListener("hashchange", render);
@@ -1267,8 +1571,12 @@ window.addEventListener("scroll", fecharMenu, true);
     if (user && !user.emailVerified) user = null;
     S.user = user;
     if (user) {
-      S.nome = await API.nomePerfil(user);
+      var perfil = await API.perfil(user);
+      S.uid = user.uid; S.nome = perfil.nome; S.papel = perfil.papel;
+      try { S.perfis = await getProfiles(); } catch (e) { S.perfis = []; }
     } else {
+      S.uid = null; S.papel = "vendedor"; S.perfis = null;
+      S.formPatro = { aberto: false, patro: null, salvando: false };
       S.saindo = false;
       S.regraAplicada = false;
       S.spaces = S.overview = S.sponsors = S.interactions = null;
