@@ -30,7 +30,8 @@
   @media (min-width:640px){.sm\:p-3{padding:.75rem}}
   .gap-x-3{column-gap:.75rem}.gap-y-1{row-gap:.25rem}.mr-1{margin-right:.25rem}
   .bg-muted\/40{background-color:color-mix(in oklab,var(--muted) 40%,transparent)}.ml-2{margin-left:.5rem}.pt-1{padding-top:.25rem}.text-right{text-align:right}.w-36{width:9rem}
-  .min-h-\[60px\]{min-height:60px}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .min-h-\[60px\]{min-height:60px}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}.w-40{width:10rem}
+  @media (min-width:1024px){.lg\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.lg\:grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}}
   @media (min-width:640px){.sm\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.sm\:items-start{align-items:flex-start}.sm\:p-5{padding:1.25rem}}
   @media (min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media (min-width:1024px){.lg\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.lg\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -84,7 +85,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-16.4";
+var VERSAO = "2026-09-16.5";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -119,6 +120,7 @@ var ICONES = {
 "search": "<path d=\"m21 21-4.34-4.34\"/> <circle cx=\"11\" cy=\"11\" r=\"8\"/>",
 "sparkles": "<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"/> <path d=\"M20 2v4\"/> <path d=\"M22 4h-4\"/> <circle cx=\"4\" cy=\"20\" r=\"2\"/>",
 "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/> <path d=\"M12 9v4\"/> <path d=\"M12 17h.01\"/>",
+"target": "<circle cx=\"12\" cy=\"12\" r=\"10\"/> <circle cx=\"12\" cy=\"12\" r=\"6\"/> <circle cx=\"12\" cy=\"12\" r=\"2\"/>",
 "x": "<path d=\"M18 6 6 18\"/> <path d=\"m6 6 12 12\"/>"
 };
 function icone(nome, cls) {
@@ -299,6 +301,20 @@ async function criarApiTeste() {
     { id: "c2", patrocinador_id: dados.patrocinadores[1].id, descricao: "Logo no telão do palco nos 4 dias", status: "entregue", entregue_em: "2026-09-14", prometido_por_uid: "v1", prometido_por_nome: "Igor Souza", data: "2026-09-08", criado_por: "v1", created_at: agoraIso(), updated_at: agoraIso() },
     { id: "c3", patrocinador_id: dados.patrocinadores[0].id, descricao: "Ativação de 100 m² na Arena com test ride", status: "prometido", prometido_por_uid: "v1", prometido_por_nome: "Igor Souza", data: "2026-09-12", criado_por: "v1", created_at: agoraIso(), updated_at: agoraIso() },
   ];
+  var diasAtras = function (n) { return new Date(Date.now() - n * 86400000).toISOString(); };
+  dados.prospeccao = [
+    { id: "m1", nome: "Orbit Telecom", mercado: "telefonia", estagio: "mapeada", contato: "", vendedor_uid: "teste", vendedor_nome: "Eric Pereira Felix", espaco_interesse_id: "auto:arena:G04", proxima_acao: "Descobrir o contato de marketing", proxima_acao_data: hojeMais(4), observacao: "Segunda operadora para a edição Auto.", patrocinador_id: null, fechada_em: null, criado_por: "teste", created_at: diasAtras(3), updated_at: agoraIso() },
+    { id: "m2", nome: "LuckyBet", mercado: "bet", estagio: "primeiro_contato", contato: "Paula · paula@luckybet.example", vendedor_uid: "v1", vendedor_nome: "Igor Souza", espaco_interesse_id: "auto:paddock:25", proxima_acao: "Enviar apresentação do festival", proxima_acao_data: hojeMais(-4), observacao: "", patrocinador_id: null, fechada_em: null, criado_por: "v1", created_at: diasAtras(12), updated_at: agoraIso() },
+    { id: "m3", nome: "Nimbus Smartwatch", mercado: "lifestyle", estagio: "mapeada", contato: "", vendedor_uid: "v2", vendedor_nome: "Pedro Paulo", espaco_interesse_id: null, proxima_acao: "Mapear contato", proxima_acao_data: hojeMais(9), observacao: "", patrocinador_id: null, fechada_em: null, criado_por: "v2", created_at: diasAtras(20), updated_at: agoraIso() },
+    { id: "m4", nome: "Clínica Vida Ativa", mercado: "saude", estagio: "negociacao", contato: "Dra. Lúcia · lucia@vidaativa.example", vendedor_uid: "teste", vendedor_nome: "Eric Pereira Felix", espaco_interesse_id: "auto:arena:24", proxima_acao: "Reunião de fechamento", proxima_acao_data: hojeMais(6), observacao: "Operação de saúde do festival.", patrocinador_id: null, fechada_em: null, criado_por: "teste", created_at: diasAtras(30), updated_at: agoraIso() },
+    { id: "m5", nome: "Estrela Seguros", mercado: "financeiro", estagio: "perdida", contato: "", vendedor_uid: "v1", vendedor_nome: "Igor Souza", espaco_interesse_id: null, proxima_acao: "", proxima_acao_data: null, observacao: "Preferiu outro evento em 2027.", patrocinador_id: null, fechada_em: null, criado_por: "v1", created_at: diasAtras(40), updated_at: agoraIso() },
+    { id: "m6", nome: "Voltz Mobilidade", mercado: "mobilidade", estagio: "fechada", contato: "Caio Martins", vendedor_uid: "teste", vendedor_nome: "Eric Pereira Felix", espaco_interesse_id: null, proxima_acao: "", proxima_acao_data: null, observacao: "", patrocinador_id: dados.patrocinadores[4].id, fechada_em: hojeMais(-2), criado_por: "teste", created_at: diasAtras(50), updated_at: agoraIso() },
+  ];
+  dados.interacoes.push(
+    { id: "im1", prospeccao_id: "m2", patrocinador_id: null, data: diasAtras(10), tipo: "email", observacao: "Primeiro e-mail apresentando o festival.", proximo_passo: "Enviar apresentação.", criado_por: "v1", created_at: agoraIso(), updated_at: agoraIso() },
+    { id: "im2", prospeccao_id: "m4", patrocinador_id: null, data: diasAtras(4), tipo: "proposta", observacao: "Proposta de tenda de 100 m² com posto médico.", proximo_passo: "Reunião de fechamento.", criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }
+  );
+  dados.combinados.push({ id: "cm1", prospeccao_id: "m4", patrocinador_id: null, descricao: "Desconto de 10% se assinar até 30/09", status: "prometido", prometido_por_uid: "teste", prometido_por_nome: "Eric Pereira Felix", data: hojeMais(-4), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() });
   var ouvinte = null;
   var user = { uid: "teste", email: "eric@teste.local", displayName: "Eric Pereira Felix", emailVerified: true };
   var logado = !/[?&]deslogado=1/.test(location.search);
@@ -455,9 +471,12 @@ async function saveInteraction(data) {
   var obs = String(data.observacao || "").trim();
   var prox = String(data.proximoPasso || "").trim();
   var quando = data.data ? new Date(data.data) : new Date();
-  if (!data.patrocinadorId || obs.length < 3 || obs.length > 2000 || isNaN(quando)) throw new Error("Escolha o patrocinador e escreva o que aconteceu.");
+  // o alvo pode ser um patrocinador (id) ou uma marca desejo ("p:" + id)
+  var alvo = String(data.patrocinadorId || "");
+  var ehMarca = alvo.indexOf("p:") === 0;
+  if (!alvo || obs.length < 3 || obs.length > 2000 || isNaN(quando)) throw new Error("Escolha o patrocinador ou a marca desejo e escreva o que aconteceu.");
   try {
-    await API.criar("interacoes", { patrocinador_id: data.patrocinadorId, data: quando.toISOString(), observacao: obs, proximo_passo: prox.slice(0, 500), tipo: TIPO_INTERACAO[data.tipo] ? data.tipo : "outro" });
+    await API.criar("interacoes", { patrocinador_id: ehMarca ? null : alvo, prospeccao_id: ehMarca ? alvo.slice(2) : null, data: quando.toISOString(), observacao: obs, proximo_passo: prox.slice(0, 500), tipo: TIPO_INTERACAO[data.tipo] ? data.tipo : "outro" });
   } catch (e) { throw new Error("Não foi possível registrar a interação."); }
 }
 
@@ -465,19 +484,20 @@ async function getCombinados() {
   var lista;
   try { lista = await API.listar("combinados"); } catch (e) { throw new Error("Não foi possível carregar os combinados."); }
   return lista.map(function (c) {
-    return { id: c.id, patrocinadorId: c.patrocinador_id, descricao: c.descricao || "", status: STATUS_COMBINADO[c.status] ? c.status : "prometido",
+    return { id: c.id, patrocinadorId: c.patrocinador_id || null, prospeccaoId: c.prospeccao_id || null, descricao: c.descricao || "", status: STATUS_COMBINADO[c.status] ? c.status : "prometido",
       prometidoPorUid: c.prometido_por_uid || null, prometidoPorNome: c.prometido_por_nome || "", data: c.data || "", entregueEm: c.entregue_em || null, criadoPor: c.criado_por || null };
   }).sort(function (a, b) { return (b.data || "").localeCompare(a.data || ""); });
 }
 function combinadosDe(patroId) { return (S.combinados || []).filter(function (c) { return c.patrocinadorId === patroId; }); }
+function combinadosDeMarca(marcaId) { return (S.combinados || []).filter(function (c) { return c.prospeccaoId === marcaId && !c.patrocinadorId; }); }
 
 async function saveCombinado(data) {
   var desc = String(data.descricao || "").trim();
-  if (!data.patrocinadorId || desc.length < 3 || desc.length > 300) throw new Error("Escreva o que foi combinado (até 300 letras).");
+  if ((!data.patrocinadorId && !data.prospeccaoId) || desc.length < 3 || desc.length > 300) throw new Error("Escreva o que foi combinado (até 300 letras).");
   var quem = data.prometidoPorUid ? perfilPorUid(data.prometidoPorUid) : null;
   var quando = /^\d{4}-\d{2}-\d{2}$/.test(data.data || "") ? data.data : hojeMais(0);
   try {
-    await API.criar("combinados", { patrocinador_id: data.patrocinadorId, descricao: desc, status: "prometido", data: quando,
+    await API.criar("combinados", { patrocinador_id: data.patrocinadorId || null, prospeccao_id: data.prospeccaoId || null, descricao: desc, status: "prometido", data: quando,
       prometido_por_uid: quem ? quem.id : S.uid, prometido_por_nome: quem ? quem.nome : S.nome, entregue_em: null });
   } catch (e) { throw new Error("Não foi possível salvar o combinado."); }
 }
@@ -504,37 +524,42 @@ async function saveSponsor(data) {
   };
   if (ehAdmin()) payload.master = data.master === true;
   else if (!data.id) payload.master = false;
+  var idSalvo = data.id || null;
   try {
     if (data.id) await API.atualizar("patrocinadores", data.id, payload);
-    else await API.criar("patrocinadores", payload);
+    else idSalvo = (await API.criar("patrocinadores", payload)).id;
   } catch (e) { throw new Error("Não foi possível salvar o patrocinador."); }
   try { await aplicarRegraContratos(); } catch (e) {}
+  return idSalvo;
 }
 
 async function getInteractions() {
   var r;
-  try { r = await Promise.all([API.listar("interacoes"), API.listar("patrocinadores")]); }
+  try { r = await Promise.all([API.listar("interacoes"), API.listar("patrocinadores"), API.listar("prospeccao")]); }
   catch (e) { throw new Error("Não foi possível carregar as interações."); }
-  var nomes = {};
+  var nomes = {}, nomesMarca = {};
   r[1].forEach(function (p) { nomes[p.id] = p.nome; });
+  r[2].forEach(function (m) { nomesMarca[m.id] = m.nome; });
   return r[0].sort(porDataDesc).map(function (i) {
     // registrado_por_* so existe nas interacoes de exemplo (carga inicial); no uso normal quem registrou e quem criou o documento
     var quemUid = i.registrado_por_uid || i.criado_por;
     var quem = perfilPorUid(quemUid);
-    return { id: i.id, data: i.data, observacao: i.observacao, proximoPasso: i.proximo_passo, patrocinadorId: i.patrocinador_id, patrocinador: nomes[i.patrocinador_id] || "Patrocinador",
+    return { id: i.id, data: i.data, observacao: i.observacao, proximoPasso: i.proximo_passo, patrocinadorId: i.patrocinador_id || null, prospeccaoId: i.prospeccao_id || null,
+      patrocinador: nomes[i.patrocinador_id] || nomesMarca[i.prospeccao_id] || "Patrocinador", ehMarca: !i.patrocinador_id && !!i.prospeccao_id,
       registradoPor: quem ? quem.nome : (i.registrado_por_nome || ""), criadoPor: quemUid || null, tipo: TIPO_INTERACAO[i.tipo] ? i.tipo : null };
   });
 }
 
 async function suggestNextStep(interactionId) {
-  var todas, patrocinadores;
-  try { var r = await Promise.all([API.listar("interacoes"), API.listar("patrocinadores")]); todas = r[0]; patrocinadores = r[1]; }
+  var todas, patrocinadores, prospeccao;
+  try { var r = await Promise.all([API.listar("interacoes"), API.listar("patrocinadores"), API.listar("prospeccao")]); todas = r[0]; patrocinadores = r[1]; prospeccao = r[2]; }
   catch (e) { throw new Error("Interação não encontrada."); }
   var current = todas.find(function (i) { return i.id === interactionId; });
   if (!current) throw new Error("Interação não encontrada.");
-  var sponsor = patrocinadores.find(function (p) { return p.id === current.patrocinador_id; });
+  var sponsor = current.patrocinador_id ? patrocinadores.find(function (p) { return p.id === current.patrocinador_id; }) : prospeccao.find(function (m) { return m.id === current.prospeccao_id; });
+  var mesmoAlvo = function (i) { return current.patrocinador_id ? i.patrocinador_id === current.patrocinador_id : i.prospeccao_id === current.prospeccao_id; };
   var previous = todas
-    .filter(function (i) { return i.patrocinador_id === current.patrocinador_id && new Date(i.data) < new Date(current.data); })
+    .filter(function (i) { return mesmoAlvo(i) && new Date(i.data) < new Date(current.data); })
     .sort(porDataDesc).slice(0, 8);
   var history = previous.length
     ? previous.map(function (item) {
@@ -543,7 +568,7 @@ async function suggestNextStep(interactionId) {
       }).join("\n\n")
     : "Não há interações anteriores.";
   var system = "Você é um assistente de vendas do Festival Interlagos. Sugira somente um próximo passo comercial em português do Brasil, curto, direto, prático e acionável. Não use título, lista, saudação ou explicação. Não invente fatos.";
-  var prompt = "Patrocinador: " + ((sponsor && sponsor.nome) || "Patrocinador") + "\n\nObservação atual:\n" + current.observacao +
+  var prompt = (current.patrocinador_id ? "Patrocinador: " : "Marca desejo (ainda não patrocina, estamos tentando trazer): ") + ((sponsor && sponsor.nome) || "Marca") + "\n\nObservação atual:\n" + current.observacao +
     "\n\nHistórico anterior, do mais recente para o mais antigo:\n" + history;
   var suggestion;
   try { suggestion = String((await API.gerarTexto(system, prompt)) || "").trim(); }
@@ -553,6 +578,95 @@ async function suggestNextStep(interactionId) {
   try { await API.atualizar("interacoes", current.id, { proximo_passo: shortSuggestion }); }
   catch (e) { throw new Error("A sugestão foi criada, mas não pôde ser salva."); }
   return { suggestion: shortSuggestion };
+}
+
+/* ------------------------------------------------------- marcas desejo */
+var MERCADOS = { telefonia: "Telefonia", bet: "Bet e apostas", alimentacao: "Alimentação e bebidas", lifestyle: "Lifestyle e tecnologia", saude: "Saúde", mobilidade: "Mobilidade", automotivo: "Automotivo e motos", financeiro: "Bancos e seguros", outro: "Outro mercado" };
+var ESTAGIOS = {
+  mapeada: { label: "Mapeada", className: "border-foreground/15 bg-foreground/8 text-foreground" },
+  primeiro_contato: { label: "Primeiro contato", className: "border-primary/30 bg-primary/15 text-foreground" },
+  proposta: { label: "Proposta", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
+  negociacao: { label: "Negociação", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
+  fechada: { label: "Fechada", className: "border-success/30 bg-success/10 text-success" },
+  perdida: { label: "Perdida", className: "border-destructive/40 bg-destructive/10 text-destructive" },
+};
+var ESTAGIOS_ANDAMENTO = ["mapeada", "primeiro_contato", "proposta", "negociacao"];
+var SELO_ESFRIANDO = { label: "Esfriando", className: "border-warning/30 bg-warning/10 text-warning-foreground" };
+var SELO_ATRASADA = { label: "Ação atrasada", className: "border-destructive/40 bg-destructive/10 text-destructive" };
+function emAndamento(m) { return ESTAGIOS_ANDAMENTO.indexOf(m.estagio) >= 0; }
+function ordemEstagio(m) { return Object.keys(ESTAGIOS).indexOf(m.estagio); }
+
+async function getProspects() {
+  var r;
+  try { r = await Promise.all([API.listar("prospeccao"), API.listar("interacoes"), API.listar("espacos")]); }
+  catch (e) { throw new Error("Não foi possível carregar as marcas desejo."); }
+  var cfg = configAtual();
+  var ultimo = {}, espacos = {};
+  r[1].forEach(function (i) { if (i.prospeccao_id && (!ultimo[i.prospeccao_id] || i.data > ultimo[i.prospeccao_id])) ultimo[i.prospeccao_id] = i.data; });
+  r[2].forEach(function (e) { espacos[e.id] = e.nome; });
+  var hoje = hojeMais(0);
+  return r[0].sort(porNome).map(function (m) {
+    var estagio = ESTAGIOS[m.estagio] ? m.estagio : "mapeada";
+    var ultimoContato = ultimo[m.id] || null;
+    var desde = ultimoContato || m.created_at || null;
+    var diasParado = desde ? Math.max(0, -diasAte(desde)) : null;
+    var andamento = ESTAGIOS_ANDAMENTO.indexOf(estagio) >= 0;
+    return {
+      id: m.id, nome: m.nome, mercado: MERCADOS[m.mercado] ? m.mercado : "outro", estagio: estagio, contato: m.contato || "",
+      vendedorUid: m.vendedor_uid || null, vendedorNome: m.vendedor_nome || "",
+      espacoInteresseId: m.espaco_interesse_id || null, espacoInteresse: m.espaco_interesse_id ? (espacos[m.espaco_interesse_id] || null) : null,
+      proximaAcao: m.proxima_acao || "", proximaAcaoData: m.proxima_acao_data || null,
+      observacao: m.observacao || "", patrocinadorId: m.patrocinador_id || null, fechadaEm: m.fechada_em || null,
+      ultimoContato: ultimoContato, diasParado: diasParado,
+      esfriando: andamento && diasParado !== null && diasParado > cfg.dias_sem_contato,
+      atrasada: andamento && !!m.proxima_acao_data && m.proxima_acao_data < hoje,
+    };
+  });
+}
+
+async function saveProspect(data) {
+  var nome = String(data.nome || "").trim();
+  if (!(nome.length >= 1 && nome.length <= 120 && MERCADOS[data.mercado] && ESTAGIOS[data.estagio])) throw new Error("Confira o nome, o mercado e o estágio.");
+  var vend = data.vendedorUid ? perfilPorUid(data.vendedorUid) : null;
+  var payload = {
+    nome: nome, mercado: data.mercado, estagio: data.estagio, contato: String(data.contato || "").trim().slice(0, 200),
+    vendedor_uid: vend ? vend.id : (data.vendedorUid || null), vendedor_nome: vend ? vend.nome : (data.vendedorNome || ""),
+    espaco_interesse_id: data.espacoInteresseId || null,
+    proxima_acao: String(data.proximaAcao || "").trim().slice(0, 300),
+    proxima_acao_data: /^\d{4}-\d{2}-\d{2}$/.test(data.proximaAcaoData || "") ? data.proximaAcaoData : null,
+    observacao: String(data.observacao || "").trim().slice(0, 1000),
+  };
+  try {
+    if (data.id) { await API.atualizar("prospeccao", data.id, payload); return data.id; }
+    return (await API.criar("prospeccao", Object.assign({}, payload, { patrocinador_id: null, fechada_em: null }))).id;
+  } catch (e) { throw new Error("Não foi possível salvar a marca desejo."); }
+}
+
+async function changeProspectStage(id, estagio) {
+  if (!ESTAGIOS[estagio] || estagio === "fechada") return;
+  try { await API.atualizar("prospeccao", id, { estagio: estagio, perdida_em: estagio === "perdida" ? hojeMais(0) : null }); }
+  catch (e) { throw new Error("Não foi possível mudar o estágio."); }
+}
+
+// A marca desejo fechada vira patrocinador: abre o formulario de patrocinador ja preenchido.
+function iniciarFechamento(m) {
+  var cfg = configAtual();
+  var sp = (S.spaces || []).find(function (x) { return x.id === m.espacoInteresseId; });
+  var venc = sp && sp.edicao === "auto" ? cfg.auto_data : cfg.moto_data;
+  S.fichaProsp = null;
+  S.formPatro = { aberto: true, patro: null, salvando: false, deProspeccao: m.id, prefill: {
+    nome: m.nome, contato: m.contato || "", tipo: "patrocinador", vendedorUid: m.vendedorUid, espacoVinculadoId: m.espacoInteresseId || "",
+    dataVencimentoContrato: venc, status: "ativo", renovacao: "renovado", master: false } };
+  render();
+  setTimeout(function () { var el = document.getElementById(m.contato ? "patro-venc" : "patro-contato"); if (el) el.focus(); }, 0);
+}
+// Depois de salvar o patrocinador: marca a prospeccao como fechada e leva o historico junto.
+async function concluirFechamento(prospId, patroId) {
+  var r = await Promise.all([API.listar("interacoes"), API.listar("combinados")]);
+  var mudancas = [{ col: "prospeccao", id: prospId, dados: { estagio: "fechada", patrocinador_id: patroId, fechada_em: hojeMais(0) } }];
+  r[0].forEach(function (i) { if (i.prospeccao_id === prospId && !i.patrocinador_id) mudancas.push({ col: "interacoes", id: i.id, dados: { patrocinador_id: patroId } }); });
+  r[1].forEach(function (c) { if (c.prospeccao_id === prospId && !c.patrocinador_id) mudancas.push({ col: "combinados", id: c.id, dados: { patrocinador_id: patroId } }); });
+  await API.atualizarVarios(mudancas);
 }
 
 /* ------------------------------------------------------------------- estado */
@@ -585,6 +699,11 @@ var S = {
   fi: { patro: "todos", vendedor: "todos", tipo: "todos" },
   combinadoSalvando: false,
   combinadoMudando: false,
+  prospects: null, prospectsErro: null, prospectsCarregando: false,
+  formProsp: { aberto: false, prosp: null, salvando: false },
+  fichaProsp: null,
+  fpr: { q: "", mercado: "todos", vendedor: "todos", estagio: "andamento" },
+  estagioMudando: false,
 };
 
 var PAPEIS = { dono: "Dono do sistema", admin: "Administrador", vendedor: "Vendedor" };
@@ -773,7 +892,8 @@ async function enviarAuth() {
 var NAV = [
   { to: "/app/inicio", label: "Início", shortLabel: "Início", icon: "house" },
   { to: "/app/espacos", label: "Painel de Espaços", shortLabel: "Espaços", icon: "building-2" },
-  { to: "/app/patrocinadores", label: "Cadastro de Patrocinador", shortLabel: "Patrocinadores", icon: "handshake" },
+  { to: "/app/patrocinadores", label: "Cadastro de Patrocinador", shortLabel: "Carteira", icon: "handshake" },
+  { to: "/app/marcas", label: "Marcas desejo", shortLabel: "Desejo", icon: "target" },
   { to: "/app/interacoes", label: "Histórico de Interações", shortLabel: "Interações", icon: "history" },
   { to: "/app/equipe", label: "Equipe", shortLabel: "Equipe", icon: "users", admin: true },
 ];
@@ -804,9 +924,11 @@ function casca(conteudo, caminho) {
     '<div class="mx-auto grid max-w-screen-2xl md:grid-cols-[260px_1fr]">' +
       '<aside class="hidden min-h-[calc(100vh-4rem)] border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block"><nav aria-label="Navegação principal" class="space-y-1">' + lateral + "</nav></aside>" +
       '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + conteudo + "</main>" +
-      (S.ficha && !S.formPatro.aberto && !S.formInter.aberto ? dialogoFicha() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
+      (S.ficha && !S.formPatro.aberto && !S.formInter.aberto ? dialogoFicha() : "") +
+      (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto ? dialogoFichaProspeccao() : "") +
+      (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
     "</div>" +
-    '<nav aria-label="Navegação principal" class="' + cn("fixed inset-x-0 bottom-0 z-40 grid border-t border-border", itensNav.length >= 5 ? "grid-cols-5" : itensNav.length === 4 ? "grid-cols-4" : "grid-cols-3") + ' bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
+    '<nav aria-label="Navegação principal" class="' + cn("fixed inset-x-0 bottom-0 z-40 grid border-t border-border", itensNav.length >= 6 ? "grid-cols-6" : itensNav.length === 5 ? "grid-cols-5" : itensNav.length === 4 ? "grid-cols-4" : "grid-cols-3") + ' bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
   "</div>";
 }
 
@@ -964,25 +1086,38 @@ function telaInicio() {
     var pendentes = (S.combinados || []).filter(function (c) { return c.status === "prometido"; }).slice().sort(function (a, b) { return (a.data || "").localeCompare(b.data || ""); });
     var porRen = {}; elegiveis.forEach(function (p) { porRen[p.renovacao] = (porRen[p.renovacao] || 0) + 1; });
     var pct = elegiveis.length ? Math.round(100 * (porRen.renovado || 0) / elegiveis.length) : 0;
+    var merch = elegiveis.filter(function (p) { return p.tipo === "merchandising"; });
+    var merchRen = merch.filter(function (p) { return p.renovacao === "renovado"; }).length;
+    var andamento = (S.prospects || []).filter(emAndamento);
+    var precisam = andamento.filter(function (m) { return m.esfriando || m.atrasada; });
+    var nEsfriando = andamento.filter(function (m) { return m.esfriando; }).length;
+    var nAtrasada = andamento.filter(function (m) { return m.atrasada; }).length;
     var secao = function (titulo, lista, vazio) {
       return '<section class="space-y-3"><h2 class="text-sm font-black uppercase">' + titulo + ' <span class="font-normal text-muted-foreground">(' + lista.length + ")</span></h2>" +
         (lista.length ? lista.map(cartaoAlerta).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">' + vazio + "</p>") + "</section>";
     };
     corpo =
-      '<div class="grid gap-3 sm:grid-cols-3">' +
+      '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
         '<div class="border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none text-destructive">' + n.vermelho + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Alertas vermelhos</span></div>' +
         '<div class="border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none">' + n.amarelo + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Alertas amarelos</span></div>' +
         '<div class="border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none">' + pct + '%</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Da base renovada · meta 100%</span>' +
           '<div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted"><div class="h-2 bg-success" style="width:' + pct + '%"></div></div>' +
-          '<p class="mt-2 text-xs text-muted-foreground">' + Object.keys(RENOVACAO).map(function (k) { return (porRen[k] || 0) + " " + RENOVACAO[k].label.toLowerCase(); }).join(" · ") + "</p></div>" +
+          '<p class="mt-2 text-xs text-muted-foreground">' + Object.keys(RENOVACAO).map(function (k) { return (porRen[k] || 0) + " " + RENOVACAO[k].label.toLowerCase(); }).join(" · ") + "</p>" +
+          '<p class="mt-1 text-xs text-muted-foreground">Merchandising: ' + merch.length + (merch.length === 1 ? " marca" : " marcas") + (merch.length ? ", " + merchRen + (merchRen === 1 ? " renovada" : " renovadas") : "") + "</p></div>" +
+        '<div class="border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none">' + andamento.length + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Marcas desejo em andamento</span>' +
+          '<p class="mt-2 text-xs text-muted-foreground">' + (S.prospects === null ? "Carregando..." : nEsfriando + " esfriando · " + nAtrasada + " com ação atrasada") + "</p>" +
+          '<a href="#/app/marcas" class="mt-1 inline-block text-xs font-bold uppercase text-primary hover:underline">Ver o funil</a></div>' +
       "</div>" +
       (ehAdmin() ? secao("Para administradores", admin, "Nenhum patrocinador Master em risco.") : "") +
       secao("Meus alertas", meus, "Nada pendente com você hoje.") +
       secao("Alertas do resto da equipe", outros, "Nada pendente com os outros vendedores.") +
+      '<section class="space-y-3"><h2 class="text-sm font-black uppercase">Marcas desejo que precisam de ação <span class="font-normal text-muted-foreground">(' + precisam.length + ")</span></h2>" +
+        (S.prospects === null && !S.prospectsErro ? loadingList("Carregando marcas desejo...", 2) : (precisam.length ? precisam.map(cartaoMarcaAcao).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nenhuma marca desejo esfriando nem com ação atrasada.</p>')) +
+      "</section>" +
       '<section class="space-y-3"><h2 class="text-sm font-black uppercase">Combinados a entregar <span class="font-normal text-muted-foreground">(' + pendentes.length + ")</span></h2>" +
         (S.combinados === null ? loadingList("Carregando combinados...", 2) : (pendentes.length ? pendentes.map(function (c) { return cartaoCombinado(c, true); }).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada prometido pendente. Tudo que foi vendido já foi entregue.</p>')) +
       "</section>" +
-      '<p class="text-xs text-muted-foreground">Prazos em uso: contrato avisa a 90, 60 e 30 dias; sem contato acima de ' + cfg.dias_sem_contato + ' dias; Master a ' + cfg.dias_gatilho_master + ' dias da edição (Moto ' + esc(formatDateOnly(cfg.moto_data)) + ', Auto ' + esc(formatDateOnly(cfg.auto_data)) + '). ' + (ehAdmin() ? 'Ajuste na tela Equipe.' : 'Quem ajusta é o administrador.') + "</p>";
+      '<p class="text-xs text-muted-foreground">Prazos em uso: contrato avisa a 90, 60 e 30 dias; sem contato acima de ' + cfg.dias_sem_contato + ' dias (patrocinadores e marcas desejo); Master a ' + cfg.dias_gatilho_master + ' dias da edição (Moto ' + esc(formatDateOnly(cfg.moto_data)) + ', Auto ' + esc(formatDateOnly(cfg.auto_data)) + '). ' + (ehAdmin() ? 'Ajuste na tela Equipe.' : 'Quem ajusta é o administrador.') + "</p>";
   }
   return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
     '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Hoje</div>' +
@@ -992,14 +1127,16 @@ function telaInicio() {
 }
 
 function dialogoInteracao() {
-  var opcoes = [{ valor: "", rotulo: "Escolha o patrocinador" }].concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  var opcoes = [{ valor: "", rotulo: "Escolha o patrocinador ou a marca desejo" }].concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  var marcasAnd = (S.prospects || []).filter(emAndamento);
+  if (marcasAnd.length) opcoes.push({ grupo: "Marcas desejo (ainda não patrocinam)", itens: marcasAnd.map(function (m) { return { valor: "p:" + m.id, rotulo: m.nome }; }) });
   var agora = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-inter"></div>' +
     '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-inter" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto">' +
       '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-inter" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">Registrar contato</h2>' +
       '<p class="text-sm text-muted-foreground">Fica no histórico com o seu nome, e zera o alerta de "sem contato".</p></div>' +
       '<form id="form-inter" class="space-y-5 pt-2">' +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="inter-patro">Patrocinador</label>' + selectNativo("inter-patro", "patrocinador_id", opcoes, S.formInter.patroId || "") + "</div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="inter-patro">Patrocinador ou marca desejo</label>' + selectNativo("inter-patro", "patrocinador_id", opcoes, S.formInter.patroId || "") + "</div>" +
         '<div class="grid gap-5 sm:grid-cols-2">' +
           '<div class="space-y-2"><label class="' + LABEL + '" for="inter-tipo">Tipo</label>' + selectNativo("inter-tipo", "tipo", Object.keys(TIPO_INTERACAO).map(function (k) { return { valor: k, rotulo: TIPO_INTERACAO[k] }; }), "ligacao") + "</div>" +
           '<div class="space-y-2"><label class="' + LABEL + '" for="inter-data">Quando</label><input id="inter-data" name="data" type="datetime-local" class="' + INPUT + '" value="' + agora + '" required></div>' +
@@ -1379,35 +1516,38 @@ function telaPatrocinadores() {
 
 function dialogoPatrocinador() {
   var p = S.formPatro.patro;
+  var pre = S.formPatro.prefill || null;
+  var v = p || pre || {};
+  var fechando = !!S.formPatro.deProspeccao;
   var admin = ehAdmin();
   var tipos = Object.keys(TIPO_PATROCINADOR).map(function (k) { return { valor: k, rotulo: TIPO_PATROCINADOR[k] }; });
   var status = Object.keys(STATUS_PATROCINADOR).map(function (k) { return { valor: k, rotulo: STATUS_PATROCINADOR[k].label }; });
   return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-patro"></div>' +
     '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-patro" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
-      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-patro" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (p ? "Editar patrocinador" : "Novo patrocinador") + "</h2>" +
-      '<p class="text-sm text-muted-foreground">Quem é o cliente, quem cuida dele e o que ele ocupa no festival.</p></div>' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-patro" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (fechando ? "Virou patrocinador" : p ? "Editar patrocinador" : "Novo patrocinador") + "</h2>" +
+      '<p class="text-sm text-muted-foreground">' + (fechando ? "A marca desejo sai do funil e entra na carteira. Contatos e combinados registrados até aqui vão junto." : "Quem é o cliente, quem cuida dele e o que ele ocupa no festival.") + "</p></div>" +
       '<form id="form-patro" class="space-y-5 pt-2">' +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-nome">Nome da marca</label><input id="patro-nome" name="nome" class="' + INPUT + '" value="' + esc(p ? p.nome : "") + '" required maxlength="120"></div>' +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-contato">Contato</label><input id="patro-contato" name="contato" placeholder="Nome · e-mail ou telefone" class="' + INPUT + '" value="' + esc(p ? p.contato : "") + '" required maxlength="200"></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-nome">Nome da marca</label><input id="patro-nome" name="nome" class="' + INPUT + '" value="' + esc(v.nome || "") + '" required maxlength="120"></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-contato">Contato</label><input id="patro-contato" name="contato" placeholder="Nome · e-mail ou telefone" class="' + INPUT + '" value="' + esc(v.contato || "") + '" required maxlength="200"></div>' +
         '<div class="grid gap-5 sm:grid-cols-2">' +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-tipo">Tipo</label>' + selectNativo("patro-tipo", "tipo", tipos, p ? p.tipo : "patrocinador") + "</div>" +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-vendedor">Vendedor responsável</label>' + selectVendedor("patro-vendedor", "vendedor_uid", p ? p.vendedorUid : S.uid, true) + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-tipo">Tipo</label>' + selectNativo("patro-tipo", "tipo", tipos, v.tipo || "patrocinador") + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-vendedor">Vendedor responsável</label>' + selectVendedor("patro-vendedor", "vendedor_uid", (p || pre) ? v.vendedorUid : S.uid, true) + "</div>" +
         "</div>" +
-        '<label class="' + cn("flex items-start gap-3 border border-border p-3 text-sm", !admin && "opacity-60") + '"><input type="checkbox" name="master" value="sim" class="mt-0.5 size-4"' + (p && p.master ? " checked" : "") + (admin ? "" : " disabled") + ">" +
+        '<label class="' + cn("flex items-start gap-3 border border-border p-3 text-sm", !admin && "opacity-60") + '"><input type="checkbox" name="master" value="sim" class="mt-0.5 size-4"' + (v.master ? " checked" : "") + (admin ? "" : " disabled") + ">" +
           '<span><span class="font-bold">Patrocinador Master</span><br><span class="text-xs text-muted-foreground">' + (admin ? "Marca que pagou mais e tem mais direitos no festival. Ganha prioridade na renovação e alerta vermelho." : "Só um administrador pode marcar ou desmarcar o selo Master.") + "</span></span></label>" +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-espaco">Espaço vinculado</label>' + selectNativo("patro-espaco", "espaco_vinculado_id", opcoesEspacos(p ? p.id : null), p ? (p.espacoVinculadoId || "") : "") +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-espaco">Espaço vinculado</label>' + selectNativo("patro-espaco", "espaco_vinculado_id", opcoesEspacos(p ? p.id : null), v.espacoVinculadoId || "") +
           (S.spaces ? "" : '<p class="text-xs text-muted-foreground">Carregando a lista de espaços...</p>') + "</div>" +
         '<div class="grid gap-5 sm:grid-cols-2">' +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-venc">Vencimento do contrato</label><input id="patro-venc" name="data_vencimento_contrato" type="date" class="' + INPUT + '" value="' + esc(p ? p.dataVencimentoContrato : "") + '" required></div>' +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-status">Status</label>' + selectNativo("patro-status", "status", status, p ? p.status : "ativo") + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-venc">Vencimento do contrato</label><input id="patro-venc" name="data_vencimento_contrato" type="date" class="' + INPUT + '" value="' + esc(v.dataVencimentoContrato || "") + '" required></div>' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-status">Status</label>' + selectNativo("patro-status", "status", status, v.status || "ativo") + "</div>" +
         "</div>" +
         '<div class="space-y-2"><label class="' + LABEL + '" for="patro-renovacao">Renovação para a próxima edição</label>' +
-          selectNativo("patro-renovacao", "renovacao", Object.keys(RENOVACAO).map(function (k) { return { valor: k, rotulo: RENOVACAO[k].label }; }), p ? p.renovacao : "sem_contato") +
+          selectNativo("patro-renovacao", "renovacao", Object.keys(RENOVACAO).map(function (k) { return { valor: k, rotulo: RENOVACAO[k].label }; }), v.renovacao || "sem_contato") +
           (p && p.ultimoContato ? '<p class="text-xs text-muted-foreground">Último contato registrado: ' + esc(formatDateTime(p.ultimoContato)) + "</p>" : '<p class="text-xs text-muted-foreground">Nenhum contato registrado ainda.</p>') + "</div>" +
         '<p class="text-xs text-muted-foreground">Contrato a 30 dias ou menos do vencimento vira "Em risco de renovação" sozinho, e o espaço vinculado volta a ficar disponível.</p>' +
         '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
           '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-patro">Cancelar</button>' +
-          '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.formPatro.salvando ? " disabled" : "") + ">" + (S.formPatro.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar patrocinador</button>" +
+          '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.formPatro.salvando ? " disabled" : "") + ">" + (S.formPatro.salvando ? icone("loader-circle", "animate-spin") : "") + (fechando ? " Fechar e cadastrar" : " Salvar patrocinador") + "</button>" +
         "</div>" +
       "</form>" +
       '<button type="button" data-acao="fechar-form-patro" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
@@ -1480,7 +1620,10 @@ function blocoParametros() {
 function interacoesFiltradas() {
   var f = S.fi;
   return (S.interactions || []).filter(function (it) {
-    if (f.patro !== "todos" && it.patrocinadorId !== f.patro) return false;
+    if (f.patro !== "todos") {
+      if (f.patro.indexOf("p:") === 0) { if (it.prospeccaoId !== f.patro.slice(2)) return false; }
+      else if (it.patrocinadorId !== f.patro) return false;
+    }
     if (f.vendedor !== "todos" && it.criadoPor !== f.vendedor) return false;
     if (f.tipo !== "todos" && it.tipo !== f.tipo) return false;
     return true;
@@ -1492,7 +1635,7 @@ function cartaoInteracao(it, compacto) {
   var tipo = it.tipo ? '<span class="' + cn(BADGE, "text-foreground border-primary/30 bg-primary/15") + '">' + esc(TIPO_INTERACAO[it.tipo]) + "</span>" : "";
   return '<article class="border border-border bg-card">' +
     '<div class="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">' +
-      '<div class="min-w-0">' + (compacto ? "" : '<h2 class="break-words text-lg font-black uppercase"><button type="button" class="hover:underline" data-acao="ficha" data-id="' + esc(it.patrocinadorId) + '">' + esc(it.patrocinador) + "</button></h2>") +
+      '<div class="min-w-0">' + (compacto ? "" : '<h2 class="break-words text-lg font-black uppercase"><button type="button" class="hover:underline" data-acao="' + (it.ehMarca ? "ficha-marca" : "ficha") + '" data-id="' + esc(it.ehMarca ? it.prospeccaoId : it.patrocinadorId) + '">' + esc(it.patrocinador) + "</button>" + (it.ehMarca ? ' <span class="' + cn(BADGE, "ml-1 align-middle text-foreground border-primary/30 bg-primary/15 normal-case") + '">Marca desejo</span>' : "") + "</h2>") +
       '<div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">' + tipo + '<span class="flex items-center gap-1.5">' + icone("calendar-days", "size-3.5") + " " + esc(formatDateTime(it.data)) + "</span>" +
       (it.registradoPor ? '<span class="flex items-center gap-1.5">' + icone("user-round", "size-3.5") + " Registrado por " + esc(it.registradoPor) + "</span>" : "") + "</div></div>" +
       (compacto ? "" : '<button type="button" class="' + btnCls("outline", "default", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="sugerir" data-id="' + esc(it.id) + '"' + (S.sugerindo ? " disabled" : "") + ">" +
@@ -1520,7 +1663,8 @@ function blocoListaInteracoes() {
 
 function telaInteracoes() {
   var f = S.fi;
-  var patros = [{ valor: "todos", rotulo: "Todos os patrocinadores" }].concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  var patros = [{ valor: "todos", rotulo: "Todos os patrocinadores e marcas" }].concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  if ((S.prospects || []).length) patros.push({ grupo: "Marcas desejo", itens: S.prospects.map(function (m) { return { valor: "p:" + m.id, rotulo: m.nome }; }) });
   var vendedores = [{ valor: "todos", rotulo: "Registrado por qualquer um" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
   var tipos = [{ valor: "todos", rotulo: "Todos os tipos" }].concat(Object.keys(TIPO_INTERACAO).map(function (k) { return { valor: k, rotulo: TIPO_INTERACAO[k] }; }));
   return '<section class="space-y-7"><header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
@@ -1540,11 +1684,13 @@ function telaInteracoes() {
 
 /* ------------------------------------------------------ ficha do patrocinador */
 function cartaoCombinado(c, comPatro) {
-  var patro = comPatro ? (S.sponsors || []).find(function (p) { return p.id === c.patrocinadorId; }) : null;
+  var patro = comPatro && c.patrocinadorId ? (S.sponsors || []).find(function (p) { return p.id === c.patrocinadorId; }) : null;
+  var marca = comPatro && !patro && c.prospeccaoId ? (S.prospects || []).find(function (m) { return m.id === c.prospeccaoId; }) : null;
   var st = STATUS_COMBINADO[c.status];
   return '<article class="' + cn("border border-border bg-card px-4 py-3", c.status === "prometido" && "alerta-amarelo") + '">' +
     '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0">' +
-      (patro ? '<button type="button" class="text-xs font-bold uppercase text-primary hover:underline" data-acao="ficha" data-id="' + esc(patro.id) + '">' + esc(patro.nome) + "</button>" : "") +
+      (patro ? '<button type="button" class="text-xs font-bold uppercase text-primary hover:underline" data-acao="ficha" data-id="' + esc(patro.id) + '">' + esc(patro.nome) + "</button>" :
+       marca ? '<button type="button" class="text-xs font-bold uppercase text-primary hover:underline" data-acao="ficha-marca" data-id="' + esc(marca.id) + '">' + esc(marca.nome) + " · marca desejo</button>" : "") +
       '<p class="break-words font-semibold">' + esc(c.descricao) + "</p>" +
       '<p class="mt-0.5 text-xs text-muted-foreground">Prometido por ' + esc(c.prometidoPorNome || "?") + (c.data ? " em " + esc(formatDateOnly(c.data)) : "") + (c.entregueEm ? " · entregue em " + esc(formatDateOnly(c.entregueEm)) : "") + "</p></div>" +
       '<div class="flex shrink-0 items-center gap-2">' + badge(st, "whitespace-nowrap") +
@@ -1594,6 +1740,225 @@ function dialogoFicha() {
     "</div>";
 }
 
+/* ------------------------------------------------------ tela: marcas desejo */
+function marcasFiltradas() {
+  var f = S.fpr;
+  var term = f.q.trim().toLocaleLowerCase("pt-BR");
+  return (S.prospects || []).filter(function (m) {
+    if (f.estagio === "andamento") { if (!emAndamento(m)) return false; }
+    else if (f.estagio !== "todos" && m.estagio !== f.estagio) return false;
+    if (f.mercado !== "todos" && m.mercado !== f.mercado) return false;
+    if (f.vendedor !== "todos" && (m.vendedorUid || "") !== f.vendedor) return false;
+    if (term) {
+      var texto = [m.nome, m.contato, m.espacoInteresse, m.vendedorNome, MERCADOS[m.mercado], m.proximaAcao].join(" ").toLocaleLowerCase("pt-BR");
+      if (texto.indexOf(term) < 0) return false;
+    }
+    return true;
+  }).sort(function (a, b) { return ordemEstagio(a) - ordemEstagio(b) || porNome(a, b); });
+}
+
+function blocoFunil() {
+  var f = S.fpr;
+  var lista = S.prospects || [];
+  var andamento = lista.filter(emAndamento);
+  var esfr = andamento.filter(function (m) { return m.esfriando; }).length;
+  var atras = andamento.filter(function (m) { return m.atrasada; }).length;
+  var caixa = function (k) {
+    var n = lista.filter(function (m) { return m.estagio === k; }).length;
+    var ativo = f.estagio === k;
+    return '<button type="button" class="' + cn("border px-3 py-3 text-left transition-colors", ativo ? "border-primary bg-primary/15" : "border-border bg-card hover:bg-muted/50") + '" data-acao="filtro-estagio" data-estagio="' + k + '" aria-pressed="' + (ativo ? "true" : "false") + '">' +
+      '<span class="block text-2xl font-black leading-none">' + n + '</span><span class="mt-1 block text-xs font-bold uppercase text-muted-foreground">' + esc(ESTAGIOS[k].label) + "</span></button>";
+  };
+  return '<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">' + Object.keys(ESTAGIOS).map(caixa).join("") + "</div>" +
+    '<p class="mt-2 text-xs text-muted-foreground">' + andamento.length + " em andamento" + (esfr ? " · " + esfr + " esfriando" : "") + (atras ? " · " + atras + " com ação atrasada" : "") +
+    ' · <button type="button" class="underline" data-acao="filtro-estagio" data-estagio="andamento">ver só em andamento</button> · <button type="button" class="underline" data-acao="filtro-estagio" data-estagio="todos">ver todas</button></p>';
+}
+
+function blocoListaMarcas() {
+  if (S.prospectsErro) return errorList(S.prospectsErro, "recarregar-marcas", S.prospectsCarregando);
+  if (!S.prospects) return loadingList("Carregando marcas desejo...");
+  if (!S.prospects.length) return emptyList("target", "Nenhuma marca desejo ainda", "Use o botão Nova marca desejo para começar o funil.");
+  var lista = marcasFiltradas();
+  if (!lista.length) return emptyList("target", "Nenhuma marca encontrada", "Ajuste a busca ou os filtros.");
+  var th = function (cls, txt) { return '<th class="' + cn(TH, cls) + '">' + txt + "</th>"; };
+  var editar = function (m) { return '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar ' + esc(m.nome) + '" title="Editar marca desejo" data-acao="editar-marca" data-id="' + esc(m.id) + '">' + icone("pencil") + "</button>"; };
+  var nomeBtn = function (m) { return '<button type="button" class="text-left font-bold hover:underline" data-acao="ficha-marca" data-id="' + esc(m.id) + '">' + esc(m.nome) + "</button>"; };
+  var estagioCtl = function (m) {
+    if (m.estagio === "fechada") return badge(ESTAGIOS.fechada, "whitespace-nowrap") + (m.patrocinadorId ? '<div class="mt-1 text-xs"><button type="button" class="text-primary hover:underline" data-acao="ficha" data-id="' + esc(m.patrocinadorId) + '">ver patrocinador</button></div>' : "");
+    return selectNativo("estagio-" + m.id, "estagio", Object.keys(ESTAGIOS).map(function (k) { return { valor: k, rotulo: ESTAGIOS[k].label }; }), m.estagio, { className: "h-8 w-40", disabled: S.estagioMudando });
+  };
+  var proxima = function (m) {
+    if (!m.proximaAcao && !m.proximaAcaoData) return '<span class="text-muted-foreground">Nada marcado</span>';
+    return '<div class="' + cn(m.atrasada && "font-semibold text-destructive") + '">' + esc(m.proximaAcao || "Ação sem descrição") + "</div>" +
+      (m.proximaAcaoData ? '<div class="' + cn("mt-0.5 text-xs", m.atrasada ? "text-destructive" : "text-muted-foreground") + '">' + (m.atrasada ? "venceu " + esc(textoDias(-diasAte(m.proximaAcaoData), false)) : esc(formatDateOnly(m.proximaAcaoData))) + "</div>" : "");
+  };
+  var contato = function (m) {
+    var txt = m.ultimoContato ? "contato " + esc(textoDias(m.diasParado, false)) : "sem contato" + (m.diasParado !== null ? ", no funil " + esc(textoDias(m.diasParado, false)) : "");
+    return '<span class="' + (emAndamento(m) ? "" : "text-muted-foreground") + '">' + txt + "</span>" + (m.esfriando ? '<div class="mt-1">' + badge(SELO_ESFRIANDO, "whitespace-nowrap") + "</div>" : "");
+  };
+  var vend = function (m) { return m.vendedorNome ? esc(m.vendedorNome) : '<span class="text-muted-foreground">Ninguém ainda</span>'; };
+  var esp = function (m) { return m.espacoInteresse ? esc(m.espacoInteresse) : '<span class="text-muted-foreground">A definir</span>'; };
+  var linhas = lista.map(function (m) {
+    return '<tr class="' + cn(TR, m.atrasada && "bg-primary/8 hover:bg-primary/12") + '">' +
+      '<td class="' + cn(TD, "px-5 py-4") + '">' + nomeBtn(m) + '<div class="text-xs text-muted-foreground">' + esc(MERCADOS[m.mercado]) + (m.contato ? " · " + esc(m.contato) : "") + "</div></td>" +
+      '<td class="' + TD + '">' + estagioCtl(m) + "</td>" +
+      '<td class="' + TD + '">' + vend(m) + "</td>" +
+      '<td class="' + TD + '">' + esp(m) + "</td>" +
+      '<td class="' + cn(TD, "max-w-56") + '">' + proxima(m) + "</td>" +
+      '<td class="' + cn(TD, "whitespace-nowrap text-xs") + '">' + contato(m) + "</td>" +
+      '<td class="' + TD + '">' + editar(m) + "</td></tr>";
+  }).join("");
+  var cards = lista.map(function (m) {
+    return '<article class="' + cn("border border-border bg-card p-4", m.atrasada && "border-primary bg-primary/8") + '">' +
+      '<div class="flex items-start justify-between gap-3"><div class="min-w-0"><h2 class="break-words">' + nomeBtn(m) + "</h2>" +
+      '<div class="mt-1 text-xs text-muted-foreground">' + esc(MERCADOS[m.mercado]) + (m.contato ? " · " + esc(m.contato) : "") + "</div></div>" +
+      '<div class="flex shrink-0 items-center gap-1">' + editar(m) + "</div></div>" +
+      '<div class="mt-3">' + estagioCtl(m) + "</div>" +
+      '<div class="mt-2 text-xs">' + contato(m) + "</div>" +
+      '<dl class="mt-4 space-y-3 text-sm">' +
+        '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Próxima ação</dt><dd class="mt-0.5">' + proxima(m) + "</dd></div>" +
+        '<div class="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-3">' +
+          '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Vendedor</dt><dd class="mt-0.5">' + vend(m) + "</dd></div>" +
+          '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Espaço de interesse</dt><dd class="mt-0.5">' + esp(m) + "</dd></div>" +
+        "</div>" +
+      "</dl></article>";
+  }).join("");
+  return '<div class="hidden overflow-hidden border border-border bg-card md:block"><div class="relative w-full overflow-auto"><table class="w-full caption-bottom text-sm">' +
+    '<thead class="[&_tr]:border-b bg-foreground text-background"><tr class="' + cn(TR, "hover:bg-foreground") + '">' +
+      th("px-5 text-xs font-bold uppercase text-background", "Marca") + th("text-xs font-bold uppercase text-background", "Estágio") +
+      th("text-xs font-bold uppercase text-background", "Vendedor") + th("text-xs font-bold uppercase text-background", "Espaço de interesse") +
+      th("text-xs font-bold uppercase text-background", "Próxima ação") + th("text-xs font-bold uppercase text-background", "Contato") +
+      th("w-14", '<span class="sr-only">Editar</span>') +
+    '</tr></thead><tbody class="[&_tr:last-child]:border-0">' + linhas + "</tbody></table></div></div>" +
+    '<div class="grid gap-3 md:hidden">' + cards + "</div>";
+}
+
+function telaMarcas() {
+  var f = S.fpr;
+  var vendedores = [{ valor: "todos", rotulo: "Todos os vendedores" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  var estagios = [{ valor: "andamento", rotulo: "Em andamento" }, { valor: "todos", rotulo: "Todos os estágios" }].concat(Object.keys(ESTAGIOS).map(function (k) { return { valor: k, rotulo: ESTAGIOS[k].label }; }));
+  var mercados = [{ valor: "todos", rotulo: "Todos os mercados" }].concat(Object.keys(MERCADOS).map(function (k) { return { valor: k, rotulo: MERCADOS[k] }; }));
+  return '<section class="space-y-7">' +
+    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
+      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Prospecção</div>' +
+      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Marcas desejo</h1>' +
+      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Marcas que ainda não patrocinam e queremos trazer. Cada uma anda pelo funil até virar patrocinador ou ser perdida.</p></div>' +
+      '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="nova-marca">' + icone("plus") + " Nova marca desejo</button>" +
+    "</header>" +
+    '<div id="bloco-funil">' + blocoFunil() + "</div>" +
+    '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
+      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+      '<input id="busca-marca" aria-label="Buscar marca desejo" placeholder="Buscar por marca, contato ou espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
+      selectNativo("filtro-marca-mercado", "filtro-marca-mercado", mercados, f.mercado, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-marca-vendedor", "filtro-marca-vendedor", vendedores, f.vendedor, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-marca-estagio", "filtro-marca-estagio", estagios, f.estagio, { className: "h-11 bg-card" }) +
+    "</div>" +
+    '<div id="bloco-lista-marca">' + blocoListaMarcas() + "</div>" +
+  "</section>";
+}
+
+function cartaoMarcaAcao(m) {
+  var motivos = [];
+  if (m.atrasada) motivos.push("próxima ação venceu " + textoDias(-diasAte(m.proximaAcaoData), false) + (m.proximaAcao ? ": " + m.proximaAcao : ""));
+  if (m.esfriando) motivos.push(m.ultimoContato ? "sem contato " + textoDias(m.diasParado, false) : "nenhum contato desde que entrou no funil, " + textoDias(m.diasParado, false));
+  var vend = m.vendedorNome ? esc(m.vendedorNome) : '<span class="text-muted-foreground">sem responsável</span>';
+  return '<article class="' + cn("border border-border bg-card px-4 py-3", m.atrasada ? "alerta-vermelho" : "alerta-amarelo") + '">' +
+    '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">' +
+      '<div class="min-w-0"><h3 class="break-words font-bold">' + esc(m.nome) + ' <span class="font-normal text-muted-foreground">· ' + esc(ESTAGIOS[m.estagio].label) + "</span></h3>" +
+      '<p class="mt-0.5 text-sm text-muted-foreground">' + esc(motivos.join(" · ")) + " · Vendedor: " + vend + "</p></div>" +
+      '<div class="flex shrink-0 flex-wrap gap-2">' +
+        '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="nova-interacao" data-patro="p:' + esc(m.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" +
+        '<button type="button" class="' + btnCls("ghost", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="ficha-marca" data-id="' + esc(m.id) + '">' + icone("target") + " Abrir</button>" +
+      "</div></div></article>";
+}
+
+function dialogoProspeccao() {
+  var m = S.formProsp.prosp;
+  var fechada = !!(m && m.estagio === "fechada");
+  var estagios = Object.keys(ESTAGIOS).filter(function (k) { return k !== "fechada" || fechada; }).map(function (k) { return { valor: k, rotulo: ESTAGIOS[k].label }; });
+  var mercados = Object.keys(MERCADOS).map(function (k) { return { valor: k, rotulo: MERCADOS[k] }; });
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-marca"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-marca" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-marca" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (m ? "Editar marca desejo" : "Nova marca desejo") + "</h2>" +
+      '<p class="text-sm text-muted-foreground">Marca que queremos trazer: de que mercado, quem corre atrás e qual é o próximo passo.</p></div>' +
+      '<form id="form-marca" class="space-y-5 pt-2">' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="marca-nome">Nome da marca</label><input id="marca-nome" name="nome" class="' + INPUT + '" value="' + esc(m ? m.nome : "") + '" required maxlength="120"></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="marca-contato">Contato (opcional)</label><input id="marca-contato" name="contato" placeholder="Nome · e-mail ou telefone" class="' + INPUT + '" value="' + esc(m ? m.contato : "") + '" maxlength="200"></div>' +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="marca-mercado">Mercado</label>' + selectNativo("marca-mercado", "mercado", mercados, m ? m.mercado : "telefonia") + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="marca-vendedor">Vendedor responsável</label>' + selectVendedor("marca-vendedor", "vendedor_uid", m ? m.vendedorUid : S.uid, true) + "</div>" +
+        "</div>" +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="marca-espaco">Espaço de interesse</label>' + selectNativo("marca-espaco", "espaco_interesse_id", opcoesEspacos(null), m ? (m.espacoInteresseId || "") : "") +
+            (S.spaces ? "" : '<p class="text-xs text-muted-foreground">Carregando a lista de espaços...</p>') + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="marca-estagio">Estágio</label>' + selectNativo("marca-estagio", "estagio", estagios, m ? m.estagio : "mapeada", { disabled: fechada }) + "</div>" +
+        "</div>" +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="marca-acao">Próxima ação</label><input id="marca-acao" name="proxima_acao" placeholder="Ex.: Enviar apresentação do festival" class="' + INPUT + '" value="' + esc(m ? m.proximaAcao : "") + '" maxlength="300"></div>' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="marca-acao-data">Até quando</label><input id="marca-acao-data" name="proxima_acao_data" type="date" class="' + INPUT + '" value="' + esc(m && m.proximaAcaoData ? m.proximaAcaoData : "") + '"></div>' +
+        "</div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="marca-obs">Por que queremos essa marca (opcional)</label><textarea id="marca-obs" name="observacao" rows="3" maxlength="1000" placeholder="Ex.: Mercado de telefonia ainda sem patrocinador na edição Auto." class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(m ? m.observacao : "") + "</textarea></div>" +
+        (fechada ? '<p class="text-xs text-muted-foreground">Esta marca já virou patrocinador. O estágio não muda mais por aqui.</p>' :
+          '<p class="text-xs text-muted-foreground">Para fechar, use "Virou patrocinador" na ficha ou o estágio na lista: a marca entra na carteira e leva o histórico junto. Marca parada mais de ' + configAtual().dias_sem_contato + ' dias sem contato aparece como esfriando.</p>') +
+        '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
+          '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-marca">Cancelar</button>' +
+          '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.formProsp.salvando ? " disabled" : "") + ">" + (S.formProsp.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar marca desejo</button>" +
+        "</div>" +
+      "</form>" +
+      '<button type="button" data-acao="fechar-form-marca" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
+    "</div>";
+}
+
+function dialogoFichaProspeccao() {
+  var m = (S.prospects || []).find(function (x) { return x.id === S.fichaProsp; });
+  if (!m) return "";
+  var linha = function (rot, val) { return '<div class="flex justify-between gap-4 border-b border-border py-2 text-sm"><dt class="text-xs font-bold uppercase text-muted-foreground">' + rot + '</dt><dd class="text-right">' + val + "</dd></div>"; };
+  var combs = combinadosDeMarca(m.id);
+  var inters = (S.interactions || []).filter(function (i) { return i.prospeccaoId === m.id; }).slice(0, 5);
+  var pend = combs.filter(function (c) { return c.status === "prometido"; }).length;
+  var andamento = emAndamento(m);
+  var patro = m.patrocinadorId ? (S.sponsors || []).find(function (p) { return p.id === m.patrocinadorId; }) : null;
+  var proxima = m.proximaAcao || m.proximaAcaoData
+    ? '<span class="' + (m.atrasada ? "font-semibold text-destructive" : "") + '">' + esc(m.proximaAcao || "Ação sem descrição") + (m.proximaAcaoData ? " · " + (m.atrasada ? "venceu " + esc(textoDias(-diasAte(m.proximaAcaoData), false)) : esc(formatDateOnly(m.proximaAcaoData))) : "") + "</span>"
+    : '<span class="text-muted-foreground">Nada marcado</span>';
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-ficha-marca"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-ficha-marca" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-ficha-marca" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + esc(m.nome) + "</h2>" +
+      '<div class="flex flex-wrap items-center gap-2 pt-1">' + badge(ESTAGIOS[m.estagio]) + '<span class="' + cn(BADGE, "text-foreground") + '">' + esc(MERCADOS[m.mercado]) + "</span>" + (m.esfriando ? badge(SELO_ESFRIANDO) : "") + (m.atrasada ? badge(SELO_ATRASADA) : "") + '<span class="' + cn(BADGE, "text-foreground border-primary/30 bg-primary/15") + '">Marca desejo</span></div></div>' +
+      "<dl>" +
+        linha("Contato", m.contato ? esc(m.contato) : '<span class="text-muted-foreground">Ainda não temos</span>') +
+        linha("Vendedor responsável", m.vendedorNome ? esc(m.vendedorNome) : '<span class="text-muted-foreground">Ninguém ainda</span>') +
+        linha("Espaço de interesse", m.espacoInteresse ? esc(m.espacoInteresse) : '<span class="text-muted-foreground">A definir</span>') +
+        linha("Próxima ação", proxima) +
+        linha("Último contato", m.ultimoContato ? esc(formatDateTime(m.ultimoContato)) : '<span class="text-muted-foreground">Nenhum registrado</span>') +
+        (m.observacao ? linha("Por que queremos", esc(m.observacao)) : "") +
+        (m.estagio === "fechada" ? linha("Virou patrocinador", (m.fechadaEm ? "em " + esc(formatDateOnly(m.fechadaEm)) + " · " : "") + (patro ? '<button type="button" class="font-bold text-primary hover:underline" data-acao="ficha" data-id="' + esc(patro.id) + '">ver na carteira</button>' : '<span class="text-muted-foreground">cadastro não encontrado</span>')) : "") +
+      "</dl>" +
+      '<div class="flex flex-wrap gap-2">' +
+        (andamento ? '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="nova-interacao" data-patro="p:' + esc(m.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" : "") +
+        '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="editar-marca" data-id="' + esc(m.id) + '">' + icone("pencil") + " Editar</button>" +
+        (andamento ? '<button type="button" class="' + btnCls("default", "default", "font-bold uppercase") + '" data-acao="virou-patro" data-id="' + esc(m.id) + '">' + icone("handshake") + " Virou patrocinador</button>" : "") +
+      "</div>" +
+      (m.estagio === "fechada" ? "" :
+      '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("list-checks", "size-4 text-primary") + " Combinados " +
+        '<span class="font-normal text-muted-foreground">(' + combs.length + (pend ? ", " + pend + " a entregar" : "") + ")</span></h3>" +
+        (S.combinados === null ? loadingList("Carregando combinados...", 1) : (combs.length ? combs.map(function (c) { return cartaoCombinado(c, false); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nada combinado ainda. O que for prometido na negociação fica registrado aqui e vai junto quando a marca virar patrocinador.</p>')) +
+        (andamento ? '<form id="form-combinado" class="space-y-3 border border-border bg-muted/40 p-3">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="comb-desc">Novo combinado</label><input id="comb-desc" name="descricao" required maxlength="300" placeholder="Ex.: Desconto de 10% se assinar até o fim do mês" class="' + INPUT + '"></div>' +
+          '<div class="grid gap-3 sm:grid-cols-2">' +
+            '<div class="space-y-2"><label class="' + LABEL + '" for="comb-data">Prometido em</label><input id="comb-data" name="data" type="date" class="' + INPUT + '" value="' + hojeMais(0) + '" required></div>' +
+            '<div class="space-y-2"><label class="' + LABEL + '" for="comb-quem">Prometido por</label>' + selectVendedor("comb-quem", "prometido_por_uid", S.uid, false) + "</div>" +
+          "</div>" +
+          '<div class="flex justify-end"><button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.combinadoSalvando ? " disabled" : "") + ">" + (S.combinadoSalvando ? icone("loader-circle", "animate-spin") : icone("plus")) + " Adicionar combinado</button></div>" +
+        "</form>" : "") +
+      "</section>") +
+      '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("history", "size-4 text-primary") + " Últimas interações</h3>" +
+        (S.interactions === null ? loadingList("Carregando interações...", 1) : (inters.length ? inters.map(function (i) { return cartaoInteracao(i, true); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nenhuma interação registrada com esta marca.</p>')) +
+      "</section>" +
+      '<button type="button" data-acao="fechar-ficha-marca" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
+    "</div>";
+}
+
 /* --------------------------------------------------------- carregar dados */
 async function carregar(chave, fn) {
   S[chave + "Carregando"] = true;
@@ -1612,6 +1977,7 @@ var TITULOS = {
   "/app/espacos": "Painel de Espaços — Painel Comercial Festival Interlagos",
   "/app/patrocinadores": "Cadastro de Patrocinador — Painel Comercial Festival Interlagos",
   "/app/interacoes": "Histórico de Interações — Painel Comercial Festival Interlagos",
+  "/app/marcas": "Marcas desejo — Painel Comercial Festival Interlagos",
   "/app/equipe": "Equipe — Painel Comercial Festival Interlagos",
 };
 
@@ -1621,9 +1987,16 @@ async function prepararTela(caminho) {
     try { await aplicarRegraContratos(); } catch (e) {}
   }
   if (!S.config) S.config = await getConfig();
-  if (caminho === "/app/inicio" || caminho === "/app/patrocinadores" || caminho === "/app/interacoes") {
+  if (caminho === "/app/inicio" || caminho === "/app/patrocinadores" || caminho === "/app/interacoes" || caminho === "/app/marcas") {
     if (!S.combinados && !S.combinadosCarregando) carregar("combinados", getCombinados);
     if (!S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions);
+  }
+  if (caminho === "/app/inicio" || caminho === "/app/interacoes" || caminho === "/app/marcas") {
+    if (!S.prospects && !S.prospectsCarregando) carregar("prospects", getProspects);
+  }
+  if (caminho === "/app/marcas") {
+    if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // select de espaco de interesse
+    if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors); // "ver patrocinador" das marcas fechadas
   }
   if (caminho === "/app/inicio") {
     if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
@@ -1658,14 +2031,15 @@ function render() {
   var ativo = document.activeElement;
   var foco = ativo && ativo.id ? { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd } : null;
 
+  if (ultimaRota !== null && ultimaRota !== caminho) { S.ficha = null; S.fichaProsp = null; }
   if (caminho === "/auth") raiz.innerHTML = telaAuth();
   else {
-    var tela = caminho === "/app/inicio" ? telaInicio() : caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/equipe" ? telaEquipe() : telaInteracoes();
+    var tela = caminho === "/app/inicio" ? telaInicio() : caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/marcas" ? telaMarcas() : caminho === "/app/equipe" ? telaEquipe() : telaInteracoes();
     raiz.innerHTML = casca(tela, caminho);
     if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
   }
   ultimaRota = caminho;
-  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || !!S.detalhe || !!S.ficha);
+  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp);
 
   if (foco) {
     var el = document.getElementById(foco.id);
@@ -1748,8 +2122,27 @@ document.addEventListener("click", async function (ev) {
     return;
   }
   if (acao === "fechar-form-inter") { if (!S.formInter.salvando) { S.formInter.aberto = false; render(); } return; }
-  if (acao === "ficha") { S.ficha = id; fecharMenu(); render(); return; }
+  if (acao === "ficha") { S.ficha = id; S.fichaProsp = null; fecharMenu(); render(); return; }
   if (acao === "fechar-ficha") { S.ficha = null; render(); return; }
+  if (acao === "nova-marca") { S.formProsp = { aberto: true, prosp: null, salvando: false }; render(); setTimeout(function () { var el = document.getElementById("marca-nome"); if (el) el.focus(); }, 0); return; }
+  if (acao === "editar-marca") {
+    var mk = (S.prospects || []).find(function (x) { return x.id === id; });
+    S.formProsp = { aberto: true, prosp: mk || null, salvando: false }; render(); return;
+  }
+  if (acao === "fechar-form-marca") { if (!S.formProsp.salvando) { S.formProsp.aberto = false; render(); } return; }
+  if (acao === "ficha-marca") { S.fichaProsp = id; S.ficha = null; fecharMenu(); render(); return; }
+  if (acao === "fechar-ficha-marca") { S.fichaProsp = null; render(); return; }
+  if (acao === "virou-patro") {
+    var mv = (S.prospects || []).find(function (x) { return x.id === id; });
+    if (mv) iniciarFechamento(mv);
+    return;
+  }
+  if (acao === "filtro-estagio") {
+    var est = alvo.getAttribute("data-estagio");
+    S.fpr.estagio = (S.fpr.estagio === est && est !== "andamento" && est !== "todos") ? "andamento" : est;
+    render(); return;
+  }
+  if (acao === "recarregar-marcas") { carregar("prospects", getProspects); return; }
   if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
   if (acao === "edicao") {
     trocarParametro("edicao", alvo.getAttribute("data-edicao"));
@@ -1823,6 +2216,11 @@ document.addEventListener("input", function (ev) {
     document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
     return;
   }
+  if (el.id === "busca-marca") {
+    S.fpr.q = el.value;
+    document.getElementById("bloco-lista-marca").innerHTML = blocoListaMarcas();
+    return;
+  }
   if (el.id === "name") S.auth.name = el.value;
   if (el.id === "email") S.auth.email = el.value;
   if (el.id === "password") S.auth.password = el.value;
@@ -1834,6 +2232,28 @@ document.addEventListener("change", async function (ev) {
   if (filtros[el.id]) {
     S.fp[filtros[el.id]] = el.value;
     document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
+    return;
+  }
+  var filtrosMarca = { "filtro-marca-mercado": "mercado", "filtro-marca-vendedor": "vendedor", "filtro-marca-estagio": "estagio" };
+  if (filtrosMarca[el.id]) {
+    S.fpr[filtrosMarca[el.id]] = el.value;
+    document.getElementById("bloco-lista-marca").innerHTML = blocoListaMarcas();
+    document.getElementById("bloco-funil").innerHTML = blocoFunil();
+    return;
+  }
+  if (el.id && el.id.indexOf("estagio-") === 0) {
+    var mid = el.id.slice(8);
+    var marca = (S.prospects || []).find(function (x) { return x.id === mid; });
+    if (!marca) return;
+    if (el.value === "fechada") { iniciarFechamento(marca); return; }
+    if (el.value === marca.estagio) return;
+    S.estagioMudando = true; render();
+    try {
+      await changeProspectStage(mid, el.value);
+      S.estagioMudando = false;
+      await carregar("prospects", getProspects);
+      toast.success(marca.nome + " agora está em " + ESTAGIOS[el.value].label.toLowerCase() + ".");
+    } catch (e) { S.estagioMudando = false; render(); toast.error(e.message); }
     return;
   }
   var filtrosInter = { "filtro-inter-patro": "patro", "filtro-inter-vendedor": "vendedor", "filtro-inter-tipo": "tipo" };
@@ -1877,7 +2297,7 @@ document.addEventListener("submit", async function (ev) {
     var fcb = new FormData(ev.target);
     S.combinadoSalvando = true; render();
     try {
-      await saveCombinado({ patrocinadorId: S.ficha, descricao: fcb.get("descricao"), data: fcb.get("data"), prometidoPorUid: fcb.get("prometido_por_uid") });
+      await saveCombinado({ patrocinadorId: S.ficha, prospeccaoId: S.ficha ? null : S.fichaProsp, descricao: fcb.get("descricao"), data: fcb.get("data"), prometidoPorUid: fcb.get("prometido_por_uid") });
       S.combinadoSalvando = false;
       await carregar("combinados", getCombinados);
       toast.success("Combinado registrado.");
@@ -1894,11 +2314,43 @@ document.addEventListener("submit", async function (ev) {
       await saveInteraction({ patrocinadorId: fi.get("patrocinador_id"), data: fi.get("data"), observacao: fi.get("observacao"), proximoPasso: fi.get("proximo_passo"), tipo: fi.get("tipo") });
       S.formInter = { aberto: false, patroId: null, salvando: false };
       S.overview = null; S.interactions = null;
-      await Promise.all([carregar("sponsors", getSponsors), carregar("interactions", getInteractions)]);
+      var esperas = [carregar("sponsors", getSponsors), carregar("interactions", getInteractions)];
+      if (S.prospects) esperas.push(carregar("prospects", getProspects));
+      await Promise.all(esperas);
       toast.success("Contato registrado.");
     } catch (e) {
       S.formInter.salvando = false;
       if (btnI) { btnI.disabled = false; var spI = btnI.querySelector(".animate-spin"); if (spI) spI.remove(); }
+      toast.error(e.message);
+    }
+    return;
+  }
+  if (ev.target.id === "form-marca") {
+    ev.preventDefault();
+    var fm = new FormData(ev.target);
+    var atualM = S.formProsp.prosp;
+    var vendM = fm.get("vendedor_uid") || null;
+    var dadosM = {
+      id: atualM ? atualM.id : undefined,
+      nome: String(fm.get("nome") || ""), contato: String(fm.get("contato") || ""),
+      mercado: String(fm.get("mercado") || "outro"),
+      estagio: atualM && atualM.estagio === "fechada" ? "fechada" : String(fm.get("estagio") || "mapeada"),
+      vendedorUid: vendM, vendedorNome: atualM && atualM.vendedorUid === vendM ? atualM.vendedorNome : "",
+      espacoInteresseId: fm.get("espaco_interesse_id") || null,
+      proximaAcao: String(fm.get("proxima_acao") || ""), proximaAcaoData: String(fm.get("proxima_acao_data") || ""),
+      observacao: String(fm.get("observacao") || ""),
+    };
+    S.formProsp.salvando = true;
+    var btnM = ev.target.querySelector('button[type="submit"]');
+    if (btnM) { btnM.disabled = true; btnM.insertAdjacentHTML("afterbegin", icone("loader-circle", "animate-spin")); }
+    try {
+      await saveProspect(dadosM);
+      S.formProsp = { aberto: false, prosp: null, salvando: false };
+      await carregar("prospects", getProspects);
+      toast.success(atualM ? "Marca desejo atualizada." : "Marca desejo entrou no funil.");
+    } catch (e) {
+      S.formProsp.salvando = false;
+      if (btnM) { btnM.disabled = false; var spM = btnM.querySelector(".animate-spin"); if (spM) spM.remove(); }
       toast.error(e.message);
     }
     return;
@@ -1931,12 +2383,23 @@ document.addEventListener("submit", async function (ev) {
     S.formPatro.salvando = true;
     var btnP = ev.target.querySelector('button[type="submit"]');
     if (btnP) { btnP.disabled = true; btnP.insertAdjacentHTML("afterbegin", icone("loader-circle", "animate-spin")); }
+    var deProsp = S.formPatro.deProspeccao || null;
     try {
-      await saveSponsor(dadosP);
+      var idSalvo = await saveSponsor(dadosP);
       S.formPatro = { aberto: false, patro: null, salvando: false };
       S.spaces = null; S.overview = null;
-      await Promise.all([carregar("sponsors", getSponsors), carregar("spaces", getSpaces)]);
-      toast.success(atual ? "Patrocinador atualizado com sucesso." : "Patrocinador criado com sucesso.");
+      var esperasP = [];
+      if (deProsp && idSalvo) {
+        // primeiro leva o historico junto, depois recarrega (senao o "ultimo contato" do patrocinador novo sai vazio)
+        try {
+          await concluirFechamento(deProsp, idSalvo);
+          S.fichaProsp = null; S.interactions = null; S.combinados = null;
+          esperasP.push(carregar("prospects", getProspects), carregar("interactions", getInteractions), carregar("combinados", getCombinados));
+        } catch (e2) { toast.error("Patrocinador criado, mas a marca desejo não foi marcada como fechada. Ajuste o estágio na lista."); }
+      }
+      esperasP.push(carregar("sponsors", getSponsors), carregar("spaces", getSpaces));
+      await Promise.all(esperasP);
+      toast.success(deProsp ? "Marca desejo fechada. Agora ela é patrocinador." : atual ? "Patrocinador atualizado com sucesso." : "Patrocinador criado com sucesso.");
     } catch (e) {
       S.formPatro.salvando = false;
       if (btnP) { btnP.disabled = false; var spP = btnP.querySelector(".animate-spin"); if (spP) spP.remove(); }
@@ -1987,7 +2450,9 @@ document.addEventListener("keydown", function (ev) {
   if (S.form.aberto && !S.form.salvando) { S.form.aberto = false; render(); return; }
   if (S.formPatro.aberto && !S.formPatro.salvando) { S.formPatro.aberto = false; render(); return; }
   if (S.formInter.aberto && !S.formInter.salvando) { S.formInter.aberto = false; render(); return; }
+  if (S.formProsp.aberto && !S.formProsp.salvando) { S.formProsp.aberto = false; render(); return; }
   if (S.ficha) { S.ficha = null; render(); return; }
+  if (S.fichaProsp) { S.fichaProsp = null; render(); return; }
   if (S.detalhe) { S.detalhe = null; render(); }
 });
 window.addEventListener("hashchange", render);
@@ -2012,6 +2477,8 @@ window.addEventListener("scroll", fecharMenu, true);
       try { S.perfis = await getProfiles(); } catch (e) { S.perfis = []; }
     } else {
       S.uid = null; S.papel = "vendedor"; S.perfis = null; S.config = null; S.combinados = null; S.ficha = null;
+      S.prospects = null; S.fichaProsp = null; S.formProsp = { aberto: false, prosp: null, salvando: false };
+      S.fpr = { q: "", mercado: "todos", vendedor: "todos", estagio: "andamento" };
       S.formInter = { aberto: false, patroId: null, salvando: false };
       S.formPatro = { aberto: false, patro: null, salvando: false };
       S.saindo = false;
