@@ -36,6 +36,16 @@
   @media (min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media (min-width:1024px){.lg\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.lg\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
     .lg\:grid-cols-\[minmax\(200px\,1\.3fr\)_1fr_1fr_1fr_1fr_1fr\]{grid-template-columns:minmax(200px,1.3fr) 1fr 1fr 1fr 1fr 1fr}}
+  /* tutorial de uso: escurece a tela e deixa so o trecho explicado aceso */
+  #tour{position:fixed;inset:0;z-index:70;pointer-events:none}
+  .tour-foco{position:fixed;border-radius:8px;box-shadow:0 0 0 9999px rgba(10,10,10,.66);pointer-events:none}
+  .tour-escuro{position:fixed;inset:0;background:rgba(10,10,10,.66)}
+  .tour-cartao{position:fixed;z-index:71;width:min(420px,calc(100vw - 32px));pointer-events:auto;background:var(--background);color:var(--foreground);border:1px solid var(--border);border-top:4px solid var(--primary);box-shadow:0 20px 50px rgba(0,0,0,.35);padding:16px 20px 18px}
+  .tour-cartao h3{font-weight:900;text-transform:uppercase;font-size:1.05rem;line-height:1.2;margin:.5rem 0 .5rem}
+  .tour-cartao p{font-size:.875rem;line-height:1.5}
+  .tour-cartao p+p{margin-top:.5rem}
+  .tour-passo{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--muted-foreground)}
+  @media (max-width:767px){.tour-cartao{left:16px!important;right:16px;width:auto;top:auto!important;transform:none!important;bottom:calc(env(safe-area-inset-bottom) + 5.25rem);max-height:55vh;overflow-y:auto}}
   .alerta-vermelho{border-left:4px solid var(--destructive)}.alerta-amarelo{border-left:4px solid var(--warning)}.alerta-azul{border-left:4px solid var(--ring)}
   @media (min-width:1024px){.lg\:grid-cols-\[minmax\(220px\,1\.4fr\)_1fr_1fr_1fr_1fr\]{grid-template-columns:minmax(220px,1.4fr) 1fr 1fr 1fr 1fr}}
   /* mapa de espacos: cores por status, mesmas dos selos da lista */
@@ -85,7 +95,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-16.5";
+var VERSAO = "2026-09-16.6";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -121,6 +131,7 @@ var ICONES = {
 "sparkles": "<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"/> <path d=\"M20 2v4\"/> <path d=\"M22 4h-4\"/> <circle cx=\"4\" cy=\"20\" r=\"2\"/>",
 "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/> <path d=\"M12 9v4\"/> <path d=\"M12 17h.01\"/>",
 "target": "<circle cx=\"12\" cy=\"12\" r=\"10\"/> <circle cx=\"12\" cy=\"12\" r=\"6\"/> <circle cx=\"12\" cy=\"12\" r=\"2\"/>",
+"circle-help": "<circle cx=\"12\" cy=\"12\" r=\"10\"/> <path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"/> <path d=\"M12 17h.01\"/>",
 "x": "<path d=\"M18 6 6 18\"/> <path d=\"m6 6 12 12\"/>"
 };
 function icone(nome, cls) {
@@ -704,6 +715,8 @@ var S = {
   fichaProsp: null,
   fpr: { q: "", mercado: "todos", vendedor: "todos", estagio: "andamento" },
   estagioMudando: false,
+  tour: { ativo: false, passo: 0, esperando: false },
+  tourAbriuFicha: false,
 };
 
 var PAPEIS = { dono: "Dono do sistema", admin: "Administrador", vendedor: "Vendedor" };
@@ -918,6 +931,7 @@ function casca(conteudo, caminho) {
         '<span class="hidden h-6 w-px bg-border sm:block"></span><span class="hidden truncate text-sm font-bold uppercase sm:block">Painel Comercial Festival Interlagos</span></a>' +
         '<div class="flex items-center gap-2 sm:gap-4"><span class="flex min-w-0 items-center gap-2"><span class="max-w-28 truncate text-sm font-medium sm:max-w-52">' + esc(S.nome) + "</span>" +
         (ehAdmin() ? '<span class="' + cn(BADGE, "hidden text-foreground border-primary/30 bg-primary/15 sm:inline-flex") + '">' + esc(PAPEIS[S.papel]) + "</span>" : "") + "</span>" +
+        '<button type="button" class="' + btnCls("outline", "default", "h-9 gap-1.5 px-2.5 text-xs font-bold uppercase sm:px-3") + '" data-acao="tutorial" title="Tutorial de uso: passeio guiado por cada tela do painel" aria-label="Tutorial de uso">' + icone("circle-help") + '<span class="hidden sm:inline">Tutorial de uso</span></button>' +
         '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Sair" title="Sair" data-acao="sair"' + (S.saindo ? " disabled" : "") + ">" + icone("log-out") + "</button></div>" +
       "</div>" +
     "</header>" +
@@ -1092,12 +1106,12 @@ function telaInicio() {
     var precisam = andamento.filter(function (m) { return m.esfriando || m.atrasada; });
     var nEsfriando = andamento.filter(function (m) { return m.esfriando; }).length;
     var nAtrasada = andamento.filter(function (m) { return m.atrasada; }).length;
-    var secao = function (titulo, lista, vazio) {
-      return '<section class="space-y-3"><h2 class="text-sm font-black uppercase">' + titulo + ' <span class="font-normal text-muted-foreground">(' + lista.length + ")</span></h2>" +
+    var secao = function (titulo, lista, vazio, id) {
+      return '<section class="space-y-3"' + (id ? ' id="' + id + '"' : "") + '><h2 class="text-sm font-black uppercase">' + titulo + ' <span class="font-normal text-muted-foreground">(' + lista.length + ")</span></h2>" +
         (lista.length ? lista.map(cartaoAlerta).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">' + vazio + "</p>") + "</section>";
     };
     corpo =
-      '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
+      '<div id="inicio-contadores" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
         '<div class="border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none text-destructive">' + n.vermelho + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Alertas vermelhos</span></div>' +
         '<div class="border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none">' + n.amarelo + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Alertas amarelos</span></div>' +
         '<div class="border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none">' + pct + '%</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Da base renovada · meta 100%</span>' +
@@ -1109,12 +1123,12 @@ function telaInicio() {
           '<a href="#/app/marcas" class="mt-1 inline-block text-xs font-bold uppercase text-primary hover:underline">Ver o funil</a></div>' +
       "</div>" +
       (ehAdmin() ? secao("Para administradores", admin, "Nenhum patrocinador Master em risco.") : "") +
-      secao("Meus alertas", meus, "Nada pendente com você hoje.") +
-      secao("Alertas do resto da equipe", outros, "Nada pendente com os outros vendedores.") +
-      '<section class="space-y-3"><h2 class="text-sm font-black uppercase">Marcas desejo que precisam de ação <span class="font-normal text-muted-foreground">(' + precisam.length + ")</span></h2>" +
+      secao("Meus alertas", meus, "Nada pendente com você hoje.", "secao-meus-alertas") +
+      secao("Alertas do resto da equipe", outros, "Nada pendente com os outros vendedores.", "secao-alertas-equipe") +
+      '<section id="secao-marcas-acao" class="space-y-3"><h2 class="text-sm font-black uppercase">Marcas desejo que precisam de ação <span class="font-normal text-muted-foreground">(' + precisam.length + ")</span></h2>" +
         (S.prospects === null && !S.prospectsErro ? loadingList("Carregando marcas desejo...", 2) : (precisam.length ? precisam.map(cartaoMarcaAcao).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nenhuma marca desejo esfriando nem com ação atrasada.</p>')) +
       "</section>" +
-      '<section class="space-y-3"><h2 class="text-sm font-black uppercase">Combinados a entregar <span class="font-normal text-muted-foreground">(' + pendentes.length + ")</span></h2>" +
+      '<section id="secao-combinados" class="space-y-3"><h2 class="text-sm font-black uppercase">Combinados a entregar <span class="font-normal text-muted-foreground">(' + pendentes.length + ")</span></h2>" +
         (S.combinados === null ? loadingList("Carregando combinados...", 2) : (pendentes.length ? pendentes.map(function (c) { return cartaoCombinado(c, true); }).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada prometido pendente. Tudo que foi vendido já foi entregue.</p>')) +
       "</section>" +
       '<p class="text-xs text-muted-foreground">Prazos em uso: contrato avisa a 90, 60 e 30 dias; sem contato acima de ' + cfg.dias_sem_contato + ' dias (patrocinadores e marcas desejo); Master a ' + cfg.dias_gatilho_master + ' dias da edição (Moto ' + esc(formatDateOnly(cfg.moto_data)) + ', Auto ' + esc(formatDateOnly(cfg.auto_data)) + '). ' + (ehAdmin() ? 'Ajuste na tela Equipe.' : 'Quem ajusta é o administrador.') + "</p>";
@@ -1123,6 +1137,11 @@ function telaInicio() {
     '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Hoje</div>' +
     '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Início</h1>' +
     '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">O que precisa de ação: renovações paradas, contratos vencendo e patrocinadores Master sem resposta.</p>' +
+    (tutorialVisto() || S.tour.ativo ? "" :
+      '<div class="mt-5 flex flex-col gap-3 border border-primary bg-primary/8 p-4 sm:flex-row sm:items-center sm:justify-between">' +
+        '<div><p class="font-bold">Primeira vez por aqui?</p><p class="text-sm text-muted-foreground">O tutorial de uso passa por cada tela em uns 3 minutos e explica as cores, os alertas e o que fazer em cada lugar.</p></div>' +
+        '<div class="flex shrink-0 flex-wrap gap-2"><button type="button" class="' + btnCls("default", "default", "font-bold uppercase") + '" data-acao="tutorial">' + icone("circle-help") + " Começar tutorial</button>" +
+        '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="tutorial-depois">Agora não</button></div></div>') +
     "</header>" + corpo + "</section>";
 }
 
@@ -1501,7 +1520,7 @@ function telaPatrocinadores() {
       '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Contato, tipo, vendedor responsável, espaço vinculado e vencimento de contrato de cada patrocinador.</p></div>' +
       '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="novo-patro">' + icone("plus") + " Novo patrocinador</button>" +
     "</header>" +
-    '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(200px,1.3fr)_1fr_1fr_1fr_1fr_1fr]">' +
+    '<div id="filtros-patro" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(200px,1.3fr)_1fr_1fr_1fr_1fr_1fr]">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
       '<input id="busca-patro" aria-label="Buscar patrocinador" placeholder="Buscar por nome, contato ou espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
       selectNativo("filtro-tipo", "filtro-tipo", [{ valor: "todos", rotulo: "Todos os tipos" }].concat(Object.keys(TIPO_PATROCINADOR).map(function (k) { return { valor: k, rotulo: TIPO_PATROCINADOR[k] }; })), f.tipo, { className: "h-11 bg-card" }) +
@@ -1593,7 +1612,7 @@ function telaEquipe() {
       '<div class="border border-border bg-card p-3"><span class="font-bold text-foreground">Administrador</span><br>Tudo do vendedor, mais o selo Master, os alertas e, em breve, a fila de prioridade.</div>' +
       '<div class="border border-border bg-card p-3"><span class="font-bold text-foreground">Dono do sistema</span><br>Define quem é administrador.</div>' +
     "</div>" +
-    "</header>" + corpo +
+    "</header>" + '<div id="bloco-equipe">' + corpo + "</div>" +
     (ehAdmin() ? blocoParametros() : "") + "</section>";
 }
 
@@ -1673,7 +1692,7 @@ function telaInteracoes() {
     '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Consulte as conversas registradas e gere abordagens comerciais com base no histórico de cada patrocinador.</p></div>' +
     '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="nova-interacao">' + icone("message-square-plus") + " Registrar contato</button>" +
     "</header>" +
-    '<div class="grid gap-3 sm:grid-cols-3">' +
+    '<div id="filtros-inter" class="grid gap-3 sm:grid-cols-3">' +
       selectNativo("filtro-inter-patro", "filtro-inter-patro", patros, f.patro, { className: "h-11 bg-card" }) +
       selectNativo("filtro-inter-vendedor", "filtro-inter-vendedor", vendedores, f.vendedor, { className: "h-11 bg-card" }) +
       selectNativo("filtro-inter-tipo", "filtro-inter-tipo", tipos, f.tipo, { className: "h-11 bg-card" }) +
@@ -1959,6 +1978,159 @@ function dialogoFichaProspeccao() {
     "</div>";
 }
 
+/* ---------------------------------------------------------- tutorial de uso */
+var TOUR_CHAVE = "painel_tutorial_visto";
+function tutorialVisto() { try { return localStorage.getItem(TOUR_CHAVE) === "1"; } catch (e) { return true; } }
+function marcarTutorialVisto() { try { localStorage.setItem(TOUR_CHAVE, "1"); } catch (e) {} }
+
+function passosTour() {
+  var cfg = configAtual();
+  var admin = ehAdmin();
+  return [
+    { titulo: "Bem-vindo ao Painel Comercial",
+      texto: "<p>Este painel organiza a venda de patrocínio do festival: quem já patrocina, o que está à venda no mapa, as marcas que queremos trazer e tudo o que foi conversado e prometido a cada cliente.</p><p>O passeio leva uns 3 minutos e passa por cada tela. Use Próximo e Voltar, ou as setas do teclado. Pode sair a qualquer momento e refazer pelo botão Tutorial de uso, no topo.</p>" },
+    { rota: "/app/inicio", alvo: "#inicio-contadores", titulo: "Início: os números do dia",
+      texto: "<p>Início é a tela para abrir todo dia. <b>Vermelho</b> é contrato vencido ou vencendo em 30 dias, e patrocinador Master sem renovar perto da edição. <b>Amarelo</b> é contrato vencendo em até 90 dias ou cliente sem contato há mais de " + cfg.dias_sem_contato + " dias.</p><p>A barra mostra quanto da base já renovou para a próxima edição. O último cartão conta as marcas desejo que estamos tentando trazer.</p>" },
+    { rota: "/app/inicio", alvo: "#secao-meus-alertas", titulo: "Alertas com botão de ação",
+      texto: "<p>Cada alerta diz o que está acontecendo e quem é o vendedor responsável. <b>Registrar contato</b> grava a conversa e zera o aviso de sem contato. <b>Abrir</b> edita o cadastro.</p><p>Os seus alertas vêm primeiro. Os do resto da equipe aparecem logo abaixo, para todo mundo saber de tudo.</p>" },
+    { rota: "/app/inicio", alvo: "#secao-marcas-acao", titulo: "Marcas desejo esfriando",
+      texto: "<p>Aqui entram as marcas que ainda não patrocinam e pararam: mais de " + cfg.dias_sem_contato + " dias sem contato ou com a próxima ação vencida. O botão Abrir leva para a ficha da marca.</p>" },
+    { rota: "/app/inicio", alvo: "#secao-combinados", titulo: "Combinados a entregar",
+      texto: "<p>Tudo o que foi prometido a um cliente e ainda não foi entregue, com quem prometeu e quando. Quando entregar, mude o status aqui mesmo. Assim ninguém vende uma coisa e esquece de cumprir.</p>" },
+    { rota: "/app/espacos", alvo: "#bloco-mapa", titulo: "Mapa de espaços por edição",
+      texto: "<p>O mapa reproduz as plantas de 2026, com abas para Moto e Auto. <b>Verde</b> é disponível, <b>amarelo</b> reservado, <b>preto</b> vendido. <b>Borda vermelha tracejada</b> é espaço cujo patrocinador está em risco de renovação.</p><p>Toque num espaço para ver a marca, o vendedor, o valor e trocar o status na hora. Dentro do quadro dá para rolar de lado no celular.</p>" },
+    { rota: "/app/espacos", alvo: "#bloco-lista", titulo: "A mesma coisa em lista",
+      texto: "<p>Embaixo do mapa fica a lista com busca por nome e filtro por status, para quem prefere tabela. Os números do topo contam patrocinadores em risco, espaços disponíveis e ativos. Novo espaço serve para algo fora da planta.</p>" },
+    { rota: "/app/patrocinadores", alvo: "#filtros-patro", titulo: "Carteira: quem já patrocina",
+      texto: "<p>Filtre por tipo (patrocinador, merchandising, parceiro), status, vendedor, Master e situação da renovação. <b>Master</b> é a marca que pagou mais e tem mais direitos no festival; só um administrador marca esse selo.</p><p>Novo patrocinador cadastra um cliente que fechou. Marca que ainda está sendo conquistada não entra aqui: vai em Marcas desejo.</p>" },
+    { rota: "/app/patrocinadores", alvo: "#bloco-lista-patro", titulo: "Lendo a lista",
+      texto: "<p>Cada linha mostra contato, espaço vinculado, vendedor, vencimento do contrato e o selo de renovação (sem contato, em negociação, renovado ou recusou). Contrato a 30 dias do vencimento vira <b>em risco</b> sozinho e o espaço volta para o mapa como disponível.</p><p>Clique no nome da marca para abrir a ficha completa.</p>" },
+    { rota: "/app/patrocinadores", alvo: "[role=dialog]", abrir: "ficha", titulo: "A ficha do cliente",
+      texto: "<p>A ficha junta tudo de um cliente: dados, espaço, vendedor, vencimento, último contato, os <b>combinados</b> e as últimas interações.</p><p>Combinado é o que foi prometido: escreva em uma frase, diga quem prometeu e quando. Depois marque Entregue ou Cancelado. Tudo isso fica visível para a equipe inteira.</p>" },
+    { rota: "/app/marcas", alvo: "#bloco-funil", titulo: "Marcas desejo: o funil",
+      texto: "<p>Aqui ficam as marcas que ainda não patrocinam e queremos trazer, por mercado (telefonia, bet, alimentação, lifestyle e tecnologia, saúde, mobilidade e outros).</p><p>Cada uma anda pelo funil: Mapeada, Primeiro contato, Proposta, Negociação, Fechada ou Perdida. As caixas contam por estágio e filtram a lista quando clicadas.</p>" },
+    { rota: "/app/marcas", alvo: "#bloco-lista-marca", titulo: "Trabalhando o funil",
+      texto: "<p>Mude o estágio direto na linha. Marque sempre a próxima ação e a data: se vencer, fica vermelha. Marca parada mais de " + cfg.dias_sem_contato + " dias sem contato ganha o selo <b>Esfriando</b>.</p><p>Quando fechar, escolha Fechada ou use Virou patrocinador na ficha: a marca vai para a carteira já com todo o histórico de contatos e combinados.</p>" },
+    { rota: "/app/interacoes", alvo: "#bloco-lista-inter", titulo: "Histórico de interações",
+      texto: "<p>Toda conversa registrada com qualquer marca, com o tipo (ligação, reunião, WhatsApp, e-mail, proposta, encontro) e quem registrou. Os filtros do topo separam por marca, por pessoa ou por tipo.</p><p>Registrar contato vale para patrocinador e para marca desejo. Sugerir próximo passo usa inteligência artificial para propor a próxima ação com base no histórico.</p>" },
+    admin ? { rota: "/app/equipe", alvo: "#bloco-equipe", titulo: "Equipe e níveis de acesso",
+      texto: "<p>Quem tem login e o papel de cada um. Conta nova nasce como <b>vendedor</b> e vê tudo. <b>Administrador</b> marca o selo Master e ajusta os parâmetros. O <b>dono do sistema</b> decide quem é administrador. Só quem é administrador enxerga esta tela.</p>" } : null,
+    admin ? { rota: "/app/equipe", alvo: "#form-config", titulo: "Parâmetros dos alertas",
+      texto: "<p>As datas das duas edições, o limite de dias sem contato e com quantos dias da edição um Master sem renovar vira alerta vermelho. Mudou aqui, muda para todo mundo na hora.</p>" } : null,
+    { titulo: "Pronto. O dia a dia em quatro passos",
+      texto: "<p><b>1.</b> Abra o Início e resolva os alertas.<br><b>2.</b> Toda conversa vira Registrar contato.<br><b>3.</b> Toda promessa vira combinado na ficha do cliente.<br><b>4.</b> Marca nova entra em Marcas desejo e sobe pelo funil até virar patrocinador.</p><p>Para rever este passeio, clique em Tutorial de uso no topo da tela.</p>" },
+  ].filter(Boolean);
+}
+
+function iniciarTour() {
+  marcarTutorialVisto();
+  S.ficha = null; S.fichaProsp = null; S.tourAbriuFicha = false;
+  S.tour = { ativo: true, passo: 0, esperando: false };
+  irPassoTour(0);
+}
+function sairTour() {
+  S.tour = { ativo: false, passo: 0, esperando: false };
+  if (S.tourAbriuFicha) { S.ficha = null; S.tourAbriuFicha = false; }
+  var t = document.getElementById("tour");
+  if (t) t.remove();
+  render();
+}
+function esperarAlvo(seletor, ms) {
+  return new Promise(function (res) {
+    var inicio = Date.now();
+    (function tenta() {
+      var el = document.querySelector(seletor);
+      var carregando = el && el.querySelector('[aria-busy="true"]');
+      if (el && !carregando) return res(el);
+      if (Date.now() - inicio > ms) return res(el || null);
+      setTimeout(tenta, 150);
+    })();
+  });
+}
+async function irPassoTour(n) {
+  var passos = passosTour();
+  if (n < 0) n = 0;
+  if (n >= passos.length) { sairTour(); return; }
+  var p = passos[n];
+  S.tour.passo = n; S.tour.esperando = !!p.alvo;
+  if (S.tourAbriuFicha && p.abrir !== "ficha") { S.ficha = null; S.tourAbriuFicha = false; }
+  if (p.rota && rotaAtual().caminho !== p.rota) irPara(p.rota); else render();
+  desenharTour();
+  var el = null;
+  if (p.alvo) {
+    if (p.abrir === "ficha") {
+      var botao = await esperarAlvo("#bloco-lista-patro [data-acao=ficha]", 6000);
+      if (S.tour.passo !== n || !S.tour.ativo) return;
+      if (botao) { S.ficha = botao.getAttribute("data-id"); S.tourAbriuFicha = true; render(); }
+    }
+    el = await esperarAlvo(p.alvo, 6000);
+    if (S.tour.passo !== n || !S.tour.ativo) return;
+    if (el) {
+      // trecho mais alto que a tela: alinha o topo logo abaixo do cabecalho; senao centraliza
+      var alto = el.getBoundingClientRect().height > window.innerHeight * 0.75;
+      try {
+        if (alto) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" });
+        else el.scrollIntoView({ block: "center", behavior: "smooth" });
+      } catch (e) { el.scrollIntoView(); }
+      await new Promise(function (r) { setTimeout(r, 420); });
+      if (S.tour.passo !== n || !S.tour.ativo) return;
+    }
+  }
+  S.tour.esperando = false;
+  desenharTour();
+}
+function desenharTour() {
+  var t = document.getElementById("tour");
+  if (!S.tour.ativo) { if (t) t.remove(); return; }
+  if (!t) { t = document.createElement("div"); t.id = "tour"; document.body.appendChild(t); }
+  var passos = passosTour();
+  var n = S.tour.passo, p = passos[n];
+  var marca = n + ":" + (S.tour.esperando ? "1" : "0");
+  if (t.getAttribute("data-marca") !== marca) {
+    t.setAttribute("data-marca", marca);
+    t.innerHTML = '<div class="tour-escuro"></div>' +
+      '<div class="tour-cartao" role="dialog" aria-modal="false" aria-labelledby="tour-titulo">' +
+        '<div class="flex items-center justify-between gap-3"><span class="tour-passo">Tutorial de uso · ' + (n + 1) + " de " + passos.length + '</span>' +
+          '<button type="button" class="text-xs font-bold uppercase text-muted-foreground hover:text-foreground" data-acao="tour-sair">Sair</button></div>' +
+        '<h3 id="tour-titulo">' + esc(p.titulo) + "</h3>" + p.texto +
+        (S.tour.esperando ? '<p class="text-xs text-muted-foreground">Abrindo a tela...</p>' : "") +
+        '<div class="mt-4 flex items-center justify-between gap-2">' +
+          '<button type="button" class="' + btnCls("outline", "default", "h-9 text-xs font-bold uppercase") + '" data-acao="tour-voltar"' + (n === 0 ? " disabled" : "") + ">Voltar</button>" +
+          '<button type="button" class="' + btnCls("default", "default", "h-9 text-xs font-bold uppercase") + '" data-acao="tour-proximo">' + (n === passos.length - 1 ? "Concluir" : "Próximo") + "</button>" +
+        "</div></div>";
+  }
+  posicionarTour();
+}
+function posicionarTour() {
+  var t = document.getElementById("tour");
+  if (!t || !S.tour.ativo) return;
+  var p = passosTour()[S.tour.passo];
+  var el = p && p.alvo && !S.tour.esperando ? document.querySelector(p.alvo) : null;
+  var escuro = t.querySelector(".tour-escuro, .tour-foco");
+  var cartao = t.querySelector(".tour-cartao");
+  if (!escuro || !cartao) return;
+  if (el) {
+    var r = el.getBoundingClientRect(), pad = 6;
+    escuro.className = "tour-foco";
+    escuro.style.cssText = "top:" + (r.top - pad) + "px;left:" + (r.left - pad) + "px;width:" + (r.width + 2 * pad) + "px;height:" + (r.height + 2 * pad) + "px";
+    var largura = Math.min(420, window.innerWidth - 32);
+    var altura = cartao.offsetHeight || 240;
+    var left = Math.max(16, Math.min(r.left, window.innerWidth - largura - 16));
+    var top;
+    if (r.bottom + 12 + altura <= window.innerHeight) top = r.bottom + 12;
+    else if (r.top - 12 - altura >= 0) top = r.top - 12 - altura;
+    else if (r.right + 12 + largura <= window.innerWidth) { top = Math.max(16, Math.min(r.top, window.innerHeight - altura - 16)); left = r.right + 12; }
+    else top = Math.max(16, window.innerHeight - altura - 16);
+    cartao.style.cssText = "top:" + top + "px;left:" + left + "px";
+  } else {
+    escuro.className = "tour-escuro";
+    escuro.style.cssText = "";
+    cartao.style.cssText = "top:50%;left:50%;transform:translate(-50%,-50%)";
+  }
+}
+window.addEventListener("resize", function () { if (S.tour.ativo) requestAnimationFrame(posicionarTour); });
+window.addEventListener("scroll", function () { if (S.tour.ativo) requestAnimationFrame(posicionarTour); }, true);
+
 /* --------------------------------------------------------- carregar dados */
 async function carregar(chave, fn) {
   S[chave + "Carregando"] = true;
@@ -2045,6 +2217,7 @@ function render() {
     var el = document.getElementById(foco.id);
     if (el) { el.focus(); try { if (foco.ini != null) el.setSelectionRange(foco.ini, foco.fim); } catch (e) {} }
   }
+  if (S.tour.ativo) requestAnimationFrame(posicionarTour);
 }
 
 /* --------------------------------------------------------- menu de selecao */
@@ -2088,6 +2261,11 @@ document.addEventListener("click", async function (ev) {
   var id = alvo.getAttribute("data-id");
 
   if (acao === "modo") { S.auth.mode = alvo.getAttribute("data-modo"); render(); return; }
+  if (acao === "tutorial") { iniciarTour(); return; }
+  if (acao === "tutorial-depois") { marcarTutorialVisto(); render(); return; }
+  if (acao === "tour-proximo") { irPassoTour(S.tour.passo + 1); return; }
+  if (acao === "tour-voltar") { irPassoTour(S.tour.passo - 1); return; }
+  if (acao === "tour-sair") { sairTour(); return; }
   if (acao === "sair") {
     S.saindo = true; render();
     await API.sair();
@@ -2445,6 +2623,11 @@ document.addEventListener("keydown", function (ev) {
   if ((ev.key === "Enter" || ev.key === " ") && ev.target.closest && ev.target.closest('[data-acao="mapa-espaco"]')) {
     ev.preventDefault(); ev.target.closest('[data-acao="mapa-espaco"]').click(); return;
   }
+  if (S.tour.ativo && !ev.target.matches("input, textarea, select")) {
+    if (ev.key === "Escape") { sairTour(); return; }
+    if (ev.key === "ArrowRight") { ev.preventDefault(); irPassoTour(S.tour.passo + 1); return; }
+    if (ev.key === "ArrowLeft") { ev.preventDefault(); irPassoTour(S.tour.passo - 1); return; }
+  }
   if (ev.key !== "Escape") return;
   if (menuAberto) { fecharMenu(); return; }
   if (S.form.aberto && !S.form.salvando) { S.form.aberto = false; render(); return; }
@@ -2478,6 +2661,8 @@ window.addEventListener("scroll", fecharMenu, true);
     } else {
       S.uid = null; S.papel = "vendedor"; S.perfis = null; S.config = null; S.combinados = null; S.ficha = null;
       S.prospects = null; S.fichaProsp = null; S.formProsp = { aberto: false, prosp: null, salvando: false };
+      S.tour = { ativo: false, passo: 0, esperando: false }; S.tourAbriuFicha = false;
+      var tourEl = document.getElementById("tour"); if (tourEl) tourEl.remove();
       S.fpr = { q: "", mercado: "todos", vendedor: "todos", estagio: "andamento" };
       S.formInter = { aberto: false, patroId: null, salvando: false };
       S.formPatro = { aberto: false, patro: null, salvando: false };
