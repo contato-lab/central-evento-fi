@@ -29,6 +29,7 @@
   .bg-destructive\/10{background-color:color-mix(in oklab,var(--destructive) 10%,transparent)}
   @media (min-width:640px){.sm\:p-3{padding:.75rem}}
   .gap-x-3{column-gap:.75rem}.gap-y-1{row-gap:.25rem}.mr-1{margin-right:.25rem}
+  .bg-muted\/40{background-color:color-mix(in oklab,var(--muted) 40%,transparent)}.ml-2{margin-left:.5rem}.pt-1{padding-top:.25rem}.text-right{text-align:right}.w-36{width:9rem}
   .min-h-\[60px\]{min-height:60px}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}
   @media (min-width:640px){.sm\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.sm\:items-start{align-items:flex-start}.sm\:p-5{padding:1.25rem}}
   @media (min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -83,7 +84,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-16.2";
+var VERSAO = "2026-09-16.3";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -95,6 +96,8 @@ var MODO_TESTE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]te
 
 /* ------------------------------------------------------------------ icones */
 var ICONES = {
+"list-checks": "<path d=\"M13 5h8\"/> <path d=\"M13 12h8\"/> <path d=\"M13 19h8\"/> <path d=\"m3 17 2 2 4-4\"/> <path d=\"m3 7 2 2 4-4\"/>",
+"check": "<path d=\"M20 6 9 17l-5-5\"/>",
 "house": "<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/> <path d=\"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>",
 "bell": "<path d=\"M10.268 21a2 2 0 0 0 3.464 0\"/> <path d=\"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326\"/>",
 "message-square-plus": "<path d=\"M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z\"/> <path d=\"M12 8v6\"/> <path d=\"M9 11h6\"/>",
@@ -290,6 +293,12 @@ async function criarApiTeste() {
   dados.espacos.forEach(function (e, i) { if (e.status !== "disponivel" && i % 2) { e.vendedor_uid = "v1"; e.vendedor_nome = "Igor Souza"; } });
   dados.config = [{ id: "geral", moto_data: "2026-12-10", auto_data: "2027-08-25", dias_sem_contato: 14, dias_gatilho_master: 90 }];
   dados.patrocinadores[0].renovacao = "em_negociacao"; dados.patrocinadores[1].renovacao = "renovado"; dados.patrocinadores[3].renovacao = "recusou";
+  dados.interacoes.forEach(function (i, n) { i.tipo = ["ligacao", "reuniao", "whatsapp", "proposta", "email"][n % 5]; i.criado_por = n % 2 ? "v1" : "teste"; });
+  dados.combinados = [
+    { id: "c1", patrocinador_id: dados.patrocinadores[1].id, descricao: "2 boxes no Pit Lane + 20 credenciais VIP", status: "prometido", prometido_por_uid: "teste", prometido_por_nome: "Eric Pereira Felix", data: "2026-09-10", criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() },
+    { id: "c2", patrocinador_id: dados.patrocinadores[1].id, descricao: "Logo no telão do palco nos 4 dias", status: "entregue", entregue_em: "2026-09-14", prometido_por_uid: "v1", prometido_por_nome: "Igor Souza", data: "2026-09-08", criado_por: "v1", created_at: agoraIso(), updated_at: agoraIso() },
+    { id: "c3", patrocinador_id: dados.patrocinadores[0].id, descricao: "Ativação de 100 m² na Arena com test ride", status: "prometido", prometido_por_uid: "v1", prometido_por_nome: "Igor Souza", data: "2026-09-12", criado_por: "v1", created_at: agoraIso(), updated_at: agoraIso() },
+  ];
   var ouvinte = null;
   var user = { uid: "teste", email: "eric@teste.local", displayName: "Eric Pereira Felix", emailVerified: true };
   var logado = !/[?&]deslogado=1/.test(location.search);
@@ -448,8 +457,34 @@ async function saveInteraction(data) {
   var quando = data.data ? new Date(data.data) : new Date();
   if (!data.patrocinadorId || obs.length < 3 || obs.length > 2000 || isNaN(quando)) throw new Error("Escolha o patrocinador e escreva o que aconteceu.");
   try {
-    await API.criar("interacoes", { patrocinador_id: data.patrocinadorId, data: quando.toISOString(), observacao: obs, proximo_passo: prox.slice(0, 500) });
+    await API.criar("interacoes", { patrocinador_id: data.patrocinadorId, data: quando.toISOString(), observacao: obs, proximo_passo: prox.slice(0, 500), tipo: TIPO_INTERACAO[data.tipo] ? data.tipo : "outro" });
   } catch (e) { throw new Error("Não foi possível registrar a interação."); }
+}
+
+async function getCombinados() {
+  var lista;
+  try { lista = await API.listar("combinados"); } catch (e) { throw new Error("Não foi possível carregar os combinados."); }
+  return lista.map(function (c) {
+    return { id: c.id, patrocinadorId: c.patrocinador_id, descricao: c.descricao || "", status: STATUS_COMBINADO[c.status] ? c.status : "prometido",
+      prometidoPorUid: c.prometido_por_uid || null, prometidoPorNome: c.prometido_por_nome || "", data: c.data || "", entregueEm: c.entregue_em || null, criadoPor: c.criado_por || null };
+  }).sort(function (a, b) { return (b.data || "").localeCompare(a.data || ""); });
+}
+function combinadosDe(patroId) { return (S.combinados || []).filter(function (c) { return c.patrocinadorId === patroId; }); }
+
+async function saveCombinado(data) {
+  var desc = String(data.descricao || "").trim();
+  if (!data.patrocinadorId || desc.length < 3 || desc.length > 300) throw new Error("Escreva o que foi combinado (até 300 letras).");
+  var quem = data.prometidoPorUid ? perfilPorUid(data.prometidoPorUid) : null;
+  var quando = /^\d{4}-\d{2}-\d{2}$/.test(data.data || "") ? data.data : hojeMais(0);
+  try {
+    await API.criar("combinados", { patrocinador_id: data.patrocinadorId, descricao: desc, status: "prometido", data: quando,
+      prometido_por_uid: quem ? quem.id : S.uid, prometido_por_nome: quem ? quem.nome : S.nome, entregue_em: null });
+  } catch (e) { throw new Error("Não foi possível salvar o combinado."); }
+}
+async function changeCombinadoStatus(id, status) {
+  if (!STATUS_COMBINADO[status]) return;
+  try { await API.atualizar("combinados", id, { status: status, entregue_em: status === "entregue" ? hojeMais(0) : null }); }
+  catch (e) { throw new Error("Não foi possível mudar o combinado."); }
 }
 
 async function saveSponsor(data) {
@@ -484,7 +519,8 @@ async function getInteractions() {
   r[1].forEach(function (p) { nomes[p.id] = p.nome; });
   return r[0].sort(porDataDesc).map(function (i) {
     var quem = perfilPorUid(i.criado_por);
-    return { id: i.id, data: i.data, observacao: i.observacao, proximoPasso: i.proximo_passo, patrocinadorId: i.patrocinador_id, patrocinador: nomes[i.patrocinador_id] || "Patrocinador", registradoPor: quem ? quem.nome : "" };
+    return { id: i.id, data: i.data, observacao: i.observacao, proximoPasso: i.proximo_passo, patrocinadorId: i.patrocinador_id, patrocinador: nomes[i.patrocinador_id] || "Patrocinador",
+      registradoPor: quem ? quem.nome : "", criadoPor: i.criado_por || null, tipo: TIPO_INTERACAO[i.tipo] ? i.tipo : null };
   });
 }
 
@@ -542,6 +578,11 @@ var S = {
   config: null,
   formInter: { aberto: false, patroId: null, salvando: false },
   configSalvando: false,
+  combinados: null, combinadosErro: null, combinadosCarregando: false,
+  ficha: null,
+  fi: { patro: "todos", vendedor: "todos", tipo: "todos" },
+  combinadoSalvando: false,
+  combinadoMudando: false,
 };
 
 var PAPEIS = { dono: "Dono do sistema", admin: "Administrador", vendedor: "Vendedor" };
@@ -550,6 +591,12 @@ var RENOVACAO = {
   em_negociacao: { label: "Em negociação", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
   renovado: { label: "Renovado", className: "border-success/30 bg-success/10 text-success" },
   recusou: { label: "Recusou", className: "border-destructive/40 bg-destructive/10 text-destructive" },
+};
+var TIPO_INTERACAO = { ligacao: "Ligação", reuniao: "Reunião", whatsapp: "WhatsApp", email: "E-mail", proposta: "Proposta enviada", evento: "Encontro presencial", outro: "Outro" };
+var STATUS_COMBINADO = {
+  prometido: { label: "Prometido", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
+  entregue: { label: "Entregue", className: "border-success/30 bg-success/10 text-success" },
+  cancelado: { label: "Cancelado", className: "border-foreground/15 bg-foreground/8 text-muted-foreground" },
 };
 var CONFIG_PADRAO = { moto_data: "2027-08-11", auto_data: "2027-08-25", dias_sem_contato: 14, dias_gatilho_master: 90 };
 function configAtual() { return Object.assign({}, CONFIG_PADRAO, S.config || {}); }
@@ -755,7 +802,7 @@ function casca(conteudo, caminho) {
     '<div class="mx-auto grid max-w-screen-2xl md:grid-cols-[260px_1fr]">' +
       '<aside class="hidden min-h-[calc(100vh-4rem)] border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block"><nav aria-label="Navegação principal" class="space-y-1">' + lateral + "</nav></aside>" +
       '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + conteudo + "</main>" +
-      (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
+      (S.ficha && !S.formPatro.aberto && !S.formInter.aberto ? dialogoFicha() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
     "</div>" +
     '<nav aria-label="Navegação principal" class="' + cn("fixed inset-x-0 bottom-0 z-40 grid border-t border-border", itensNav.length >= 5 ? "grid-cols-5" : itensNav.length === 4 ? "grid-cols-4" : "grid-cols-3") + ' bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
   "</div>";
@@ -912,6 +959,7 @@ function telaInicio() {
     var n = { vermelho: 0, amarelo: 0, azul: 0 };
     alertas.forEach(function (a) { n[a.nivel]++; });
     var elegiveis = S.sponsors.filter(function (p) { return p.status !== "encerrado"; });
+    var pendentes = (S.combinados || []).filter(function (c) { return c.status === "prometido"; }).slice().sort(function (a, b) { return (a.data || "").localeCompare(b.data || ""); });
     var porRen = {}; elegiveis.forEach(function (p) { porRen[p.renovacao] = (porRen[p.renovacao] || 0) + 1; });
     var pct = elegiveis.length ? Math.round(100 * (porRen.renovado || 0) / elegiveis.length) : 0;
     var secao = function (titulo, lista, vazio) {
@@ -929,6 +977,9 @@ function telaInicio() {
       (ehAdmin() ? secao("Para administradores", admin, "Nenhum patrocinador Master em risco.") : "") +
       secao("Meus alertas", meus, "Nada pendente com você hoje.") +
       secao("Alertas do resto da equipe", outros, "Nada pendente com os outros vendedores.") +
+      '<section class="space-y-3"><h2 class="text-sm font-black uppercase">Combinados a entregar <span class="font-normal text-muted-foreground">(' + pendentes.length + ")</span></h2>" +
+        (S.combinados === null ? loadingList("Carregando combinados...", 2) : (pendentes.length ? pendentes.map(function (c) { return cartaoCombinado(c, true); }).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada prometido pendente. Tudo que foi vendido já foi entregue.</p>')) +
+      "</section>" +
       '<p class="text-xs text-muted-foreground">Prazos em uso: contrato avisa a 90, 60 e 30 dias; sem contato acima de ' + cfg.dias_sem_contato + ' dias; Master a ' + cfg.dias_gatilho_master + ' dias da edição (Moto ' + esc(formatDateOnly(cfg.moto_data)) + ', Auto ' + esc(formatDateOnly(cfg.auto_data)) + '). ' + (ehAdmin() ? 'Ajuste na tela Equipe.' : 'Quem ajusta é o administrador.') + "</p>";
   }
   return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
@@ -947,7 +998,10 @@ function dialogoInteracao() {
       '<p class="text-sm text-muted-foreground">Fica no histórico com o seu nome, e zera o alerta de "sem contato".</p></div>' +
       '<form id="form-inter" class="space-y-5 pt-2">' +
         '<div class="space-y-2"><label class="' + LABEL + '" for="inter-patro">Patrocinador</label>' + selectNativo("inter-patro", "patrocinador_id", opcoes, S.formInter.patroId || "") + "</div>" +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="inter-data">Quando</label><input id="inter-data" name="data" type="datetime-local" class="' + INPUT + '" value="' + agora + '" required></div>' +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="inter-tipo">Tipo</label>' + selectNativo("inter-tipo", "tipo", Object.keys(TIPO_INTERACAO).map(function (k) { return { valor: k, rotulo: TIPO_INTERACAO[k] }; }), "ligacao") + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="inter-data">Quando</label><input id="inter-data" name="data" type="datetime-local" class="' + INPUT + '" value="' + agora + '" required></div>' +
+        "</div>" +
         '<div class="space-y-2"><label class="' + LABEL + '" for="inter-obs">O que aconteceu</label><textarea id="inter-obs" name="observacao" rows="4" required maxlength="2000" placeholder="Ex.: Ligação com a Marina. Pediu proposta do Box 07 com 20 credenciais." class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '"></textarea></div>' +
         '<div class="space-y-2"><label class="' + LABEL + '" for="inter-prox">Próximo passo (opcional)</label><input id="inter-prox" name="proximo_passo" maxlength="500" placeholder="Ex.: Enviar proposta até sexta" class="' + INPUT + '"></div>' +
         '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
@@ -1217,6 +1271,13 @@ function dialogoEspaco() {
 }
 
 /* ---------------------------------------------- tela: cadastro de patrocinador */
+function resumoCombinados(patroId) {
+  var c = combinadosDe(patroId);
+  if (!c.length) return "";
+  var pend = c.filter(function (x) { return x.status === "prometido"; }).length;
+  return '<span class="ml-2">· ' + c.length + " combinado" + (c.length > 1 ? "s" : "") + (pend ? ", " + pend + " a entregar" : "") + "</span>";
+}
+
 function badgeMaster() {
   return '<span class="' + cn(BADGE, "text-foreground border-foreground/20 bg-foreground text-background") + '" title="Patrocinador Master: pagou mais e tem mais direitos no festival">' + icone("shield-check", "mr-1 size-3") + "Master</span>";
 }
@@ -1254,8 +1315,8 @@ function blocoListaPatrocinadores() {
   var linhas = lista.map(function (p) {
     var detail = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
     return '<tr class="' + cn(TR, p.status === "em_risco_de_renovacao" && "bg-primary/8 hover:bg-primary/12") + '">' +
-      '<td class="' + cn(TD, "px-5 py-4 font-bold") + '"><div class="flex flex-wrap items-center gap-2">' + esc(p.nome) + (p.master ? badgeMaster() : "") + "</div>" +
-        '<div class="text-xs font-normal text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + "</div></td>" +
+      '<td class="' + cn(TD, "px-5 py-4 font-bold") + '"><div class="flex flex-wrap items-center gap-2"><button type="button" class="text-left hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button>" + (p.master ? badgeMaster() : "") + "</div>" +
+        '<div class="text-xs font-normal text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + resumoCombinados(p.id) + "</div></td>" +
       '<td class="' + cn(TD, "max-w-56 truncate") + '">' + esc(p.contato) + "</td>" +
       '<td class="' + TD + '">' + (p.espacoVinculado ? esc(p.espacoVinculado) : semEspaco) + "</td>" +
       '<td class="' + TD + '">' + (p.responsavelComercial ? esc(p.responsavelComercial) : semVendedor) + "</td>" +
@@ -1267,8 +1328,8 @@ function blocoListaPatrocinadores() {
   var cards = lista.map(function (p) {
     var detail = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
     return '<article class="' + cn("border border-border bg-card p-4", p.status === "em_risco_de_renovacao" && "border-primary bg-primary/8") + '">' +
-      '<div class="flex items-start justify-between gap-3"><div class="min-w-0"><h2 class="break-words font-bold">' + esc(p.nome) + "</h2>" +
-      '<div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + (p.master ? badgeMaster() : "") + "</div></div>" +
+      '<div class="flex items-start justify-between gap-3"><div class="min-w-0"><h2 class="break-words font-bold"><button type="button" class="text-left hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button></h2>" +
+      '<div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + (p.master ? badgeMaster() : "") + resumoCombinados(p.id) + "</div></div>" +
       '<div class="flex shrink-0 items-center gap-1">' + badge(detail, "shrink-0 whitespace-nowrap") + editar(p) + "</div></div>" +
       '<div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">' + badge(RENOVACAO[p.renovacao], "whitespace-nowrap") + (p.ultimoContato ? "contato " + esc(textoDias(-diasAte(p.ultimoContato), false)) : "sem contato") + "</div>" +
       '<dl class="mt-4 space-y-3 text-sm">' +
@@ -1414,39 +1475,121 @@ function blocoParametros() {
 }
 
 /* ---------------------------------------------- tela: historico de interacoes */
+function interacoesFiltradas() {
+  var f = S.fi;
+  return (S.interactions || []).filter(function (it) {
+    if (f.patro !== "todos" && it.patrocinadorId !== f.patro) return false;
+    if (f.vendedor !== "todos" && it.criadoPor !== f.vendedor) return false;
+    if (f.tipo !== "todos" && it.tipo !== f.tipo) return false;
+    return true;
+  });
+}
+
+function cartaoInteracao(it, compacto) {
+  var gerando = S.sugerindo === it.id;
+  var tipo = it.tipo ? '<span class="' + cn(BADGE, "text-foreground border-primary/30 bg-primary/15") + '">' + esc(TIPO_INTERACAO[it.tipo]) + "</span>" : "";
+  return '<article class="border border-border bg-card">' +
+    '<div class="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">' +
+      '<div class="min-w-0">' + (compacto ? "" : '<h2 class="break-words text-lg font-black uppercase"><button type="button" class="hover:underline" data-acao="ficha" data-id="' + esc(it.patrocinadorId) + '">' + esc(it.patrocinador) + "</button></h2>") +
+      '<div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">' + tipo + '<span class="flex items-center gap-1.5">' + icone("calendar-days", "size-3.5") + " " + esc(formatDateTime(it.data)) + "</span>" +
+      (it.registradoPor ? '<span class="flex items-center gap-1.5">' + icone("user-round", "size-3.5") + " Registrado por " + esc(it.registradoPor) + "</span>" : "") + "</div></div>" +
+      (compacto ? "" : '<button type="button" class="' + btnCls("outline", "default", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="sugerir" data-id="' + esc(it.id) + '"' + (S.sugerindo ? " disabled" : "") + ">" +
+        (gerando ? icone("loader-circle", "animate-spin") : icone("sparkles")) + (gerando ? "Sugerindo..." : "Sugerir próximo passo") + "</button>") +
+    "</div>" +
+    '<div class="space-y-5 px-4 py-5 sm:px-5">' +
+      '<div><span class="text-xs font-bold uppercase text-muted-foreground">Observação</span><p class="mt-2 break-words text-sm leading-6">' + esc(it.observacao) + "</p></div>" +
+      '<div class="border-l-4 border-primary bg-primary/8 px-4 py-3">' +
+        '<div class="' + cn(BADGE, "text-foreground border-primary/30 bg-primary/15") + '">Próximo passo</div>' +
+        (it.proximoPasso
+          ? '<p class="mt-2 whitespace-pre-line break-words text-sm font-semibold leading-6">' + esc(it.proximoPasso) + "</p>"
+          : '<p class="mt-2 text-sm text-muted-foreground">' + (compacto ? "Ainda sem próximo passo." : "Ainda sem próximo passo. Use o botão para gerar uma sugestão.") + "</p>") +
+      "</div>" +
+    "</div></article>";
+}
+
+function blocoListaInteracoes() {
+  if (S.interactionsErro) return errorList(S.interactionsErro, "recarregar-interacoes", S.interactionsCarregando);
+  if (!S.interactions) return loadingList("Carregando interações...", 3);
+  if (!S.interactions.length) return emptyList("history", "Nenhuma interação registrada ainda", "Use o botão Registrar contato para começar o histórico.");
+  var lista = interacoesFiltradas();
+  if (!lista.length) return emptyList("history", "Nenhuma interação encontrada", "Ajuste os filtros.");
+  return '<div class="grid gap-4">' + lista.map(function (it) { return cartaoInteracao(it, false); }).join("") + "</div>";
+}
+
 function telaInteracoes() {
-  var corpo;
-  if (S.interactionsErro) corpo = errorList(S.interactionsErro, "recarregar-interacoes", S.interactionsCarregando);
-  else if (!S.interactions) corpo = loadingList("Carregando interações...", 3);
-  else if (!S.interactions.length) corpo = emptyList("history", "Nenhuma interação registrada ainda");
-  else {
-    corpo = '<div class="grid gap-4">' + S.interactions.map(function (it) {
-      var gerando = S.sugerindo === it.id;
-      return '<article class="border border-border bg-card">' +
-        '<div class="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">' +
-          '<div class="min-w-0"><h2 class="break-words text-lg font-black uppercase">' + esc(it.patrocinador) + "</h2>" +
-          '<div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"><span class="flex items-center gap-1.5">' + icone("calendar-days", "size-3.5") + " " + esc(formatDateTime(it.data)) + "</span>" +
-          (it.registradoPor ? '<span class="flex items-center gap-1.5">' + icone("user-round", "size-3.5") + " Registrado por " + esc(it.registradoPor) + "</span>" : "") + "</div></div>" +
-          '<button type="button" class="' + btnCls("outline", "default", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="sugerir" data-id="' + esc(it.id) + '"' + (S.sugerindo ? " disabled" : "") + ">" +
-            (gerando ? icone("loader-circle", "animate-spin") : icone("sparkles")) + (gerando ? "Sugerindo..." : "Sugerir próximo passo") + "</button>" +
-        "</div>" +
-        '<div class="space-y-5 px-4 py-5 sm:px-5">' +
-          '<div><span class="text-xs font-bold uppercase text-muted-foreground">Observação</span><p class="mt-2 break-words text-sm leading-6">' + esc(it.observacao) + "</p></div>" +
-          '<div class="border-l-4 border-primary bg-primary/8 px-4 py-3">' +
-            '<div class="' + cn(BADGE, "text-foreground border-primary/30 bg-primary/15") + '">Próximo passo</div>' +
-            (it.proximoPasso
-              ? '<p class="mt-2 whitespace-pre-line break-words text-sm font-semibold leading-6">' + esc(it.proximoPasso) + "</p>"
-              : '<p class="mt-2 text-sm text-muted-foreground">Ainda sem próximo passo. Use o botão para gerar uma sugestão.</p>') +
-          "</div>" +
-        "</div></article>";
-    }).join("") + "</div>";
-  }
+  var f = S.fi;
+  var patros = [{ valor: "todos", rotulo: "Todos os patrocinadores" }].concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  var vendedores = [{ valor: "todos", rotulo: "Registrado por qualquer um" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  var tipos = [{ valor: "todos", rotulo: "Todos os tipos" }].concat(Object.keys(TIPO_INTERACAO).map(function (k) { return { valor: k, rotulo: TIPO_INTERACAO[k] }; }));
   return '<section class="space-y-7"><header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
     '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Relacionamento comercial</div>' +
     '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Histórico de Interações</h1>' +
     '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Consulte as conversas registradas e gere abordagens comerciais com base no histórico de cada patrocinador.</p></div>' +
     '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="nova-interacao">' + icone("message-square-plus") + " Registrar contato</button>" +
-    "</header>" + corpo + "</section>";
+    "</header>" +
+    '<div class="grid gap-3 sm:grid-cols-3">' +
+      selectNativo("filtro-inter-patro", "filtro-inter-patro", patros, f.patro, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-inter-vendedor", "filtro-inter-vendedor", vendedores, f.vendedor, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-inter-tipo", "filtro-inter-tipo", tipos, f.tipo, { className: "h-11 bg-card" }) +
+    "</div>" +
+    '<div id="bloco-lista-inter">' + blocoListaInteracoes() + "</div>" +
+  "</section>";
+}
+
+/* ------------------------------------------------------ ficha do patrocinador */
+function cartaoCombinado(c, comPatro) {
+  var patro = comPatro ? (S.sponsors || []).find(function (p) { return p.id === c.patrocinadorId; }) : null;
+  var st = STATUS_COMBINADO[c.status];
+  return '<article class="' + cn("border border-border bg-card px-4 py-3", c.status === "prometido" && "alerta-amarelo") + '">' +
+    '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0">' +
+      (patro ? '<button type="button" class="text-xs font-bold uppercase text-primary hover:underline" data-acao="ficha" data-id="' + esc(patro.id) + '">' + esc(patro.nome) + "</button>" : "") +
+      '<p class="break-words font-semibold">' + esc(c.descricao) + "</p>" +
+      '<p class="mt-0.5 text-xs text-muted-foreground">Prometido por ' + esc(c.prometidoPorNome || "?") + (c.data ? " em " + esc(formatDateOnly(c.data)) : "") + (c.entregueEm ? " · entregue em " + esc(formatDateOnly(c.entregueEm)) : "") + "</p></div>" +
+      '<div class="flex shrink-0 items-center gap-2">' + badge(st, "whitespace-nowrap") +
+        selectNativo("combinado-" + c.id, "status", Object.keys(STATUS_COMBINADO).map(function (k) { return { valor: k, rotulo: STATUS_COMBINADO[k].label }; }), c.status, { className: "h-8 w-36", disabled: S.combinadoMudando }) +
+      "</div></div></article>";
+}
+
+function dialogoFicha() {
+  var p = (S.sponsors || []).find(function (x) { return x.id === S.ficha; });
+  if (!p) return "";
+  var st = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
+  var linha = function (rot, val) { return '<div class="flex justify-between gap-4 border-b border-border py-2 text-sm"><dt class="text-xs font-bold uppercase text-muted-foreground">' + rot + '</dt><dd class="text-right">' + val + "</dd></div>"; };
+  var combs = combinadosDe(p.id);
+  var inters = (S.interactions || []).filter(function (i) { return i.patrocinadorId === p.id; }).slice(0, 5);
+  var pend = combs.filter(function (c) { return c.status === "prometido"; }).length;
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-ficha"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-ficha" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-ficha" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + esc(p.nome) + "</h2>" +
+      '<div class="flex flex-wrap items-center gap-2 pt-1">' + badge(st) + badge(RENOVACAO[p.renovacao]) + '<span class="' + cn(BADGE, "text-foreground") + '">' + esc(TIPO_PATROCINADOR[p.tipo]) + "</span>" + (p.master ? badgeMaster() : "") + "</div></div>" +
+      "<dl>" +
+        linha("Contato", esc(p.contato)) +
+        linha("Espaço vinculado", p.espacoVinculado ? esc(p.espacoVinculado) : '<span class="text-muted-foreground">Sem espaço</span>') +
+        linha("Vendedor responsável", p.responsavelComercial ? esc(p.responsavelComercial) : '<span class="text-muted-foreground">Ninguém ainda</span>') +
+        linha("Vencimento do contrato", esc(formatDateOnly(p.dataVencimentoContrato))) +
+        linha("Último contato", p.ultimoContato ? esc(formatDateTime(p.ultimoContato)) : '<span class="text-muted-foreground">Nenhum registrado</span>') +
+      "</dl>" +
+      '<div class="flex flex-wrap gap-2">' +
+        '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="nova-interacao" data-patro="' + esc(p.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" +
+        '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="editar-patro" data-id="' + esc(p.id) + '">' + icone("pencil") + " Editar</button>" +
+      "</div>" +
+      '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("list-checks", "size-4 text-primary") + " Combinados " +
+        '<span class="font-normal text-muted-foreground">(' + combs.length + (pend ? ", " + pend + " a entregar" : "") + ")</span></h3>" +
+        (S.combinados === null ? loadingList("Carregando combinados...", 1) : (combs.length ? combs.map(function (c) { return cartaoCombinado(c, false); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nada combinado ainda. Registre aqui o que foi prometido a este cliente.</p>')) +
+        '<form id="form-combinado" class="space-y-3 border border-border bg-muted/40 p-3">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="comb-desc">Novo combinado</label><input id="comb-desc" name="descricao" required maxlength="300" placeholder="Ex.: 2 boxes + 20 credenciais + logo no telão" class="' + INPUT + '"></div>' +
+          '<div class="grid gap-3 sm:grid-cols-2">' +
+            '<div class="space-y-2"><label class="' + LABEL + '" for="comb-data">Prometido em</label><input id="comb-data" name="data" type="date" class="' + INPUT + '" value="' + hojeMais(0) + '" required></div>' +
+            '<div class="space-y-2"><label class="' + LABEL + '" for="comb-quem">Prometido por</label>' + selectVendedor("comb-quem", "prometido_por_uid", S.uid, false) + "</div>" +
+          "</div>" +
+          '<div class="flex justify-end"><button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.combinadoSalvando ? " disabled" : "") + ">" + (S.combinadoSalvando ? icone("loader-circle", "animate-spin") : icone("plus")) + " Adicionar combinado</button></div>" +
+        "</form>" +
+      "</section>" +
+      '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("history", "size-4 text-primary") + " Últimas interações</h3>" +
+        (S.interactions === null ? loadingList("Carregando interações...", 1) : (inters.length ? inters.map(function (i) { return cartaoInteracao(i, true); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nenhuma interação registrada com este patrocinador.</p>')) +
+      "</section>" +
+      '<button type="button" data-acao="fechar-ficha" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
+    "</div>";
 }
 
 /* --------------------------------------------------------- carregar dados */
@@ -1476,6 +1619,10 @@ async function prepararTela(caminho) {
     try { await aplicarRegraContratos(); } catch (e) {}
   }
   if (!S.config) S.config = await getConfig();
+  if (caminho === "/app/inicio" || caminho === "/app/patrocinadores" || caminho === "/app/interacoes") {
+    if (!S.combinados && !S.combinadosCarregando) carregar("combinados", getCombinados);
+    if (!S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions);
+  }
   if (caminho === "/app/inicio") {
     if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
     if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // formulario de patrocinador aberto daqui
@@ -1516,7 +1663,7 @@ function render() {
     if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
   }
   ultimaRota = caminho;
-  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || !!S.detalhe);
+  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || !!S.detalhe || !!S.ficha);
 
   if (foco) {
     var el = document.getElementById(foco.id);
@@ -1599,6 +1746,8 @@ document.addEventListener("click", async function (ev) {
     return;
   }
   if (acao === "fechar-form-inter") { if (!S.formInter.salvando) { S.formInter.aberto = false; render(); } return; }
+  if (acao === "ficha") { S.ficha = id; fecharMenu(); render(); return; }
+  if (acao === "fechar-ficha") { S.ficha = null; render(); return; }
   if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
   if (acao === "edicao") {
     trocarParametro("edicao", alvo.getAttribute("data-edicao"));
@@ -1685,6 +1834,23 @@ document.addEventListener("change", async function (ev) {
     document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
     return;
   }
+  var filtrosInter = { "filtro-inter-patro": "patro", "filtro-inter-vendedor": "vendedor", "filtro-inter-tipo": "tipo" };
+  if (filtrosInter[el.id]) {
+    S.fi[filtrosInter[el.id]] = el.value;
+    document.getElementById("bloco-lista-inter").innerHTML = blocoListaInteracoes();
+    return;
+  }
+  if (el.id && el.id.indexOf("combinado-") === 0) {
+    var cid = el.id.slice(10);
+    S.combinadoMudando = true; render();
+    try {
+      await changeCombinadoStatus(cid, el.value);
+      S.combinadoMudando = false;
+      await carregar("combinados", getCombinados);
+      toast.success("Combinado atualizado.");
+    } catch (e) { S.combinadoMudando = false; render(); toast.error(e.message); }
+    return;
+  }
   if (el.id && el.id.indexOf("papel-") === 0 && ehDono()) {
     var uid = el.id.slice(6);
     var novoPapel = el.value === "admin" ? "admin" : "vendedor";
@@ -1704,6 +1870,18 @@ document.addEventListener("change", async function (ev) {
 
 document.addEventListener("submit", async function (ev) {
   if (ev.target.id === "form-auth") { ev.preventDefault(); enviarAuth(); return; }
+  if (ev.target.id === "form-combinado") {
+    ev.preventDefault();
+    var fcb = new FormData(ev.target);
+    S.combinadoSalvando = true; render();
+    try {
+      await saveCombinado({ patrocinadorId: S.ficha, descricao: fcb.get("descricao"), data: fcb.get("data"), prometidoPorUid: fcb.get("prometido_por_uid") });
+      S.combinadoSalvando = false;
+      await carregar("combinados", getCombinados);
+      toast.success("Combinado registrado.");
+    } catch (e) { S.combinadoSalvando = false; render(); toast.error(e.message); }
+    return;
+  }
   if (ev.target.id === "form-inter") {
     ev.preventDefault();
     var fi = new FormData(ev.target);
@@ -1711,10 +1889,10 @@ document.addEventListener("submit", async function (ev) {
     var btnI = ev.target.querySelector('button[type="submit"]');
     if (btnI) { btnI.disabled = true; btnI.insertAdjacentHTML("afterbegin", icone("loader-circle", "animate-spin")); }
     try {
-      await saveInteraction({ patrocinadorId: fi.get("patrocinador_id"), data: fi.get("data"), observacao: fi.get("observacao"), proximoPasso: fi.get("proximo_passo") });
+      await saveInteraction({ patrocinadorId: fi.get("patrocinador_id"), data: fi.get("data"), observacao: fi.get("observacao"), proximoPasso: fi.get("proximo_passo"), tipo: fi.get("tipo") });
       S.formInter = { aberto: false, patroId: null, salvando: false };
       S.overview = null; S.interactions = null;
-      await Promise.all([carregar("sponsors", getSponsors), rotaAtual().caminho === "/app/interacoes" ? carregar("interactions", getInteractions) : Promise.resolve()]);
+      await Promise.all([carregar("sponsors", getSponsors), carregar("interactions", getInteractions)]);
       toast.success("Contato registrado.");
     } catch (e) {
       S.formInter.salvando = false;
@@ -1807,6 +1985,7 @@ document.addEventListener("keydown", function (ev) {
   if (S.form.aberto && !S.form.salvando) { S.form.aberto = false; render(); return; }
   if (S.formPatro.aberto && !S.formPatro.salvando) { S.formPatro.aberto = false; render(); return; }
   if (S.formInter.aberto && !S.formInter.salvando) { S.formInter.aberto = false; render(); return; }
+  if (S.ficha) { S.ficha = null; render(); return; }
   if (S.detalhe) { S.detalhe = null; render(); }
 });
 window.addEventListener("hashchange", render);
@@ -1830,7 +2009,7 @@ window.addEventListener("scroll", fecharMenu, true);
       S.uid = user.uid; S.nome = perfil.nome; S.papel = perfil.papel;
       try { S.perfis = await getProfiles(); } catch (e) { S.perfis = []; }
     } else {
-      S.uid = null; S.papel = "vendedor"; S.perfis = null; S.config = null;
+      S.uid = null; S.papel = "vendedor"; S.perfis = null; S.config = null; S.combinados = null; S.ficha = null;
       S.formInter = { aberto: false, patroId: null, salvando: false };
       S.formPatro = { aberto: false, patro: null, salvando: false };
       S.saindo = false;
