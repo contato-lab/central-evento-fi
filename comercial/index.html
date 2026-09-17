@@ -263,7 +263,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.3";
+var VERSAO = "2026-09-17.4";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -2108,7 +2108,7 @@ function cartaoContrato(c, comPatro) {
     : "";
   var quem = c.signatarios.length ? "Assina: " + esc(c.signatarios.map(function (x) { return x.nome; }).join(", ")) : '<span class="text-muted-foreground">Sem signatários informados</span>';
   return '<article class="' + cn("border border-border bg-card px-4 py-3", c.status === "enviado" && "alerta-amarelo", c.status === "assinado" && c.diasParaVencer !== null && c.diasParaVencer < 0 && "alerta-vermelho") + '">' +
-    '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0">' +
+    '<div class="' + (comPatro ? "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" : "flex flex-col gap-3") + '"><div class="min-w-0">' +
       (comPatro ? '<button type="button" class="text-xs font-bold uppercase text-primary hover:underline" data-acao="ficha" data-id="' + esc(c.patrocinadorId) + '">' + esc(c.patrocinador) + "</button>" : "") +
       '<p class="break-words font-semibold">' + esc(c.titulo) + "</p>" +
       '<p class="mt-0.5 text-xs text-muted-foreground">' + [periodo ? esc(periodo) : "", c.valor ? esc(formatCurrency(c.valor)) : "", venc].filter(Boolean).join(" · ") + "</p>" +
