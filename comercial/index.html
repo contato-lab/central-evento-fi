@@ -273,7 +273,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.6";
+var VERSAO = "2026-09-17.7";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -334,6 +334,10 @@ function cn() {
   return twMerge ? twMerge(s) : s;
 }
 function agoraIso() { return new Date().toISOString(); }
+// Nenhuma espera fica pendurada para sempre: sem isso um botao fica girando sem fim.
+function comPrazo(promessa, ms, recado) {
+  return Promise.race([promessa, new Promise(function (_, rej) { setTimeout(function () { rej(new Error(recado)); }, ms); })]);
+}
 function novoId() {
   return (crypto.randomUUID ? crypto.randomUUID() : "id-" + Date.now().toString(36) + Math.random().toString(36).slice(2));
 }
@@ -460,7 +464,9 @@ async function criarApiFirebase() {
       await stMod.uploadBytes(stMod.ref(storage, caminho), arquivo, { contentType: arquivo.type || "application/pdf" });
       return caminho;
     },
-    baixarArquivo: async function (caminho) { return await stMod.getBlob(stMod.ref(storage, caminho)); },
+    // getBlob precisa de CORS liberado no bucket, o que nao da para fazer pelo console.
+    // getDownloadURL nao precisa: o link abre direto no navegador.
+    urlArquivo: async function (caminho) { return await stMod.getDownloadURL(stMod.ref(storage, caminho)); },
     gerarTexto: async function (sistema, prompt) {
       if (!modeloIa) {
         var aiMod = await import(SDK + "firebase-ai.js");
@@ -470,15 +476,17 @@ async function criarApiFirebase() {
       var r = await modeloIa.generateContent(prompt);
       return r.response.text();
     },
-    // Manda o PDF inteiro para a IA e pede a resposta em JSON.
-    lerPdf: async function (sistema, prompt, base64) {
+    // A IA le o PDF direto do Storage (gs://), sem baixar no navegador. Isso exige
+    // o backend Vertex AI, que e o unico que aceita arquivo do proprio projeto.
+    lerPdf: async function (sistema, prompt, caminho) {
       var aiMod = await import(SDK + "firebase-ai.js");
-      var ai = aiMod.getAI(app, { backend: new aiMod.GoogleAIBackend() });
+      var ai = aiMod.getAI(app, { backend: new aiMod.VertexAIBackend() });
       var modelo = aiMod.getGenerativeModel(ai, {
         model: MODELO_IA, systemInstruction: sistema,
         generationConfig: { responseMimeType: "application/json", temperature: 0 },
       });
-      var r = await modelo.generateContent([{ inlineData: { mimeType: "application/pdf", data: base64 } }, prompt]);
+      var uri = "gs://" + FIREBASE_CONFIG.storageBucket + "/" + caminho;
+      var r = await modelo.generateContent([{ fileData: { mimeType: "application/pdf", fileUri: uri } }, prompt]);
       return r.response.text();
     },
   };
@@ -550,7 +558,7 @@ async function criarApiTeste() {
     atualizar: async function (col, id, d) { await espera(300); var it = dados[col].find(function (x) { return x.id === id; }); Object.assign(it, d, { updated_at: agoraIso() }); },
     atualizarVarios: async function (lista) { lista.forEach(function (it) { var x = dados[it.col].find(function (y) { return y.id === it.id; }); Object.assign(x, it.dados); }); },
     subirArquivo: async function (caminho, arquivo) { await espera(600); arquivosTeste[caminho] = arquivo; return caminho; },
-    baixarArquivo: async function (caminho) { await espera(300); return arquivosTeste[caminho] || new Blob(["%PDF-1.4\n%teste\n"], { type: "application/pdf" }); },
+    urlArquivo: async function (caminho) { await espera(300); return URL.createObjectURL(arquivosTeste[caminho] || new Blob(["%PDF-1.4\n%teste\n"], { type: "application/pdf" })); },
     gerarTexto: async function () { await espera(900); return "Ligar para o contato até sexta, 18/09, e confirmar a proposta revisada."; },
     lerPdf: async function () {
       await espera(1800);
@@ -941,18 +949,6 @@ async function changeContractStatus(id, status) {
 // Le o PDF do contrato com a IA e joga cada entrega em Propriedades como "a conferir".
 async function lerContratoComIa(c) {
   if (!c || !c.arquivoPath) throw new Error("Este contrato não tem PDF anexado. Suba o PDF antes de ler.");
-  var blob;
-  try { blob = await API.baixarArquivo(c.arquivoPath); }
-  catch (e) { throw new Error("Não foi possível abrir o PDF guardado."); }
-  if (blob.size > 15 * 1024 * 1024) throw new Error("O PDF é grande demais para a leitura (limite de 15 MB). Gere um PDF mais leve.");
-  var base64;
-  try {
-    var bytes = new Uint8Array(await blob.arrayBuffer());
-    var bin = "";
-    for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
-    base64 = btoa(bin);
-  } catch (e) { throw new Error("Não foi possível preparar o PDF para a leitura."); }
-
   var sistema = "Você lê contratos de patrocínio de eventos em português do Brasil e extrai, em JSON, tudo o que o organizador do evento se comprometeu a entregar ao patrocinador. " +
     "Não invente nada: só registre o que está escrito. Se um item for condicional (por exemplo 'conforme disponibilidade'), copie essa condição na descrição. " +
     "Não registre obrigações do patrocinador (pagamento, envio de arte, seguro), só o que o evento entrega.";
@@ -963,13 +959,14 @@ async function lerContratoComIa(c) {
     '"trecho":"a frase do contrato que comprova este item"}]}\n' +
     "Uma entrega por item. Se o contrato citar quantidade por extenso, converta para número. Se não houver prazo, deixe vazio.";
   var bruto;
-  try { bruto = await API.lerPdf(sistema, prompt, base64); }
+  try { bruto = await comPrazo(API.lerPdf(sistema, prompt, c.arquivoPath), 120000, "A IA demorou mais de dois minutos. Tente de novo."); }
   catch (e) {
     var m = String((e && e.message) || e);
-    if (/api|enabled|permission|403|not.*found|SERVICE_DISABLED/i.test(m)) {
-      throw new Error("A leitura por IA ainda não está ligada neste projeto. No console do Firebase, abra Inteligência artificial, depois AI Logic, e ative a API do Gemini. Depois tente de novo.");
+    if (/api-not-enabled|not been used|SERVICE_DISABLED|Get started|firebasevertexai/i.test(m)) {
+      throw new Error("A leitura por IA ainda não está ligada neste projeto. No console do Firebase, abra Inteligência artificial, clique em Começar e escolha Vertex AI. Espere uns minutos e tente de novo.");
     }
-    throw new Error("A IA não conseguiu ler este contrato. Tente de novo em alguns minutos.");
+    if (/permission|403|denied/i.test(m)) throw new Error("A IA não teve permissão para ler o arquivo. Confira se a IA foi ligada no modo Vertex AI.");
+    throw new Error(m.indexOf("demorou") >= 0 ? m : "A IA não conseguiu ler este contrato. Tente de novo em alguns minutos.");
   }
   var dados;
   try { dados = JSON.parse(String(bruto).replace(/^[^{[]*/, "").replace(/[^}\]]*$/, "")); }
@@ -1019,11 +1016,10 @@ async function abrirArquivoContrato(c) {
   if (!c || !c.arquivoPath) throw new Error("Este contrato não tem PDF anexado.");
   var janela = window.open("", "_blank");
   try {
-    var blob = await API.baixarArquivo(c.arquivoPath);
-    var url = URL.createObjectURL(blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" }));
-    if (janela) { janela.location = url; } else { var a = document.createElement("a"); a.href = url; a.download = c.arquivoNome || "contrato.pdf"; document.body.appendChild(a); a.click(); a.remove(); }
-    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
-  } catch (e) { if (janela) janela.close(); throw new Error("Não foi possível abrir o PDF."); }
+    var url = await comPrazo(API.urlArquivo(c.arquivoPath), 20000, "O arquivo demorou demais para responder.");
+    if (janela) { janela.location = url; }
+    else { var a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); }
+  } catch (e) { if (janela) janela.close(); throw new Error("Não foi possível abrir o PDF. " + e.message); }
 }
 
 /* ------------------------------------------------------- marcas desejo */
