@@ -175,6 +175,44 @@
   @media (max-width:767px){.tour-cartao{left:16px!important;right:16px;width:auto;top:auto!important;transform:none!important;bottom:calc(env(safe-area-inset-bottom) + 5.25rem);max-height:55vh;overflow-y:auto}}
   .alerta-vermelho{border-left:4px solid var(--destructive)}.alerta-amarelo{border-left:4px solid var(--warning)}.alerta-azul{border-left:4px solid rgba(255,255,255,.6)}
   @media (min-width:1024px){.lg\:grid-cols-\[minmax\(220px\,1\.4fr\)_1fr_1fr_1fr_1fr\]{grid-template-columns:minmax(220px,1.4fr) 1fr 1fr 1fr 1fr}}
+  /* zona ampliada: a mesma zona do mapa em tela cheia, sem nome cortado */
+  .mapa-svg .botao-ampliar{cursor:pointer}
+  .mapa-svg .botao-ampliar rect{fill:color-mix(in oklab,var(--primary) 16%,transparent);stroke:var(--primary);stroke-width:1}
+  .mapa-svg .botao-ampliar:hover rect{fill:var(--primary)}
+  .mapa-svg .botao-ampliar:hover text{fill:#000}
+  .mapa-svg .botao-ampliar text{fill:var(--primary);font-size:10px;font-weight:800;letter-spacing:.06em}
+  .amp{position:fixed;inset:0;z-index:45;background:#000;overflow-y:auto;overscroll-behavior:contain}
+  .amp-topo{position:sticky;top:0;z-index:2;background:rgba(0,0,0,.97);backdrop-filter:blur(10px);border-bottom:2px solid var(--primary);padding:14px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+  .amp-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .amp-corpo{padding:18px 20px 48px}
+  .amp-grade{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(196px,1fr))}
+  .amp-cel{text-align:left;border:1px solid;border-radius:4px;padding:11px 12px;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-height:108px;transition:transform .12s,box-shadow .15s;font-family:inherit}
+  .amp-cel:hover{transform:translateY(-2px)}
+  .amp-cel .cod{font-family:"Bebas Neue","Barlow",sans-serif;font-size:23px;line-height:1;letter-spacing:.03em}
+  .amp-cel .marca{font-size:14px;font-weight:600;line-height:1.3}
+  .amp-cel .meta{font-size:12px;line-height:1.45;margin-top:auto}
+  .amp-cel.st-disponivel{background:rgba(176,248,103,.12);border-color:var(--primary);color:#fff}
+  .amp-cel.st-disponivel .cod{color:var(--primary)}
+  .amp-cel.st-reservado{background:rgba(255,194,75,.15);border-color:var(--warning);color:#fff}
+  .amp-cel.st-reservado .cod{color:var(--warning)}
+  .amp-cel.st-vendido{background:#fff;border-color:#fff;color:#0a0a0a}
+  .amp-cel.st-vendido .cod{color:#0a0a0a}
+  .amp-cel.st-vendido .meta{color:#4a4a4a}
+  .amp-cel.st-nenhum{background:#0c0c0c;border-color:rgba(255,255,255,.28);border-style:dashed;color:rgba(255,255,255,.8)}
+  .amp-cel.st-nenhum .cod{color:rgba(255,255,255,.65)}
+  .amp-cel.risco{outline:2px dashed var(--destructive);outline-offset:2px}
+  .amp-cel .meta.sub{margin-top:0;opacity:.85}
+  .amp-tab{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+  .amp-tab th{position:sticky;top:0;background:#fff;color:#000;text-align:left;padding:9px 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+  .amp-tab td{padding:10px;border-bottom:1px solid rgba(255,255,255,.12);vertical-align:middle}
+  .amp-tab tr:hover td{background:rgba(255,255,255,.05)}
+  .amp-tab .cod{font-weight:700}
+  @media (max-width:767px){
+    .amp-grade{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px}
+    .amp-corpo{padding:14px 14px 40px}
+    .amp-topo{padding:12px 14px}
+    .amp-cel{min-height:96px}
+  }
   /* mapa de espacos: cores por status, mesmas dos selos da lista */
   .mapa-svg{display:block;width:100%;min-width:1100px;height:auto;font-family:inherit}
   .mapa-svg .zona{fill:var(--muted);stroke:var(--border)}
@@ -225,7 +263,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-16.12";
+var VERSAO = "2026-09-17.1";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -847,6 +885,8 @@ var S = {
   estagioMudando: false,
   tour: { ativo: false, passo: 0, esperando: false },
   tourAbriuFicha: false,
+  ampliada: null,
+  ampliadaModo: "grade",
 };
 
 var PAPEIS = { dono: "Dono do sistema", admin: "Administrador", vendedor: "Vendedor" };
@@ -1399,7 +1439,11 @@ function desenharMapa(edicao) {
       '<g><rect class="zona" x="' + PAD + '" y="' + y + '" width="' + (W - PAD * 2) + '" height="' + alturaZona + '" rx="8"/>' +
       '<text class="t-zona" x="' + (PAD + 12) + '" y="' + (y + 20) + '">' + escXml(zona.titulo) + "</text>" +
       '<text class="t-nota" x="' + (PAD + 12) + '" y="' + (y + 32) + '">' + escXml(zona.nota || "") + "</text>" +
-      '<text class="t-nota" x="' + (W - PAD - 12) + '" y="' + (y + 20) + '" text-anchor="end">' + escXml(resumo) + "</text>" +
+      '<text class="t-nota" x="' + (W - PAD - 118) + '" y="' + (y + 20) + '" text-anchor="end">' + escXml(resumo) + "</text>" +
+      '<g class="botao-ampliar" data-acao="ampliar-zona" data-zona="' + escXml(zona.id) + '" role="button" tabindex="0" aria-label="Ampliar ' + escXml(zona.titulo) + '">' +
+        "<title>Clique para ver esta zona inteira em tela cheia</title>" +
+        '<rect x="' + (W - PAD - 108) + '" y="' + (y + 8) + '" width="96" height="21" rx="4"/>' +
+        '<text x="' + (W - PAD - 60) + '" y="' + (y + 22) + '" text-anchor="middle">AMPLIAR</text></g>' +
       celulas.join("") + "</g>");
     y += alturaZona + 14;
   });
@@ -1505,6 +1549,100 @@ function dialogoDetalhe() {
     "</div>";
 }
 
+// Zona inteira em tela cheia: e a mesma zona do mapa, so que grande o bastante
+// para caber o nome da marca, o status e o vendedor sem cortar nada.
+function itensDaZona(edicao, zonaId) {
+  var porChave = espacosPorChave();
+  return ((MAPA[edicao] || {})[zonaId] || []).map(function (item) {
+    var chave = chaveMapa(edicao, zonaId, item.codigo);
+    var doc = porChave[chave] || null;
+    return {
+      item: item, chave: chave, doc: doc,
+      status: doc ? doc.status : "nenhum",
+      nome: doc ? doc.nome : nomeEspaco(edicao, zonaId, item),
+      rotulo: item.rotulo || item.codigo,
+      patrocinador: doc && doc.patrocinador ? doc.patrocinador.nome : "",
+      ocupante: (doc ? doc.ocupante2026 : item.ocupante) || "",
+      vendedor: doc && doc.vendedorNome ? doc.vendedorNome : "",
+      m2: doc && doc.metragem != null ? doc.metragem : item.m2,
+      valor: doc ? doc.valor : null,
+      risco: doc && doc.patrocinadorEmRisco ? doc.patrocinadorEmRisco : "",
+    };
+  });
+}
+
+function celulaAmpliada(e) {
+  var st = STATUS_ESPACO[e.status] || { label: "Sem cadastro" };
+  var linha2 = e.patrocinador ? esc(e.patrocinador)
+    : e.ocupante ? esc(e.ocupante) + ' <span style="opacity:.7;font-weight:400">· 2026</span>'
+    : '<span style="opacity:.7;font-weight:400">' + (e.status === "nenhum" ? "Sem cadastro" : "Sem marca") + "</span>";
+  var detalhe = (e.status === "nenhum" ? "Sem cadastro" : st.label) + (e.m2 ? " · " + String(e.m2).replace(".", ",") + " m²" : "");
+  return '<button type="button" class="' + cn("amp-cel", "st-" + e.status, e.risco && "risco") + '" data-acao="mapa-espaco" data-mapa="' + esc(e.chave) + '">' +
+    '<span class="cod">' + esc(e.rotulo) + "</span>" +
+    '<span class="marca">' + linha2 + "</span>" +
+    (e.vendedor ? '<span class="meta sub">' + esc(primeiroNome(e.vendedor)) + "</span>" : "") +
+    '<span class="meta">' + esc(detalhe) + "</span>" +
+  "</button>";
+}
+
+function tabelaAmpliada(lista) {
+  var cel = function (v, cls) { return '<td' + (cls ? ' class="' + cls + '"' : "") + ">" + v + "</td>"; };
+  var vazio = '<span class="text-muted-foreground">—</span>';
+  var linhas = lista.map(function (e) {
+    var st = STATUS_ESPACO[e.status];
+    return '<tr data-acao="mapa-espaco" data-mapa="' + esc(e.chave) + '" style="cursor:pointer">' +
+      cel(esc(e.rotulo), "cod") + cel(esc(e.nome)) +
+      cel(e.ocupante ? esc(e.ocupante) : vazio) +
+      cel(e.patrocinador ? esc(e.patrocinador) : vazio) +
+      cel(e.vendedor ? esc(e.vendedor) : vazio) +
+      cel(e.m2 ? esc(String(e.m2).replace(".", ",")) + " m²" : vazio) +
+      cel(e.valor ? esc(formatCurrency(e.valor)) : vazio) +
+      cel(st ? badge(st, "whitespace-nowrap") : '<span class="text-muted-foreground">Sem cadastro</span>') +
+      "</tr>";
+  }).join("");
+  var th = function (t) { return "<th>" + t + "</th>"; };
+  return '<div class="overflow-x-auto"><table class="amp-tab"><thead><tr>' +
+    th("Espaço") + th("Nome") + th("Ocupante 2026") + th("Patrocinador") + th("Vendedor") + th("Metragem") + th("Valor") + th("Status") +
+    "</tr></thead><tbody>" + linhas + "</tbody></table></div>";
+}
+
+function telaAmpliada() {
+  var p = String(S.ampliada || "").split(":");
+  var edicao = p[0], zonaId = p[1];
+  var zona = zonaInfo(zonaId);
+  var ed = EDICOES.find(function (x) { return x.id === edicao; });
+  var lista = itensDaZona(edicao, zonaId);
+  if (!lista.length) return "";
+  var cont = { disponivel: 0, reservado: 0, vendido: 0, nenhum: 0 };
+  lista.forEach(function (e) { cont[e.status] = (cont[e.status] || 0) + 1; });
+  var chip = function (n, txt, cls) { return n ? '<span class="' + cn(BADGE, "text-foreground", cls) + '">' + n + " " + txt + "</span>" : ""; };
+  var aba = function (modo, txt) {
+    return '<button type="button" class="' + btnCls(S.ampliadaModo === modo ? "default" : "outline", "default", "h-9 text-xs font-bold uppercase") + '" data-acao="modo-ampliada" data-modo="' + modo + '" aria-pressed="' + (S.ampliadaModo === modo) + '">' + txt + "</button>";
+  };
+  return '<div class="amp" role="dialog" aria-modal="true" aria-labelledby="titulo-amp">' +
+    '<div class="amp-topo">' +
+      '<div class="min-w-0">' +
+        '<div class="mb-1 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> ' + esc(ed ? ed.rotulo : edicao) + "</div>" +
+        '<h2 id="titulo-amp" class="text-2xl font-black uppercase">' + esc(zona.titulo) + "</h2>" +
+        (zona.nota ? '<p class="mt-1 text-sm text-muted-foreground">' + esc(zona.nota) + "</p>" : "") +
+        '<div class="amp-chips mt-2">' +
+          chip(cont.disponivel, "disponíveis", "border-success/30 bg-success/10 text-success") +
+          chip(cont.reservado, "reservados", "border-warning/30 bg-warning/10 text-warning-foreground") +
+          chip(cont.vendido, "vendidos", "border-foreground/20 bg-foreground text-background") +
+          chip(cont.nenhum, "sem cadastro", "border-foreground/15 bg-foreground/8") +
+        "</div>" +
+      "</div>" +
+      '<div class="flex shrink-0 flex-wrap items-center gap-2">' + aba("grade", "Grade") + aba("tabela", "Tabela") +
+        '<button type="button" class="' + btnCls("ghost", "icon") + '" data-acao="fechar-ampliada" aria-label="Fechar tela ampliada" title="Fechar (Esc)">' + icone("x") + "</button>" +
+      "</div>" +
+    "</div>" +
+    '<div class="amp-corpo">' +
+      (S.ampliadaModo === "tabela" ? tabelaAmpliada(lista) : '<div class="amp-grade">' + lista.map(celulaAmpliada).join("") + "</div>") +
+      '<p class="mt-5 text-xs text-muted-foreground">Toque em um espaço para ver a ficha e mudar o status. Esc fecha esta tela.</p>' +
+    "</div>" +
+  "</div>";
+}
+
 function telaEspacos() {
   var f = filtroAtual();
   return '<section class="space-y-7">' +
@@ -1522,7 +1660,7 @@ function telaEspacos() {
       '<button type="button" role="combobox" aria-label="Filtrar por status" data-acao="menu-filtro" class="' + cn(SELECT_TRIGGER, "h-11 bg-card") + '"><span>' + esc(ROTULO_FILTRO[f.filter]) + "</span>" + icone("chevron-down", "h-4 w-4 opacity-50") + "</button>" +
     "</div>" +
     '<div id="bloco-lista">' + blocoListaEspacos() + "</div>" +
-  "</section>" + (S.detalhe && !S.form.aberto ? dialogoDetalhe() : "") + (S.form.aberto ? dialogoEspaco() : "");
+  "</section>" + (S.ampliada ? telaAmpliada() : "") + (S.detalhe && !S.form.aberto ? dialogoDetalhe() : "") + (S.form.aberto ? dialogoEspaco() : "");
 }
 
 function dialogoEspaco() {
@@ -2134,7 +2272,7 @@ function passosTour() {
     { rota: "/app/inicio", alvo: "#secao-combinados", titulo: "Combinados a entregar",
       texto: "<p>Tudo o que foi prometido a um cliente e ainda não foi entregue, com quem prometeu e quando. Quando entregar, mude o status aqui mesmo. Assim ninguém vende uma coisa e esquece de cumprir.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-mapa", titulo: "Mapa de espaços por edição",
-      texto: "<p>O mapa reproduz as plantas de 2026, com abas para Moto e Auto. <b>Verde</b> é disponível, <b>amarelo</b> reservado, <b>branco</b> vendido. <b>Borda vermelha tracejada</b> é espaço cujo patrocinador está em risco de renovação.</p><p>Toque num espaço para ver a marca, o vendedor, o valor e trocar o status na hora. Dentro do quadro dá para rolar de lado no celular.</p>" },
+      texto: "<p>O mapa reproduz as plantas de 2026, com abas para Moto e Auto. <b>Verde</b> é disponível, <b>amarelo</b> reservado, <b>branco</b> vendido. <b>Borda vermelha tracejada</b> é espaço cujo patrocinador está em risco de renovação.</p><p>Toque num espaço para ver a marca, o vendedor, o valor e trocar o status na hora.</p><p>O botão <b>Ampliar</b>, no canto de cada zona, abre a zona inteira em tela cheia, com o nome de cada marca legível. Lá dentro dá para trocar entre grade e tabela.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-lista", titulo: "A mesma coisa em lista",
       texto: "<p>Embaixo do mapa fica a lista com busca por nome e filtro por status, para quem prefere tabela. Os números do topo contam patrocinadores em risco, espaços disponíveis e ativos. Novo espaço serve para algo fora da planta.</p>" },
     { rota: "/app/patrocinadores", alvo: "#filtros-patro", titulo: "Carteira: quem já patrocina",
@@ -2339,7 +2477,7 @@ function render() {
   var ativo = document.activeElement;
   var foco = ativo && ativo.id ? { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd } : null;
 
-  if (ultimaRota !== null && ultimaRota !== caminho) { S.ficha = null; S.fichaProsp = null; }
+  if (ultimaRota !== null && ultimaRota !== caminho) { S.ficha = null; S.fichaProsp = null; S.ampliada = null; }
   if (caminho === "/auth") raiz.innerHTML = telaAuth();
   else {
     var tela = caminho === "/app/inicio" ? telaInicio() : caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/marcas" ? telaMarcas() : caminho === "/app/equipe" ? telaEquipe() : telaInteracoes();
@@ -2347,7 +2485,7 @@ function render() {
     if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
   }
   ultimaRota = caminho;
-  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp);
+  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp || !!S.ampliada);
 
   if (foco) {
     var el = document.getElementById(foco.id);
@@ -2424,6 +2562,9 @@ document.addEventListener("click", async function (ev) {
   }
   if (acao === "fechar-form") { if (!S.form.salvando) { S.form.aberto = false; fecharMenu(); render(); } return; }
   if (acao === "mapa-espaco") { S.detalhe = alvo.getAttribute("data-mapa"); fecharMenu(); render(); return; }
+  if (acao === "ampliar-zona") { S.ampliada = edicaoAtual() + ":" + alvo.getAttribute("data-zona"); fecharMenu(); render(); window.scrollTo(0, 0); return; }
+  if (acao === "fechar-ampliada") { S.ampliada = null; render(); return; }
+  if (acao === "modo-ampliada") { S.ampliadaModo = alvo.getAttribute("data-modo") === "tabela" ? "tabela" : "grade"; render(); return; }
   if (acao === "novo-patro") { S.formPatro = { aberto: true, patro: null, salvando: false }; render(); setTimeout(function () { var el = document.getElementById("patro-nome"); if (el) el.focus(); }, 0); return; }
   if (acao === "editar-patro") {
     var pt = (S.sponsors || []).find(function (x) { return x.id === id; });
@@ -2756,8 +2897,8 @@ document.addEventListener("submit", async function (ev) {
 });
 
 document.addEventListener("keydown", function (ev) {
-  if ((ev.key === "Enter" || ev.key === " ") && ev.target.closest && ev.target.closest('[data-acao="mapa-espaco"]')) {
-    ev.preventDefault(); ev.target.closest('[data-acao="mapa-espaco"]').click(); return;
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.closest && ev.target.closest('[data-acao="mapa-espaco"], [data-acao="ampliar-zona"]')) {
+    ev.preventDefault(); ev.target.closest('[data-acao="mapa-espaco"], [data-acao="ampliar-zona"]').click(); return;
   }
   if (S.tour.ativo && !ev.target.matches("input, textarea, select")) {
     if (ev.key === "Escape") { sairTour(); return; }
@@ -2772,7 +2913,8 @@ document.addEventListener("keydown", function (ev) {
   if (S.formProsp.aberto && !S.formProsp.salvando) { S.formProsp.aberto = false; render(); return; }
   if (S.ficha) { S.ficha = null; render(); return; }
   if (S.fichaProsp) { S.fichaProsp = null; render(); return; }
-  if (S.detalhe) { S.detalhe = null; render(); }
+  if (S.detalhe) { S.detalhe = null; render(); return; }
+  if (S.ampliada) { S.ampliada = null; render(); }
 });
 window.addEventListener("hashchange", render);
 window.addEventListener("resize", fecharMenu);
@@ -2798,6 +2940,7 @@ window.addEventListener("scroll", fecharMenu, true);
       S.uid = null; S.papel = "vendedor"; S.perfis = null; S.config = null; S.combinados = null; S.ficha = null;
       S.prospects = null; S.fichaProsp = null; S.formProsp = { aberto: false, prosp: null, salvando: false };
       S.tour = { ativo: false, passo: 0, esperando: false }; S.tourAbriuFicha = false;
+      S.ampliada = null; S.ampliadaModo = "grade";
       var tourEl = document.getElementById("tour"); if (tourEl) tourEl.remove();
       S.fpr = { q: "", mercado: "todos", vendedor: "todos", estagio: "andamento" };
       S.formInter = { aberto: false, patroId: null, salvando: false };
