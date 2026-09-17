@@ -263,7 +263,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.2";
+var VERSAO = "2026-09-17.3";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -2157,7 +2157,7 @@ function telaContratos() {
       '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="novo-contrato">' + icone("plus") + " Novo contrato</button>" +
     "</header>" +
     '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
-      cartao(n.enviado, "Aguardando assinatura", n.enviado && "text-warning-foreground") + cartao(n.assinado, "Assinados") + cartao(vencendo, "Vencem em até 90 dias", vencendo && "text-destructive") + cartao(n.rascunho, "Rascunhos") +
+      cartao(n.enviado, "Aguardando assinatura", n.enviado && "text-warning-foreground") + cartao(n.assinado, "Assinados") + cartao(vencendo, "Vencidos ou vencendo em 90 dias", vencendo && "text-destructive") + cartao(n.rascunho, "Rascunhos") +
     "</div>" +
     '<div id="filtros-contratos" class="grid gap-3 sm:grid-cols-3">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
