@@ -156,7 +156,7 @@
   @media (min-width:640px){.sm\:p-3{padding:.75rem}}
   .gap-x-3{column-gap:.75rem}.gap-y-1{row-gap:.25rem}.mr-1{margin-right:.25rem}
   .bg-muted\/40{background-color:color-mix(in oklab,var(--muted) 40%,transparent)}.ml-2{margin-left:.5rem}.pt-1{padding-top:.25rem}.text-right{text-align:right}.w-36{width:9rem}
-  .min-h-\[60px\]{min-height:60px}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}.w-40{width:10rem}
+  .min-h-\[60px\]{min-height:60px}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}.grid-cols-7{grid-template-columns:repeat(7,minmax(0,1fr))}nav.grid-cols-7 span{font-size:10px;letter-spacing:-.01em}.w-48{width:12rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.w-40{width:10rem}
   @media (min-width:1024px){.lg\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.lg\:grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}}
   @media (min-width:640px){.sm\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.sm\:items-start{align-items:flex-start}.sm\:p-5{padding:1.25rem}}
   @media (min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -263,7 +263,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.1";
+var VERSAO = "2026-09-17.2";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -300,6 +300,8 @@ var ICONES = {
 "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/> <path d=\"M12 9v4\"/> <path d=\"M12 17h.01\"/>",
 "target": "<circle cx=\"12\" cy=\"12\" r=\"10\"/> <circle cx=\"12\" cy=\"12\" r=\"6\"/> <circle cx=\"12\" cy=\"12\" r=\"2\"/>",
 "circle-help": "<circle cx=\"12\" cy=\"12\" r=\"10\"/> <path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"/> <path d=\"M12 17h.01\"/>",
+"file-text": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/> <path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/> <path d=\"M10 9H8\"/> <path d=\"M16 13H8\"/> <path d=\"M16 17H8\"/>",
+"paperclip": "<path d=\"m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48\"/>",
 "x": "<path d=\"M18 6 6 18\"/> <path d=\"m6 6 12 12\"/>"
 };
 function icone(nome, cls) {
@@ -366,10 +368,12 @@ async function criarApiFirebase() {
   var appMod = await import(SDK + "firebase-app.js");
   var authMod = await import(SDK + "firebase-auth.js");
   var fsMod = await import(SDK + "firebase-firestore.js");
+  var stMod = await import(SDK + "firebase-storage.js");
   var app = appMod.initializeApp(FIREBASE_CONFIG);
   var auth = authMod.getAuth(app);
   auth.languageCode = "pt-BR";
   var db = fsMod.getFirestore(app);
+  var storage = stMod.getStorage(app);
   var modeloIa = null;
 
   async function listar(col) {
@@ -440,6 +444,12 @@ async function criarApiFirebase() {
       lista.forEach(function (it) { lote.update(fsMod.doc(db, it.col, it.id), Object.assign({}, it.dados, { updated_at: agora })); });
       await lote.commit();
     },
+    // Arquivos (PDF dos contratos) ficam no Storage; a leitura passa pelas regras, sem link publico.
+    subirArquivo: async function (caminho, arquivo) {
+      await stMod.uploadBytes(stMod.ref(storage, caminho), arquivo, { contentType: arquivo.type || "application/pdf" });
+      return caminho;
+    },
+    baixarArquivo: async function (caminho) { return await stMod.getBlob(stMod.ref(storage, caminho)); },
     gerarTexto: async function (sistema, prompt) {
       if (!modeloIa) {
         var aiMod = await import(SDK + "firebase-ai.js");
@@ -493,6 +503,12 @@ async function criarApiTeste() {
     { id: "im1", prospeccao_id: "m2", patrocinador_id: null, data: diasAtras(10), tipo: "email", observacao: "Primeiro e-mail apresentando o festival.", proximo_passo: "Enviar apresentação.", criado_por: "v1", created_at: agoraIso(), updated_at: agoraIso() },
     { id: "im2", prospeccao_id: "m4", patrocinador_id: null, data: diasAtras(4), tipo: "proposta", observacao: "Proposta de tenda de 100 m² com posto médico.", proximo_passo: "Reunião de fechamento.", criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }
   );
+  dados.contratos = [
+    { id: "ct1", patrocinador_id: dados.patrocinadores[0].id, titulo: "Contrato de patrocínio Master 2027", status: "assinado", inicio: "2027-01-01", fim: "2027-12-31", valor: 450000, arquivo_path: "contratos/teste/master.pdf", arquivo_nome: "contrato-master-2027.pdf", signatarios: [{ nome: "Bianca Lima", email: "bianca@auroraseguros.example" }, { nome: "Diretoria do festival", email: "" }], observacao: "", assinado_em: hojeMais(-3), criado_por: "teste", created_at: diasAtras(10), updated_at: agoraIso() },
+    { id: "ct2", patrocinador_id: dados.patrocinadores[1].id, titulo: "Contrato de merchandising 2027", status: "enviado", inicio: "2027-01-01", fim: "2027-08-31", valor: 45000, arquivo_path: "", arquivo_nome: "", signatarios: [{ nome: "Fernanda Rocha", email: "fernanda@linhaverde.example" }], observacao: "Enviado para o jurídico deles em 15/09.", criado_por: "v1", created_at: diasAtras(2), updated_at: agoraIso() },
+    { id: "ct3", patrocinador_id: dados.patrocinadores[2].id, titulo: "Renovação 2027 (minuta)", status: "rascunho", inicio: "", fim: "", valor: null, arquivo_path: "", arquivo_nome: "", signatarios: [], observacao: "", criado_por: "teste", created_at: diasAtras(1), updated_at: agoraIso() },
+  ];
+  var arquivosTeste = {};
   dados.combinados.push({ id: "cm1", prospeccao_id: "m4", patrocinador_id: null, descricao: "Desconto de 10% se assinar até 30/09", status: "prometido", prometido_por_uid: "teste", prometido_por_nome: "Eric Pereira Felix", data: hojeMais(-4), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() });
   var ouvinte = null;
   var user = { uid: "teste", email: "eric@teste.local", displayName: "Eric Pereira Felix", emailVerified: true };
@@ -511,6 +527,8 @@ async function criarApiTeste() {
     criar: async function (col, d, idFixo) { await espera(300); var doc = Object.assign({}, d, { id: idFixo || novoId(), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }); dados[col].push(doc); return doc; },
     atualizar: async function (col, id, d) { await espera(300); var it = dados[col].find(function (x) { return x.id === id; }); Object.assign(it, d, { updated_at: agoraIso() }); },
     atualizarVarios: async function (lista) { lista.forEach(function (it) { var x = dados[it.col].find(function (y) { return y.id === it.id; }); Object.assign(x, it.dados); }); },
+    subirArquivo: async function (caminho, arquivo) { await espera(600); arquivosTeste[caminho] = arquivo; return caminho; },
+    baixarArquivo: async function (caminho) { await espera(300); return arquivosTeste[caminho] || new Blob(["%PDF-1.4\n%teste\n"], { type: "application/pdf" }); },
     gerarTexto: async function () { await espera(900); return "Ligar para o contato até sexta, 18/09, e confirmar a proposta revisada."; },
   };
 }
@@ -759,6 +777,101 @@ async function suggestNextStep(interactionId) {
   return { suggestion: shortSuggestion };
 }
 
+/* ------------------------------------------------------------- contratos */
+var STATUS_CONTRATO = {
+  rascunho: { label: "Rascunho", className: "border-foreground/15 bg-foreground/8 text-foreground" },
+  enviado: { label: "Aguardando assinatura", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
+  assinado: { label: "Assinado", className: "border-success/30 bg-success/10 text-success" },
+  cancelado: { label: "Cancelado", className: "border-destructive/40 bg-destructive/10 text-destructive" },
+};
+
+async function getContracts() {
+  var r;
+  try { r = await Promise.all([API.listar("contratos"), API.listar("patrocinadores")]); }
+  catch (e) { throw new Error("Não foi possível carregar os contratos."); }
+  var nomes = {};
+  r[1].forEach(function (p) { nomes[p.id] = p.nome; });
+  return r[0].map(function (c) {
+    var quem = perfilPorUid(c.criado_por);
+    return {
+      id: c.id, patrocinadorId: c.patrocinador_id, patrocinador: nomes[c.patrocinador_id] || "Patrocinador",
+      titulo: c.titulo || "Contrato", status: STATUS_CONTRATO[c.status] ? c.status : "rascunho",
+      inicio: c.inicio || "", fim: c.fim || "", valor: c.valor == null ? null : Number(c.valor),
+      arquivoPath: c.arquivo_path || "", arquivoNome: c.arquivo_nome || "",
+      signatarios: Array.isArray(c.signatarios) ? c.signatarios.map(function (x) { return { nome: x.nome || "", email: x.email || "" }; }) : [],
+      observacao: c.observacao || "", assinadoEm: c.assinado_em || null,
+      criadoPor: c.criado_por || null, criadoPorNome: quem ? quem.nome : "", createdAt: c.created_at || "", updatedAt: c.updated_at || "",
+      diasParaVencer: c.fim ? diasAte(c.fim) : null,
+    };
+  }).sort(function (a, b) { return (b.updatedAt || "").localeCompare(a.updatedAt || ""); });
+}
+function contratosDe(patroId) { return (S.contracts || []).filter(function (c) { return c.patrocinadorId === patroId; }); }
+
+// "Nome, e-mail" por linha vira lista de quem assina. Vale so nome, sem e-mail.
+function lerSignatarios(texto) {
+  return String(texto || "").split(/\n+/).map(function (l) {
+    var partes = l.split(/[,;|·]/);
+    var nome = (partes[0] || "").trim(), email = (partes[1] || "").trim();
+    return nome ? { nome: nome.slice(0, 120), email: email.slice(0, 160) } : null;
+  }).filter(Boolean).slice(0, 10);
+}
+function escreverSignatarios(lista) { return (lista || []).map(function (x) { return x.nome + (x.email ? ", " + x.email : ""); }).join("\n"); }
+
+async function saveContract(data, arquivo) {
+  var titulo = String(data.titulo || "").trim();
+  if (!data.patrocinadorId || titulo.length < 2 || titulo.length > 160 || !STATUS_CONTRATO[data.status]) throw new Error("Escolha o patrocinador, dê um título ao contrato e confira o status.");
+  var ok = function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d || ""); };
+  var inicio = ok(data.inicio) ? data.inicio : "", fim = ok(data.fim) ? data.fim : "";
+  if (inicio && fim && fim < inicio) throw new Error("A data de fim vem antes do início.");
+  var valor = data.valor === "" || data.valor == null ? null : Number(data.valor);
+  if (valor !== null && !(isFinite(valor) && valor >= 0)) throw new Error("Confira o valor.");
+  if (arquivo && arquivo.size > 20 * 1024 * 1024) throw new Error("O PDF passa de 20 MB.");
+  if (arquivo && arquivo.type && arquivo.type !== "application/pdf") throw new Error("Só aceitamos PDF.");
+  var payload = {
+    patrocinador_id: data.patrocinadorId, titulo: titulo, status: data.status, inicio: inicio, fim: fim, valor: valor,
+    signatarios: lerSignatarios(data.signatarios), observacao: String(data.observacao || "").trim().slice(0, 1000),
+  };
+  if (arquivo) {
+    var limpo = arquivo.name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.-]+/g, "-").slice(0, 80) || "contrato.pdf";
+    var caminho = "contratos/" + data.patrocinadorId + "/" + Date.now() + "-" + limpo;
+    try { await API.subirArquivo(caminho, arquivo); } catch (e) { throw new Error("Não foi possível guardar o PDF. Tente de novo."); }
+    payload.arquivo_path = caminho; payload.arquivo_nome = arquivo.name;
+  }
+  if (data.status === "assinado" && !data.assinadoEm) payload.assinado_em = hojeMais(0);
+  var id = data.id || null;
+  try {
+    if (id) await API.atualizar("contratos", id, payload);
+    else id = (await API.criar("contratos", Object.assign({ arquivo_path: "", arquivo_nome: "", assinado_em: null }, payload))).id;
+  } catch (e) { throw new Error("Não foi possível salvar o contrato."); }
+  // contrato assinado com data de fim atualiza o vencimento do patrocinador, que alimenta os alertas
+  var venc = null;
+  if (data.status === "assinado" && fim) {
+    var p = (S.sponsors || []).find(function (x) { return x.id === data.patrocinadorId; });
+    if (p && (!p.dataVencimentoContrato || fim > p.dataVencimentoContrato)) {
+      try { await API.atualizar("patrocinadores", p.id, { data_vencimento_contrato: fim, status: p.status === "encerrado" ? "encerrado" : "ativo" }); venc = fim; } catch (e) {}
+    }
+  }
+  return { id: id, vencimentoAtualizado: venc };
+}
+
+async function changeContractStatus(id, status) {
+  if (!STATUS_CONTRATO[status]) return;
+  var dados = { status: status };
+  if (status === "assinado") dados.assinado_em = hojeMais(0);
+  try { await API.atualizar("contratos", id, dados); } catch (e) { throw new Error("Não foi possível mudar o status do contrato."); }
+}
+
+async function abrirArquivoContrato(c) {
+  if (!c || !c.arquivoPath) throw new Error("Este contrato não tem PDF anexado.");
+  var janela = window.open("", "_blank");
+  try {
+    var blob = await API.baixarArquivo(c.arquivoPath);
+    var url = URL.createObjectURL(blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" }));
+    if (janela) { janela.location = url; } else { var a = document.createElement("a"); a.href = url; a.download = c.arquivoNome || "contrato.pdf"; document.body.appendChild(a); a.click(); a.remove(); }
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+  } catch (e) { if (janela) janela.close(); throw new Error("Não foi possível abrir o PDF."); }
+}
+
 /* ------------------------------------------------------- marcas desejo */
 var MERCADOS = { telefonia: "Telefonia", bet: "Bet e apostas", alimentacao: "Alimentação e bebidas", lifestyle: "Lifestyle e tecnologia", saude: "Saúde", mobilidade: "Mobilidade", automotivo: "Automotivo e motos", financeiro: "Bancos e seguros", outro: "Outro mercado" };
 var ESTAGIOS = {
@@ -887,6 +1000,10 @@ var S = {
   tourAbriuFicha: false,
   ampliada: null,
   ampliadaModo: "grade",
+  contracts: null, contractsErro: null, contractsCarregando: false,
+  formContrato: { aberto: false, contrato: null, patroId: null, salvando: false },
+  fc: { q: "", status: "todos", vendedor: "todos" },
+  contratoMudando: false,
 };
 
 var PAPEIS = { dono: "Dono do sistema", admin: "Administrador", vendedor: "Vendedor" };
@@ -1083,6 +1200,7 @@ var NAV = [
   { to: "/app/espacos", label: "Painel de Espaços", shortLabel: "Espaços", icon: "building-2" },
   { to: "/app/patrocinadores", label: "Cadastro de Patrocinador", shortLabel: "Carteira", icon: "handshake" },
   { to: "/app/marcas", label: "Marcas desejo", shortLabel: "Desejo", icon: "target" },
+  { to: "/app/contratos", label: "Contratos", shortLabel: "Contratos", icon: "file-text" },
   { to: "/app/interacoes", label: "Histórico de Interações", shortLabel: "Interações", icon: "history" },
   { to: "/app/equipe", label: "Equipe", shortLabel: "Equipe", icon: "users", admin: true },
 ];
@@ -1114,11 +1232,11 @@ function casca(conteudo, caminho) {
     '<div class="mx-auto grid max-w-screen-2xl md:grid-cols-[260px_1fr]">' +
       '<aside class="hidden min-h-[calc(100vh-4rem)] border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block"><nav aria-label="Navegação principal" class="space-y-1">' + lateral + "</nav></aside>" +
       '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + conteudo + "</main>" +
-      (S.ficha && !S.formPatro.aberto && !S.formInter.aberto ? dialogoFicha() : "") +
+      (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto ? dialogoFicha() : "") +
       (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto ? dialogoFichaProspeccao() : "") +
-      (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
+      (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formContrato.aberto ? dialogoContrato() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
     "</div>" +
-    '<nav aria-label="Navegação principal" class="' + cn("fixed inset-x-0 bottom-0 z-40 grid border-t border-border", itensNav.length >= 6 ? "grid-cols-6" : itensNav.length === 5 ? "grid-cols-5" : itensNav.length === 4 ? "grid-cols-4" : "grid-cols-3") + ' bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
+    '<nav aria-label="Navegação principal" class="' + cn("fixed inset-x-0 bottom-0 z-40 grid border-t border-border", itensNav.length >= 7 ? "grid-cols-7" : itensNav.length === 6 ? "grid-cols-6" : itensNav.length === 5 ? "grid-cols-5" : itensNav.length === 4 ? "grid-cols-4" : "grid-cols-3") + ' bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
   "</div>";
 }
 
@@ -1304,6 +1422,12 @@ function telaInicio() {
       '<section id="secao-marcas-acao" class="space-y-3"><h2 class="text-sm font-black uppercase">Marcas desejo que precisam de ação <span class="font-normal text-muted-foreground">(' + precisam.length + ")</span></h2>" +
         (S.prospects === null && !S.prospectsErro ? loadingList("Carregando marcas desejo...", 2) : (precisam.length ? precisam.map(cartaoMarcaAcao).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nenhuma marca desejo esfriando nem com ação atrasada.</p>')) +
       "</section>" +
+      (function () {
+        var esperando = (S.contracts || []).filter(function (c) { return c.status === "enviado"; });
+        return '<section id="secao-contratos" class="space-y-3"><h2 class="text-sm font-black uppercase">Contratos aguardando assinatura <span class="font-normal text-muted-foreground">(' + esperando.length + ")</span></h2>" +
+          (S.contracts === null && !S.contractsErro ? loadingList("Carregando contratos...", 1) : (esperando.length ? esperando.map(function (c) { return cartaoContrato(c, true); }).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum contrato esperando assinatura.</p>')) +
+          "</section>";
+      })() +
       '<section id="secao-combinados" class="space-y-3"><h2 class="text-sm font-black uppercase">Combinados a entregar <span class="font-normal text-muted-foreground">(' + pendentes.length + ")</span></h2>" +
         (S.combinados === null ? loadingList("Carregando combinados...", 2) : (pendentes.length ? pendentes.map(function (c) { return cartaoCombinado(c, true); }).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada prometido pendente. Tudo que foi vendido já foi entregue.</p>')) +
       "</section>" +
@@ -1976,6 +2100,109 @@ function telaInteracoes() {
 }
 
 /* ------------------------------------------------------ ficha do patrocinador */
+function cartaoContrato(c, comPatro) {
+  var st = STATUS_CONTRATO[c.status];
+  var periodo = c.inicio || c.fim ? (c.inicio ? formatDateOnly(c.inicio) : "?") + " até " + (c.fim ? formatDateOnly(c.fim) : "?") : "";
+  var venc = c.status !== "cancelado" && c.diasParaVencer !== null
+    ? (c.diasParaVencer < 0 ? '<span class="text-destructive">venceu ' + esc(textoDias(-c.diasParaVencer, false)) + "</span>" : c.diasParaVencer <= 90 ? '<span class="text-warning-foreground">vence ' + esc(textoDias(c.diasParaVencer, true)) + "</span>" : "")
+    : "";
+  var quem = c.signatarios.length ? "Assina: " + esc(c.signatarios.map(function (x) { return x.nome; }).join(", ")) : '<span class="text-muted-foreground">Sem signatários informados</span>';
+  return '<article class="' + cn("border border-border bg-card px-4 py-3", c.status === "enviado" && "alerta-amarelo", c.status === "assinado" && c.diasParaVencer !== null && c.diasParaVencer < 0 && "alerta-vermelho") + '">' +
+    '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0">' +
+      (comPatro ? '<button type="button" class="text-xs font-bold uppercase text-primary hover:underline" data-acao="ficha" data-id="' + esc(c.patrocinadorId) + '">' + esc(c.patrocinador) + "</button>" : "") +
+      '<p class="break-words font-semibold">' + esc(c.titulo) + "</p>" +
+      '<p class="mt-0.5 text-xs text-muted-foreground">' + [periodo ? esc(periodo) : "", c.valor ? esc(formatCurrency(c.valor)) : "", venc].filter(Boolean).join(" · ") + "</p>" +
+      '<p class="mt-0.5 text-xs text-muted-foreground">' + quem + (c.assinadoEm ? " · assinado em " + esc(formatDateOnly(c.assinadoEm)) : "") + "</p>" +
+      (c.observacao ? '<p class="mt-1 text-xs text-muted-foreground">' + esc(c.observacao) + "</p>" : "") +
+    "</div>" +
+    '<div class="flex shrink-0 flex-wrap items-center gap-2">' + badge(st, "whitespace-nowrap") +
+      selectNativo("contrato-" + c.id, "status", Object.keys(STATUS_CONTRATO).map(function (k) { return { valor: k, rotulo: STATUS_CONTRATO[k].label }; }), c.status, { className: "h-8 w-48", disabled: S.contratoMudando }) +
+      (c.arquivoPath ? '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="abrir-contrato" data-id="' + esc(c.id) + '" title="' + esc(c.arquivoNome) + '">' + icone("paperclip") + " PDF</button>" : '<span class="text-xs text-muted-foreground">sem PDF</span>') +
+      '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar contrato" title="Editar contrato" data-acao="editar-contrato" data-id="' + esc(c.id) + '">' + icone("pencil") + "</button>" +
+    "</div></div></article>";
+}
+
+function contratosFiltrados() {
+  var f = S.fc, term = f.q.trim().toLocaleLowerCase("pt-BR");
+  return (S.contracts || []).filter(function (c) {
+    if (f.status !== "todos" && c.status !== f.status) return false;
+    if (f.vendedor !== "todos" && c.criadoPor !== f.vendedor) return false;
+    if (term && [c.patrocinador, c.titulo, c.observacao].concat(c.signatarios.map(function (x) { return x.nome; })).join(" ").toLocaleLowerCase("pt-BR").indexOf(term) < 0) return false;
+    return true;
+  });
+}
+
+function blocoListaContratos() {
+  if (S.contractsErro) return errorList(S.contractsErro, "recarregar-contratos", S.contractsCarregando);
+  if (!S.contracts) return loadingList("Carregando contratos...", 3);
+  if (!S.contracts.length) return emptyList("file-text", "Nenhum contrato guardado ainda", "Abra a ficha de um patrocinador e use Novo contrato, ou o botão acima.");
+  var lista = contratosFiltrados();
+  if (!lista.length) return emptyList("file-text", "Nenhum contrato encontrado", "Ajuste a busca ou os filtros.");
+  return '<div class="grid gap-3">' + lista.map(function (c) { return cartaoContrato(c, true); }).join("") + "</div>";
+}
+
+function telaContratos() {
+  var f = S.fc;
+  var n = { rascunho: 0, enviado: 0, assinado: 0, cancelado: 0 };
+  (S.contracts || []).forEach(function (c) { n[c.status]++; });
+  var vencendo = (S.contracts || []).filter(function (c) { return c.status === "assinado" && c.diasParaVencer !== null && c.diasParaVencer <= 90; }).length;
+  var vendedores = [{ valor: "todos", rotulo: "Criado por qualquer um" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  var status = [{ valor: "todos", rotulo: "Todos os status" }].concat(Object.keys(STATUS_CONTRATO).map(function (k) { return { valor: k, rotulo: STATUS_CONTRATO[k].label }; }));
+  var cartao = function (num, rot, cls) { return '<div class="border border-border bg-card px-5 py-4"><span class="' + cn("block text-3xl font-black leading-none", cls) + '">' + num + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">' + rot + "</span></div>"; };
+  return '<section class="space-y-7">' +
+    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
+      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Jurídico e comercial</div>' +
+      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Contratos</h1>' +
+      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Todos os contratos com as marcas, com o PDF guardado, quem assina, vigência e status. Contrato assinado com data de fim atualiza o vencimento do patrocinador e os alertas.</p></div>' +
+      '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="novo-contrato">' + icone("plus") + " Novo contrato</button>" +
+    "</header>" +
+    '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
+      cartao(n.enviado, "Aguardando assinatura", n.enviado && "text-warning-foreground") + cartao(n.assinado, "Assinados") + cartao(vencendo, "Vencem em até 90 dias", vencendo && "text-destructive") + cartao(n.rascunho, "Rascunhos") +
+    "</div>" +
+    '<div id="filtros-contratos" class="grid gap-3 sm:grid-cols-3">' +
+      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+      '<input id="busca-contrato" aria-label="Buscar contrato" placeholder="Buscar por marca, título ou quem assina" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
+      selectNativo("filtro-contrato-status", "filtro-contrato-status", status, f.status, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-contrato-vendedor", "filtro-contrato-vendedor", vendedores, f.vendedor, { className: "h-11 bg-card" }) +
+    "</div>" +
+    '<div id="bloco-lista-contratos">' + blocoListaContratos() + "</div>" +
+  "</section>";
+}
+
+function dialogoContrato() {
+  var c = S.formContrato.contrato;
+  var patroId = c ? c.patrocinadorId : (S.formContrato.patroId || "");
+  var opcoes = [{ valor: "", rotulo: "Escolha o patrocinador" }].concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  var status = Object.keys(STATUS_CONTRATO).map(function (k) { return { valor: k, rotulo: STATUS_CONTRATO[k].label }; });
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-contrato"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-contrato" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-contrato" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (c ? "Editar contrato" : "Novo contrato") + "</h2>" +
+      '<p class="text-sm text-muted-foreground">O PDF fica guardado no painel e só quem está logado vê. A assinatura pela plataforma vem na próxima fase.</p></div>' +
+      '<form id="form-contrato" class="space-y-5 pt-2">' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-patro">Patrocinador</label>' + selectNativo("contrato-patro", "patrocinador_id", opcoes, patroId, { disabled: !!c }) + "</div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-titulo">Título</label><input id="contrato-titulo" name="titulo" class="' + INPUT + '" value="' + esc(c ? c.titulo : "") + '" placeholder="Ex.: Contrato de patrocínio 2027" required maxlength="160"></div>' +
+        '<div class="grid gap-5 sm:grid-cols-3">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-inicio">Início</label><input id="contrato-inicio" name="inicio" type="date" class="' + INPUT + '" value="' + esc(c ? c.inicio : "") + '"></div>' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-fim">Fim (vencimento)</label><input id="contrato-fim" name="fim" type="date" class="' + INPUT + '" value="' + esc(c ? c.fim : "") + '"></div>' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-valor">Valor (R$)</label><input id="contrato-valor" name="valor" type="number" min="0" step="0.01" inputmode="decimal" class="' + INPUT + '" value="' + (c && c.valor != null ? c.valor : "") + '" placeholder="0"></div>' +
+        "</div>" +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-status">Status</label>' + selectNativo("contrato-status", "status", status, c ? c.status : "rascunho") + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-arquivo">PDF do contrato' + (c && c.arquivoNome ? " (trocar)" : "") + '</label><input id="contrato-arquivo" name="arquivo" type="file" accept="application/pdf,.pdf" class="' + cn(INPUT, "py-1.5") + '">' +
+            (c && c.arquivoNome ? '<p class="text-xs text-muted-foreground">Guardado: ' + esc(c.arquivoNome) + "</p>" : '<p class="text-xs text-muted-foreground">Até 20 MB. Pode deixar sem PDF em rascunho.</p>') + "</div>" +
+        "</div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-signatarios">Quem assina (um por linha: Nome, e-mail)</label><textarea id="contrato-signatarios" name="signatarios" rows="3" maxlength="1500" placeholder="Bianca Lima, bianca@marca.com.br&#10;Diretoria do festival, contato@festival.com.br" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(c ? escreverSignatarios(c.signatarios) : "") + "</textarea></div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-obs">Observação (opcional)</label><textarea id="contrato-obs" name="observacao" rows="2" maxlength="1000" placeholder="Ex.: minuta aprovada pelo jurídico em 15/09" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(c ? c.observacao : "") + "</textarea></div>" +
+        '<p class="text-xs text-muted-foreground">Ao marcar como assinado com data de fim, o vencimento do patrocinador passa a ser essa data.</p>' +
+        '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
+          '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-contrato">Cancelar</button>' +
+          '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.formContrato.salvando ? " disabled" : "") + ">" + (S.formContrato.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar contrato</button>" +
+        "</div>" +
+      "</form>" +
+      '<button type="button" data-acao="fechar-form-contrato" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
+    "</div>";
+}
+
 function cartaoCombinado(c, comPatro) {
   var patro = comPatro && c.patrocinadorId ? (S.sponsors || []).find(function (p) { return p.id === c.patrocinadorId; }) : null;
   var marca = comPatro && !patro && c.prospeccaoId ? (S.prospects || []).find(function (m) { return m.id === c.prospeccaoId; }) : null;
@@ -2026,6 +2253,14 @@ function dialogoFicha() {
           '<div class="flex justify-end"><button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.combinadoSalvando ? " disabled" : "") + ">" + (S.combinadoSalvando ? icone("loader-circle", "animate-spin") : icone("plus")) + " Adicionar combinado</button></div>" +
         "</form>" +
       "</section>" +
+      (function () {
+        var cts = contratosDe(p.id);
+        return '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("file-text", "size-4 text-primary") + " Contratos " +
+          '<span class="font-normal text-muted-foreground">(' + cts.length + ")</span></h3>" +
+          (S.contracts === null && !S.contractsErro ? loadingList("Carregando contratos...", 1) : (cts.length ? cts.map(function (c) { return cartaoContrato(c, false); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nenhum contrato guardado. Suba o PDF e marque o status aqui.</p>')) +
+          '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="novo-contrato" data-patro="' + esc(p.id) + '">' + icone("plus") + " Novo contrato</button>" +
+        "</section>";
+      })() +
       '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("history", "size-4 text-primary") + " Últimas interações</h3>" +
         (S.interactions === null ? loadingList("Carregando interações...", 1) : (inters.length ? inters.map(function (i) { return cartaoInteracao(i, true); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nenhuma interação registrada com este patrocinador.</p>')) +
       "</section>" +
@@ -2285,6 +2520,8 @@ function passosTour() {
       texto: "<p>Aqui ficam as marcas que ainda não patrocinam e queremos trazer, por mercado (telefonia, bet, alimentação, lifestyle e tecnologia, saúde, mobilidade e outros).</p><p>Cada uma anda pelo funil: Mapeada, Primeiro contato, Proposta, Negociação, Fechada ou Perdida. As caixas contam por estágio e filtram a lista quando clicadas.</p>" },
     { rota: "/app/marcas", alvo: "#bloco-lista-marca", titulo: "Trabalhando o funil",
       texto: "<p>Mude o estágio direto na linha. Marque sempre a próxima ação e a data: se vencer, fica vermelha. Marca parada mais de " + cfg.dias_sem_contato + " dias sem contato ganha o selo <b>Esfriando</b>.</p><p>Quando fechar, escolha Fechada ou use Virou patrocinador na ficha: a marca vai para a carteira já com todo o histórico de contatos e combinados.</p>" },
+    { rota: "/app/contratos", alvo: "#bloco-lista-contratos", titulo: "Contratos com as marcas",
+      texto: "<p>Cada contrato fica guardado com o PDF, a vigência, o valor e quem assina. O status diz onde ele está: rascunho, aguardando assinatura, assinado ou cancelado.</p><p>Contrato assinado com data de fim atualiza sozinho o vencimento do patrocinador, e é dali que saem os alertas de renovação. Pela ficha do patrocinador dá para subir o contrato direto.</p>" },
     { rota: "/app/interacoes", alvo: "#bloco-lista-inter", titulo: "Histórico de interações",
       texto: "<p>Toda conversa registrada com qualquer marca, com o tipo (ligação, reunião, WhatsApp, e-mail, proposta, encontro) e quem registrou. Os filtros do topo separam por marca, por pessoa ou por tipo.</p><p>Registrar contato vale para patrocinador e para marca desejo. Sugerir próximo passo usa inteligência artificial para propor a próxima ação com base no histórico.</p>" },
     admin ? { rota: "/app/equipe", alvo: "#bloco-equipe", titulo: "Equipe e níveis de acesso",
@@ -2424,6 +2661,7 @@ var TITULOS = {
   "/app/patrocinadores": "Cadastro de Patrocinador — Painel Comercial Festival Interlagos",
   "/app/interacoes": "Histórico de Interações — Painel Comercial Festival Interlagos",
   "/app/marcas": "Marcas desejo — Painel Comercial Festival Interlagos",
+  "/app/contratos": "Contratos — Painel Comercial Festival Interlagos",
   "/app/equipe": "Equipe — Painel Comercial Festival Interlagos",
 };
 
@@ -2439,6 +2677,14 @@ async function prepararTela(caminho) {
   }
   if (caminho === "/app/inicio" || caminho === "/app/interacoes" || caminho === "/app/marcas") {
     if (!S.prospects && !S.prospectsCarregando) carregar("prospects", getProspects);
+  }
+  if (caminho === "/app/inicio" || caminho === "/app/patrocinadores" || caminho === "/app/contratos") {
+    if (!S.contracts && !S.contractsCarregando) carregar("contracts", getContracts);
+  }
+  if (caminho === "/app/contratos") {
+    if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors); // select do formulario
+    if (!S.combinados && !S.combinadosCarregando) carregar("combinados", getCombinados); // ficha aberta daqui
+    if (!S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions);
   }
   if (caminho === "/app/marcas") {
     if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // select de espaco de interesse
@@ -2480,12 +2726,12 @@ function render() {
   if (ultimaRota !== null && ultimaRota !== caminho) { S.ficha = null; S.fichaProsp = null; S.ampliada = null; }
   if (caminho === "/auth") raiz.innerHTML = telaAuth();
   else {
-    var tela = caminho === "/app/inicio" ? telaInicio() : caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/marcas" ? telaMarcas() : caminho === "/app/equipe" ? telaEquipe() : telaInteracoes();
+    var tela = caminho === "/app/inicio" ? telaInicio() : caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/marcas" ? telaMarcas() : caminho === "/app/contratos" ? telaContratos() : caminho === "/app/equipe" ? telaEquipe() : telaInteracoes();
     raiz.innerHTML = casca(tela, caminho);
     if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
   }
   ultimaRota = caminho;
-  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp || !!S.ampliada);
+  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || S.formContrato.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp || !!S.ampliada);
 
   if (foco) {
     var el = document.getElementById(foco.id);
@@ -2598,6 +2844,23 @@ document.addEventListener("click", async function (ev) {
     render(); return;
   }
   if (acao === "recarregar-marcas") { carregar("prospects", getProspects); return; }
+  if (acao === "recarregar-contratos") { carregar("contracts", getContracts); return; }
+  if (acao === "novo-contrato") {
+    S.formContrato = { aberto: true, contrato: null, patroId: alvo.getAttribute("data-patro") || S.ficha || null, salvando: false }; render();
+    setTimeout(function () { var el = document.getElementById(S.formContrato.patroId ? "contrato-titulo" : "contrato-patro"); if (el) el.focus(); }, 0);
+    return;
+  }
+  if (acao === "editar-contrato") {
+    var ct = (S.contracts || []).find(function (x) { return x.id === id; });
+    if (ct) { S.formContrato = { aberto: true, contrato: ct, patroId: ct.patrocinadorId, salvando: false }; render(); }
+    return;
+  }
+  if (acao === "fechar-form-contrato") { if (!S.formContrato.salvando) { S.formContrato.aberto = false; render(); } return; }
+  if (acao === "abrir-contrato") {
+    var ca = (S.contracts || []).find(function (x) { return x.id === id; });
+    try { await abrirArquivoContrato(ca); } catch (e) { toast.error(e.message); }
+    return;
+  }
   if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
   if (acao === "edicao") {
     trocarParametro("edicao", alvo.getAttribute("data-edicao"));
@@ -2671,6 +2934,11 @@ document.addEventListener("input", function (ev) {
     document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
     return;
   }
+  if (el.id === "busca-contrato") {
+    S.fc.q = el.value;
+    document.getElementById("bloco-lista-contratos").innerHTML = blocoListaContratos();
+    return;
+  }
   if (el.id === "busca-marca") {
     S.fpr.q = el.value;
     document.getElementById("bloco-lista-marca").innerHTML = blocoListaMarcas();
@@ -2687,6 +2955,25 @@ document.addEventListener("change", async function (ev) {
   if (filtros[el.id]) {
     S.fp[filtros[el.id]] = el.value;
     document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
+    return;
+  }
+  var filtrosContrato = { "filtro-contrato-status": "status", "filtro-contrato-vendedor": "vendedor" };
+  if (filtrosContrato[el.id]) {
+    S.fc[filtrosContrato[el.id]] = el.value;
+    document.getElementById("bloco-lista-contratos").innerHTML = blocoListaContratos();
+    return;
+  }
+  if (el.id && el.id.indexOf("contrato-") === 0 && el.name === "status" && el.id !== "contrato-status") {
+    var ctid = el.id.slice(9);
+    var ctAtual = (S.contracts || []).find(function (x) { return x.id === ctid; });
+    if (!ctAtual || el.value === ctAtual.status) return;
+    S.contratoMudando = true; render();
+    try {
+      await changeContractStatus(ctid, el.value);
+      S.contratoMudando = false;
+      await carregar("contracts", getContracts);
+      toast.success("Contrato marcado como " + STATUS_CONTRATO[el.value].label.toLowerCase() + ".");
+    } catch (e) { S.contratoMudando = false; render(); toast.error(e.message); }
     return;
   }
   var filtrosMarca = { "filtro-marca-mercado": "mercado", "filtro-marca-vendedor": "vendedor", "filtro-marca-estagio": "estagio" };
@@ -2776,6 +3063,38 @@ document.addEventListener("submit", async function (ev) {
     } catch (e) {
       S.formInter.salvando = false;
       if (btnI) { btnI.disabled = false; var spI = btnI.querySelector(".animate-spin"); if (spI) spI.remove(); }
+      toast.error(e.message);
+    }
+    return;
+  }
+  if (ev.target.id === "form-contrato") {
+    ev.preventDefault();
+    var fct = new FormData(ev.target);
+    var atualC = S.formContrato.contrato;
+    var arquivoC = ev.target.querySelector('input[type="file"]');
+    var arq = arquivoC && arquivoC.files && arquivoC.files[0] ? arquivoC.files[0] : null;
+    var dadosC = {
+      id: atualC ? atualC.id : undefined,
+      patrocinadorId: atualC ? atualC.patrocinadorId : String(fct.get("patrocinador_id") || ""),
+      titulo: fct.get("titulo"), status: String(fct.get("status") || "rascunho"),
+      inicio: fct.get("inicio"), fim: fct.get("fim"), valor: fct.get("valor"),
+      signatarios: fct.get("signatarios"), observacao: fct.get("observacao"),
+      assinadoEm: atualC ? atualC.assinadoEm : null,
+    };
+    S.formContrato.salvando = true;
+    var btnC = ev.target.querySelector('button[type="submit"]');
+    if (btnC) { btnC.disabled = true; btnC.insertAdjacentHTML("afterbegin", icone("loader-circle", "animate-spin")); }
+    try {
+      var resC = await saveContract(dadosC, arq);
+      S.formContrato = { aberto: false, contrato: null, patroId: null, salvando: false };
+      var esperasC = [carregar("contracts", getContracts)];
+      if (resC.vencimentoAtualizado) esperasC.push(carregar("sponsors", getSponsors));
+      await Promise.all(esperasC);
+      toast.success(atualC ? "Contrato atualizado." : "Contrato guardado.");
+      if (resC.vencimentoAtualizado) toast.success("Vencimento do patrocinador passou para " + formatDateOnly(resC.vencimentoAtualizado) + ".");
+    } catch (e) {
+      S.formContrato.salvando = false;
+      if (btnC) { btnC.disabled = false; var spC = btnC.querySelector(".animate-spin"); if (spC) spC.remove(); }
       toast.error(e.message);
     }
     return;
@@ -2911,6 +3230,7 @@ document.addEventListener("keydown", function (ev) {
   if (S.formPatro.aberto && !S.formPatro.salvando) { S.formPatro.aberto = false; render(); return; }
   if (S.formInter.aberto && !S.formInter.salvando) { S.formInter.aberto = false; render(); return; }
   if (S.formProsp.aberto && !S.formProsp.salvando) { S.formProsp.aberto = false; render(); return; }
+  if (S.formContrato.aberto && !S.formContrato.salvando) { S.formContrato.aberto = false; render(); return; }
   if (S.ficha) { S.ficha = null; render(); return; }
   if (S.fichaProsp) { S.fichaProsp = null; render(); return; }
   if (S.detalhe) { S.detalhe = null; render(); return; }
@@ -2941,6 +3261,7 @@ window.addEventListener("scroll", fecharMenu, true);
       S.prospects = null; S.fichaProsp = null; S.formProsp = { aberto: false, prosp: null, salvando: false };
       S.tour = { ativo: false, passo: 0, esperando: false }; S.tourAbriuFicha = false;
       S.ampliada = null; S.ampliadaModo = "grade";
+      S.contracts = null; S.formContrato = { aberto: false, contrato: null, patroId: null, salvando: false }; S.fc = { q: "", status: "todos", vendedor: "todos" };
       var tourEl = document.getElementById("tour"); if (tourEl) tourEl.remove();
       S.fpr = { q: "", mercado: "todos", vendedor: "todos", estagio: "andamento" };
       S.formInter = { aberto: false, patroId: null, salvando: false };
