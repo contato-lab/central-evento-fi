@@ -156,7 +156,16 @@
   @media (min-width:640px){.sm\:p-3{padding:.75rem}}
   .gap-x-3{column-gap:.75rem}.gap-y-1{row-gap:.25rem}.mr-1{margin-right:.25rem}
   .bg-muted\/40{background-color:color-mix(in oklab,var(--muted) 40%,transparent)}.ml-2{margin-left:.5rem}.pt-1{padding-top:.25rem}.text-right{text-align:right}.w-36{width:9rem}
-  .min-h-\[60px\]{min-height:60px}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}.grid-cols-7{grid-template-columns:repeat(7,minmax(0,1fr))}nav.grid-cols-7 span{font-size:10px;letter-spacing:-.01em}.w-48{width:12rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.w-40{width:10rem}
+  .min-h-\[60px\]{min-height:60px}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}.grid-cols-7{grid-template-columns:repeat(7,minmax(0,1fr))}
+  /* menu do celular: com muitos itens ele rola de lado em vez de espremer */
+  .nav-inferior{display:flex;overflow-x:auto;scrollbar-width:none}
+  .nav-inferior::-webkit-scrollbar{display:none}
+  .nav-inferior>a{flex:1 0 auto;min-width:70px}
+  .nav-inferior{position:relative;-webkit-mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 22px),transparent 100%);mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 22px),transparent 100%)}
+  .nav-inferior span{font-size:10px;letter-spacing:-.01em}
+  .barra-entrega{height:6px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden}
+  .barra-entrega i{display:block;height:6px;background:var(--primary)}
+  .border-l-2{border-left-width:2px}.italic{font-style:italic}.h-6{height:1.5rem}.w-48{width:12rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.w-40{width:10rem}
   @media (min-width:1024px){.lg\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.lg\:grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}}
   @media (min-width:640px){.sm\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.sm\:items-start{align-items:flex-start}.sm\:p-5{padding:1.25rem}}
   @media (min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -263,7 +272,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.4";
+var VERSAO = "2026-09-17.5";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -302,6 +311,7 @@ var ICONES = {
 "circle-help": "<circle cx=\"12\" cy=\"12\" r=\"10\"/> <path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"/> <path d=\"M12 17h.01\"/>",
 "file-text": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/> <path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/> <path d=\"M10 9H8\"/> <path d=\"M16 13H8\"/> <path d=\"M16 17H8\"/>",
 "paperclip": "<path d=\"m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48\"/>",
+"package-check": "<path d=\"m16 16 2 2 4-4\"/> <path d=\"M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0\"/> <path d=\"m7.5 4.27 9 5.15\"/> <polyline points=\"3.29 7 12 12 20.71 7\"/> <line x1=\"12\" x2=\"12\" y1=\"22\" y2=\"12\"/>",
 "x": "<path d=\"M18 6 6 18\"/> <path d=\"m6 6 12 12\"/>"
 };
 function icone(nome, cls) {
@@ -679,29 +689,72 @@ async function saveInteraction(data) {
 
 async function getCombinados() {
   var lista;
-  try { lista = await API.listar("combinados"); } catch (e) { throw new Error("Não foi possível carregar os combinados."); }
+  try { lista = await API.listar("combinados"); } catch (e) { throw new Error("Não foi possível carregar as entregas."); }
+  var hoje = hojeMais(0);
   return lista.map(function (c) {
-    return { id: c.id, patrocinadorId: c.patrocinador_id || null, prospeccaoId: c.prospeccao_id || null, descricao: c.descricao || "", status: STATUS_COMBINADO[c.status] ? c.status : "prometido",
-      prometidoPorUid: c.prometido_por_uid || null, prometidoPorNome: c.prometido_por_nome || "", data: c.data || "", entregueEm: c.entregue_em || null, criadoPor: c.criado_por || null };
-  }).sort(function (a, b) { return (b.data || "").localeCompare(a.data || ""); });
+    // docs antigos usavam "prometido"; hoje o mesmo estado se chama "combinado"
+    var st = c.status === "prometido" ? "combinado" : (STATUS_ENTREGA[c.status] ? c.status : "combinado");
+    var prazo = /^\d{4}-\d{2}-\d{2}$/.test(c.prazo || "") ? c.prazo : "";
+    return {
+      id: c.id, patrocinadorId: c.patrocinador_id || null, prospeccaoId: c.prospeccao_id || null,
+      descricao: c.descricao || "", status: st,
+      origem: ORIGEM_ENTREGA[c.origem] ? c.origem : "acordo",
+      categoria: CATEGORIA_ENTREGA[c.categoria] ? c.categoria : "outro",
+      quantidade: c.quantidade == null || c.quantidade === "" ? null : Number(c.quantidade),
+      prazo: prazo, contratoId: c.contrato_id || null, trecho: c.trecho || "",
+      prometidoPorUid: c.prometido_por_uid || null, prometidoPorNome: c.prometido_por_nome || "",
+      entreguePorNome: c.entregue_por_nome || "", comprovacao: c.comprovacao || "",
+      data: c.data || "", entregueEm: c.entregue_em || null, criadoPor: c.criado_por || null,
+      atrasada: st === "combinado" && !!prazo && prazo < hoje,
+    };
+  }).sort(function (a, b) { return (a.prazo || "9999").localeCompare(b.prazo || "9999") || (b.data || "").localeCompare(a.data || ""); });
 }
 function combinadosDe(patroId) { return (S.combinados || []).filter(function (c) { return c.patrocinadorId === patroId; }); }
 function combinadosDeMarca(marcaId) { return (S.combinados || []).filter(function (c) { return c.prospeccaoId === marcaId && !c.patrocinadorId; }); }
+
+// Conta o que interessa para o time: o que falta, o que atrasou e o que veio fora do contrato.
+function contarEntregas(lista) {
+  var n = { total: 0, entregues: 0, faltam: 0, atrasadas: 0, aConferir: 0, extras: 0, canceladas: 0 };
+  (lista || []).forEach(function (e) {
+    if (e.status === "a_conferir") { n.aConferir++; return; }
+    if (e.status === "cancelado") { n.canceladas++; return; }
+    n.total++;
+    if (e.status === "entregue") n.entregues++;
+    else { n.faltam++; if (e.atrasada) n.atrasadas++; }
+    if (e.origem !== "contrato") n.extras++;
+  });
+  n.pct = n.total ? Math.round(100 * n.entregues / n.total) : 0;
+  return n;
+}
 
 async function saveCombinado(data) {
   var desc = String(data.descricao || "").trim();
   if ((!data.patrocinadorId && !data.prospeccaoId) || desc.length < 3 || desc.length > 300) throw new Error("Escreva o que foi combinado (até 300 letras).");
   var quem = data.prometidoPorUid ? perfilPorUid(data.prometidoPorUid) : null;
-  var quando = /^\d{4}-\d{2}-\d{2}$/.test(data.data || "") ? data.data : hojeMais(0);
+  var dia = function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : ""; };
+  var qtd = data.quantidade === "" || data.quantidade == null ? null : Number(data.quantidade);
+  if (qtd !== null && !(isFinite(qtd) && qtd >= 0)) throw new Error("Confira a quantidade.");
+  var payload = {
+    patrocinador_id: data.patrocinadorId || null, prospeccao_id: data.prospeccaoId || null,
+    descricao: desc, data: dia(data.data) || hojeMais(0),
+    origem: ORIGEM_ENTREGA[data.origem] ? data.origem : "acordo",
+    categoria: CATEGORIA_ENTREGA[data.categoria] ? data.categoria : "outro",
+    quantidade: qtd, prazo: dia(data.prazo),
+    comprovacao: String(data.comprovacao || "").trim().slice(0, 500),
+    prometido_por_uid: quem ? quem.id : S.uid, prometido_por_nome: quem ? quem.nome : S.nome,
+  };
   try {
-    await API.criar("combinados", { patrocinador_id: data.patrocinadorId || null, prospeccao_id: data.prospeccaoId || null, descricao: desc, status: "prometido", data: quando,
-      prometido_por_uid: quem ? quem.id : S.uid, prometido_por_nome: quem ? quem.nome : S.nome, entregue_em: null });
-  } catch (e) { throw new Error("Não foi possível salvar o combinado."); }
+    if (data.id) await API.atualizar("combinados", data.id, payload);
+    else await API.criar("combinados", Object.assign({ status: "combinado", entregue_em: null, contrato_id: null, trecho: "" }, payload));
+  } catch (e) { throw new Error("Não foi possível salvar a entrega."); }
 }
 async function changeCombinadoStatus(id, status) {
-  if (!STATUS_COMBINADO[status]) return;
-  try { await API.atualizar("combinados", id, { status: status, entregue_em: status === "entregue" ? hojeMais(0) : null }); }
-  catch (e) { throw new Error("Não foi possível mudar o combinado."); }
+  if (!STATUS_ENTREGA[status]) return;
+  var dados = { status: status };
+  if (status === "entregue") { dados.entregue_em = hojeMais(0); dados.entregue_por_uid = S.uid; dados.entregue_por_nome = S.nome; }
+  else { dados.entregue_em = null; dados.entregue_por_uid = null; dados.entregue_por_nome = ""; }
+  try { await API.atualizar("combinados", id, dados); }
+  catch (e) { throw new Error("Não foi possível mudar a entrega."); }
 }
 
 async function saveSponsor(data) {
@@ -1004,6 +1057,8 @@ var S = {
   formContrato: { aberto: false, contrato: null, patroId: null, salvando: false },
   fc: { q: "", status: "todos", vendedor: "todos" },
   contratoMudando: false,
+  formEntrega: { aberto: false, entrega: null, patroId: null, marcaId: null, salvando: false },
+  fe: { q: "", status: "todos", origem: "todas", patro: "todos" },
 };
 
 var PAPEIS = { dono: "Dono do sistema", admin: "Administrador", vendedor: "Vendedor" };
@@ -1014,11 +1069,18 @@ var RENOVACAO = {
   recusou: { label: "Recusou", className: "border-destructive/40 bg-destructive/10 text-destructive" },
 };
 var TIPO_INTERACAO = { ligacao: "Ligação", reuniao: "Reunião", whatsapp: "WhatsApp", email: "E-mail", proposta: "Proposta enviada", evento: "Encontro presencial", outro: "Outro" };
-var STATUS_COMBINADO = {
-  prometido: { label: "Prometido", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
+var STATUS_ENTREGA = {
+  a_conferir: { label: "A conferir", className: "border-primary/30 bg-primary/15 text-foreground" },
+  combinado: { label: "A entregar", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
   entregue: { label: "Entregue", className: "border-success/30 bg-success/10 text-success" },
   cancelado: { label: "Cancelado", className: "border-foreground/15 bg-foreground/8 text-muted-foreground" },
 };
+var ORIGEM_ENTREGA = {
+  contrato: { label: "Contrato", curto: "contrato" },
+  acordo: { label: "Acordo depois do contrato", curto: "acordo" },
+  cortesia: { label: "Cortesia", curto: "cortesia" },
+};
+var CATEGORIA_ENTREGA = { espaco: "Espaço", credenciais: "Credenciais", midia: "Mídia e marca", hospitalidade: "Hospitalidade", ativacao: "Ativação", outro: "Outro" };
 var CONFIG_PADRAO = { moto_data: "2027-08-11", auto_data: "2027-08-25", dias_sem_contato: 14, dias_gatilho_master: 90 };
 function configAtual() { return Object.assign({}, CONFIG_PADRAO, S.config || {}); }
 function diasAte(dataIso) {
@@ -1201,6 +1263,7 @@ var NAV = [
   { to: "/app/patrocinadores", label: "Cadastro de Patrocinador", shortLabel: "Carteira", icon: "handshake" },
   { to: "/app/marcas", label: "Marcas desejo", shortLabel: "Desejo", icon: "target" },
   { to: "/app/contratos", label: "Contratos", shortLabel: "Contratos", icon: "file-text" },
+  { to: "/app/propriedades", label: "Propriedades", shortLabel: "Entregas", icon: "package-check" },
   { to: "/app/interacoes", label: "Histórico de Interações", shortLabel: "Interações", icon: "history" },
   { to: "/app/equipe", label: "Equipe", shortLabel: "Equipe", icon: "users", admin: true },
 ];
@@ -1232,11 +1295,11 @@ function casca(conteudo, caminho) {
     '<div class="mx-auto grid max-w-screen-2xl md:grid-cols-[260px_1fr]">' +
       '<aside class="hidden min-h-[calc(100vh-4rem)] border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block"><nav aria-label="Navegação principal" class="space-y-1">' + lateral + "</nav></aside>" +
       '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + conteudo + "</main>" +
-      (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto ? dialogoFicha() : "") +
-      (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto ? dialogoFichaProspeccao() : "") +
-      (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formContrato.aberto ? dialogoContrato() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
+      (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto && !S.formEntrega.aberto ? dialogoFicha() : "") +
+      (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto && !S.formEntrega.aberto ? dialogoFichaProspeccao() : "") +
+      (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formContrato.aberto ? dialogoContrato() : "") + (S.formEntrega.aberto ? dialogoEntrega() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
     "</div>" +
-    '<nav aria-label="Navegação principal" class="' + cn("fixed inset-x-0 bottom-0 z-40 grid border-t border-border", itensNav.length >= 7 ? "grid-cols-7" : itensNav.length === 6 ? "grid-cols-6" : itensNav.length === 5 ? "grid-cols-5" : itensNav.length === 4 ? "grid-cols-4" : "grid-cols-3") + ' bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
+    '<nav aria-label="Navegação principal" class="nav-inferior fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
   "</div>";
 }
 
@@ -1391,7 +1454,7 @@ function telaInicio() {
     var n = { vermelho: 0, amarelo: 0, azul: 0 };
     alertas.forEach(function (a) { n[a.nivel]++; });
     var elegiveis = S.sponsors.filter(function (p) { return p.status !== "encerrado"; });
-    var pendentes = (S.combinados || []).filter(function (c) { return c.status === "prometido"; }).slice().sort(function (a, b) { return (a.data || "").localeCompare(b.data || ""); });
+    var pendentes = (S.combinados || []).filter(function (c) { return c.status === "combinado"; }).slice().sort(function (a, b) { return (b.atrasada ? 1 : 0) - (a.atrasada ? 1 : 0) || (a.prazo || "9999").localeCompare(b.prazo || "9999"); });
     var porRen = {}; elegiveis.forEach(function (p) { porRen[p.renovacao] = (porRen[p.renovacao] || 0) + 1; });
     var pct = elegiveis.length ? Math.round(100 * (porRen.renovado || 0) / elegiveis.length) : 0;
     var merch = elegiveis.filter(function (p) { return p.tipo === "merchandising"; });
@@ -1428,9 +1491,12 @@ function telaInicio() {
           (S.contracts === null && !S.contractsErro ? loadingList("Carregando contratos...", 1) : (esperando.length ? esperando.map(function (c) { return cartaoContrato(c, true); }).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum contrato esperando assinatura.</p>')) +
           "</section>";
       })() +
-      '<section id="secao-combinados" class="space-y-3"><h2 class="text-sm font-black uppercase">Combinados a entregar <span class="font-normal text-muted-foreground">(' + pendentes.length + ")</span></h2>" +
-        (S.combinados === null ? loadingList("Carregando combinados...", 2) : (pendentes.length ? pendentes.map(function (c) { return cartaoCombinado(c, true); }).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada prometido pendente. Tudo que foi vendido já foi entregue.</p>')) +
-      "</section>" +
+      (function () {
+        var ne = contarEntregas(S.combinados || []);
+        return '<section id="secao-combinados" class="space-y-3"><h2 class="text-sm font-black uppercase">Entregas pendentes <span class="font-normal text-muted-foreground">(' + pendentes.length + (ne.atrasadas ? ", " + ne.atrasadas + " atrasada" + (ne.atrasadas > 1 ? "s" : "") : "") + ")</span></h2>" +
+          (S.combinados === null ? loadingList("Carregando entregas...", 2) : (pendentes.length ? pendentes.slice(0, 8).map(function (c) { return cartaoCombinado(c, true); }).join("") + (pendentes.length > 8 ? '<a href="#/app/propriedades" class="block border border-dashed border-border px-4 py-3 text-center text-sm text-primary hover:underline">Ver as ' + pendentes.length + " entregas em Propriedades</a>" : "") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada pendente. Tudo o que foi combinado já foi entregue.</p>')) +
+        "</section>";
+      })() +
       '<p class="text-xs text-muted-foreground">Prazos em uso: contrato avisa a 90, 60 e 30 dias; sem contato acima de ' + cfg.dias_sem_contato + ' dias (patrocinadores e marcas desejo); Master a ' + cfg.dias_gatilho_master + ' dias da edição (Moto ' + esc(formatDateOnly(cfg.moto_data)) + ', Auto ' + esc(formatDateOnly(cfg.auto_data)) + '). ' + (ehAdmin() ? 'Ajuste na tela Equipe.' : 'Quem ajusta é o administrador.') + "</p>";
   }
   return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
@@ -1828,10 +1894,13 @@ function dialogoEspaco() {
 
 /* ---------------------------------------------- tela: cadastro de patrocinador */
 function resumoCombinados(patroId) {
-  var c = combinadosDe(patroId);
-  if (!c.length) return "";
-  var pend = c.filter(function (x) { return x.status === "prometido"; }).length;
-  return '<span class="ml-2">· ' + c.length + " combinado" + (c.length > 1 ? "s" : "") + (pend ? ", " + pend + " a entregar" : "") + "</span>";
+  var n = contarEntregas(combinadosDe(patroId));
+  if (!n.total && !n.aConferir) return "";
+  var partes = [];
+  if (n.total) partes.push(n.entregues + " de " + n.total + " entregue" + (n.total === 1 ? "" : "s"));
+  if (n.atrasadas) partes.push(n.atrasadas + " atrasada" + (n.atrasadas > 1 ? "s" : ""));
+  if (n.aConferir) partes.push(n.aConferir + " a conferir");
+  return '<span class="ml-2">· ' + esc(partes.join(" · ")) + "</span>";
 }
 
 function badgeMaster() {
@@ -2206,16 +2275,146 @@ function dialogoContrato() {
 function cartaoCombinado(c, comPatro) {
   var patro = comPatro && c.patrocinadorId ? (S.sponsors || []).find(function (p) { return p.id === c.patrocinadorId; }) : null;
   var marca = comPatro && !patro && c.prospeccaoId ? (S.prospects || []).find(function (m) { return m.id === c.prospeccaoId; }) : null;
-  var st = STATUS_COMBINADO[c.status];
-  return '<article class="' + cn("border border-border bg-card px-4 py-3", c.status === "prometido" && "alerta-amarelo") + '">' +
-    '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0">' +
+  var st = STATUS_ENTREGA[c.status];
+  var qtd = c.quantidade != null ? String(c.quantidade).replace(".", ",") + " · " : "";
+  var prazo = c.prazo ? (c.atrasada ? '<span class="text-destructive">venceu ' + esc(textoDias(-diasAte(c.prazo), false)) + "</span>" : "até " + esc(formatDateOnly(c.prazo))) : "";
+  var linha2 = [esc(CATEGORIA_ENTREGA[c.categoria]), esc(ORIGEM_ENTREGA[c.origem].label), prazo].filter(Boolean).join(" · ");
+  var linha3 = c.status === "entregue"
+    ? "Entregue" + (c.entregueEm ? " em " + esc(formatDateOnly(c.entregueEm)) : "") + (c.entreguePorNome ? " por " + esc(c.entreguePorNome) : "")
+    : "Combinado por " + esc(c.prometidoPorNome || "?") + (c.data ? " em " + esc(formatDateOnly(c.data)) : "");
+  return '<article class="' + cn("border border-border bg-card px-4 py-3", c.status === "a_conferir" && "alerta-azul", c.status === "combinado" && !c.atrasada && "alerta-amarelo", c.atrasada && "alerta-vermelho") + '">' +
+    '<div class="' + (comPatro ? "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" : "flex flex-col gap-3") + '"><div class="min-w-0">' +
       (patro ? '<button type="button" class="text-xs font-bold uppercase text-primary hover:underline" data-acao="ficha" data-id="' + esc(patro.id) + '">' + esc(patro.nome) + "</button>" :
        marca ? '<button type="button" class="text-xs font-bold uppercase text-primary hover:underline" data-acao="ficha-marca" data-id="' + esc(marca.id) + '">' + esc(marca.nome) + " · marca desejo</button>" : "") +
-      '<p class="break-words font-semibold">' + esc(c.descricao) + "</p>" +
-      '<p class="mt-0.5 text-xs text-muted-foreground">Prometido por ' + esc(c.prometidoPorNome || "?") + (c.data ? " em " + esc(formatDateOnly(c.data)) : "") + (c.entregueEm ? " · entregue em " + esc(formatDateOnly(c.entregueEm)) : "") + "</p></div>" +
-      '<div class="flex shrink-0 items-center gap-2">' + badge(st, "whitespace-nowrap") +
-        selectNativo("combinado-" + c.id, "status", Object.keys(STATUS_COMBINADO).map(function (k) { return { valor: k, rotulo: STATUS_COMBINADO[k].label }; }), c.status, { className: "h-8 w-36", disabled: S.combinadoMudando }) +
-      "</div></div></article>";
+      '<p class="break-words font-semibold">' + esc(qtd) + esc(c.descricao) + "</p>" +
+      '<p class="mt-0.5 text-xs text-muted-foreground">' + linha2 + "</p>" +
+      '<p class="mt-0.5 text-xs text-muted-foreground">' + linha3 + "</p>" +
+      (c.comprovacao ? '<p class="mt-0.5 break-words text-xs text-muted-foreground">Comprovação: ' + esc(c.comprovacao) + "</p>" : "") +
+      (c.trecho ? '<p class="mt-1 border-l-2 border-border pl-2 text-xs italic text-muted-foreground">"' + esc(truncar(c.trecho, 160)) + '"</p>' : "") +
+    "</div>" +
+    '<div class="flex shrink-0 flex-wrap items-center gap-2">' + badge(st, "whitespace-nowrap") +
+      selectNativo("combinado-" + c.id, "status", Object.keys(STATUS_ENTREGA).map(function (k) { return { valor: k, rotulo: STATUS_ENTREGA[k].label }; }), c.status, { className: "h-8 w-36", disabled: S.combinadoMudando }) +
+      '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar entrega" title="Editar entrega" data-acao="editar-entrega" data-id="' + esc(c.id) + '">' + icone("pencil") + "</button>" +
+    "</div></div></article>";
+}
+
+function blocoNumerosEntregas(n, extra) {
+  var cartao = function (num, rot, cls) { return '<div class="border border-border bg-card px-5 py-4"><span class="' + cn("block text-3xl font-black leading-none", cls) + '">' + num + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">' + rot + "</span></div>"; };
+  return '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
+    cartao(n.entregues + " de " + n.total, "Entregues", n.total && n.entregues === n.total ? "text-success" : "") +
+    cartao(n.faltam, "Faltam entregar", n.faltam && "text-warning-foreground") +
+    cartao(n.atrasadas, "Passaram do prazo", n.atrasadas && "text-destructive") +
+    cartao(n.extras, "Fora do contrato") +
+  "</div>" + (extra && n.aConferir ? '<p class="text-sm text-muted-foreground">' + n.aConferir + " item" + (n.aConferir > 1 ? "s" : "") + " lido" + (n.aConferir > 1 ? "s" : "") + " do contrato esperando conferência. Enquanto não confirmar, não entra na conta.</p>" : "");
+}
+
+function entregasFiltradas() {
+  var f = S.fe, term = f.q.trim().toLocaleLowerCase("pt-BR");
+  return (S.combinados || []).filter(function (c) {
+    if (f.status === "pendentes" ? c.status !== "combinado" : f.status !== "todos" && c.status !== f.status) return false;
+    if (f.origem !== "todas" && c.origem !== f.origem) return false;
+    if (f.patro !== "todos" && (c.patrocinadorId || "p:" + c.prospeccaoId) !== f.patro) return false;
+    if (term) {
+      var p = (S.sponsors || []).find(function (x) { return x.id === c.patrocinadorId; });
+      var m = (S.prospects || []).find(function (x) { return x.id === c.prospeccaoId; });
+      if ([c.descricao, c.comprovacao, p && p.nome, m && m.nome, CATEGORIA_ENTREGA[c.categoria]].join(" ").toLocaleLowerCase("pt-BR").indexOf(term) < 0) return false;
+    }
+    return true;
+  });
+}
+
+function blocoListaEntregas() {
+  if (S.combinadosErro) return errorList(S.combinadosErro, "recarregar-entregas", S.combinadosCarregando);
+  if (!S.combinados) return loadingList("Carregando entregas...", 3);
+  if (!S.combinados.length) return emptyList("package-check", "Nenhuma entrega registrada ainda", "Use Nova entrega, ou leia um contrato com a IA para trazer tudo de uma vez.");
+  var lista = entregasFiltradas();
+  if (!lista.length) return emptyList("package-check", "Nenhuma entrega encontrada", "Ajuste a busca ou os filtros.");
+  // agrupado por marca, para o time enxergar marca por marca
+  var grupos = {};
+  lista.forEach(function (c) {
+    var chave = c.patrocinadorId || "p:" + c.prospeccaoId;
+    (grupos[chave] = grupos[chave] || []).push(c);
+  });
+  var nomeDe = function (chave) {
+    if (chave.indexOf("p:") === 0) {
+      var m = (S.prospects || []).find(function (x) { return x.id === chave.slice(2); });
+      return { nome: m ? m.nome + " · marca desejo" : "Marca desejo", acao: "ficha-marca", id: chave.slice(2) };
+    }
+    var p = (S.sponsors || []).find(function (x) { return x.id === chave; });
+    return { nome: p ? p.nome : "Patrocinador", acao: "ficha", id: chave };
+  };
+  return Object.keys(grupos).map(function (chave) {
+    var ref = nomeDe(chave), n = contarEntregas(grupos[chave]);
+    return '<section class="space-y-3">' +
+      '<div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-2">' +
+        '<button type="button" class="text-left text-sm font-black uppercase hover:underline" data-acao="' + ref.acao + '" data-id="' + esc(ref.id) + '">' + esc(ref.nome) + "</button>" +
+        '<span class="text-xs text-muted-foreground">' + n.entregues + " de " + n.total + " entregue" + (n.total === 1 ? "" : "s") + (n.atrasadas ? " · " + n.atrasadas + " atrasada" + (n.atrasadas > 1 ? "s" : "") : "") + "</span>" +
+      "</div>" +
+      '<div class="barra-entrega"><i style="width:' + n.pct + '%"></i></div>' +
+      '<div class="grid gap-3">' + grupos[chave].map(function (c) { return cartaoCombinado(c, false); }).join("") + "</div>" +
+    "</section>";
+  }).join('<div class="h-6"></div>');
+}
+
+function telaPropriedades() {
+  var f = S.fe;
+  var n = contarEntregas(S.combinados || []);
+  var marcas = [{ valor: "todos", rotulo: "Todas as marcas" }]
+    .concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }))
+    .concat((S.prospects || []).map(function (m) { return { valor: "p:" + m.id, rotulo: m.nome + " (marca desejo)" }; }));
+  var status = [{ valor: "todos", rotulo: "Todos os status" }, { valor: "pendentes", rotulo: "Só o que falta entregar" }]
+    .concat(Object.keys(STATUS_ENTREGA).map(function (k) { return { valor: k, rotulo: STATUS_ENTREGA[k].label }; }));
+  var origens = [{ valor: "todas", rotulo: "Toda origem" }].concat(Object.keys(ORIGEM_ENTREGA).map(function (k) { return { valor: k, rotulo: ORIGEM_ENTREGA[k].label }; }));
+  return '<section class="space-y-7">' +
+    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
+      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Entregas por marca</div>' +
+      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Propriedades</h1>' +
+      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Tudo o que foi combinado com cada marca, veio do contrato ou de um acordo depois dele. Marque o que já foi entregue e veja o que falta.</p></div>' +
+      '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="nova-entrega">' + icone("plus") + " Nova entrega</button>" +
+    "</header>" +
+    '<div id="bloco-numeros-entregas" class="space-y-3">' + blocoNumerosEntregas(n, true) + "</div>" +
+    '<div id="filtros-entregas" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
+      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+      '<input id="busca-entrega" aria-label="Buscar entrega" placeholder="Buscar por marca ou entrega" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
+      selectNativo("filtro-entrega-patro", "filtro-entrega-patro", marcas, f.patro, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-entrega-status", "filtro-entrega-status", status, f.status, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-entrega-origem", "filtro-entrega-origem", origens, f.origem, { className: "h-11 bg-card" }) +
+    "</div>" +
+    '<div id="bloco-lista-entregas" class="space-y-3">' + blocoListaEntregas() + "</div>" +
+  "</section>";
+}
+
+function dialogoEntrega() {
+  var e = S.formEntrega.entrega;
+  var alvo = e ? (e.patrocinadorId || "p:" + e.prospeccaoId) : (S.formEntrega.patroId || (S.formEntrega.marcaId ? "p:" + S.formEntrega.marcaId : ""));
+  var opcoes = [{ valor: "", rotulo: "Escolha a marca" }].concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
+  var marcasAnd = (S.prospects || []).filter(emAndamento);
+  if (marcasAnd.length) opcoes.push({ grupo: "Marcas desejo (ainda não patrocinam)", itens: marcasAnd.map(function (m) { return { valor: "p:" + m.id, rotulo: m.nome }; }) });
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-entrega"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-entrega" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-entrega" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (e ? "Editar entrega" : "Nova entrega") + "</h2>" +
+      '<p class="text-sm text-muted-foreground">O que foi combinado com a marca. Use "Acordo depois do contrato" para demanda que surgiu fora do que foi assinado.</p></div>' +
+      '<form id="form-entrega" class="space-y-5 pt-2">' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="ent-patro">Marca</label>' + selectNativo("ent-patro", "alvo", opcoes, alvo, { disabled: !!e }) + "</div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="ent-desc">O que foi combinado</label><input id="ent-desc" name="descricao" required maxlength="300" placeholder="Ex.: credenciais VIP para o sábado" class="' + INPUT + '" value="' + esc(e ? e.descricao : "") + '"></div>' +
+        '<div class="grid gap-5 sm:grid-cols-3">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="ent-qtd">Quantidade</label><input id="ent-qtd" name="quantidade" type="number" min="0" step="1" inputmode="numeric" class="' + INPUT + '" value="' + (e && e.quantidade != null ? e.quantidade : "") + '" placeholder="opcional"></div>' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="ent-cat">Categoria</label>' + selectNativo("ent-cat", "categoria", Object.keys(CATEGORIA_ENTREGA).map(function (k) { return { valor: k, rotulo: CATEGORIA_ENTREGA[k] }; }), e ? e.categoria : "outro") + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="ent-prazo">Entregar até</label><input id="ent-prazo" name="prazo" type="date" class="' + INPUT + '" value="' + esc(e && e.prazo ? e.prazo : "") + '"></div>' +
+        "</div>" +
+        '<div class="grid gap-5 sm:grid-cols-3">' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="ent-origem">De onde veio</label>' + selectNativo("ent-origem", "origem", Object.keys(ORIGEM_ENTREGA).map(function (k) { return { valor: k, rotulo: ORIGEM_ENTREGA[k].label }; }), e ? e.origem : "acordo") + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="ent-data">Combinado em</label><input id="ent-data" name="data" type="date" class="' + INPUT + '" value="' + esc(e && e.data ? e.data : hojeMais(0)) + '" required></div>' +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="ent-quem">Combinado por</label>' + selectVendedor("ent-quem", "prometido_por_uid", e ? e.prometidoPorUid : S.uid, false) + "</div>" +
+        "</div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="ent-comp">Comprovação (opcional)</label><input id="ent-comp" name="comprovacao" maxlength="500" placeholder="Link da foto, do arquivo ou observação da entrega" class="' + INPUT + '" value="' + esc(e ? e.comprovacao : "") + '"></div>' +
+        '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
+          '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-entrega">Cancelar</button>' +
+          '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.formEntrega.salvando ? " disabled" : "") + ">" + (S.formEntrega.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar entrega</button>" +
+        "</div>" +
+      "</form>" +
+      '<button type="button" data-acao="fechar-form-entrega" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
+    "</div>";
 }
 
 function dialogoFicha() {
@@ -2224,8 +2423,8 @@ function dialogoFicha() {
   var st = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
   var linha = function (rot, val) { return '<div class="flex justify-between gap-4 border-b border-border py-2 text-sm"><dt class="text-xs font-bold uppercase text-muted-foreground">' + rot + '</dt><dd class="text-right">' + val + "</dd></div>"; };
   var combs = combinadosDe(p.id);
+  var nEnt = contarEntregas(combs);
   var inters = (S.interactions || []).filter(function (i) { return i.patrocinadorId === p.id; }).slice(0, 5);
-  var pend = combs.filter(function (c) { return c.status === "prometido"; }).length;
   return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-ficha"></div>' +
     '<div role="dialog" aria-modal="true" aria-labelledby="titulo-ficha" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
       '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-ficha" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + esc(p.nome) + "</h2>" +
@@ -2241,17 +2440,11 @@ function dialogoFicha() {
         '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="nova-interacao" data-patro="' + esc(p.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" +
         '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="editar-patro" data-id="' + esc(p.id) + '">' + icone("pencil") + " Editar</button>" +
       "</div>" +
-      '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("list-checks", "size-4 text-primary") + " Combinados " +
-        '<span class="font-normal text-muted-foreground">(' + combs.length + (pend ? ", " + pend + " a entregar" : "") + ")</span></h3>" +
-        (S.combinados === null ? loadingList("Carregando combinados...", 1) : (combs.length ? combs.map(function (c) { return cartaoCombinado(c, false); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nada combinado ainda. Registre aqui o que foi prometido a este cliente.</p>')) +
-        '<form id="form-combinado" class="space-y-3 border border-border bg-muted/40 p-3">' +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="comb-desc">Novo combinado</label><input id="comb-desc" name="descricao" required maxlength="300" placeholder="Ex.: 2 boxes + 20 credenciais + logo no telão" class="' + INPUT + '"></div>' +
-          '<div class="grid gap-3 sm:grid-cols-2">' +
-            '<div class="space-y-2"><label class="' + LABEL + '" for="comb-data">Prometido em</label><input id="comb-data" name="data" type="date" class="' + INPUT + '" value="' + hojeMais(0) + '" required></div>' +
-            '<div class="space-y-2"><label class="' + LABEL + '" for="comb-quem">Prometido por</label>' + selectVendedor("comb-quem", "prometido_por_uid", S.uid, false) + "</div>" +
-          "</div>" +
-          '<div class="flex justify-end"><button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.combinadoSalvando ? " disabled" : "") + ">" + (S.combinadoSalvando ? icone("loader-circle", "animate-spin") : icone("plus")) + " Adicionar combinado</button></div>" +
-        "</form>" +
+      '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("package-check", "size-4 text-primary") + " Propriedades " +
+        '<span class="font-normal text-muted-foreground">(' + nEnt.entregues + " de " + nEnt.total + " entregue" + (nEnt.total === 1 ? "" : "s") + (nEnt.atrasadas ? ", " + nEnt.atrasadas + " atrasada" + (nEnt.atrasadas > 1 ? "s" : "") : "") + ")</span></h3>" +
+        (nEnt.total ? '<div class="barra-entrega"><i style="width:' + nEnt.pct + '%"></i></div>' : "") +
+        (S.combinados === null ? loadingList("Carregando entregas...", 1) : (combs.length ? combs.map(function (c) { return cartaoCombinado(c, false); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nada combinado ainda. Registre aqui o que foi prometido a este cliente.</p>')) +
+        '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="nova-entrega" data-patro="' + esc(p.id) + '">' + icone("plus") + " Nova entrega</button>" +
       "</section>" +
       (function () {
         var cts = contratosDe(p.id);
@@ -2443,7 +2636,7 @@ function dialogoFichaProspeccao() {
   var linha = function (rot, val) { return '<div class="flex justify-between gap-4 border-b border-border py-2 text-sm"><dt class="text-xs font-bold uppercase text-muted-foreground">' + rot + '</dt><dd class="text-right">' + val + "</dd></div>"; };
   var combs = combinadosDeMarca(m.id);
   var inters = (S.interactions || []).filter(function (i) { return i.prospeccaoId === m.id; }).slice(0, 5);
-  var pend = combs.filter(function (c) { return c.status === "prometido"; }).length;
+  var pend = combs.filter(function (c) { return c.status === "combinado"; }).length;
   var andamento = emAndamento(m);
   var patro = m.patrocinadorId ? (S.sponsors || []).find(function (p) { return p.id === m.patrocinadorId; }) : null;
   var proxima = m.proximaAcao || m.proximaAcaoData
@@ -2468,17 +2661,10 @@ function dialogoFichaProspeccao() {
         (andamento ? '<button type="button" class="' + btnCls("default", "default", "font-bold uppercase") + '" data-acao="virou-patro" data-id="' + esc(m.id) + '">' + icone("handshake") + " Virou patrocinador</button>" : "") +
       "</div>" +
       (m.estagio === "fechada" ? "" :
-      '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("list-checks", "size-4 text-primary") + " Combinados " +
+      '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("package-check", "size-4 text-primary") + " Propriedades " +
         '<span class="font-normal text-muted-foreground">(' + combs.length + (pend ? ", " + pend + " a entregar" : "") + ")</span></h3>" +
-        (S.combinados === null ? loadingList("Carregando combinados...", 1) : (combs.length ? combs.map(function (c) { return cartaoCombinado(c, false); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nada combinado ainda. O que for prometido na negociação fica registrado aqui e vai junto quando a marca virar patrocinador.</p>')) +
-        (andamento ? '<form id="form-combinado" class="space-y-3 border border-border bg-muted/40 p-3">' +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="comb-desc">Novo combinado</label><input id="comb-desc" name="descricao" required maxlength="300" placeholder="Ex.: Desconto de 10% se assinar até o fim do mês" class="' + INPUT + '"></div>' +
-          '<div class="grid gap-3 sm:grid-cols-2">' +
-            '<div class="space-y-2"><label class="' + LABEL + '" for="comb-data">Prometido em</label><input id="comb-data" name="data" type="date" class="' + INPUT + '" value="' + hojeMais(0) + '" required></div>' +
-            '<div class="space-y-2"><label class="' + LABEL + '" for="comb-quem">Prometido por</label>' + selectVendedor("comb-quem", "prometido_por_uid", S.uid, false) + "</div>" +
-          "</div>" +
-          '<div class="flex justify-end"><button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.combinadoSalvando ? " disabled" : "") + ">" + (S.combinadoSalvando ? icone("loader-circle", "animate-spin") : icone("plus")) + " Adicionar combinado</button></div>" +
-        "</form>" : "") +
+        (S.combinados === null ? loadingList("Carregando entregas...", 1) : (combs.length ? combs.map(function (c) { return cartaoCombinado(c, false); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nada combinado ainda. O que for prometido na negociação fica registrado aqui e vai junto quando a marca virar patrocinador.</p>')) +
+        (andamento ? '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="nova-entrega" data-marca="' + esc(m.id) + '">' + icone("plus") + " Nova entrega</button>" : "") +
       "</section>") +
       '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("history", "size-4 text-primary") + " Últimas interações</h3>" +
         (S.interactions === null ? loadingList("Carregando interações...", 1) : (inters.length ? inters.map(function (i) { return cartaoInteracao(i, true); }).join("") : '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">Nenhuma interação registrada com esta marca.</p>')) +
@@ -2504,8 +2690,10 @@ function passosTour() {
       texto: "<p>Cada alerta diz o que está acontecendo e quem é o vendedor responsável. <b>Registrar contato</b> grava a conversa e zera o aviso de sem contato. <b>Abrir</b> edita o cadastro.</p><p>Os seus alertas vêm primeiro. Os do resto da equipe aparecem logo abaixo, para todo mundo saber de tudo.</p>" },
     { rota: "/app/inicio", alvo: "#secao-marcas-acao", titulo: "Marcas desejo esfriando",
       texto: "<p>Aqui entram as marcas que ainda não patrocinam e pararam: mais de " + cfg.dias_sem_contato + " dias sem contato ou com a próxima ação vencida. O botão Abrir leva para a ficha da marca.</p>" },
-    { rota: "/app/inicio", alvo: "#secao-combinados", titulo: "Combinados a entregar",
-      texto: "<p>Tudo o que foi prometido a um cliente e ainda não foi entregue, com quem prometeu e quando. Quando entregar, mude o status aqui mesmo. Assim ninguém vende uma coisa e esquece de cumprir.</p>" },
+    { rota: "/app/inicio", alvo: "#secao-combinados", titulo: "Entregas pendentes",
+      texto: "<p>Tudo o que foi combinado com um cliente e ainda não foi entregue, com quem prometeu e o prazo. O que passou do prazo vem primeiro, em vermelho.</p>" },
+    { rota: "/app/propriedades", alvo: "#bloco-numeros-entregas", titulo: "Propriedades: o que cada marca tem a receber",
+      texto: "<p>A lista completa por marca, com a barra de quanto já foi entregue. Cada item diz de onde veio: do <b>contrato</b>, de um <b>acordo depois do contrato</b> (aquela demanda que surge no meio do caminho) ou de uma <b>cortesia</b>.</p><p>Marque como entregue no próprio item. Os números no topo mostram o que falta, o que atrasou e quanto está sendo dado fora do contrato.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-mapa", titulo: "Mapa de espaços por edição",
       texto: "<p>O mapa reproduz as plantas de 2026, com abas para Moto e Auto. <b>Verde</b> é disponível, <b>amarelo</b> reservado, <b>branco</b> vendido. <b>Borda vermelha tracejada</b> é espaço cujo patrocinador está em risco de renovação.</p><p>Toque num espaço para ver a marca, o vendedor, o valor e trocar o status na hora.</p><p>O botão <b>Ampliar</b>, no canto de cada zona, abre a zona inteira em tela cheia, com o nome de cada marca legível. Lá dentro dá para trocar entre grade e tabela.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-lista", titulo: "A mesma coisa em lista",
@@ -2662,6 +2850,7 @@ var TITULOS = {
   "/app/interacoes": "Histórico de Interações — Painel Comercial Festival Interlagos",
   "/app/marcas": "Marcas desejo — Painel Comercial Festival Interlagos",
   "/app/contratos": "Contratos — Painel Comercial Festival Interlagos",
+  "/app/propriedades": "Propriedades — Painel Comercial Festival Interlagos",
   "/app/equipe": "Equipe — Painel Comercial Festival Interlagos",
 };
 
@@ -2671,6 +2860,13 @@ async function prepararTela(caminho) {
     try { await aplicarRegraContratos(); } catch (e) {}
   }
   if (!S.config) S.config = await getConfig();
+  if (caminho === "/app/propriedades") {
+    if (!S.combinados && !S.combinadosCarregando) carregar("combinados", getCombinados);
+    if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
+    if (!S.prospects && !S.prospectsCarregando) carregar("prospects", getProspects);
+    if (!S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions); // ficha aberta daqui
+    if (!S.contracts && !S.contractsCarregando) carregar("contracts", getContracts);
+  }
   if (caminho === "/app/inicio" || caminho === "/app/patrocinadores" || caminho === "/app/interacoes" || caminho === "/app/marcas") {
     if (!S.combinados && !S.combinadosCarregando) carregar("combinados", getCombinados);
     if (!S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions);
@@ -2726,12 +2922,12 @@ function render() {
   if (ultimaRota !== null && ultimaRota !== caminho) { S.ficha = null; S.fichaProsp = null; S.ampliada = null; }
   if (caminho === "/auth") raiz.innerHTML = telaAuth();
   else {
-    var tela = caminho === "/app/inicio" ? telaInicio() : caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/marcas" ? telaMarcas() : caminho === "/app/contratos" ? telaContratos() : caminho === "/app/equipe" ? telaEquipe() : telaInteracoes();
+    var tela = caminho === "/app/inicio" ? telaInicio() : caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/marcas" ? telaMarcas() : caminho === "/app/contratos" ? telaContratos() : caminho === "/app/propriedades" ? telaPropriedades() : caminho === "/app/equipe" ? telaEquipe() : telaInteracoes();
     raiz.innerHTML = casca(tela, caminho);
     if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
   }
   ultimaRota = caminho;
-  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || S.formContrato.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp || !!S.ampliada);
+  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || S.formContrato.aberto || S.formEntrega.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp || !!S.ampliada);
 
   if (foco) {
     var el = document.getElementById(foco.id);
@@ -2845,6 +3041,18 @@ document.addEventListener("click", async function (ev) {
   }
   if (acao === "recarregar-marcas") { carregar("prospects", getProspects); return; }
   if (acao === "recarregar-contratos") { carregar("contracts", getContracts); return; }
+  if (acao === "recarregar-entregas") { carregar("combinados", getCombinados); return; }
+  if (acao === "nova-entrega") {
+    S.formEntrega = { aberto: true, entrega: null, patroId: alvo.getAttribute("data-patro") || S.ficha || null, marcaId: alvo.getAttribute("data-marca") || S.fichaProsp || null, salvando: false };
+    render(); setTimeout(function () { var el = document.getElementById(S.formEntrega.patroId || S.formEntrega.marcaId ? "ent-desc" : "ent-patro"); if (el) el.focus(); }, 0);
+    return;
+  }
+  if (acao === "editar-entrega") {
+    var en = (S.combinados || []).find(function (x) { return x.id === id; });
+    if (en) { S.formEntrega = { aberto: true, entrega: en, patroId: en.patrocinadorId, marcaId: en.prospeccaoId, salvando: false }; render(); }
+    return;
+  }
+  if (acao === "fechar-form-entrega") { if (!S.formEntrega.salvando) { S.formEntrega.aberto = false; render(); } return; }
   if (acao === "novo-contrato") {
     S.formContrato = { aberto: true, contrato: null, patroId: alvo.getAttribute("data-patro") || S.ficha || null, salvando: false }; render();
     setTimeout(function () { var el = document.getElementById(S.formContrato.patroId ? "contrato-titulo" : "contrato-patro"); if (el) el.focus(); }, 0);
@@ -2934,6 +3142,11 @@ document.addEventListener("input", function (ev) {
     document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
     return;
   }
+  if (el.id === "busca-entrega") {
+    S.fe.q = el.value;
+    document.getElementById("bloco-lista-entregas").innerHTML = blocoListaEntregas();
+    return;
+  }
   if (el.id === "busca-contrato") {
     S.fc.q = el.value;
     document.getElementById("bloco-lista-contratos").innerHTML = blocoListaContratos();
@@ -2955,6 +3168,12 @@ document.addEventListener("change", async function (ev) {
   if (filtros[el.id]) {
     S.fp[filtros[el.id]] = el.value;
     document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
+    return;
+  }
+  var filtrosEntrega = { "filtro-entrega-patro": "patro", "filtro-entrega-status": "status", "filtro-entrega-origem": "origem" };
+  if (filtrosEntrega[el.id]) {
+    S.fe[filtrosEntrega[el.id]] = el.value;
+    document.getElementById("bloco-lista-entregas").innerHTML = blocoListaEntregas();
     return;
   }
   var filtrosContrato = { "filtro-contrato-status": "status", "filtro-contrato-vendedor": "vendedor" };
@@ -3011,7 +3230,7 @@ document.addEventListener("change", async function (ev) {
       await changeCombinadoStatus(cid, el.value);
       S.combinadoMudando = false;
       await carregar("combinados", getCombinados);
-      toast.success("Combinado atualizado.");
+      toast.success(el.value === "entregue" ? "Entrega marcada como feita." : "Entrega atualizada.");
     } catch (e) { S.combinadoMudando = false; render(); toast.error(e.message); }
     return;
   }
@@ -3034,16 +3253,32 @@ document.addEventListener("change", async function (ev) {
 
 document.addEventListener("submit", async function (ev) {
   if (ev.target.id === "form-auth") { ev.preventDefault(); enviarAuth(); return; }
-  if (ev.target.id === "form-combinado") {
+  if (ev.target.id === "form-entrega") {
     ev.preventDefault();
-    var fcb = new FormData(ev.target);
-    S.combinadoSalvando = true; render();
+    var fen = new FormData(ev.target);
+    var atualE = S.formEntrega.entrega;
+    var alvoE = atualE ? (atualE.patrocinadorId || "p:" + atualE.prospeccaoId) : String(fen.get("alvo") || "");
+    if (!alvoE) { toast.error("Escolha a marca."); return; }
+    S.formEntrega.salvando = true;
+    var btnE = ev.target.querySelector('button[type="submit"]');
+    if (btnE) { btnE.disabled = true; btnE.insertAdjacentHTML("afterbegin", icone("loader-circle", "animate-spin")); }
     try {
-      await saveCombinado({ patrocinadorId: S.ficha, prospeccaoId: S.ficha ? null : S.fichaProsp, descricao: fcb.get("descricao"), data: fcb.get("data"), prometidoPorUid: fcb.get("prometido_por_uid") });
-      S.combinadoSalvando = false;
+      await saveCombinado({
+        id: atualE ? atualE.id : undefined,
+        patrocinadorId: alvoE.indexOf("p:") === 0 ? null : alvoE,
+        prospeccaoId: alvoE.indexOf("p:") === 0 ? alvoE.slice(2) : null,
+        descricao: fen.get("descricao"), quantidade: fen.get("quantidade"), categoria: fen.get("categoria"),
+        prazo: fen.get("prazo"), origem: fen.get("origem"), data: fen.get("data"),
+        prometidoPorUid: fen.get("prometido_por_uid"), comprovacao: fen.get("comprovacao"),
+      });
+      S.formEntrega = { aberto: false, entrega: null, patroId: null, marcaId: null, salvando: false };
       await carregar("combinados", getCombinados);
-      toast.success("Combinado registrado.");
-    } catch (e) { S.combinadoSalvando = false; render(); toast.error(e.message); }
+      toast.success(atualE ? "Entrega atualizada." : "Entrega registrada.");
+    } catch (e) {
+      S.formEntrega.salvando = false;
+      if (btnE) { btnE.disabled = false; var spE = btnE.querySelector(".animate-spin"); if (spE) spE.remove(); }
+      toast.error(e.message);
+    }
     return;
   }
   if (ev.target.id === "form-inter") {
@@ -3231,6 +3466,7 @@ document.addEventListener("keydown", function (ev) {
   if (S.formInter.aberto && !S.formInter.salvando) { S.formInter.aberto = false; render(); return; }
   if (S.formProsp.aberto && !S.formProsp.salvando) { S.formProsp.aberto = false; render(); return; }
   if (S.formContrato.aberto && !S.formContrato.salvando) { S.formContrato.aberto = false; render(); return; }
+  if (S.formEntrega.aberto && !S.formEntrega.salvando) { S.formEntrega.aberto = false; render(); return; }
   if (S.ficha) { S.ficha = null; render(); return; }
   if (S.fichaProsp) { S.fichaProsp = null; render(); return; }
   if (S.detalhe) { S.detalhe = null; render(); return; }
@@ -3262,6 +3498,7 @@ window.addEventListener("scroll", fecharMenu, true);
       S.tour = { ativo: false, passo: 0, esperando: false }; S.tourAbriuFicha = false;
       S.ampliada = null; S.ampliadaModo = "grade";
       S.contracts = null; S.formContrato = { aberto: false, contrato: null, patroId: null, salvando: false }; S.fc = { q: "", status: "todos", vendedor: "todos" };
+      S.formEntrega = { aberto: false, entrega: null, patroId: null, marcaId: null, salvando: false }; S.fe = { q: "", status: "todos", origem: "todas", patro: "todos" };
       var tourEl = document.getElementById("tour"); if (tourEl) tourEl.remove();
       S.fpr = { q: "", mercado: "todos", vendedor: "todos", estagio: "andamento" };
       S.formInter = { aberto: false, patroId: null, salvando: false };
