@@ -183,6 +183,9 @@
   .tour-cartao p+p{margin-top:.5rem}
   .tour-passo{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--muted-foreground)}
   @media (max-width:767px){.tour-cartao{left:16px!important;right:16px;width:auto;top:auto!important;transform:none!important;bottom:calc(env(safe-area-inset-bottom) + 5.25rem);max-height:55vh;overflow-y:auto}}
+  .bloco-lido{position:relative}
+  .bloco-lido>.aviso-lido{position:absolute;right:0;top:calc(100% + 8px);z-index:40;width:22rem;max-width:calc(100vw - 2.5rem);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .12s ease,transform .12s ease}
+  .bloco-lido:hover>.aviso-lido,.bloco-lido:focus-within>.aviso-lido{opacity:1;visibility:visible;transform:translateY(0)}
   .alerta-vermelho{border-left:4px solid var(--destructive)}.alerta-amarelo{border-left:4px solid var(--warning)}.alerta-azul{border-left:4px solid rgba(255,255,255,.6)}
   @media (min-width:1024px){.lg\:grid-cols-\[minmax\(220px\,1\.4fr\)_1fr_1fr_1fr_1fr\]{grid-template-columns:minmax(220px,1.4fr) 1fr 1fr 1fr 1fr}}
   /* zona ampliada: a mesma zona do mapa em tela cheia, sem nome cortado */
@@ -273,7 +276,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.10";
+var VERSAO = "2026-09-17.11";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -316,7 +319,7 @@ var ICONES = {
 "x": "<path d=\"M18 6 6 18\"/> <path d=\"m6 6 12 12\"/>"
 };
 function icone(nome, cls) {
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide ' + (cls || "") + '" aria-hidden="true">' + ICONES[nome] + "</svg>";
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide ' + (cls || "") + '" aria-hidden="true">' + (ICONES[nome] || "") + "</svg>";
 }
 
 /* ---------------------------------------------------------------- utilidades */
@@ -2362,10 +2365,40 @@ function cartaoContrato(c, comPatro) {
     '<div class="flex shrink-0 flex-wrap items-center gap-2">' + badge(st, "whitespace-nowrap") +
       selectNativo("contrato-" + c.id, "status", Object.keys(STATUS_CONTRATO).map(function (k) { return { valor: k, rotulo: STATUS_CONTRATO[k].label }; }), c.status, { className: "h-8 w-48", disabled: S.contratoMudando }) +
       (c.arquivoPath ? '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="abrir-contrato" data-id="' + esc(c.id) + '" title="' + esc(c.arquivoNome) + '">' + icone("paperclip") + " PDF</button>" : '<span class="text-xs text-muted-foreground">sem PDF</span>') +
-      (c.arquivoPath ? '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="ler-contrato" data-id="' + esc(c.id) + '"' + (S.lendoContrato ? " disabled" : "") + ' title="A IA lê o PDF e joga as entregas em Propriedades para você conferir">' +
-        (S.lendoContrato === c.id ? icone("loader-circle", "animate-spin") + " Lendo..." : icone("sparkles") + " Ler com IA") + "</button>" : "") +
+      (c.arquivoPath ? botaoLerContrato(c) : "") +
       '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar contrato" title="Editar contrato" data-acao="editar-contrato" data-id="' + esc(c.id) + '">' + icone("pencil") + "</button>" +
     "</div></div></article>";
+}
+
+// Contrato ja lido nao le de novo por acidente: o botao fica la, travado, e o balao
+// explica o que aconteceu e leva para as entregas. Cancelar todas as entregas do
+// contrato destrava o botao, que e o jeito natural de mandar ler de novo do zero.
+function entregasDoContrato(idContrato) {
+  return (S.combinados || []).filter(function (e) { return e.contratoId === idContrato && e.status !== "cancelado"; });
+}
+function botaoLerContrato(c) {
+  var lidas = entregasDoContrato(c.id);
+  var cls = btnCls("outline", "default", "h-8 text-xs font-bold uppercase");
+  if (!lidas.length) {
+    return '<button type="button" class="' + cls + '" data-acao="ler-contrato" data-id="' + esc(c.id) + '"' + (S.lendoContrato ? " disabled" : "") + ' title="A IA lê o PDF e joga as entregas em Propriedades para você conferir">' +
+      (S.lendoContrato === c.id ? icone("loader-circle", "animate-spin") + " Lendo..." : icone("sparkles") + " Ler com IA") + "</button>";
+  }
+  var aConferir = lidas.filter(function (e) { return e.status === "a_conferir"; }).length;
+  var recado = aConferir
+    ? "<b>" + aConferir + "</b> del" + (aConferir > 1 ? "as ainda esperam" : "a ainda espera") + " sua conferência."
+    : "Todas já foram conferidas.";
+  return '<span class="bloco-lido inline-flex">' +
+    '<button type="button" class="' + cn(cls, "cursor-default text-muted-foreground opacity-70") + '" data-acao="ja-lido" aria-haspopup="true">' +
+      icone("package-check") + " Lido pela IA</button>" +
+    '<span class="aviso-lido border border-border bg-popover p-3 text-left shadow-md">' +
+      '<span class="block text-xs font-bold uppercase text-primary">Contrato já lido</span>' +
+      '<span class="mt-1 block text-sm text-foreground">A IA já tirou <b>' + lidas.length + "</b> entrega" + (lidas.length > 1 ? "s" : "") + " deste contrato. " + recado + "</span>" +
+      '<span class="mt-3 flex flex-wrap gap-2">' +
+        '<button type="button" class="' + btnCls("default", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="ver-entregas-contrato" data-id="' + esc(c.id) + '">' + icone("list-checks") + " Ver as entregas</button>" +
+        '<button type="button" class="' + btnCls("ghost", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="ler-contrato" data-id="' + esc(c.id) + '"' + (S.lendoContrato ? " disabled" : "") + ">" + icone("history") + " Ler de novo</button>" +
+      "</span>" +
+      '<span class="mt-2 block text-xs text-muted-foreground">Ler de novo só faz sentido se o PDF foi trocado. O que já existe não entra repetido.</span>' +
+    "</span></span>";
 }
 
 function contratosFiltrados() {
@@ -2875,7 +2908,7 @@ function passosTour() {
     { rota: "/app/inicio", alvo: "#secao-combinados", titulo: "Entregas pendentes",
       texto: "<p>Tudo o que foi combinado com um cliente e ainda não foi entregue, com quem prometeu e o prazo. O que passou do prazo vem primeiro, em vermelho.</p>" },
     { rota: "/app/contratos", alvo: "#bloco-lista-contratos", titulo: "Ler o contrato com IA",
-      texto: "<p>No contrato que tem PDF, o botão <b>Ler com IA</b> abre o arquivo, tira cada entrega e joga em Propriedades.</p><p>Os itens entram como <b>a conferir</b> e não contam até alguém confirmar. Cada um mostra o trecho do contrato de onde saiu, então conferir é passar o olho e clicar.</p>" },
+      texto: "<p>No contrato que tem PDF, o botão <b>Ler com IA</b> abre o arquivo, tira cada entrega e joga em Propriedades.</p><p>Os itens entram como <b>a conferir</b> e não contam até alguém confirmar. Cada um mostra o trecho do contrato de onde saiu, então conferir é passar o olho e clicar.</p><p>Depois de lido, o botão trava e vira <b>Lido pela IA</b>, para ninguém ler duas vezes sem querer. Passe o mouse nele para ver quantas entregas saíram dali e ir direto para elas.</p>" },
     { rota: "/app/propriedades", alvo: "#bloco-numeros-entregas", titulo: "Propriedades: o que cada marca tem a receber",
       texto: "<p>A lista completa por marca, com a barra de quanto já foi entregue. Cada item diz de onde veio: do <b>contrato</b>, de um <b>acordo depois do contrato</b> (aquela demanda que surge no meio do caminho) ou de uma <b>cortesia</b>.</p><p>Marque como entregue no próprio item. Os números no topo mostram o que falta, o que atrasou e quanto está sendo dado fora do contrato.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-mapa", titulo: "Mapa de espaços por edição",
@@ -3226,11 +3259,19 @@ document.addEventListener("click", async function (ev) {
   if (acao === "recarregar-marcas") { carregar("prospects", getProspects); return; }
   if (acao === "recarregar-contratos") { carregar("contracts", getContracts); return; }
   if (acao === "recarregar-entregas") { carregar("combinados", getCombinados); return; }
+  if (acao === "ver-entregas-contrato") {
+    var cv = (S.contracts || []).find(function (x) { return x.id === id; });
+    if (!cv) return;
+    S.fe = { q: "", status: "todos", origem: "todas", patro: cv.patrocinadorId || "todos" };
+    irPara("/app/propriedades");
+    return;
+  }
   if (acao === "ler-contrato") {
     var cl = (S.contracts || []).find(function (x) { return x.id === id; });
     if (!cl) return;
-    var jaLidas = (S.combinados || []).filter(function (e) { return e.contratoId === cl.id; }).length;
-    if (jaLidas && !window.confirm("Este contrato já tem " + jaLidas + " entrega(s) lida(s) antes. Ler de novo vai criar itens repetidos. Quer continuar?")) return;
+    // Nao fala mais em duplicar: quem ja existe e barrado na hora de gravar.
+    var jaLidas = entregasDoContrato(cl.id).length;
+    if (jaLidas && !window.confirm("Este contrato já foi lido, e " + jaLidas + " entrega" + (jaLidas > 1 ? "s vieram" : " veio") + " dele. Ler de novo só acrescenta o que ainda não existe. Quer continuar?")) return;
     S.lendoContrato = cl.id; render();
     try {
       var r = await lerContratoComIa(cl);
