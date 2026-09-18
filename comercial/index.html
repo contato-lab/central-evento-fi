@@ -276,7 +276,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.14";
+var VERSAO = "2026-09-17.15";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -336,6 +336,8 @@ function cn() {
   var s = Array.prototype.filter.call(arguments, Boolean).join(" ");
   return twMerge ? twMerge(s) : s;
 }
+var EDICOES_IDS = EDICOES.map(function (e) { return e.id; });
+function rotuloEdicao(id) { var e = EDICOES.find(function (x) { return x.id === id; }); return e ? e.curto : ""; }
 function agoraIso() { return new Date().toISOString(); }
 // Nenhuma espera fica pendurada para sempre: sem isso um botao fica girando sem fim.
 function comPrazo(promessa, ms, recado) {
@@ -622,6 +624,11 @@ async function getSpaces() {
       mapa: space.mapa || null, edicao: space.edicao || null, zona: space.zona || null, codigo: space.codigo || null, tipo: space.tipo || null,
       metragem: space.metragem == null ? null : Number(space.metragem),
       ocupante2026: space.ocupante_2026 || "",
+      // reserva feita pelo contrato assinado: o vinculo do patrocinador so cabe um espaco,
+      // e uma marca pode ter varios, entao a reserva mora no proprio espaco
+      reservadoParaId: space.reservado_para_id || null,
+      reservadoParaNome: space.reservado_para_nome || "",
+      reservadoPorContrato: space.reservado_por_contrato || null,
       vendedorUid: space.vendedor_uid || null,
       vendedorNome: space.vendedor_nome || "",
     };
@@ -887,6 +894,7 @@ async function getContracts() {
       id: c.id, patrocinadorId: c.patrocinador_id, patrocinador: nomes[c.patrocinador_id] || "Patrocinador",
       titulo: c.titulo || "Contrato", status: STATUS_CONTRATO[c.status] ? c.status : "rascunho",
       inicio: c.inicio || "", fim: c.fim || "", valor: c.valor == null ? null : Number(c.valor),
+      edicao: EDICOES_IDS.indexOf(c.edicao) >= 0 ? c.edicao : "",
       arquivoPath: c.arquivo_path || "", arquivoNome: c.arquivo_nome || "",
       signatarios: Array.isArray(c.signatarios) ? c.signatarios.map(function (x) { return { nome: x.nome || "", email: x.email || "" }; }) : [],
       observacao: c.observacao || "", assinadoEm: c.assinado_em || null,
@@ -921,6 +929,7 @@ async function saveContract(data, arquivo, arquivoPronto) {
   if (arquivo && arquivo.type && arquivo.type !== "application/pdf") throw new Error("Só aceitamos PDF.");
   var payload = {
     patrocinador_id: data.patrocinadorId, titulo: titulo, status: data.status, inicio: inicio, fim: fim, valor: valor,
+    edicao: EDICOES_IDS.indexOf(data.edicao) >= 0 ? data.edicao : "",
     signatarios: lerSignatarios(data.signatarios), observacao: String(data.observacao || "").trim().slice(0, 1000),
   };
   if (arquivoPronto && arquivoPronto.path) { payload.arquivo_path = arquivoPronto.path; payload.arquivo_nome = arquivoPronto.nome; }
@@ -952,6 +961,10 @@ async function changeContractStatus(id, status) {
   var dados = { status: status };
   if (status === "assinado") dados.assinado_em = hojeMais(0);
   try { await API.atualizar("contratos", id, dados); } catch (e) { throw new Error("Não foi possível mudar o status do contrato."); }
+  if (status === "assinado") {
+    var ct = (S.contracts || []).find(function (x) { return x.id === id; });
+    if (ct) await avisarReservaDeEspacos({ id: ct.id, status: "assinado", patrocinadorId: ct.patrocinadorId, edicao: ct.edicao });
+  }
 }
 
 // A IA nao sabe o que a marca ja tem cadastrado, e escreve a mesma entrega com outras
@@ -1111,6 +1124,68 @@ async function gravarEntregasLidas(c, dados, pularCabecalho) {
 
   if (Object.keys(mudanca).length) { try { await API.atualizar("contratos", c.id, mudanca); } catch (e) { completou = []; divergiu = []; } }
   return { criados: criados, completou: completou, repetidos: repetidos, pulados: pulados, divergiu: divergiu };
+}
+
+// Contrato assinado reserva o lugar fisico da marca no mapa. Acha o espaco por duas
+// vias: o vinculo que o vendedor ja fez, e a planta de 2026, onde cada espaco guarda a
+// marca que estava nele. Nunca encosta em espaco que ja e de outra marca.
+function mesmaMarca(a, b) {
+  var limpa = function (t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); };
+  var x = limpa(a), y = limpa(b);
+  return !!x && x === y;
+}
+async function reservarEspacosDoContrato(contrato) {
+  var vazio = { reservados: [], conflitos: [], marca: "" };
+  if (!contrato || contrato.status !== "assinado" || !contrato.patrocinadorId) return vazio;
+  // quem chega pela tela de Contratos ainda nao carregou espacos nem marcas
+  var faltando = [];
+  if (!S.sponsors) faltando.push(carregar("sponsors", getSponsors));
+  if (!S.spaces) faltando.push(carregar("spaces", getSpaces));
+  if (faltando.length) { try { await Promise.all(faltando); } catch (e) { return vazio; } }
+  var marca = (S.sponsors || []).find(function (p) { return p.id === contrato.patrocinadorId; });
+  if (!marca) return vazio;
+  var espacos = S.spaces || [];
+  if (!espacos.length) return vazio;
+
+  var candidatos = [];
+  var junta = function (e) { if (e && candidatos.indexOf(e) < 0) candidatos.push(e); };
+  // 1) o espaco que ja esta amarrado na ficha da marca
+  if (marca.espacoVinculadoId) junta(espacos.find(function (e) { return e.id === marca.espacoVinculadoId; }));
+  // 2) os espacos em que essa marca estava em 2026, na edicao do contrato
+  if (contrato.edicao) {
+    espacos.forEach(function (e) { if (e.edicao === contrato.edicao && mesmaMarca(e.ocupante2026, marca.nome)) junta(e); });
+  }
+  if (!candidatos.length) return { reservados: [], conflitos: [], marca: marca.nome };
+
+  var reservados = [], conflitos = [], mudancas = [];
+  candidatos.forEach(function (e) {
+    var deOutro = (e.patrocinador && e.patrocinador.nome && !mesmaMarca(e.patrocinador.nome, marca.nome)) ||
+      (e.reservadoParaId && e.reservadoParaId !== marca.id);
+    if (deOutro) { conflitos.push(e.nome + " (já é de " + ((e.patrocinador && e.patrocinador.nome) || e.reservadoParaNome) + ")"); return; }
+    if (e.status === "vendido") return; // ja esta fechado com a propria marca, nao rebaixa
+    if (e.status === "reservado" && e.reservadoParaId === marca.id) return; // ja estava reservado para ela
+    mudancas.push({ col: "espacos", id: e.id, dados: { status: "reservado", reservado_para_id: marca.id, reservado_para_nome: marca.nome, reservado_por_contrato: contrato.id } });
+    reservados.push(e.nome);
+  });
+  if (mudancas.length) {
+    try { await API.atualizarVarios(mudancas); } catch (e) { return { reservados: [], conflitos: conflitos, marca: marca.nome, falhou: true }; }
+    // a ficha da marca aponta para um espaco so: preenche se ainda estiver vazia
+    if (!marca.espacoVinculadoId) { try { await API.atualizar("patrocinadores", marca.id, { espaco_vinculado_id: mudancas[0].id }); } catch (e) {} }
+  }
+  return { reservados: reservados, conflitos: conflitos, marca: marca.nome };
+}
+
+// Mostra na tela o que a reserva automatica fez, sempre com o nome dos espacos.
+async function avisarReservaDeEspacos(contrato) {
+  var r;
+  try { r = await reservarEspacosDoContrato(contrato); } catch (e) { return; }
+  if (r.falhou) { toast.error("Não consegui reservar os espaços da " + r.marca + ". Faça na mão na tela de Espaços."); return; }
+  if (r.reservados.length) {
+    await Promise.all([carregar("spaces", getSpaces), carregar("sponsors", getSponsors)]);
+    var lista = r.reservados.slice(0, 4).join(", ") + (r.reservados.length > 4 ? " e mais " + (r.reservados.length - 4) : "");
+    toast.success("Reservei " + r.reservados.length + " espaço" + (r.reservados.length > 1 ? "s" : "") + " para " + r.marca + ": " + lista + ".");
+  }
+  if (r.conflitos.length) toast.error("Não mexi em " + r.conflitos.length + " espaço" + (r.conflitos.length > 1 ? "s" : "") + " da " + r.marca + ": " + r.conflitos.slice(0, 3).join(" · ") + ". Resolva na tela de Espaços.");
 }
 
 // O botao do cartao: le e grava de uma vez.
@@ -1580,7 +1655,7 @@ function blocoListaEspacos() {
       '<td class="' + cn(TD, "px-5 py-4 font-bold") + '">' + esc(space.nome) + (space.patrocinadorEmRisco ? riskNote(space.patrocinadorEmRisco) : "") + "</td>" +
       '<td class="' + cn(TD, "whitespace-nowrap") + '">' + esc(rotuloLocal(space)) + "</td>" +
       '<td class="' + TD + '">' + esc(space.categoria) + "</td>" +
-      '<td class="' + TD + '">' + (space.patrocinador ? esc(space.patrocinador.nome) : (space.ocupante2026 ? '<span class="text-muted-foreground">2026: ' + esc(space.ocupante2026) + "</span>" : '<span class="text-muted-foreground">Vazio</span>')) +
+      '<td class="' + TD + '">' + nomeNoEspaco(space) +
         (space.vendedorNome ? '<div class="text-xs text-muted-foreground">Vendedor: ' + esc(space.vendedorNome) + "</div>" : "") + "</td>" +
       '<td class="' + cn(TD, "font-semibold whitespace-nowrap") + '">' + (space.valor ? esc(formatCurrency(space.valor)) : '<span class="text-muted-foreground">A definir</span>') + "</td>" +
       '<td class="' + TD + '">' + statusSelect(space, S.statusMudando) + "</td>" +
@@ -1590,7 +1665,7 @@ function blocoListaEspacos() {
     return '<article class="' + cn("border border-border bg-card p-4", space.patrocinadorEmRisco && "border-primary bg-primary/8") + '">' +
       '<div class="flex items-start justify-between gap-3"><div class="min-w-0"><h2 class="break-words font-bold">' + esc(space.nome) + "</h2>" +
       '<p class="mt-1 text-sm text-muted-foreground">' + esc(rotuloLocal(space)) + " · " + esc(space.categoria) + "</p>" +
-      (space.patrocinador ? '<p class="mt-1 text-sm font-semibold">' + esc(space.patrocinador.nome) + "</p>" : (space.ocupante2026 ? '<p class="mt-1 text-sm text-muted-foreground">2026: ' + esc(space.ocupante2026) + "</p>" : "")) + "</div>" +
+      '<p class="mt-1 text-sm' + (space.patrocinador || space.reservadoParaNome ? ' font-semibold' : ' text-muted-foreground') + '">' + nomeNoEspaco(space) + "</p></div>" +
       '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar ' + esc(space.nome) + '" data-acao="editar" data-id="' + esc(space.id) + '">' + icone("pencil") + "</button></div>" +
       (space.patrocinadorEmRisco ? riskNote(space.patrocinadorEmRisco) : "") +
       '<div class="mt-5 flex items-end justify-between gap-4 border-t border-border pt-4"><div><span class="block text-xs font-bold uppercase text-muted-foreground">Valor</span>' +
@@ -1784,6 +1859,15 @@ function espacosPorChave() {
   return m;
 }
 function zonaInfo(id) { return ZONAS.find(function (z) { return z.id === id; }) || { id: id, titulo: id }; }
+// Quem esta no espaco, na ordem que importa: marca fechada, reserva feita pelo contrato
+// assinado, e por ultimo quem estava ali em 2026.
+function nomeNoEspaco(space) {
+  if (space.patrocinador) return esc(space.patrocinador.nome);
+  if (space.reservadoParaNome) return esc(space.reservadoParaNome) + ' <span class="text-xs font-normal text-muted-foreground">· reservado pelo contrato</span>';
+  if (space.ocupante2026) return '<span class="text-muted-foreground">2026: ' + esc(space.ocupante2026) + "</span>";
+  return '<span class="text-muted-foreground">Vazio</span>';
+}
+
 function rotuloLocal(sp) {
   if (!sp.mapa) return "Sem posição no mapa";
   var ed = EDICOES.find(function (e) { return e.id === sp.edicao; });
@@ -2523,7 +2607,7 @@ function dialogoContrato() {
     fim: d && /^\d{4}-\d{2}-\d{2}$/.test(d.vigencia_fim || "") ? d.vigencia_fim : "",
     valor: d && d.valor != null && isFinite(Number(d.valor)) && Number(d.valor) > 0 ? Number(d.valor) : null,
     signatarios: d && Array.isArray(d.assinantes) ? d.assinantes.slice(0, 10).map(function (x) { return { nome: String(x.nome || "").slice(0, 120), email: String(x.email || "").slice(0, 160) }; }).filter(function (x) { return x.nome; }) : [],
-    status: "rascunho", observacao: "", arquivoNome: "",
+    status: "rascunho", observacao: "", arquivoNome: "", edicao: "",
   };
   var caixa = function (miolo) {
     return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-contrato"></div>' +
@@ -2575,6 +2659,9 @@ function dialogoContrato() {
       "</div>" +
       '<div class="grid gap-5 sm:grid-cols-2">' +
         '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-status">Status</label>' + selectNativo("contrato-status", "status", status, v.status || "rascunho") + "</div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-edicao">Edição do festival</label>' +
+          selectNativo("contrato-edicao", "edicao", EDICOES.map(function (e) { return { valor: e.id, rotulo: e.rotulo }; }), v.edicao || edicaoAtual()) +
+          '<p class="text-xs text-muted-foreground">Contrato assinado reserva no mapa desta edição o lugar que a marca ocupava.</p></div>' +
         (lido
           ? '<div class="space-y-2"><label class="' + LABEL + '">PDF do contrato</label><p class="flex items-center gap-1.5 text-sm text-foreground">' + icone("paperclip", "size-4 shrink-0 text-primary") + esc(lido.arquivoNome) + "</p>" +
             '<p class="text-xs text-muted-foreground">Já guardado. Para trocar, cancele e comece de novo.</p></div>'
@@ -3736,7 +3823,7 @@ document.addEventListener("submit", async function (ev) {
     var dadosC = {
       id: atualC ? atualC.id : undefined,
       patrocinadorId: atualC ? atualC.patrocinadorId : String(fct.get("patrocinador_id") || ""),
-      titulo: fct.get("titulo"), status: String(fct.get("status") || "rascunho"),
+      titulo: fct.get("titulo"), status: String(fct.get("status") || "rascunho"), edicao: String(fct.get("edicao") || ""),
       inicio: fct.get("inicio"), fim: fct.get("fim"), valor: fct.get("valor"),
       signatarios: fct.get("signatarios"), observacao: fct.get("observacao"),
       assinadoEm: atualC ? atualC.assinadoEm : null,
@@ -3760,6 +3847,7 @@ document.addEventListener("submit", async function (ev) {
       if (resC.vencimentoAtualizado) esperasC.push(carregar("sponsors", getSponsors));
       await Promise.all(esperasC);
       toast.success(atualC ? "Contrato atualizado." : "Contrato guardado.");
+      if (dadosC.status === "assinado") await avisarReservaDeEspacos({ id: resC.id, status: "assinado", patrocinadorId: dadosC.patrocinadorId, edicao: dadosC.edicao });
       if (entregasGravadas) toast.success(entregasGravadas + " entrega" + (entregasGravadas > 1 ? "s foram" : " foi") + " para Propriedades. Confira lá antes de valer.");
       if (resC.vencimentoAtualizado) toast.success("Vencimento do patrocinador passou para " + formatDateOnly(resC.vencimentoAtualizado) + ".");
     } catch (e) {
