@@ -1,11 +1,11 @@
 {
-  "name": "painel-comercial-fi-funcoes",
-  "description": "Reserva automatica de espaco quando o contrato vira assinado",
+  "name": "reservar-espaco-ao-assinar",
+  "description": "Reserva o espaco da marca no mapa quando o contrato vira assinado",
   "main": "index.js",
   "private": true,
-  "engines": { "node": "20" },
+  "engines": { "node": ">=20" },
   "dependencies": {
-    "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.1.0"
+    "@google-cloud/functions-framework": "^3.4.0",
+    "firebase-admin": "^12.6.0"
   }
 }
