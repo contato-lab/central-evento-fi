@@ -276,7 +276,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-18.1";
+var VERSAO = "2026-09-18.2";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -466,6 +466,16 @@ async function criarApiFirebase() {
       lista.forEach(function (it) { lote.update(fsMod.doc(db, it.col, it.id), Object.assign({}, it.dados, { updated_at: agora })); });
       await lote.commit();
     },
+    // Avisa quando o servidor ou outra pessoa mexe na colecao. O que este navegador mesmo
+    // gravou nao conta: quem gravou ja recarrega a tela por conta propria.
+    escutar: function (col, aoMudar) {
+      var primeira = true;
+      return fsMod.onSnapshot(fsMod.collection(db, col), function (snap) {
+        if (primeira) { primeira = false; return; }
+        var deFora = snap.docChanges().some(function (m) { return !m.doc.metadata.hasPendingWrites; });
+        if (deFora) aoMudar();
+      }, function () {});
+    },
     // Arquivos (PDF dos contratos) ficam no Storage; a leitura passa pelas regras, sem link publico.
     subirArquivo: async function (caminho, arquivo) {
       await stMod.uploadBytes(stMod.ref(storage, caminho), arquivo, { contentType: arquivo.type || "application/pdf" });
@@ -565,6 +575,15 @@ async function criarApiTeste() {
   var arquivosTeste = {};
   dados.combinados.push({ id: "cm1", prospeccao_id: "m4", patrocinador_id: null, descricao: "Desconto de 10% se assinar até 30/09", status: "prometido", prometido_por_uid: "teste", prometido_por_nome: "Eric Pereira Felix", data: hojeMais(-4), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() });
   var ouvinte = null;
+  var ouvintesTeste = [];
+  // so no teste: imita uma mudanca feita pelo servidor ou por outra pessoa, para ver a tela
+  // se atualizar sozinha. Ex.: mudancaDeFora("contratos", "ct2", { status: "assinado" })
+  window.mudancaDeFora = function (col, id, campos) {
+    var it = (dados[col] || []).find(function (x) { return x.id === id; });
+    if (it) Object.assign(it, campos, { updated_at: agoraIso() });
+    ouvintesTeste.forEach(function (o) { if (o.col === col) o.fn(); });
+    return !!it;
+  };
   var user = { uid: "teste", email: "eric@teste.local", displayName: "Eric Pereira Felix", emailVerified: true };
   var logado = !/[?&]deslogado=1/.test(location.search);
   function espera(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
@@ -581,6 +600,11 @@ async function criarApiTeste() {
     criar: async function (col, d, idFixo) { await espera(300); var doc = Object.assign({}, d, { id: idFixo || novoId(), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }); dados[col].push(doc); return doc; },
     atualizar: async function (col, id, d) { await espera(300); var it = dados[col].find(function (x) { return x.id === id; }); Object.assign(it, d, { updated_at: agoraIso() }); },
     atualizarVarios: async function (lista) { lista.forEach(function (it) { var x = dados[it.col].find(function (y) { return y.id === it.id; }); Object.assign(x, it.dados); }); },
+    escutar: function (col, aoMudar) {
+      var o = { col: col, fn: aoMudar };
+      ouvintesTeste.push(o);
+      return function () { ouvintesTeste = ouvintesTeste.filter(function (x) { return x !== o; }); };
+    },
     subirArquivo: async function (caminho, arquivo) { await espera(600); arquivosTeste[caminho] = arquivo; return caminho; },
     // imita a funcao da DocuSign: enviar deixa esperando, conferir ja devolve assinado
     assinatura: async function (acao, contratoId) {
@@ -997,6 +1021,7 @@ async function saveContract(data, arquivo, arquivoPronto) {
   }
   if (data.status === "assinado" && !data.assinadoEm) payload.assinado_em = hojeMais(0);
   var id = data.id || null;
+  marcarMexidaPropria(id);
   try {
     if (id) await API.atualizar("contratos", id, payload);
     else id = (await API.criar("contratos", Object.assign({ arquivo_path: "", arquivo_nome: "", assinado_em: null }, payload))).id;
@@ -1016,6 +1041,7 @@ async function changeContractStatus(id, status) {
   if (!STATUS_CONTRATO[status]) return;
   var dados = { status: status };
   if (status === "assinado") dados.assinado_em = hojeMais(0);
+  marcarMexidaPropria(id);
   try { await API.atualizar("contratos", id, dados); } catch (e) { throw new Error("Não foi possível mudar o status do contrato."); }
   if (status === "assinado") {
     var ct = (S.contracts || []).find(function (x) { return x.id === id; });
@@ -1448,6 +1474,7 @@ var S = {
   contracts: null, contractsErro: null, contractsCarregando: false,
   reservasConferidas: false,
   assinaturaMexendo: null,
+  mexidaPropria: {}, // contrato -> hora em que esta pessoa mexeu nele; a tela ao vivo nao repete o aviso
   formContrato: { aberto: false, contrato: null, patroId: null, salvando: false, modo: "ia", lendo: false, lido: null },
   fc: { q: "", status: "todos", vendedor: "todos" },
   contratoMudando: false,
@@ -3439,6 +3466,103 @@ async function carregar(chave, fn) {
 }
 function recarregarEspacos() { return Promise.all([carregar("spaces", getSpaces), carregar("overview", getSpacesOverview)]); }
 
+/* ------------------------------------------------------ atualizacao ao vivo */
+// Nas telas de Contratos e Espacos o painel escuta o banco. Quando a DocuSign devolve um
+// contrato assinado, a funcao reserva um espaco ou outra pessoa muda alguma coisa, a tela
+// se refaz sozinha, sem F5. Nunca redesenha com formulario aberto ou com alguem digitando,
+// para nao apagar o que a pessoa escreveu: espera ela terminar.
+var AO_VIVO = {
+  "/app/contratos": { colecoes: ["contratos", "espacos", "patrocinadores"], dados: ["contracts", "spaces", "sponsors"] },
+  "/app/espacos": { colecoes: ["espacos", "patrocinadores"], dados: ["spaces", "overview"] },
+};
+var CARREGADORES = { contracts: getContracts, spaces: getSpaces, sponsors: getSponsors, overview: getSpacesOverview };
+var aoVivo = { rota: null, desligar: [], timer: null, esperando: null, rodando: false, denovo: false };
+
+function ligarAoVivo(caminho) {
+  var rota = AO_VIVO[caminho] && S.user && API && API.escutar ? caminho : null;
+  if (aoVivo.rota === rota) return;
+  aoVivo.desligar.forEach(function (f) { try { f(); } catch (e) {} });
+  aoVivo.desligar = [];
+  aoVivo.rota = rota;
+  clearTimeout(aoVivo.timer); clearTimeout(aoVivo.esperando);
+  if (!rota) return;
+  AO_VIVO[rota].colecoes.forEach(function (col) {
+    try { aoVivo.desligar.push(API.escutar(col, agendarAoVivo)); } catch (e) {}
+  });
+  // voltou para a tela com dados guardados de antes: confere uma vez se algo mudou nesse meio tempo
+  if (AO_VIVO[rota].dados.some(function (k) { return S[k]; })) agendarAoVivo();
+}
+
+// varias gravacoes em sequencia (uma reserva mexe em varios espacos) viram uma atualizacao so
+function agendarAoVivo() {
+  clearTimeout(aoVivo.timer);
+  aoVivo.timer = setTimeout(atualizarAoVivo, 800);
+}
+
+async function atualizarAoVivo() {
+  var cfg = AO_VIVO[aoVivo.rota];
+  if (!cfg) return;
+  if (aoVivo.rodando) { aoVivo.denovo = true; return; }
+  aoVivo.rodando = true;
+  try {
+    // so o que ja esta na tela; o que ainda esta carregando pela primeira vez fica com o carregar()
+    var chaves = cfg.dados.filter(function (k) { return S[k] && !S[k + "Carregando"]; });
+    var novos = await Promise.all(chaves.map(function (k) { return CARREGADORES[k]().catch(function () { return null; }); }));
+    if (AO_VIVO[aoVivo.rota] !== cfg) return; // saiu da tela no meio
+    var antes = S.contracts;
+    chaves.forEach(function (k, i) { if (novos[i]) S[k] = novos[i]; });
+    if (S.contracts !== antes) avisarContratoQueMudou(antes, S.contracts);
+    redesenharQuandoLivre();
+  } finally {
+    aoVivo.rodando = false;
+    if (aoVivo.denovo) { aoVivo.denovo = false; agendarAoVivo(); }
+  }
+}
+
+// O que a propria pessoa fez nesta tela ja ganha aviso no clique; aqui so o que veio de fora.
+function marcarMexidaPropria(id) { if (id) S.mexidaPropria[id] = Date.now(); }
+function avisarContratoQueMudou(antes, depois) {
+  if (!antes || !depois) return;
+  var velho = {};
+  antes.forEach(function (c) { velho[c.id] = c; });
+  depois.forEach(function (c) {
+    var v = velho[c.id];
+    if (!v || Date.now() - (S.mexidaPropria[c.id] || 0) < 30000) return;
+    var qual = c.titulo + " (" + c.patrocinador + ")";
+    if (c.status === "assinado" && v.status !== "assinado") toast.success("Contrato assinado agora: " + qual + ".");
+    else if (c.assinatura && c.assinatura.status === "recusado" && !(v.assinatura && v.assinatura.status === "recusado")) toast.error("Recusaram assinar: " + qual + ".");
+  });
+}
+
+function ocupadoParaRedesenhar() {
+  if (S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || S.formContrato.aberto || S.formEntrega.aberto) return true;
+  if (S.ficha || S.fichaProsp || menuAberto) return true;
+  var a = document.activeElement;
+  return !!(a && a.matches && a.matches('input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]), textarea, select, [contenteditable="true"]'));
+}
+
+function redesenharQuandoLivre() {
+  clearTimeout(aoVivo.esperando);
+  if (!aoVivo.rota) return;
+  if (ocupadoParaRedesenhar()) { aoVivo.esperando = setTimeout(redesenharQuandoLivre, 1500); return; }
+  // janela com rolagem propria (detalhe do espaco, zona ampliada) volta para onde estava
+  var rolagens = [];
+  document.querySelectorAll('#app [role="dialog"]').forEach(function (d, i) {
+    var chave = d.getAttribute("aria-labelledby") || "janela-" + i;
+    [d].concat(Array.prototype.slice.call(d.querySelectorAll(".overflow-y-auto, .overflow-auto"))).forEach(function (el, j) {
+      if (el.scrollTop) rolagens.push({ chave: chave, i: i, j: j, topo: el.scrollTop });
+    });
+  });
+  render();
+  rolagens.forEach(function (r) {
+    var janelas = document.querySelectorAll('#app [role="dialog"]');
+    var d = document.querySelector('#app [role="dialog"][aria-labelledby="' + r.chave + '"]') || janelas[r.i];
+    if (!d) return;
+    var el = [d].concat(Array.prototype.slice.call(d.querySelectorAll(".overflow-y-auto, .overflow-auto")))[r.j];
+    if (el) el.scrollTop = r.topo;
+  });
+}
+
 var TITULOS = {
   "/auth": "Entrar — Painel Comercial Festival Interlagos",
   "/app/inicio": "Início — Painel Comercial Festival Interlagos",
@@ -3524,6 +3648,7 @@ function render() {
     raiz.innerHTML = casca(tela, caminho);
     if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
   }
+  if (ultimaRota !== caminho) ligarAoVivo(caminho);
   ultimaRota = caminho;
   document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || S.formContrato.aberto || S.formEntrega.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp || !!S.ampliada);
 
@@ -3648,7 +3773,7 @@ document.addEventListener("click", async function (ev) {
     if (!quemAssina.length) { toast.error("Coloque em Quem assina pelo menos uma pessoa com e-mail. É pelo lápis do contrato."); return; }
     if (semEmail.length) { toast.error("Falta um e-mail válido para: " + semEmail.map(function (x) { return x.nome; }).join(", ") + ". Arrume pelo lápis do contrato, no campo Quem assina."); return; }
     if (!window.confirm("A DocuSign vai mandar este contrato por e-mail para:\n\n" + quemAssina.map(function (x) { return x.nome + " <" + x.email + ">"; }).join("\n") + "\n\nContinuar?")) return;
-    S.assinaturaMexendo = id; render();
+    S.assinaturaMexendo = id; marcarMexidaPropria(id); render();
     try {
       var ra = await API.assinatura("enviar", id);
       S.assinaturaMexendo = null;
@@ -3658,7 +3783,7 @@ document.addEventListener("click", async function (ev) {
     return;
   }
   if (acao === "conferir-assinatura") {
-    S.assinaturaMexendo = id; render();
+    S.assinaturaMexendo = id; marcarMexidaPropria(id); render();
     try {
       var rc = await API.assinatura("conferir", id);
       S.assinaturaMexendo = null;
