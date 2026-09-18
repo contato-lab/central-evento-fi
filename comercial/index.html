@@ -167,7 +167,7 @@
   .barra-entrega i{display:block;height:6px;background:var(--primary)}
   @media (min-width:1024px){.lg\:flex-row{flex-direction:row}.lg\:items-start{align-items:flex-start}}
   .border-l-2{border-left-width:2px}.italic{font-style:italic}.h-6{height:1.5rem}.w-48{width:12rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.w-40{width:10rem}
-  @media (min-width:1024px){.lg\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.lg\:grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}}
+  @media (min-width:1024px){.lg\:grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.lg\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.lg\:grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}}
   @media (min-width:640px){.sm\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.sm\:items-start{align-items:flex-start}.sm\:p-5{padding:1.25rem}}
   @media (min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media (min-width:1024px){.lg\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.lg\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -214,6 +214,11 @@
   .amp-cel.st-nenhum{background:#0c0c0c;border-color:rgba(255,255,255,.28);border-style:dashed;color:rgba(255,255,255,.8)}
   .amp-cel.st-nenhum .cod{color:rgba(255,255,255,.65)}
   .amp-cel.risco{outline:2px dashed var(--destructive);outline-offset:2px}
+  .amp-cel.r27-guardado{background:rgba(255,255,255,.04);border-style:dashed}
+  .amp-cel.r27-renovou{background:rgba(255,194,75,.15);border-color:var(--warning)}
+  .amp-cel.r27-renovou .cod{color:var(--warning)}
+  .amp-cel.r27-vencido{outline:2px dashed var(--destructive);outline-offset:2px}
+  .amp-fila{display:inline-block;margin-left:6px;padding:0 7px;border-radius:9px;background:var(--warning);color:#000;font-family:"Barlow",sans-serif;font-size:11px;font-weight:800;line-height:18px;vertical-align:middle;letter-spacing:0}
   .amp-cel .meta.sub{margin-top:0;opacity:.85}
   .amp-tab{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
   .amp-tab th{position:sticky;top:0;background:#fff;color:#000;text-align:left;padding:9px 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
@@ -244,6 +249,14 @@
   .mapa-svg .st-nenhum rect{fill:var(--card);stroke:var(--border);stroke-dasharray:3 2}
   .mapa-svg .st-nenhum text{fill:var(--muted-foreground)}
   .mapa-svg .risco rect{stroke:var(--destructive);stroke-width:2.5;stroke-dasharray:4 2}
+  /* renovacao 2027: guardado para a marca de 2026 (tracejado), renovado (ambar), prazo vencido (borda vermelha) */
+  .mapa-svg .cel.r27-guardado rect{fill:rgba(255,255,255,.05);stroke:var(--success);stroke-dasharray:6 3}
+  .mapa-svg .cel.r27-guardado text{fill:#e9ffd2}
+  .mapa-svg .cel.r27-renovou rect{fill:rgba(255,194,75,.17);stroke:var(--warning);stroke-dasharray:none}
+  .mapa-svg .cel.r27-renovou text{fill:#ffe6b8}
+  .mapa-svg .cel.r27-vencido rect{stroke:var(--destructive);stroke-width:2.5;stroke-dasharray:4 2}
+  .mapa-svg .fila-bolha{fill:var(--warning);stroke:#000;stroke-width:1}
+  .mapa-svg .cel text.t-fila{font-size:9px;font-weight:800;fill:#000}
   .mapa-svg text{fill:var(--foreground);pointer-events:none}
   .mapa-svg .t-cod{font-weight:800;font-size:11px}
   .mapa-svg .t-rot{font-size:9px}
@@ -308,7 +321,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-18.6";
+var VERSAO = "2026-09-18.7";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -626,7 +639,17 @@ async function criarApiTeste() {
       renovacao: "sem_contato", data_vencimento_contrato: "2026-12-31", espaco_vinculado_id: null, vendedor_uid: i % 2 ? "v1" : null, vendedor_nome: i % 2 ? "Igor Souza" : "",
       master: false, criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }, situacoesTeste[i] || {}));
   });
-  dados.contratos.push({ id: "ct4", patrocinador_id: "base-6", titulo: "Patrocínio 2027", status: "assinado", edicao: "moto", inicio: "2027-02-01", fim: "2027-11-30", valor: 200000, arquivo_path: "", arquivo_nome: "", signatarios: [], observacao: "", assinado_em: hojeMais(-3), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() });
+  dados.contratos.push({ id: "ct4", patrocinador_id: "base-6", titulo: "Patrocínio 2027", status: "assinado", edicao: "moto", inicio: "2027-02-01", fim: "2027-11-30", valor: 200000, arquivo_path: "contratos/base-6/assinado.pdf", arquivo_nome: "patrocinio-2027 (assinado).pdf", signatarios: [], observacao: "", assinado_em: hojeMais(-3), assinatura: { status: "assinado", concluida_em: agoraIso() }, criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() });
+  // fila em espacos de marcas da base (para ver a bolinha, os disputados e o aviso na ficha)
+  var filaTeste = function (nome, n) { return { id: novoId(), tipo: "marca", marca_id: "m" + n, marca_nome: nome, entrou_em: "2026-09-1" + n + "T10:00:00Z", por_uid: "v1", por_nome: "Igor Souza" }; };
+  var espacoDe = function (nomeMarca) { return dados.espacos.find(function (e) { return e.ocupante_2026 === nomeMarca; }); };
+  var nomesOcup = Object.keys(ocupTeste);
+  [[0, ["Orbit Telecom", "LuckyBet", "Nimbus Smartwatch"]], [1, ["Clínica Vida Ativa"]], [5, ["Orbit Telecom", "LuckyBet"]], [2, ["Nimbus Smartwatch"]]].forEach(function (par) {
+    var e = espacoDe(nomesOcup[par[0]]);
+    if (e) e.fila = par[1].map(function (nome, i) { return filaTeste(nome, i + 1); });
+  });
+  // Master sem espaco fisico (prefeitura)
+  dados.patrocinadores.push({ id: "cota-1", nome: "Prefeitura de São Paulo", contato: "Secretaria de Esportes", tipo: "parceiro", status: "ativo", renovacao: "em_negociacao", data_vencimento_contrato: "2027-12-31", espaco_vinculado_id: null, vendedor_uid: "teste", vendedor_nome: "Eric Pereira Felix", master: true, contratou: "Naming do festival, mídia no telão e 2 camarotes", criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() });
   var arquivosTeste = {};
   dados.combinados.push({ id: "cm1", prospeccao_id: "m4", patrocinador_id: null, descricao: "Desconto de 10% se assinar até 30/09", status: "prometido", prometido_por_uid: "teste", prometido_por_nome: "Eric Pereira Felix", data: hojeMais(-4), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() });
   var ouvinte = null;
@@ -754,6 +777,7 @@ async function getSpaces() {
       // reserva feita na mao tem prazo; a de contrato assinado (reservado_para_id preenchido) nao
       reservadoAte: /^\d{4}-\d{2}-\d{2}$/.test(space.reservado_ate || "") ? space.reservado_ate : null,
       fila: Array.isArray(space.fila) ? space.fila.filter(function (f) { return f && f.id && f.marca_nome; }) : [],
+      liberado2027Em: /^\d{4}-\d{2}-\d{2}$/.test(space.liberado_2027_em || "") ? space.liberado_2027_em : null,
       vendedorUid: space.vendedor_uid || null,
       vendedorNome: space.vendedor_nome || "",
     };
@@ -852,6 +876,7 @@ async function getSponsors() {
       pagamento2027: FORMA_PAGAMENTO[s.pagamento_2027] ? s.pagamento_2027 : null,
       sinalPagoEm: /^\d{4}-\d{2}-\d{2}$/.test(s.sinal_pago_em || "") ? s.sinal_pago_em : null,
       base2026: typeof s.base_2026 === "boolean" ? s.base_2026 : null,
+      contratou: String(s.contratou || ""),
     };
   });
 }
@@ -967,6 +992,7 @@ async function saveSponsor(data) {
     vendedor_uid: vend ? vend.id : null, vendedor_nome: vend ? vend.nome : "",
     responsavel_comercial: vend ? vend.nome : (data.responsavelComercial || ""),
   };
+  payload.contratou = String(data.contratou || "").trim().slice(0, 500);
   var atend = data.atendimentoUid ? perfilPorUid(data.atendimentoUid) : null;
   payload.atendimento_uid = atend ? atend.id : null; payload.atendimento_nome = atend ? atend.nome : "";
   // "Renovado" no formulario e a mesma coisa que confirmar a renovacao 2027: guarda a data
@@ -1062,6 +1088,7 @@ async function getContracts() {
       // o que a IA leu no PDF, guardado so quando bate diferente do que esta preenchido
       iaInicio: c.ia_inicio || "", iaFim: c.ia_fim || "", iaValor: c.ia_valor == null ? null : Number(c.ia_valor),
       criadoPor: c.criado_por || null, criadoPorNome: quem ? quem.nome : "", createdAt: c.created_at || "", updatedAt: c.updated_at || "",
+      iaAutoEm: c.ia_auto_em || null,
       diasParaVencer: c.fim ? diasAte(c.fim) : null,
     };
   }).sort(function (a, b) { return (b.updatedAt || "").localeCompare(a.updatedAt || ""); });
@@ -1467,7 +1494,7 @@ async function abrirArquivoContrato(c) {
 }
 
 /* ------------------------------------------------------- marcas desejo */
-var MERCADOS = { telefonia: "Telefonia", bet: "Bet e apostas", alimentacao: "Alimentação e bebidas", lifestyle: "Lifestyle e tecnologia", saude: "Saúde", mobilidade: "Mobilidade", automotivo: "Automotivo e motos", financeiro: "Bancos e seguros", outro: "Outro mercado" };
+var MERCADOS = { telefonia: "Telefonia", bet: "Bet e apostas", alimentacao: "Alimentação e bebidas", lifestyle: "Lifestyle e tecnologia", saude: "Saúde", mobilidade: "Mobilidade", automotivo: "Automotivo e motos", financeiro: "Bancos e seguros", viagem: "Viagem e turismo", outro: "Outro mercado" };
 var ESTAGIOS = {
   mapeada: { label: "Mapeada", className: "border-foreground/15 bg-foreground/8 text-foreground" },
   primeiro_contato: { label: "Primeiro contato", className: "border-primary/30 bg-primary/15 text-foreground" },
@@ -1625,7 +1652,7 @@ var STATUS_ENTREGA = {
 };
 var ORIGEM_ENTREGA = {
   contrato: { label: "Contrato", curto: "contrato" },
-  acordo: { label: "Acordo depois do contrato", curto: "acordo" },
+  acordo: { label: "Aditivo (fora do contrato)", curto: "aditivo" },
   cortesia: { label: "Cortesia", curto: "cortesia" },
 };
 var CATEGORIA_ENTREGA = { espaco: "Espaço", credenciais: "Credenciais", midia: "Mídia e marca", hospitalidade: "Hospitalidade", ativacao: "Ativação", outro: "Outro" };
@@ -1709,6 +1736,8 @@ function contrato2027(p) {
 }
 function respostaDe(p) {
   if (p.renov2027Em || p.renovacao === "renovado") return "confirmou"; // "Renovado" antigo, sem data, vale como confirmado
+  // contrato 2027 assinado prova a renovacao, mesmo que ninguem tenha marcado a confirmacao
+  if (S.contracts) { var c27 = contrato2027(p); if (c27 && c27.status === "assinado") return "confirmou"; }
   if (p.renovacao === "recusou") return "recusou";
   return p.renovacao === "em_negociacao" ? "em_negociacao" : "sem_contato";
 }
@@ -1734,7 +1763,7 @@ function alertasRenovacao(p, cfg, lista) {
       detalhe: "O prazo passou " + textoDias(-dConf, false) + ". Se a marca já respondeu o e-mail, registre a confirmação. Se não vai renovar, marque que recusou" }));
     else if (dConf !== null && dConf <= JANELA_AVISO.confirmacao) lista.push(Object.assign({}, base, { nivel: "amarelo", peso: 1,
       titulo: "Confirmação da renovação de " + p.nome + (dConf === 0 ? " vence hoje" : " vence " + textoDias(dConf, true)),
-      detalhe: "Prazo " + dataCurta(cfg.prazo_confirmacao) + ". É a resposta ao e-mail que garante o espaço em 2027" }));
+      detalhe: "Prazo " + dataCurta(cfg.prazo_confirmacao) + ". É a resposta ao e-mail que garante o espaço em 2027" + (totalNaFila(p) ? " · " + totalNaFila(p) + (totalNaFila(p) > 1 ? " marcas estão" : " marca está") + " na fila pelo espaço" : "") }));
     return; // sem confirmar, sinal e contrato ainda nao comecaram
   }
   if (s.contratosCarregados && !s.assinado && dAss !== null) {
@@ -1772,7 +1801,7 @@ function contarRenovacao(alertas) {
   return { vermelhas: ord(verm), amarelas: ord(amar) };
 }
 var ROTULO_OUTRAS = { entregas: "Entregas", reserva: "Reservas", fila: "Espaço com fila", contrato: "Contrato a enviar", "sinal-vencido": "Sinal vencido",
-  forma: "Forma de pagamento", contato: "Sem contato", vencimento: "Contrato vencendo", recusou: "Recusou" };
+  forma: "Forma de pagamento", contato: "Sem contato", vencimento: "Contrato vencendo", recusou: "Recusou", liberar: "Espaço para liberar" };
 
 // Mudancas feitas na ficha ou na tela de conferencia: gravam na hora, um campo por vez.
 var MAPA_CAMPOS_PATRO = { renovacao_2027_em: "renov2027Em", pagamento_2027: "pagamento2027", sinal_pago_em: "sinalPagoEm", renovacao: "renovacao",
@@ -1840,7 +1869,150 @@ function blocoRenovacaoFicha(p) {
   var esp = textoEspacos2026(p);
   return '<section id="bloco-renovacao-ficha" class="space-y-3 border border-border bg-card p-4"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("list-checks", "size-4 text-primary") + " Renovação 2027</h3>" +
     (esp ? '<p class="text-xs text-muted-foreground">Em 2026: ' + esc(esp) + "</p>" : "") +
+    avisoFilaDaMarca(p) +
     camposRenovacao("r27f", p, true) + "</section>";
+}
+
+
+/* ------------------------------------------------ espacos na renovacao 2027 */
+// Semana de margem depois do prazo para o atendimento ajustar, antes de o espaco ficar livre.
+var MARGEM_ESPACO = 7;
+// a marca da base que ocupou este espaco em 2026 (quem tem a renovacao automatica dele)
+function donoRenovacao(e) {
+  if (!e || !e.ocupante2026 || !S.sponsors) return null;
+  var k = chaveMarca(e.ocupante2026);
+  return S.sponsors.find(function (p) { return chaveMarca(p.nome) === k && naBase2026(p); }) || null;
+}
+// Situacao 2027 de um espaco que esta Disponivel no cadastro. Ate a marca de 2026 responder, o
+// espaco fica guardado para ela. Confirmou: renovou. Recusou ou alguem liberou: livre de verdade.
+// Passou do prazo e da semana de margem sem confirmar (ou sem assinar): vencido, esperando alguem
+// clicar em Liberar. Nada e liberado sozinho: a equipe pode nao ter marcado a resposta a tempo.
+function situacaoEspaco2027(e) {
+  if (!e || e.status !== "disponivel") return null;
+  if (e.liberado2027Em) return { tipo: "livre" };
+  var dono = donoRenovacao(e);
+  if (!dono) return { tipo: "livre" };
+  var cfg = configAtual(), s = situacao2027(dono);
+  if (s.resposta === "recusou") return { tipo: "livre", dono: dono };
+  if (s.resposta === "confirmou") {
+    if (s.contratosCarregados && !s.assinado && diasAte(cfg.prazo_assinatura) < -MARGEM_ESPACO) return { tipo: "vencido", dono: dono, motivo: "assinatura" };
+    return { tipo: "renovou", dono: dono };
+  }
+  if (diasAte(cfg.prazo_confirmacao) < -MARGEM_ESPACO) return { tipo: "vencido", dono: dono, motivo: "confirmacao" };
+  return { tipo: "guardado", dono: dono };
+}
+function espacoLivreDeVerdade(e) { var s = situacaoEspaco2027(e); return !!s && s.tipo === "livre"; }
+var ROTULO_SIT_ESPACO = { guardado: "Guardado para a renovação", renovou: "Renovado", vencido: "Prazo vencido" };
+function textoSitEspaco(sit) {
+  var cfg = configAtual();
+  if (!sit || !sit.dono) return "";
+  if (sit.tipo === "guardado") return "Guardado para " + sit.dono.nome + " até " + dataCurta(cfg.prazo_confirmacao) + " (renovação automática)";
+  if (sit.tipo === "renovou") return sit.dono.nome + " confirmou a renovação";
+  if (sit.tipo === "vencido") return sit.dono.nome + (sit.motivo === "assinatura" ? " não assinou o contrato 2027 até " + dataCurta(cfg.prazo_assinatura) : " não confirmou a renovação até " + dataCurta(cfg.prazo_confirmacao)) + ". Pode liberar para a fila";
+  return "";
+}
+function nomeCurto(e) { return String(e.nome || "").split(" · ")[0]; }
+// quem esta na fila pelos espacos de 2026 desta marca (sem contar ela mesma)
+function filaDaMarca(p) {
+  var out = [];
+  espacos2026De(p).forEach(function (e) {
+    var outros = filaOrdenada(e).filter(function (f) { return !mesmaMarca(f.marca_nome, p.nome); });
+    if (outros.length) out.push({ espaco: e, fila: outros });
+  });
+  return out;
+}
+function totalNaFila(p) { return filaDaMarca(p).reduce(function (n, x) { return n + x.fila.length; }, 0); }
+function avisoFilaDaMarca(p) {
+  var fd = filaDaMarca(p);
+  if (!fd.length) return "";
+  var n = totalNaFila(p);
+  return '<p class="border px-3 py-2 text-sm" style="border-color:var(--warning);background:rgba(255,194,75,.1)"><b>' + n + (n > 1 ? " marcas estão" : " marca está") + " na fila pelo espaço de vocês.</b> " +
+    esc(fd.map(function (x) { return nomeCurto(x.espaco) + (x.espaco.edicao ? " (" + rotuloEdicao(x.espaco.edicao) + ")" : "") + ": " + x.fila.map(function (f) { return f.marca_nome; }).join(", "); }).join(" · ")) + "</p>";
+}
+async function liberarEspacos2027(lista) {
+  var hoje = hojeMais(0);
+  await API.atualizarVarios(lista.map(function (e) { return { col: "espacos", id: e.id, dados: { liberado_2027_em: hoje, liberado_por_uid: S.uid, liberado_por_nome: S.nome, updated_at: agoraIso() } }; }));
+}
+function recadoDaFila(lista) {
+  var partes = lista.map(function (e) { var f = filaOrdenada(e)[0]; return f ? nomeCurto(e) + ": ofereça para " + f.marca_nome : ""; }).filter(Boolean);
+  return partes.length ? " " + partes.join(" · ") + "." : " Ninguém na fila ainda.";
+}
+
+/* ------------------------------------------------ espacos mais disputados e cotas sem espaco */
+function blocoDisputados() {
+  if (!S.spaces) return "";
+  var lista = S.spaces.filter(function (e) { return e.fila.length; }).sort(function (a, b) { return b.fila.length - a.fila.length || porNome(a, b); });
+  if (!lista.length) return "";
+  return '<div class="border border-border bg-card"><div class="flex items-center gap-2 border-b border-border px-4 py-4 sm:px-5">' + icone("users", "size-4 text-primary") +
+    '<h2 class="text-sm font-black uppercase">Espaços mais disputados <span class="font-normal text-muted-foreground">(' + lista.length + ")</span></h2></div>" +
+    '<p class="px-4 pt-3 text-xs text-muted-foreground sm:px-5">Espaços com marcas na fila, do mais procurado para o menos. Use isso na conversa com quem ocupa hoje: o espaço tem gente esperando.</p>' +
+    '<div class="grid gap-2 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">' + lista.slice(0, 12).map(function (e) {
+      var sit = situacaoEspaco2027(e);
+      var st = sit && sit.tipo !== "livre" ? ROTULO_SIT_ESPACO[sit.tipo] : (STATUS_ESPACO[e.status] || STATUS_ESPACO.disponivel).label;
+      return '<button type="button" class="border border-border bg-background px-3 py-3 text-left hover:bg-muted/50" data-acao="abrir-espaco" data-mapa="' + esc(e.mapa || "") + '">' +
+        '<span class="flex items-center justify-between gap-2"><b>' + esc(nomeCurto(e)) + (e.edicao ? " · " + esc(rotuloEdicao(e.edicao)) : "") + '</b><span class="amp-fila">' + e.fila.length + " na fila</span></span>" +
+        '<span class="mt-1 block text-xs text-muted-foreground">' + esc(st) + (e.ocupante2026 ? " · 2026: " + esc(e.ocupante2026) : "") + "</span>" +
+        '<span class="mt-1 block text-xs">' + esc(filaOrdenada(e).map(function (f, i) { return (i + 1) + "º " + f.marca_nome; }).join(", ")) + "</span></button>";
+    }).join("") + (lista.length > 12 ? '<p class="text-xs text-muted-foreground">e mais ' + (lista.length - 12) + " no mapa</p>" : "") + "</div></div>";
+}
+// Cota sem espaco fisico (ex.: prefeitura): nao tem espaco reservado, vinculado nem ocupado em 2026
+function semEspacoFisico(p) { return !!S.spaces && !espacosDaMarca(p).length && !espacos2026De(p).length; }
+function resumoPropriedades(p) {
+  var ativos = combinadosDe(p.id).filter(function (c) { return c.status !== "cancelado"; });
+  if (!ativos.length) return "";
+  var por = {};
+  ativos.forEach(function (c) { var k = CATEGORIA_ENTREGA[c.categoria] || "Outro"; por[k] = (por[k] || 0) + 1; });
+  return ativos.length + (ativos.length > 1 ? " itens" : " item") + " em Propriedades: " + Object.keys(por).map(function (k) { return k + " (" + por[k] + ")"; }).join(", ");
+}
+function textoContratou(p) { return p.contratou || resumoPropriedades(p); }
+function blocoCotasSemEspaco() {
+  if (!S.spaces || !S.sponsors) return "";
+  var lista = S.sponsors.filter(function (p) { return p.status !== "encerrado" && (p.master || p.contratou) && semEspacoFisico(p); }).sort(porNome);
+  if (!lista.length) return "";
+  return '<div id="bloco-cotas" class="border border-border bg-card"><div class="flex items-center gap-2 border-b border-border px-4 py-4 sm:px-5">' + icone("handshake", "size-4 text-primary") +
+    '<h2 class="text-sm font-black uppercase">Cotas sem espaço físico <span class="font-normal text-muted-foreground">(' + lista.length + ")</span></h2></div>" +
+    '<div class="grid gap-2 p-4 sm:grid-cols-2 sm:p-5">' + lista.map(function (p) {
+      return '<button type="button" class="border border-border bg-background px-3 py-3 text-left hover:bg-muted/50" data-acao="ficha" data-id="' + esc(p.id) + '">' +
+        '<span class="flex flex-wrap items-center gap-2"><b>' + esc(p.nome) + "</b>" + (p.master ? badgeMaster() : "") + "</span>" +
+        '<span class="mt-1 block text-xs text-muted-foreground">' + esc(textoContratou(p) || "Ainda sem o que contratou. Abra a ficha e preencha.") + "</span></button>";
+    }).join("") + "</div></div>";
+}
+var SELO_SEM_ESPACO = { label: "Sem espaço físico", className: "border-primary/30 bg-primary/15" };
+
+/* ------------------------------------------------ IA le sozinha o contrato que volta assinado */
+// Contrato que voltou assinado pela DocuSign e ninguem mandou ler: a IA le uma vez, e as entregas
+// entram "a conferir" em Propriedades, como no botao. Marca ia_auto_em antes de ler, para nao
+// repetir se a leitura falhar.
+async function conferirLeiturasPendentes() {
+  var alvos = (S.contracts || []).filter(function (c) {
+    return c.status === "assinado" && c.arquivoPath && c.assinatura && c.assinatura.status === "assinado" && !c.iaAutoEm && !entregasDoContrato(c.id).length;
+  });
+  if (!alvos.length) return;
+  var lidos = [];
+  for (var i = 0; i < alvos.length && i < 3; i++) {
+    var c = alvos[i];
+    try { await API.atualizar("contratos", c.id, { ia_auto_em: agoraIso() }); } catch (e) { continue; }
+    try { var r = await lerContratoComIa(c); if (r && r.criados) lidos.push(c.patrocinador + " (" + r.criados + ")"); } catch (e) {}
+  }
+  try { await Promise.all([carregar("combinados", getCombinados), carregar("contracts", getContracts)]); } catch (e) {}
+  if (lidos.length) toast.success("A IA leu " + (lidos.length > 1 ? "os contratos que voltaram assinados" : "o contrato que voltou assinado") + " e mandou as entregas para Propriedades, para conferir: " + lidos.join(", ") + ".");
+}
+
+/* ------------------------------------------------ marcas desejo por setor */
+function blocoSetores() {
+  var lista = S.prospects || [];
+  var por = {};
+  lista.forEach(function (m) { (por[m.mercado] = por[m.mercado] || []).push(m); });
+  var cards = Object.keys(MERCADOS).map(function (k) {
+    var ms = por[k] || [], and = ms.filter(emAndamento), fech = ms.filter(function (m) { return m.estagio === "fechada"; }).length;
+    var ativo = S.fpr.mercado === k;
+    var etapas = ESTAGIOS_ANDAMENTO.map(function (e) { var n = ms.filter(function (m) { return m.estagio === e; }).length; return n ? n + " " + ESTAGIOS[e].label.toLowerCase() : ""; }).filter(Boolean).join(" · ");
+    return '<button type="button" class="' + cn("border px-3 py-3 text-left transition-colors", ativo ? "border-primary bg-primary/15" : "border-border bg-card hover:bg-muted/50", !ms.length && "opacity-60") + '" data-acao="filtro-setor" data-mercado="' + k + '" aria-pressed="' + ativo + '">' +
+      '<span class="block text-2xl font-black leading-none">' + and.length + '</span><span class="mt-1 block text-xs font-bold uppercase text-muted-foreground">' + esc(MERCADOS[k]) + "</span>" +
+      '<span class="mt-1 block text-xs text-muted-foreground">' + (ms.length ? (etapas || "nenhuma em andamento") + (fech ? " · " + fech + (fech > 1 ? " fechadas" : " fechada") : "") : "nenhuma marca ainda") + "</span></button>";
+  }).join("");
+  return '<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">' + cards + "</div>" +
+    '<p class="mt-2 text-xs text-muted-foreground">O número grande é quantas marcas daquele setor estão em andamento no funil. Clique num setor para ver só ele; clique de novo para ver todos.</p>';
 }
 
 /* ------------------------------------------------ tela: renovacao 2027 */
@@ -1889,7 +2061,7 @@ function blocoListaRenovacao() {
   var linhas = lista.map(function (p) {
     var s = situacao2027(p), semSinal = s.forma !== "valor_2026";
     return '<tr class="' + cn(TR, s.resposta === "confirmou" && "linha-confirmada", s.resposta === "recusou" && "opacity-70") + '">' +
-      '<td class="' + cn(TD, "px-4 py-3 align-top") + '"><button type="button" class="text-left font-bold hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button>" +
+      '<td class="' + cn(TD, "px-4 py-3 align-top") + '"><button type="button" class="text-left font-bold hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button>" + (totalNaFila(p) ? '<span class="amp-fila" title="Marcas na fila pelos espaços de 2026 desta marca">' + totalNaFila(p) + " na fila</span>" : "") +
         '<div class="mt-0.5 max-w-60 text-xs text-muted-foreground" title="' + esc(textoEspacos2026(p)) + '">' + esc(textoEspacos2026(p, 3)) + "</div></td>" +
       '<td class="' + cn(TD, "align-top") + '">' + selectR27("r27t", "resp", p, opcoesResposta(), s.resposta) + "</td>" +
       '<td class="' + cn(TD, "align-top") + '"><div class="flex gap-2">' + dataR27("r27t", "conf", p, s.confirmou, false) + botaoHojeR27("conf", p, false) + "</div></td>" +
@@ -2321,12 +2493,26 @@ function calcularAlertas() {
       if (dr < 0) lista.push(Object.assign({}, baseE, { nivel: "vermelho", peso: 1, tipo: "reserva", titulo: "Reserva de " + onde + " venceu " + textoDias(-dr, false), detalhe: "Renove o prazo ou libere o espaço" + depois }));
       else if (dr <= 3) lista.push(Object.assign({}, baseE, { nivel: "amarelo", peso: 2, tipo: "reserva", titulo: "Reserva de " + onde + (dr === 0 ? " vence hoje" : " vence " + textoDias(dr, true)), detalhe: "Feche com a marca ou renove o prazo" + depois }));
     }
-    if (e.status === "disponivel" && e.fila.length) {
+    // fila so vira aviso quando o espaco esta livre de verdade: guardado para a renovacao nao conta
+    if (e.status === "disponivel" && e.fila.length && espacoLivreDeVerdade(e)) {
       var primeiro = filaOrdenada(e)[0];
       lista.push(Object.assign({}, baseE, { nivel: "amarelo", peso: 2, tipo: "fila", vendedorUid: primeiro.por_uid || e.vendedorUid, vendedorNome: primeiro.por_nome || e.vendedorNome,
         titulo: onde + " está livre e tem " + e.fila.length + (e.fila.length > 1 ? " marcas" : " marca") + " na fila",
         detalhe: "A primeira é " + primeiro.marca_nome + (mesmaMarca(primeiro.marca_nome, e.ocupante2026) ? ", que ocupou o espaço em 2026" : "") + ". Ofereça o espaço" }));
     }
+  });
+  // prazo vencido + semana de margem: um aviso por marca, com o botao de liberar os espacos dela
+  var vencidos = {};
+  (S.spaces || []).forEach(function (e) {
+    var s27 = situacaoEspaco2027(e);
+    if (s27 && s27.tipo === "vencido") (vencidos[s27.dono.id] = vencidos[s27.dono.id] || { dono: s27.dono, motivo: s27.motivo, espacos: [] }).espacos.push(e);
+  });
+  Object.keys(vencidos).forEach(function (k) {
+    var g = vencidos[k], p = g.dono, nf = g.espacos.reduce(function (n, e) { return n + e.fila.length; }, 0);
+    lista.push({ patro: p, grupo: "outras", tipo: "liberar", nivel: "vermelho", peso: 1,
+      vendedorUid: p.atendimentoUid || p.vendedorUid, vendedorNome: p.atendimentoUid ? p.atendimentoNome : p.responsavelComercial, papelResp: p.atendimentoUid ? "Atendimento" : "Vendedor",
+      titulo: (g.espacos.length > 1 ? "Espaços de " + p.nome + " podem ser liberados: " : "Espaço de " + p.nome + " pode ser liberado: ") + g.espacos.map(nomeCurto).join(", ").replace(/, ([^,]*)$/, " e $1"),
+      detalhe: "Passou a semana de margem depois de " + dataCurta(g.motivo === "assinatura" ? configAtual().prazo_assinatura : configAtual().prazo_confirmacao) + (g.motivo === "assinatura" ? " sem o contrato 2027 assinado" : " sem a confirmação") + ". " + (nf ? nf + (nf > 1 ? " marcas esperam" : " marca espera") + " na fila" : "Ninguém na fila ainda") });
   });
   var nomeDoAlerta = function (a) { return a.patro ? a.patro.nome : a.nome || ""; };
   var ordem = function (a) { return (a.grupo === "outras" ? 10 : 0) + a.peso; }; // renovacao primeiro
@@ -2345,6 +2531,8 @@ function cartaoAlerta(a) {
         (a.tipo === "reserva" || a.tipo === "fila"
           ? (a.tipo === "reserva" ? '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="prorrogar-reserva" data-id="' + esc(a.espaco.id) + '">' + icone("history") + " Mais " + DIAS_RESERVA + " dias</button>" : "") +
             '<button type="button" class="' + btnCls(a.tipo === "reserva" ? "ghost" : "outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="abrir-espaco" data-mapa="' + esc(a.espaco.mapa || "") + '">' + icone("map", "size-4") + " Ver no mapa</button>"
+          : a.tipo === "liberar"
+          ? btnA("default", "liberar-2027-marca", ' data-id="' + esc(a.patro.id) + '"', "users", "Liberar e avisar a fila") + btnA("ghost", "ficha", ' data-id="' + esc(a.patro.id) + '"', "list-checks", "Ver renovação")
           : a.tipo === "sinal-vencido"
           ? btnA("outline", "r27-passar-2027", ' data-id="' + esc(a.patro.id) + '"', "check", "Passar para Valor 2027") + btnA("ghost", "ficha", ' data-id="' + esc(a.patro.id) + '"', "list-checks", "Abrir ficha")
           : TIPOS_RENOVACAO[a.tipo]
@@ -2547,6 +2735,8 @@ function desenharMapa(edicao) {
       var chave = chaveMapa(edicao, zona.id, item.codigo);
       var doc = porChave[chave];
       var st = doc ? doc.status : "nenhum";
+      var sit27 = doc ? situacaoEspaco2027(doc) : null;
+      var cls27 = sit27 && sit27.tipo !== "livre" ? " r27-" + sit27.tipo : "";
       cont[st] = (cont[st] || 0) + 1;
       var risco = doc && doc.patrocinadorEmRisco;
       var patro = doc && doc.patrocinador ? doc.patrocinador.nome : "";
@@ -2557,15 +2747,17 @@ function desenharMapa(edicao) {
       var tit = nome + "\n" + (doc ? STATUS_ESPACO[doc.status].label : "Sem cadastro") +
         (patro ? "\nPatrocinador: " + patro : "") + (ocupante ? "\nOcupante 2026: " + ocupante : "") + (doc && doc.vendedorNome ? "\nVendedor: " + doc.vendedorNome : "") +
         (item.m2 ? "\n" + item.m2 + " m²" : "") + (risco ? "\nRisco de renovação: " + risco : "") +
-        (reservaNaMao(doc) ? "\nReserva vale até " + formatDateOnly(doc.reservadoAte) : "") + (doc && doc.fila.length ? "\nFila: " + doc.fila.length + (doc.fila.length > 1 ? " marcas" : " marca") : "");
+        (reservaNaMao(doc) ? "\nReserva vale até " + formatDateOnly(doc.reservadoAte) : "") + (doc && doc.fila.length ? "\nFila: " + doc.fila.length + (doc.fila.length > 1 ? " marcas" : " marca") : "") +
+        (cls27 ? "\nRenovação 2027: " + textoSitEspaco(sit27) : "");
       celulas.push(
-        '<g class="cel st-' + st + (risco ? " risco" : "") + '" data-acao="mapa-espaco" data-mapa="' + escXml(chave) + '" role="button" tabindex="0" aria-label="' + escXml(nome) + '">' +
+        '<g class="cel st-' + st + (risco ? " risco" : "") + cls27 + '" data-acao="mapa-espaco" data-mapa="' + escXml(chave) + '" role="button" tabindex="0" aria-label="' + escXml(nome) + '">' +
           "<title>" + escXml(tit) + "</title>" +
           '<rect x="' + x + '" y="' + linhaY + '" width="' + t.w + '" height="' + t.h + '" rx="4"/>' +
           '<text class="t-cod" x="' + (x + 5) + '" y="' + (linhaY + 14) + '">' + escXml(item.rotulo && t.w >= 88 ? truncar(item.rotulo, maxChars) : item.codigo) + "</text>" +
           (rot ? '<text class="t-rot" x="' + (x + 5) + '" y="' + (linhaY + 27) + '">' + escXml(truncar(rot, maxChars)) + "</text>" : "") +
           (doc && doc.status !== "disponivel" && doc.vendedorNome && t.h >= 58 ? '<text class="t-rot" x="' + (x + 5) + '" y="' + (linhaY + 39) + '">' + escXml(truncar("↳ " + primeiroNome(doc.vendedorNome), maxChars)) + "</text>" : "") +
           (item.m2 && t.h >= 54 ? '<text class="t-m2" x="' + (x + 5) + '" y="' + (linhaY + t.h - 6) + '">' + escXml(item.m2 + " m²") + "</text>" : "") +
+          (doc && doc.fila.length ? '<circle class="fila-bolha" cx="' + (x + t.w - 9) + '" cy="' + (linhaY + 9) + '" r="7.5"/><text class="t-fila" x="' + (x + t.w - 9) + '" y="' + (linhaY + 12) + '" text-anchor="middle">' + doc.fila.length + "</text>" : "") +
         "</g>");
       x += t.w + GAP;
       if (t.h > alturaLinha) alturaLinha = t.h;
@@ -2590,7 +2782,7 @@ function desenharMapa(edicao) {
 }
 
 function contagemEdicao(edicao) {
-  var c = { total: 0, disponivel: 0, reservado: 0, vendido: 0, risco: 0, semCadastro: 0 };
+  var c = { total: 0, disponivel: 0, reservado: 0, vendido: 0, risco: 0, semCadastro: 0, guardado: 0, renovou: 0, vencido: 0, fila: 0 };
   var porChave = espacosPorChave();
   var zonas = MAPA[edicao] || {};
   ZONAS.forEach(function (zona) {
@@ -2600,6 +2792,9 @@ function contagemEdicao(edicao) {
       if (!doc) { c.semCadastro++; return; }
       c[doc.status] = (c[doc.status] || 0) + 1;
       if (doc.patrocinadorEmRisco) c.risco++;
+      var s27 = situacaoEspaco2027(doc);
+      if (s27 && s27.tipo !== "livre") c[s27.tipo]++;
+      if (doc.fila.length) c.fila++;
     });
   });
   return c;
@@ -2623,6 +2818,10 @@ function blocoMapa() {
         chip(c.disponivel, "disponíveis", STATUS_ESPACO.disponivel.className) + chip(c.reservado, "reservados", STATUS_ESPACO.reservado.className) +
         chip(c.vendido, "vendidos", STATUS_ESPACO.vendido.className) +
         (c.risco ? chip(c.risco, "em risco de renovação", "border-destructive/40 bg-destructive/10 text-destructive") : "") +
+        (c.guardado ? chip(c.guardado, "guardados para a renovação", "border-dashed text-foreground") : "") +
+        (c.renovou ? chip(c.renovou, "renovados", STATUS_ESPACO.reservado.className) : "") +
+        (c.vencido ? chip(c.vencido, "com prazo vencido", "border-destructive/40 bg-destructive/10 text-destructive") : "") +
+        (c.fila ? chip(c.fila, "com fila", "border-warning/30 bg-warning/10 text-warning-foreground") : "") +
         (c.semCadastro ? chip(c.semCadastro, "sem cadastro", "border-dashed text-muted-foreground") : "") +
         '<span class="ml-auto text-muted-foreground">' + c.total + " espaços no mapa · toque em um espaço para ver e mudar o status</span>" +
       "</div>" +
@@ -2631,7 +2830,7 @@ function blocoMapa() {
   return '<div class="border border-border bg-card">' +
     '<div class="flex flex-col gap-3 border-b border-border px-4 pt-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">' +
       '<div><div class="flex items-center gap-2">' + icone("map", "size-4 text-primary") + '<h2 class="text-sm font-black uppercase">Mapa de espaços</h2></div>' +
-      '<p class="mt-1 text-xs text-muted-foreground">Base: plantas de 2026. Verde = disponível, amarelo = reservado, branco = vendido, borda vermelha = renovação em risco.</p></div>' +
+      '<p class="mt-1 text-xs text-muted-foreground">Base: plantas de 2026. Verde = disponível, tracejado = guardado para a marca de 2026 até ela responder a renovação, amarelo = reservado ou renovado, branco = vendido, borda vermelha = prazo vencido ou renovação em risco. Bolinha amarela = quantas marcas estão na fila.</p></div>' +
       '<div role="tablist" aria-label="Edição" class="flex">' + abas + "</div>" +
     "</div>" + corpo + "</div>";
 }
@@ -2670,7 +2869,13 @@ function dialogoDetalhe() {
     (doc ? linha("Valor", doc.valor ? esc(formatCurrency(doc.valor)) : '<span class="text-muted-foreground">A definir</span>') : "") +
     (reservaDeContrato(doc) ? linha("Reserva", "Contrato assinado da " + esc(doc.reservadoParaNome || "marca") + ", sem prazo") : "") +
     (reservaNaMao(doc) ? linha("Reserva vale até", textoPrazoReserva(doc)) : "") +
+    (function () { var s27 = doc ? situacaoEspaco2027(doc) : null; return s27 && s27.tipo !== "livre" ? linha("Renovação 2027", esc(textoSitEspaco(s27))) : doc && doc.liberado2027Em ? linha("Renovação 2027", "Liberado para a fila em " + esc(dataCurta(doc.liberado2027Em))) : ""; })() +
     "</dl>" +
+    (function () {
+      var s27 = doc ? situacaoEspaco2027(doc) : null;
+      if (!s27 || s27.tipo !== "vencido") return "";
+      return '<div class="mt-2 flex justify-end"><button type="button" class="' + btnCls("default", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="liberar-2027" data-id="' + esc(doc.id) + '"' + (S.filaMexendo ? " disabled" : "") + ">" + icone("users") + " Liberar e avisar a fila</button></div>";
+    })() +
     (reservaNaMao(doc) ? '<div class="mt-2 flex justify-end"><button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="prorrogar-reserva" data-id="' + esc(doc.id) + '"' + (S.filaMexendo ? " disabled" : "") + ">" + icone("history") + " Mais " + DIAS_RESERVA + " dias de reserva</button></div>" : "") +
     (doc ? blocoFila(doc) : "");
   var acoes;
@@ -2746,6 +2951,8 @@ function itensDaZona(edicao, zonaId) {
       m2: doc && doc.metragem != null ? doc.metragem : item.m2,
       valor: doc ? doc.valor : null,
       risco: doc && doc.patrocinadorEmRisco ? doc.patrocinadorEmRisco : "",
+      sit27: doc ? situacaoEspaco2027(doc) : null,
+      fila: doc ? doc.fila.length : 0,
     };
   });
 }
@@ -2755,9 +2962,10 @@ function celulaAmpliada(e) {
   var linha2 = e.patrocinador ? esc(e.patrocinador)
     : e.ocupante ? esc(e.ocupante) + ' <span style="opacity:.7;font-weight:400">· 2026</span>'
     : '<span style="opacity:.7;font-weight:400">' + (e.status === "nenhum" ? "Sem cadastro" : "Sem marca") + "</span>";
-  var detalhe = (e.status === "nenhum" ? "Sem cadastro" : st.label) + (e.m2 ? " · " + String(e.m2).replace(".", ",") + " m²" : "");
-  return '<button type="button" class="' + cn("amp-cel", "st-" + e.status, e.risco && "risco") + '" data-acao="mapa-espaco" data-mapa="' + esc(e.chave) + '">' +
-    '<span class="cod">' + esc(e.rotulo) + "</span>" +
+  var r27 = e.sit27 && e.sit27.tipo !== "livre" ? e.sit27.tipo : "";
+  var detalhe = (e.status === "nenhum" ? "Sem cadastro" : r27 ? ROTULO_SIT_ESPACO[r27] : st.label) + (e.m2 ? " · " + String(e.m2).replace(".", ",") + " m²" : "");
+  return '<button type="button" class="' + cn("amp-cel", "st-" + e.status, e.risco && "risco", r27 && "r27-" + r27) + '" data-acao="mapa-espaco" data-mapa="' + esc(e.chave) + '">' +
+    '<span class="cod">' + esc(e.rotulo) + (e.fila ? '<span class="amp-fila">' + e.fila + " na fila</span>" : "") + "</span>" +
     '<span class="marca">' + linha2 + "</span>" +
     (e.vendedor ? '<span class="meta sub">' + esc(primeiroNome(e.vendedor)) + "</span>" : "") +
     '<span class="meta">' + esc(detalhe) + "</span>" +
@@ -2833,6 +3041,8 @@ function telaEspacos() {
     "</header>" +
     '<div id="bloco-overview" class="space-y-7">' + blocoVisaoGeral() + "</div>" +
     '<div id="bloco-mapa">' + blocoMapa() + "</div>" +
+    '<div id="bloco-disputados">' + blocoDisputados() + "</div>" +
+    blocoCotasSemEspaco() +
     '<div class="grid gap-3 sm:grid-cols-[minmax(240px,1fr)_220px]">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
       '<input id="busca" aria-label="Buscar por nome do espaço" placeholder="Buscar por nome do espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.search) + '"></div>' +
@@ -2932,7 +3142,7 @@ function blocoListaPatrocinadores() {
       '<td class="' + cn(TD, "px-5 py-4 font-bold") + '"><div class="flex flex-wrap items-center gap-2"><button type="button" class="text-left hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button>" + (p.master ? badgeMaster() : "") + "</div>" +
         '<div class="text-xs font-normal text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + resumoCombinados(p.id) + "</div></td>" +
       '<td class="' + cn(TD, "max-w-56 truncate") + '">' + esc(p.contato) + "</td>" +
-      '<td class="' + TD + '">' + (p.espacoVinculado ? esc(p.espacoVinculado) : semEspaco) + "</td>" +
+      '<td class="' + TD + '">' + (p.espacoVinculado ? esc(p.espacoVinculado) : semEspacoFisico(p) ? badge(SELO_SEM_ESPACO, "whitespace-nowrap") + (textoContratou(p) ? '<div class="mt-1 max-w-56 truncate text-xs text-muted-foreground" title="' + esc(textoContratou(p)) + '">' + esc(textoContratou(p)) + "</div>" : "") : semEspaco) + "</td>" +
       '<td class="' + TD + '">' + (p.responsavelComercial ? esc(p.responsavelComercial) : semVendedor) + "</td>" +
       '<td class="' + cn(TD, "whitespace-nowrap") + '">' + esc(formatDateOnly(p.dataVencimentoContrato)) + "</td>" +
       '<td class="' + TD + '">' + badge(detail, "shrink-0 whitespace-nowrap") + "</td>" +
@@ -2948,7 +3158,7 @@ function blocoListaPatrocinadores() {
       '<div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">' + badge(RENOVACAO[p.renovacao], "whitespace-nowrap") + (p.ultimoContato ? "contato " + esc(textoDias(-diasAte(p.ultimoContato), false)) : "sem contato") + "</div>" +
       '<dl class="mt-4 space-y-3 text-sm">' +
         '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Contato</dt><dd class="mt-0.5 break-words">' + esc(p.contato) + "</dd></div>" +
-        '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Espaço vinculado</dt><dd class="mt-0.5">' + (p.espacoVinculado ? esc(p.espacoVinculado) : semEspaco) + "</dd></div>" +
+        '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Espaço vinculado</dt><dd class="mt-0.5">' + (p.espacoVinculado ? esc(p.espacoVinculado) : semEspacoFisico(p) ? badge(SELO_SEM_ESPACO) + (textoContratou(p) ? '<div class="mt-1 text-xs text-muted-foreground">' + esc(textoContratou(p)) + "</div>" : "") : semEspaco) + "</dd></div>" +
         '<div class="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-3">' +
           '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Vendedor</dt><dd class="mt-0.5">' + (p.responsavelComercial ? esc(p.responsavelComercial) : semVendedor) + "</dd></div>" +
           '<div><dt class="text-xs font-bold uppercase text-muted-foreground">Vencimento</dt><dd class="mt-0.5 flex items-center gap-1.5">' + icone("calendar-days", "size-3.5 text-muted-foreground") + esc(formatDateOnly(p.dataVencimentoContrato)) + "</dd></div>" +
@@ -3014,6 +3224,9 @@ function dialogoPatrocinador() {
           '<span><span class="font-bold">Patrocinador Master</span><br><span class="text-xs text-muted-foreground">' + (admin ? "Marca que pagou mais e tem mais direitos no festival. Ganha prioridade na renovação e alerta vermelho." : "Só um administrador pode marcar ou desmarcar o selo Master.") + "</span></span></label>" +
         '<div class="space-y-2"><label class="' + LABEL + '" for="patro-espaco">Espaço vinculado</label>' + selectNativo("patro-espaco", "espaco_vinculado_id", opcoesEspacos(p ? p.id : null), v.espacoVinculadoId || "") +
           (S.spaces ? "" : '<p class="text-xs text-muted-foreground">Carregando a lista de espaços...</p>') + "</div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-contratou">O que contratou (opcional)</label>' +
+          '<textarea id="patro-contratou" name="contratou" rows="2" maxlength="500" placeholder="Ex.: naming da Arena, mídia no telão e camarote no sábado" class="' + cn(INPUT, "min-h-[52px] h-auto py-2") + '">' + esc(v.contratou || "") + "</textarea>" +
+          '<p class="text-xs text-muted-foreground">Para cota sem espaço físico, como a prefeitura: o que a marca leva no festival. O detalhe de cada entrega fica em Propriedades.</p></div>' +
         '<div class="grid gap-5 sm:grid-cols-2">' +
           '<div class="space-y-2"><label class="' + LABEL + '" for="patro-venc">Vencimento do contrato</label><input id="patro-venc" name="data_vencimento_contrato" type="date" class="' + INPUT + '" value="' + esc(v.dataVencimentoContrato || "") + '" required></div>' +
           '<div class="space-y-2"><label class="' + LABEL + '" for="patro-status">Status</label>' + selectNativo("patro-status", "status", status, v.status || "ativo") + "</div>" +
@@ -3572,7 +3785,7 @@ function dialogoEntrega() {
   return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-entrega"></div>' +
     '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-entrega" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
       '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-entrega" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (e ? "Editar entrega" : "Nova entrega") + "</h2>" +
-      '<p class="text-sm text-muted-foreground">O que foi combinado com a marca. Use "Acordo depois do contrato" para demanda que surgiu fora do que foi assinado.</p></div>' +
+      '<p class="text-sm text-muted-foreground">O que foi combinado com a marca. Use "Aditivo (fora do contrato)" para o que foi combinado fora do que foi assinado.</p></div>' +
       '<form id="form-entrega" class="space-y-5 pt-2">' +
         '<div class="space-y-2"><label class="' + LABEL + '" for="ent-patro">Marca</label>' + selectNativo("ent-patro", "alvo", opcoes, alvo, { disabled: !!e }) + "</div>" +
         '<div class="space-y-2"><label class="' + LABEL + '" for="ent-desc">O que foi combinado</label><input id="ent-desc" name="descricao" required maxlength="300" placeholder="Ex.: credenciais VIP para o sábado" class="' + INPUT + '" value="' + esc(e ? e.descricao : "") + '"></div>' +
@@ -3610,7 +3823,8 @@ function dialogoFicha() {
       '<div class="flex flex-wrap items-center gap-2 pt-1">' + badge(st) + badge(RENOVACAO[p.renovacao]) + '<span class="' + cn(BADGE, "text-foreground") + '">' + esc(TIPO_PATROCINADOR[p.tipo]) + "</span>" + (p.master ? badgeMaster() : "") + "</div></div>" +
       "<dl>" +
         linha("Contato", esc(p.contato)) +
-        linha("Espaço vinculado", p.espacoVinculado ? esc(p.espacoVinculado) : '<span class="text-muted-foreground">Sem espaço</span>') +
+        linha("Espaço vinculado", p.espacoVinculado ? esc(p.espacoVinculado) : semEspacoFisico(p) ? badge(SELO_SEM_ESPACO) : '<span class="text-muted-foreground">Sem espaço</span>') +
+        (p.contratou || semEspacoFisico(p) ? linha("O que contratou", textoContratou(p) ? esc(textoContratou(p)) : '<span class="text-muted-foreground">Não informado. Preencha em Editar.</span>') : "") +
         linha("Vendedor responsável", p.responsavelComercial ? esc(p.responsavelComercial) : '<span class="text-muted-foreground">Ninguém ainda</span>') +
         linha("Atendimento", p.atendimentoNome ? esc(p.atendimentoNome) : '<span class="text-muted-foreground">Ninguém ainda</span>') +
         linha("Vencimento do contrato", esc(formatDateOnly(p.dataVencimentoContrato))) +
@@ -3859,7 +4073,8 @@ function telaMarcas() {
       '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Marcas que ainda não patrocinam e queremos trazer. Cada uma anda pelo funil até virar patrocinador ou ser perdida.</p></div>' +
       '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="nova-marca">' + icone("plus") + " Nova marca desejo</button>" +
     "</header>" +
-    '<div id="bloco-funil">' + blocoFunil() + "</div>" +
+    '<section class="space-y-2"><h2 class="text-sm font-black uppercase">Por setor</h2><div id="bloco-setores">' + blocoSetores() + "</div></section>" +
+    '<section class="space-y-2"><h2 class="text-sm font-black uppercase">Por estágio do funil</h2><div id="bloco-funil">' + blocoFunil() + "</div></section>" +
     '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
       '<input id="busca-marca" aria-label="Buscar marca desejo" placeholder="Buscar por marca, contato ou espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
@@ -3990,9 +4205,9 @@ function passosTour() {
     { rota: "/app/contratos", alvo: "#bloco-lista-contratos", titulo: "Ler o contrato com IA",
       texto: "<p>Em <b>Novo contrato</b> você escolhe: sobe o PDF e a IA preenche os campos para você conferir, ou preenche tudo na mão. Os dois caminhos levam ao mesmo lugar.</p><p>No contrato que já está guardado, o botão <b>Ler com IA</b> abre o arquivo, tira cada entrega e joga em Propriedades.</p><p>Os itens entram como <b>a conferir</b> e não contam até alguém confirmar. Cada um mostra o trecho do contrato de onde saiu, então conferir é passar o olho e clicar.</p><p>Depois de lido, o botão trava e vira <b>Lido pela IA</b>, para ninguém ler duas vezes sem querer. Passe o mouse nele para ver quantas entregas saíram dali e ir direto para elas.</p>" },
     { rota: "/app/propriedades", alvo: "#bloco-numeros-entregas", titulo: "Propriedades: o que cada marca tem a receber",
-      texto: "<p>A lista completa por marca, com a barra de quanto já foi entregue. Cada item diz de onde veio: do <b>contrato</b>, de um <b>acordo depois do contrato</b> (aquela demanda que surge no meio do caminho) ou de uma <b>cortesia</b>.</p><p>Marque como entregue no próprio item. Os números no topo mostram o que falta, o que atrasou e quanto está sendo dado fora do contrato.</p>" },
+      texto: "<p>A lista completa por marca, com a barra de quanto já foi entregue. Cada item diz de onde veio: do <b>contrato</b>, de um <b>aditivo</b> (o que foi combinado fora do contrato, aquela demanda que surge no meio do caminho) ou de uma <b>cortesia</b>.</p><p>Marque como entregue no próprio item. Os números no topo mostram o que falta, o que atrasou e quanto está sendo dado fora do contrato.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-mapa", titulo: "Mapa de espaços por edição",
-      texto: "<p>O mapa reproduz as plantas de 2026, com abas para Moto e Auto. <b>Verde</b> é disponível, <b>amarelo</b> reservado, <b>branco</b> vendido. <b>Borda vermelha tracejada</b> é espaço cujo patrocinador está em risco de renovação.</p><p>Toque num espaço para ver a marca, o vendedor, o valor e trocar o status na hora.</p><p>Reserva feita na mão vale " + DIAS_RESERVA + " dias: perto de vencer, o Início avisa quem cuida do espaço, que renova o prazo ou libera. Reserva de contrato assinado não vence.</p><p>No mesmo lugar fica a <b>fila de interessados</b>: marcas que querem o espaço se ele ficar livre. Vale a ordem de chegada, com a marca que ocupou em 2026 na frente, e quando o espaço fica livre o Início avisa para oferecer à primeira.</p><p>O botão <b>Ampliar</b>, no canto de cada zona, abre a zona inteira em tela cheia, com o nome de cada marca legível. Lá dentro dá para trocar entre grade e tabela.</p>" },
+      texto: "<p>O mapa reproduz as plantas de 2026, com abas para Moto e Auto. <b>Verde</b> é disponível, <b>amarelo</b> reservado, <b>branco</b> vendido. <b>Borda vermelha tracejada</b> é espaço cujo patrocinador está em risco de renovação.</p><p>Toque num espaço para ver a marca, o vendedor, o valor e trocar o status na hora.</p><p>Reserva feita na mão vale " + DIAS_RESERVA + " dias: perto de vencer, o Início avisa quem cuida do espaço, que renova o prazo ou libera. Reserva de contrato assinado não vence.</p><p>No mesmo lugar fica a <b>fila de interessados</b>: marcas que querem o espaço se ele ficar livre. Vale a ordem de chegada, com a marca que ocupou em 2026 na frente. A <b>bolinha amarela</b> no mapa diz quantas marcas estão na fila, e embaixo do mapa aparecem os <b>espaços mais disputados</b>.</p><p>Espaço <b>tracejado</b> está guardado para a marca que ocupou em 2026 até ela responder a renovação. Se ela confirmar, fica amarelo. Se passar do prazo e da semana de margem sem resposta, a borda fica vermelha e aparece o botão <b>Liberar e avisar a fila</b>: nada é liberado sozinho.</p><p>O botão <b>Ampliar</b>, no canto de cada zona, abre a zona inteira em tela cheia, com o nome de cada marca legível. Lá dentro dá para trocar entre grade e tabela.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-lista", titulo: "A mesma coisa em lista",
       texto: "<p>Embaixo do mapa fica a lista com busca por nome e filtro por status, para quem prefere tabela. Os números do topo contam patrocinadores em risco, espaços disponíveis e ativos. Novo espaço serve para algo fora da planta.</p>" },
     { rota: "/app/patrocinadores", alvo: "#filtros-patro", titulo: "Carteira: quem já patrocina",
@@ -4001,8 +4216,8 @@ function passosTour() {
       texto: "<p>Cada linha mostra contato, espaço vinculado, vendedor, vencimento do contrato e o selo de renovação (sem contato, em negociação, renovado ou recusou). Contrato a 30 dias do vencimento vira <b>em risco</b> sozinho e o espaço volta para o mapa como disponível.</p><p>Clique no nome da marca para abrir a ficha completa.</p>" },
     { rota: "/app/patrocinadores", alvo: "[role=dialog]", abrir: "ficha", titulo: "A ficha do cliente",
       texto: "<p>A ficha junta tudo de um cliente: dados, espaço, vendedor e atendimento, o bloco da <b>renovação 2027</b>, as <b>entregas</b> de Propriedades, os contratos e as últimas interações.</p><p>Toda promessa vira entrega: escreva em uma frase, diga quem prometeu e o prazo. Depois marque Entregue ou Cancelado.</p><p>O botão <b>Relatório</b> monta uma página com contratos, espaços, o que já foi entregue e o que falta, pronta para imprimir ou salvar em PDF e levar para a reunião.</p>" },
-    { rota: "/app/marcas", alvo: "#bloco-funil", titulo: "Marcas desejo: o funil",
-      texto: "<p>Aqui ficam as marcas que ainda não patrocinam e queremos trazer, por mercado (telefonia, bet, alimentação, lifestyle e tecnologia, saúde, mobilidade e outros).</p><p>Cada uma anda pelo funil: Mapeada, Primeiro contato, Proposta, Negociação, Fechada ou Perdida. As caixas contam por estágio e filtram a lista quando clicadas.</p>" },
+    { rota: "/app/marcas", alvo: "#bloco-setores", titulo: "Marcas desejo: por setor e no funil",
+      texto: "<p>Aqui ficam as marcas que ainda não patrocinam e queremos trazer. Em cima, um cartão por setor (telefonia, apostas, lifestyle, saúde, viagem e os outros) com quantas estão em andamento; clique num setor para ver só ele.</p><p>Cada uma anda pelo funil: Mapeada, Primeiro contato, Proposta, Negociação, Fechada ou Perdida. As caixas contam por estágio e filtram a lista quando clicadas.</p>" },
     { rota: "/app/marcas", alvo: "#bloco-lista-marca", titulo: "Trabalhando o funil",
       texto: "<p>Mude o estágio direto na linha. Marque sempre a próxima ação e a data: se vencer, fica vermelha. Marca parada mais de " + cfg.dias_sem_contato + " dias sem contato ganha o selo <b>Esfriando</b>.</p><p>Quando fechar, escolha Fechada ou use Virou patrocinador na ficha: a marca vai para a carteira já com todo o histórico de contatos e combinados.</p>" },
     { rota: "/app/contratos", alvo: "#bloco-lista-contratos", titulo: "Contratos com as marcas",
@@ -4140,6 +4355,11 @@ async function carregar(chave, fn) {
   if (!S.reservasConferidas && S.contracts && S.spaces && S.sponsors) {
     S.reservasConferidas = true;
     try { await conferirReservasPendentes(); } catch (e) {}
+  }
+  // contrato que voltou assinado e ninguem leu: a IA le uma vez por sessao
+  if (!S.leiturasConferidas && S.contracts && S.combinados) {
+    S.leiturasConferidas = true;
+    try { await conferirLeiturasPendentes(); } catch (e) {}
   }
 }
 function recarregarEspacos() { return Promise.all([carregar("spaces", getSpaces), carregar("overview", getSpacesOverview)]); }
@@ -4457,6 +4677,11 @@ document.addEventListener("click", async function (ev) {
     if (mv) iniciarFechamento(mv);
     return;
   }
+  if (acao === "filtro-setor") {
+    var merc = alvo.getAttribute("data-mercado");
+    S.fpr.mercado = S.fpr.mercado === merc ? "todos" : merc;
+    render(); return;
+  }
   if (acao === "filtro-estagio") {
     var est = alvo.getAttribute("data-estagio");
     S.fpr.estagio = (S.fpr.estagio === est && est !== "andamento" && est !== "todos") ? "andamento" : est;
@@ -4548,6 +4773,28 @@ document.addEventListener("click", async function (ev) {
       await recarregarEspacos();
       toast.success(aviso);
     } catch (e) { S.filaMexendo = false; render(); toast.error("Não foi possível salvar. Tente de novo."); }
+    return;
+  }
+  if (acao === "liberar-2027" || acao === "liberar-2027-marca") {
+    if (S.filaMexendo) return;
+    var paraLiberar;
+    if (acao === "liberar-2027") {
+      var el27 = (S.spaces || []).find(function (x) { return x.id === id; });
+      paraLiberar = el27 ? [el27] : [];
+    } else {
+      var dono27 = (S.sponsors || []).find(function (x) { return x.id === id; });
+      paraLiberar = dono27 ? espacos2026De(dono27).filter(function (e) { var s = situacaoEspaco2027(e); return s && s.tipo === "vencido"; }) : [];
+    }
+    if (!paraLiberar.length) { toast.error("Nada para liberar: o espaço já mudou. Recarregue a tela."); return; }
+    var nomesL = paraLiberar.map(nomeCurto).join(", ");
+    if (!window.confirm("Liberar " + nomesL + " para 2027? O espaço fica livre e a primeira marca da fila passa a ser avisada. Se a marca de 2026 ainda confirmar, alguém precisa reservar de volta na mão.")) return;
+    S.filaMexendo = true; render();
+    try {
+      await liberarEspacos2027(paraLiberar);
+      S.filaMexendo = false;
+      await recarregarEspacos();
+      toast.success("Liberado para 2027: " + nomesL + "." + recadoDaFila(paraLiberar));
+    } catch (e) { S.filaMexendo = false; render(); toast.error("Não foi possível liberar. Tente de novo."); }
     return;
   }
   if (acao === "abrir-espaco") {
@@ -4842,6 +5089,7 @@ document.addEventListener("change", async function (ev) {
     S.fpr[filtrosMarca[el.id]] = el.value;
     document.getElementById("bloco-lista-marca").innerHTML = blocoListaMarcas();
     document.getElementById("bloco-funil").innerHTML = blocoFunil();
+    var bs = document.getElementById("bloco-setores"); if (bs) bs.innerHTML = blocoSetores();
     return;
   }
   if (el.id && el.id.indexOf("estagio-") === 0) {
@@ -5039,6 +5287,7 @@ document.addEventListener("submit", async function (ev) {
       nome: String(fp.get("nome") || ""), contato: String(fp.get("contato") || ""),
       tipo: String(fp.get("tipo") || "patrocinador"), status: String(fp.get("status") || "ativo"),
       vendedorUid: fp.get("vendedor_uid") || null, atendimentoUid: fp.get("atendimento_uid") || null, espacoVinculadoId: fp.get("espaco_vinculado_id") || null,
+      contratou: String(fp.get("contratou") || ""),
       renovacao: String(fp.get("renovacao") || "sem_contato"),
       dataVencimentoContrato: String(fp.get("data_vencimento_contrato") || ""),
       master: ehAdmin() ? fp.get("master") === "sim" : (atual ? atual.master : false),
