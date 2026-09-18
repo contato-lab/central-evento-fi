@@ -276,7 +276,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.11";
+var VERSAO = "2026-09-17.12";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -888,6 +888,8 @@ async function getContracts() {
       arquivoPath: c.arquivo_path || "", arquivoNome: c.arquivo_nome || "",
       signatarios: Array.isArray(c.signatarios) ? c.signatarios.map(function (x) { return { nome: x.nome || "", email: x.email || "" }; }) : [],
       observacao: c.observacao || "", assinadoEm: c.assinado_em || null,
+      // o que a IA leu no PDF, guardado so quando bate diferente do que esta preenchido
+      iaInicio: c.ia_inicio || "", iaFim: c.ia_fim || "", iaValor: c.ia_valor == null ? null : Number(c.ia_valor),
       criadoPor: c.criado_por || null, criadoPorNome: quem ? quem.nome : "", createdAt: c.created_at || "", updatedAt: c.updated_at || "",
       diasParaVencer: c.fim ? diasAte(c.fim) : null,
     };
@@ -1075,14 +1077,19 @@ async function lerContratoComIa(c) {
   }
   if (!criados && !repetidos) throw new Error("Não foi possível guardar as entregas lidas.");
 
-  // vigência e valor entram só quando o contrato ainda não tem esses campos
-  var completou = [];
-  var faltando = {};
-  if (!c.inicio && dia(dados.vigencia_inicio)) { faltando.inicio = dados.vigencia_inicio; completou.push("início"); }
-  if (!c.fim && dia(dados.vigencia_fim)) { faltando.fim = dados.vigencia_fim; completou.push("fim"); }
-  if (c.valor == null && dados.valor != null && isFinite(Number(dados.valor)) && Number(dados.valor) > 0) { faltando.valor = Number(dados.valor); completou.push("valor"); }
-  if (Object.keys(faltando).length) { try { await API.atualizar("contratos", c.id, faltando); } catch (e) { completou = []; } }
-  return { criados: criados, completou: completou, repetidos: repetidos, pulados: pulados };
+  // Campo vazio a IA preenche. Campo que uma pessoa digitou ela nunca sobrescreve: se
+  // o PDF disser outra coisa, ela so guarda o que leu e o cartao mostra o recado.
+  var completou = [], divergiu = [];
+  var mudanca = {};
+  var iaIni = dia(dados.vigencia_inicio), iaFim = dia(dados.vigencia_fim);
+  var iaVal = dados.valor != null && isFinite(Number(dados.valor)) && Number(dados.valor) > 0 ? Number(dados.valor) : null;
+
+  if (iaIni) { if (!c.inicio) { mudanca.inicio = iaIni; completou.push("início"); mudanca.ia_inicio = null; } else if (c.inicio !== iaIni) { mudanca.ia_inicio = iaIni; divergiu.push("início"); } else mudanca.ia_inicio = null; }
+  if (iaFim) { if (!c.fim) { mudanca.fim = iaFim; completou.push("fim"); mudanca.ia_fim = null; } else if (c.fim !== iaFim) { mudanca.ia_fim = iaFim; divergiu.push("fim"); } else mudanca.ia_fim = null; }
+  if (iaVal !== null) { if (c.valor == null) { mudanca.valor = iaVal; completou.push("valor"); mudanca.ia_valor = null; } else if (Number(c.valor) !== iaVal) { mudanca.ia_valor = iaVal; divergiu.push("valor"); } else mudanca.ia_valor = null; }
+
+  if (Object.keys(mudanca).length) { try { await API.atualizar("contratos", c.id, mudanca); } catch (e) { completou = []; divergiu = []; } }
+  return { criados: criados, completou: completou, repetidos: repetidos, pulados: pulados, divergiu: divergiu };
 }
 
 async function confirmarEntregasDoContrato(ids) {
@@ -2361,6 +2368,7 @@ function cartaoContrato(c, comPatro) {
       '<p class="mt-0.5 text-xs text-muted-foreground">' + [periodo ? esc(periodo) : "", c.valor ? esc(formatCurrency(c.valor)) : "", venc].filter(Boolean).join(" · ") + "</p>" +
       '<p class="mt-0.5 text-xs text-muted-foreground">' + quem + (c.assinadoEm ? " · assinado em " + esc(formatDateOnly(c.assinadoEm)) : "") + "</p>" +
       (c.observacao ? '<p class="mt-1 text-xs text-muted-foreground">' + esc(c.observacao) + "</p>" : "") +
+      avisoDivergencia(c) +
     "</div>" +
     '<div class="flex shrink-0 flex-wrap items-center gap-2">' + badge(st, "whitespace-nowrap") +
       selectNativo("contrato-" + c.id, "status", Object.keys(STATUS_CONTRATO).map(function (k) { return { valor: k, rotulo: STATUS_CONTRATO[k].label }; }), c.status, { className: "h-8 w-48", disabled: S.contratoMudando }) +
@@ -2368,6 +2376,31 @@ function cartaoContrato(c, comPatro) {
       (c.arquivoPath ? botaoLerContrato(c) : "") +
       '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar contrato" title="Editar contrato" data-acao="editar-contrato" data-id="' + esc(c.id) + '">' + icone("pencil") + "</button>" +
     "</div></div></article>";
+}
+
+// A data de fim e o que dispara o alerta de vencimento. Se o PDF disser outra coisa do
+// que esta preenchido, ninguem percebe sozinho: o numero na tela continua bonitinho.
+function divergenciasContrato(c) {
+  var d = [];
+  if (c.iaInicio && c.iaInicio !== c.inicio) d.push({ campo: "inicio", rotulo: "Início", noPainel: c.inicio ? formatDateOnly(c.inicio) : "em branco", noPdf: formatDateOnly(c.iaInicio) });
+  if (c.iaFim && c.iaFim !== c.fim) d.push({ campo: "fim", rotulo: "Fim", noPainel: c.fim ? formatDateOnly(c.fim) : "em branco", noPdf: formatDateOnly(c.iaFim) });
+  if (c.iaValor != null && Number(c.iaValor) !== Number(c.valor)) d.push({ campo: "valor", rotulo: "Valor", noPainel: c.valor == null ? "em branco" : formatCurrency(c.valor), noPdf: formatCurrency(c.iaValor) });
+  return d;
+}
+function avisoDivergencia(c) {
+  var d = divergenciasContrato(c);
+  if (!d.length) return "";
+  return '<div class="mt-3 border border-warning/40 bg-warning/10 px-3 py-2.5">' +
+    '<p class="flex items-center gap-1.5 text-xs font-bold uppercase text-warning-foreground">' + icone("triangle-alert", "size-4 shrink-0") + " O PDF diz outra coisa</p>" +
+    '<p class="mt-1 text-sm text-foreground">' + d.map(function (x) {
+      return "<b>" + esc(x.rotulo) + "</b>: aqui está " + esc(x.noPainel) + ", o contrato diz " + esc(x.noPdf);
+    }).join(" · ") + "</p>" +
+    '<div class="mt-2.5 flex flex-wrap gap-2">' +
+      '<button type="button" class="' + btnCls("default", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="usar-dados-do-pdf" data-id="' + esc(c.id) + '"' + (S.contratoMudando ? " disabled" : "") + ">" + icone("check") + " Usar o que o contrato diz</button>" +
+      '<button type="button" class="' + btnCls("ghost", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="manter-como-esta" data-id="' + esc(c.id) + '"' + (S.contratoMudando ? " disabled" : "") + ">" + icone("x") + " Manter como está</button>" +
+    "</div>" +
+    '<p class="mt-2 text-xs text-muted-foreground">Quem digitou pode ter errado, o PDF pode ser de outra marca, ou a IA pode ter lido errado. Vale abrir o PDF antes de escolher.</p>' +
+  "</div>";
 }
 
 // Contrato ja lido nao le de novo por acidente: o botao fica la, travado, e o balao
@@ -3259,6 +3292,26 @@ document.addEventListener("click", async function (ev) {
   if (acao === "recarregar-marcas") { carregar("prospects", getProspects); return; }
   if (acao === "recarregar-contratos") { carregar("contracts", getContracts); return; }
   if (acao === "recarregar-entregas") { carregar("combinados", getCombinados); return; }
+  if (acao === "usar-dados-do-pdf" || acao === "manter-como-esta") {
+    var cd = (S.contracts || []).find(function (x) { return x.id === id; });
+    if (!cd) return;
+    var novos = { ia_inicio: null, ia_fim: null, ia_valor: null };
+    if (acao === "usar-dados-do-pdf") {
+      divergenciasContrato(cd).forEach(function (x) {
+        if (x.campo === "inicio") novos.inicio = cd.iaInicio;
+        if (x.campo === "fim") novos.fim = cd.iaFim;
+        if (x.campo === "valor") novos.valor = Number(cd.iaValor);
+      });
+    }
+    S.contratoMudando = true; render();
+    try {
+      await API.atualizar("contratos", cd.id, novos);
+      S.contratoMudando = false;
+      await carregar("contracts", getContracts);
+      toast.success(acao === "usar-dados-do-pdf" ? "Contrato atualizado com o que está escrito no PDF." : "Mantido como estava. O aviso não volta neste contrato.");
+    } catch (e) { S.contratoMudando = false; render(); toast.error("Não foi possível salvar. Tente de novo."); }
+    return;
+  }
   if (acao === "ver-entregas-contrato") {
     var cv = (S.contracts || []).find(function (x) { return x.id === id; });
     if (!cv) return;
@@ -3285,6 +3338,7 @@ document.addEventListener("click", async function (ev) {
         toast.success("A marca já tinha " + r.repetidos + " dest" + (r.repetidos > 1 ? "es itens, que não entraram de novo" : "e item, que não entrou de novo") + ": " + nomes + resto);
       }
       if (r.completou.length) toast.success("A IA também preencheu " + r.completou.join(", ") + " do contrato.");
+      if (r.divergiu && r.divergiu.length) toast.error("O PDF diz outra coisa em " + r.divergiu.join(" e ") + ". Confira no cartão do contrato.");
     } catch (e) { S.lendoContrato = null; render(); toast.error(e.message); }
     return;
   }
