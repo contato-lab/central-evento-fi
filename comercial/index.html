@@ -276,7 +276,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.15";
+var VERSAO = "2026-09-17.16";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -569,6 +569,7 @@ async function criarApiTeste() {
       await espera(1800);
       return JSON.stringify({
         titulo: "Contrato de patrocínio Master 2027",
+        patrocinadora: "AURORA SEGUROS PARTICIPAÇÕES S.A.",
         assinantes: [{ nome: "Bianca Lima", email: "bianca@marca.com.br" }, { nome: "Diretoria do festival", email: "" }],
         vigencia_inicio: "2027-01-01", vigencia_fim: "2027-12-31", valor: 450000,
         entregas: [
@@ -1024,7 +1025,7 @@ async function lerPdfDoContrato(caminho) {
     "Se a entrega tiver condição ou exceção, coloque isso na própria descrição, em poucas palavras.\n" +
     "Não invente nada e não invente data.";
   var prompt = "Leia o contrato e devolva JSON com esta forma exata:\n" +
-    '{"titulo":"o nome do contrato, curto","vigencia_inicio":"AAAA-MM-DD ou vazio","vigencia_fim":"AAAA-MM-DD ou vazio","valor":número ou null,' +
+    '{"titulo":"o nome do contrato, curto","patrocinadora":"a empresa patrocinadora, como está escrita no contrato","vigencia_inicio":"AAAA-MM-DD ou vazio","vigencia_fim":"AAAA-MM-DD ou vazio","valor":número ou null,' +
     '"assinantes":[{"nome":"quem assina","email":"e-mail se o contrato trouxer, senão vazio"}],' +
     '"entregas":[{"descricao":"o que o evento entrega, curto","quantidade":número ou null,' +
     '"categoria":"espaco|credenciais|midia|hospitalidade|ativacao|outro","prazo":"AAAA-MM-DD ou vazio",' +
@@ -1047,7 +1048,8 @@ async function lerPdfDoContrato(caminho) {
     "- quantidade 420 para uma área de 420 m² (metragem não é quantidade)\n" +
     "- 300 ingressos de cortesia, com quantidade 300 (o número aparece duas vezes na tela)\n\n" +
     "titulo é como a equipe chamaria este contrato, tipo \"Contrato de patrocínio Master 2027\". Sem nome de empresa e sem número de processo.\n" +
-    "assinantes são as pessoas que assinam nas duas pontas, com o nome como está escrito. Se o contrato não trouxer e-mail, deixe o e-mail vazio.";
+    "assinantes são as pessoas que assinam nas duas pontas, com o nome como está escrito. Se o contrato não trouxer e-mail, deixe o e-mail vazio.\n" +
+    "patrocinadora é a empresa que está patrocinando, não a organizadora do evento. Copie a razão social como está no contrato.";
   var bruto;
   try { bruto = await comPrazo(API.lerPdf(sistema, prompt, caminho), 120000, "A IA demorou mais de dois minutos. Tente de novo."); }
   catch (e) {
@@ -1129,6 +1131,28 @@ async function gravarEntregasLidas(c, dados, pularCabecalho) {
 // Contrato assinado reserva o lugar fisico da marca no mapa. Acha o espaco por duas
 // vias: o vinculo que o vendedor ja fez, e a planta de 2026, onde cada espaco guarda a
 // marca que estava nele. Nunca encosta em espaco que ja e de outra marca.
+// Razao social tem um monte de enfeite que o painel nao usa: "CFMOTO DO BRASIL
+// IMPORTACAO E COMERCIO LTDA" e "CFMOTO" sao a mesma marca.
+var ENFEITE_RAZAO_SOCIAL = /\b(ltda|limitada|me|epp|eireli|sa|s a|cia|companhia|comercio|comercial|industria|industrial|importacao|exportacao|distribuidora|participacoes|holding|group|grupo|do brasil|brasil|latam|inc|corp|e)\b/g;
+function nucleoDaMarca(txt) {
+  var t = String(txt || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  t = t.replace(ENFEITE_RAZAO_SOCIAL, " ").replace(/\s+/g, " ").trim();
+  return t;
+}
+// true = bate, false = nao bate, null = nao deu para comparar
+function marcaBate(nomeNoPainel, nomeNoContrato) {
+  var a = nucleoDaMarca(nomeNoPainel), b = nucleoDaMarca(nomeNoContrato);
+  if (!a || !b) return null;
+  if (a === b || b.indexOf(a + " ") === 0 || a.indexOf(b + " ") === 0) return true;
+  var pa = a.split(" ").filter(function (x) { return x.length >= 3; });
+  var pb = b.split(" ").filter(function (x) { return x.length >= 3; });
+  if (!pa.length || !pb.length) return null;
+  var menor = pa.length <= pb.length ? pa : pb, maior = pa.length <= pb.length ? pb : pa;
+  var dentro = menor.filter(function (x) { return maior.indexOf(x) >= 0; }).length;
+  return dentro / menor.length >= 0.6;
+}
+
 function mesmaMarca(a, b) {
   var limpa = function (t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); };
   var x = limpa(a), y = limpa(b);
@@ -2466,6 +2490,17 @@ function telaInteracoes() {
 }
 
 /* ------------------------------------------------------ ficha do patrocinador */
+// Contrato que ainda nao foi assinado mostra o que vai acontecer quando for, senao a
+// pessoa salva como rascunho e fica esperando a reserva que nunca vem.
+function espacosQueSeriamReservados(c) {
+  if (!c || c.status === "assinado" || c.status === "cancelado" || !c.edicao || !S.spaces || !S.sponsors) return [];
+  var marca = S.sponsors.find(function (p) { return p.id === c.patrocinadorId; });
+  if (!marca) return [];
+  return S.spaces.filter(function (e) {
+    return e.edicao === c.edicao && mesmaMarca(e.ocupante2026, marca.nome) && e.status === "disponivel";
+  }).map(function (e) { return e.nome; });
+}
+
 function cartaoContrato(c, comPatro) {
   var st = STATUS_CONTRATO[c.status];
   var periodo = c.inicio || c.fim ? (c.inicio ? formatDateOnly(c.inicio) : "?") + " até " + (c.fim ? formatDateOnly(c.fim) : "?") : "";
@@ -2481,6 +2516,13 @@ function cartaoContrato(c, comPatro) {
       '<p class="mt-0.5 text-xs text-muted-foreground">' + quem + (c.assinadoEm ? " · assinado em " + esc(formatDateOnly(c.assinadoEm)) : "") + "</p>" +
       (c.observacao ? '<p class="mt-1 text-xs text-muted-foreground">' + esc(c.observacao) + "</p>" : "") +
       avisoDivergencia(c) +
+      (function () {
+        var futuros = espacosQueSeriamReservados(c);
+        if (!futuros.length) return "";
+        var lista = futuros.slice(0, 3).join(", ") + (futuros.length > 3 ? " e mais " + (futuros.length - 3) : "");
+        return '<p class="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">' + icone("map", "size-3.5 shrink-0 translate-y-0.5") +
+          "<span>Ao marcar como <b>Assinado</b>, " + (futuros.length > 1 ? futuros.length + " espaços serão reservados" : "1 espaço será reservado") + " para esta marca: " + esc(lista) + ".</span></p>";
+      })() +
     "</div>" +
     '<div class="flex shrink-0 flex-wrap items-center gap-2">' + badge(st, "whitespace-nowrap") +
       selectNativo("contrato-" + c.id, "status", Object.keys(STATUS_CONTRATO).map(function (k) { return { valor: k, rotulo: STATUS_CONTRATO[k].label }; }), c.status, { className: "h-8 w-48", disabled: S.contratoMudando }) +
@@ -2593,6 +2635,25 @@ function telaContratos() {
   "</section>";
 }
 
+// Mostra sempre o nome que esta escrito no PDF, e grita quando nao parece a marca
+// escolhida na lista. Mostrar sempre e de proposito: a comparacao acerta o erro grosso,
+// quem decide o caso sutil e quem esta lendo.
+function blocoConfereMarca(patroIdEscolhido) {
+  var lido = S.formContrato.lido;
+  var noContrato = lido && lido.dados ? String(lido.dados.patrocinadora || "").trim() : "";
+  if (!noContrato) return "";
+  var escolhida = (S.sponsors || []).find(function (p) { return p.id === patroIdEscolhido; });
+  var bate = escolhida ? marcaBate(escolhida.nome, noContrato) : null;
+  if (bate === false) {
+    return '<div class="mt-2 border border-destructive/40 bg-destructive/10 px-3 py-2">' +
+      '<p class="flex items-center gap-1.5 text-xs font-bold uppercase text-destructive">' + icone("triangle-alert", "size-4 shrink-0") + " Parece outra marca</p>" +
+      '<p class="mt-1 text-sm text-foreground">No PDF a patrocinadora é <b>' + esc(noContrato) + "</b>, e aqui está escolhida <b>" + esc(escolhida.nome) + "</b>. Confira antes de salvar.</p></div>";
+  }
+  return '<p class="mt-2 flex items-start gap-1.5 text-xs ' + (bate === true ? "text-primary" : "text-muted-foreground") + '">' +
+    icone(bate === true ? "check" : "circle-help", "size-3.5 shrink-0 translate-y-0.5") +
+    "<span>No PDF a patrocinadora é <b>" + esc(noContrato) + "</b>" + (bate === true ? ", bate com a marca escolhida." : ". Confira se é a marca escolhida aqui.") + "</span></p>";
+}
+
 function dialogoContrato() {
   var c = S.formContrato.contrato;
   var lido = S.formContrato.lido;
@@ -2619,7 +2680,8 @@ function dialogoContrato() {
     return '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-contrato" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (c ? "Editar contrato" : "Novo contrato") + "</h2>" +
       '<p class="text-sm text-muted-foreground">' + sub + "</p></div>";
   };
-  var campoPatro = '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-patro">Patrocinador</label>' + selectNativo("contrato-patro", "patrocinador_id", opcoes, patroId, { disabled: !!c }) + "</div>";
+  var campoPatro = '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-patro">Patrocinador</label>' + selectNativo("contrato-patro", "patrocinador_id", opcoes, patroId, { disabled: !!c }) +
+    '<div id="bloco-confere-marca">' + (lido ? blocoConfereMarca(patroId) : "") + "</div></div>";
 
   // ---------------------------------------------------- caminho 1: deixar a IA ler
   if (!c && S.formContrato.modo === "ia" && !lido) {
@@ -3293,6 +3355,7 @@ async function prepararTela(caminho) {
   }
   if (caminho === "/app/contratos") {
     if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors); // select do formulario
+    if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // previa do que sera reservado ao assinar
     if (!S.combinados && !S.combinadosCarregando) carregar("combinados", getCombinados); // ficha aberta daqui
     if (!S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions);
   }
@@ -3675,6 +3738,11 @@ document.addEventListener("input", function (ev) {
 
 document.addEventListener("change", async function (ev) {
   var el = ev.target;
+  if (el.id === "contrato-patro" && S.formContrato.aberto && S.formContrato.lido) {
+    var caixa = document.getElementById("bloco-confere-marca");
+    if (caixa) caixa.innerHTML = blocoConfereMarca(el.value);
+    return;
+  }
   var filtros = { "filtro-tipo": "tipo", "filtro-status": "status", "filtro-vendedor": "vendedor", "filtro-master": "master", "filtro-renovacao": "renovacao" };
   if (filtros[el.id]) {
     S.fp[filtros[el.id]] = el.value;
