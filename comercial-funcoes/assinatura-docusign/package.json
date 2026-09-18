@@ -1,0 +1,11 @@
+{
+  "name": "assinatura-docusign",
+  "description": "Manda contrato para assinar na DocuSign e recebe a volta quando assinam",
+  "main": "index.js",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.0",
+    "firebase-admin": "^12.6.0"
+  }
+}
