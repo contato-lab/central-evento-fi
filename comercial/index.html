@@ -273,7 +273,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.8";
+var VERSAO = "2026-09-17.9";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -946,18 +946,73 @@ async function changeContractStatus(id, status) {
   try { await API.atualizar("contratos", id, dados); } catch (e) { throw new Error("Não foi possível mudar o status do contrato."); }
 }
 
+// A IA nao sabe o que a marca ja tem cadastrado, e escreve a mesma entrega com outras
+// palavras a cada leitura. Entao a comparacao e por palavra que importa, nao por texto igual.
+var PALAVRAS_VAZIAS = { para: 1, como: 1, cada: 1, toda: 1, todo: 1, todos: 1, todas: 1, seus: 1, suas: 1, pelo: 1, pela: 1, pelos: 1, pelas: 1, sera: 1, serao: 1, sobre: 1, esse: 1, essa: 1, este: 1, esta: 1, deste: 1, desta: 1, evento: 1, marca: 1, contrato: 1, durante: 1, conforme: 1, ainda: 1, mesmo: 1, sendo: 1, tera: 1, terao: 1, havera: 1, ficara: 1, que: 1, com: 1, por: 1, uma: 1, uns: 1, dos: 1, das: 1, nos: 1, nas: 1, aos: 1, seu: 1, sua: 1, sob: 1, ser: 1, sao: 1, tem: 1, ate: 1, mais: 1, entre: 1, quando: 1, onde: 1, qualquer: 1, deve: 1, devera: 1, deverao: 1, podera: 1, poderao: 1, item: 1, itens: 1 };
+function palavrasChave(txt) {
+  return String(txt || "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[-'\u2019.]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").split(" ")
+    .filter(function (p) { return (/^[0-9]{2,}$/.test(p) || p.length >= 3) && !PALAVRAS_VAZIAS[p]; });
+}
+function pareceMesmaEntrega(a, b) {
+  // Quantidade diferente e entrega diferente: 2 posts nao e a mesma coisa que 6 posts.
+  if (a.quantidade != null && b.quantidade != null && a.quantidade !== b.quantidade) return false;
+  var A = palavrasChave(a.descricao), B = palavrasChave(b.descricao);
+  if (!A.length || !B.length) return false;
+  var uniA = {}, uniB = {};
+  A.forEach(function (p) { uniA[p] = 1; });
+  B.forEach(function (p) { uniB[p] = 1; });
+  var listaA = Object.keys(uniA), listaB = Object.keys(uniB);
+  var repetidas = listaA.filter(function (p) { return uniB[p]; });
+  var iguais = repetidas.length;
+  var juntos = listaA.length + listaB.length - iguais;
+  // Quase todas as palavras batem: e a mesma entrega escrita de novo.
+  if (iguais / juntos >= 0.5) return true;
+  // Uma frase bem maior que a outra falando da mesma coisa. Na duvida o certo e deixar
+  // passar e a pessoa cancelar o repetido, nunca sumir com uma entrega de verdade.
+  // O assunto e a primeira palavra que nao e numero: em "60 credenciais VIP" o assunto
+  // e credenciais, nao o 60.
+  var assunto = function (l) { for (var i = 0; i < l.length; i++) if (!/^[0-9]+$/.test(l[i])) return l[i]; return l[0]; };
+  var chave = assunto(A);
+  if (chave !== assunto(B) || iguais < 2) return false;
+  if (iguais / Math.min(listaA.length, listaB.length) < 0.5) return false;
+  // Alem do assunto e do numero, precisa dividir pelo menos mais uma palavra. Sem isso
+  // "25 credenciais de staff" e "25 credenciais de area VIP" virariam a mesma entrega.
+  return repetidas.some(function (p) { return p !== chave && !/^[0-9]+$/.test(p); });
+}
+
 // Le o PDF do contrato com a IA e joga cada entrega em Propriedades como "a conferir".
 async function lerContratoComIa(c) {
   if (!c || !c.arquivoPath) throw new Error("Este contrato não tem PDF anexado. Suba o PDF antes de ler.");
-  var sistema = "Você lê contratos de patrocínio de eventos em português do Brasil e extrai, em JSON, tudo o que o organizador do evento se comprometeu a entregar ao patrocinador. " +
-    "Não invente nada: só registre o que está escrito. Se um item for condicional (por exemplo 'conforme disponibilidade'), copie essa condição na descrição. " +
-    "Não registre obrigações do patrocinador (pagamento, envio de arte, seguro), só o que o evento entrega.";
+  var sistema = "Você lê contratos de patrocínio de eventos em português do Brasil e extrai, em JSON, só o que o ORGANIZADOR do evento se comprometeu a entregar ao PATROCINADOR.\n" +
+    "Nunca registre obrigação do patrocinador: pagamento, parcelas, multa por atraso, envio de arquivos e artes, contratação de seguro, apresentação de apólice, e a montagem, a operação e a desmontagem do espaço dele. Nada disso é entrega do evento.\n" +
+    "Nunca registre regra de contrato: vigência, rescisão, foro, confidencialidade, reajuste.\n" +
+    "Cada entrega é um item só, e o prazo dela vai no campo prazo do mesmo item. O prazo nunca vira um item separado: se o contrato diz que a área de 420 m² é entregue para montagem em 28 de agosto, isso é uma entrega só, com prazo 28 de agosto.\n" +
+    "Escreva a descrição curta e em português simples, do jeito que a equipe lê num checklist. Não escreva ORGANIZADORA nem PATROCINADORA, não escreva 'fica cedido' nem 'serão disponibilizadas', não cite número de cláusula. Até 90 caracteres quando der.\n" +
+    "Se a entrega tiver condição ou exceção, coloque isso na própria descrição, em poucas palavras.\n" +
+    "Não invente nada e não invente data.";
   var prompt = "Leia o contrato e devolva JSON com esta forma exata:\n" +
     '{"vigencia_inicio":"AAAA-MM-DD ou vazio","vigencia_fim":"AAAA-MM-DD ou vazio","valor":número ou null,' +
-    '"entregas":[{"descricao":"o que o evento entrega, em uma frase","quantidade":número ou null,' +
+    '"entregas":[{"descricao":"o que o evento entrega, curto","quantidade":número ou null,' +
     '"categoria":"espaco|credenciais|midia|hospitalidade|ativacao|outro","prazo":"AAAA-MM-DD ou vazio",' +
-    '"trecho":"a frase do contrato que comprova este item"}]}\n' +
-    "Uma entrega por item. Se o contrato citar quantidade por extenso, converta para número. Se não houver prazo, deixe vazio.";
+    '"trecho":"a frase do contrato que comprova este item"}]}\n\n' +
+    "quantidade é só a quantidade de coisas entregues, como 300 ingressos, 6 posts, 1 camarote. Metragem, área, porcentagem e duração não são quantidade: vão escritas na descrição. Quantidade por extenso vira número.\n" +
+    "prazo só quando o contrato dá uma data. Prazo contado a partir da assinatura ou do fim do evento fica vazio, e essa condição entra na descrição.\n" +
+    "categoria: espaco para área, estande e metragem; credenciais para ingressos, credenciais e vagas; midia para marca exposta, telão, posts, site e peças; hospitalidade para camarote com serviço, hotel e alimentação; ativacao para ação, experiência e test-drive; outro para exclusividade, relatório e o que não encaixar.\n\n" +
+    "Descrições do jeito certo:\n" +
+    "- Área de ativação de 420 m² no Setor B-14 (prazo 2027-08-28, quantidade null)\n" +
+    "- Camarote para 40 pessoas com comida e bebida, no sábado (quantidade 1)\n" +
+    "- 300 ingressos de cortesia para os três dias (quantidade 300)\n" +
+    "- Marca no telão do palco principal, mínimo 12 inserções por dia (quantidade 12)\n" +
+    "- Exclusividade em lubrificantes, menos para expositores da Feira (quantidade null)\n" +
+    "- Espaço de 30 m² na área infantil, só se o Festival Kids acontecer (quantidade null)\n\n" +
+    "Do jeito errado, não faça:\n" +
+    "- A ORGANIZADORA disponibilizará à PATROCINADORA um camarote com capacidade para 40 pessoas (juridiquês)\n" +
+    "- A desmontagem da área deverá ser concluída (é obrigação do patrocinador)\n" +
+    "- A área será entregue para montagem, separado do item da própria área (prazo virou item)\n" +
+    "- quantidade 420 para uma área de 420 m² (metragem não é quantidade)";
   var bruto;
   try { bruto = await comPrazo(API.lerPdf(sistema, prompt, c.arquivoPath), 120000, "A IA demorou mais de dois minutos. Tente de novo."); }
   catch (e) {
@@ -980,26 +1035,34 @@ async function lerContratoComIa(c) {
   if (!itens.length) throw new Error("A IA não encontrou entregas neste PDF. Confira se o arquivo é mesmo o contrato.");
 
   var dia = function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(String(d || "")) ? d : ""; };
-  var criados = 0;
+  // O que a marca ja tem vale como referencia, menos o que foi cancelado.
+  var jaTem = combinadosDe(c.patrocinadorId).filter(function (e) { return e.status !== "cancelado"; })
+    .map(function (e) { return { descricao: e.descricao, quantidade: e.quantidade }; });
+  var criados = 0, repetidos = 0;
   for (var k = 0; k < itens.length && k < 40; k++) {
     var it = itens[k] || {};
     var desc = String(it.descricao || "").trim().slice(0, 300);
     if (desc.length < 3) continue;
-    var qtd = it.quantidade == null || it.quantidade === "" ? null : Number(it.quantidade);
+    var bruta = it.quantidade == null || it.quantidade === "" ? null : Number(it.quantidade);
+    var qtd = bruta !== null && isFinite(bruta) && bruta >= 0 ? bruta : null;
+    var novo = { descricao: desc, quantidade: qtd };
+    var repetida = jaTem.some(function (e) { return pareceMesmaEntrega(novo, e); });
+    if (repetida) { repetidos++; continue; }
     try {
       await API.criar("combinados", {
         patrocinador_id: c.patrocinadorId, prospeccao_id: null,
         descricao: desc, status: "a_conferir", origem: "contrato",
         categoria: CATEGORIA_ENTREGA[it.categoria] ? it.categoria : "outro",
-        quantidade: qtd !== null && isFinite(qtd) && qtd >= 0 ? qtd : null,
+        quantidade: qtd,
         prazo: dia(it.prazo), contrato_id: c.id, trecho: String(it.trecho || "").trim().slice(0, 400),
         data: hojeMais(0), entregue_em: null, comprovacao: "",
         prometido_por_uid: S.uid, prometido_por_nome: S.nome,
       });
       criados++;
+      jaTem.push(novo);
     } catch (e) {}
   }
-  if (!criados) throw new Error("Não foi possível guardar as entregas lidas.");
+  if (!criados && !repetidos) throw new Error("Não foi possível guardar as entregas lidas.");
 
   // vigência e valor entram só quando o contrato ainda não tem esses campos
   var completou = [];
@@ -1008,7 +1071,7 @@ async function lerContratoComIa(c) {
   if (!c.fim && dia(dados.vigencia_fim)) { faltando.fim = dados.vigencia_fim; completou.push("fim"); }
   if (c.valor == null && dados.valor != null && isFinite(Number(dados.valor)) && Number(dados.valor) > 0) { faltando.valor = Number(dados.valor); completou.push("valor"); }
   if (Object.keys(faltando).length) { try { await API.atualizar("contratos", c.id, faltando); } catch (e) { completou = []; } }
-  return { criados: criados, completou: completou };
+  return { criados: criados, completou: completou, repetidos: repetidos };
 }
 
 async function confirmarEntregasDoContrato(ids) {
@@ -3165,7 +3228,9 @@ document.addEventListener("click", async function (ev) {
       var r = await lerContratoComIa(cl);
       S.lendoContrato = null;
       await Promise.all([carregar("combinados", getCombinados), carregar("contracts", getContracts)]);
-      toast.success(r.criados + " entrega" + (r.criados > 1 ? "s" : "") + " lida" + (r.criados > 1 ? "s" : "") + " do contrato. Confira em Propriedades antes de valer.");
+      if (r.criados) toast.success(r.criados + " entrega" + (r.criados > 1 ? "s" : "") + " lida" + (r.criados > 1 ? "s" : "") + " do contrato. Confira em Propriedades antes de valer.");
+      else toast.success("Nada novo neste contrato: o que a IA leu já estava cadastrado nesta marca.");
+      if (r.repetidos) toast.success(r.repetidos + " item" + (r.repetidos > 1 ? "ns" : "") + " que a marca já tinha não " + (r.repetidos > 1 ? "foram repetidos" : "foi repetido") + ".");
       if (r.completou.length) toast.success("A IA também preencheu " + r.completou.join(", ") + " do contrato.");
     } catch (e) { S.lendoContrato = null; render(); toast.error(e.message); }
     return;
