@@ -256,6 +256,32 @@
   .linha-assinante .la-tirar{grid-column:2;grid-row:1 / span 2}
   @media (min-width:640px){.linha-assinante{grid-template-columns:1fr 1fr auto}.linha-assinante .la-email{grid-column:2;grid-row:1}.linha-assinante .la-tirar{grid-column:3;grid-row:1}}
   .campo-falta{border-color:var(--warning)}
+  /* relatorio da marca: tabelas simples; no papel sai em branco, sem menu nem botoes */
+  .rel-rolar{overflow-x:auto}
+  .rel-tabela{width:100%;min-width:640px;border-collapse:collapse;font-size:.875rem}
+  .rel-tabela th{padding:.5rem;border-bottom:1px solid var(--border);text-align:left;font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--muted-foreground);white-space:nowrap}
+  .rel-tabela td{padding:.55rem .5rem;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+  .rel-tabela .rel-num{text-align:right;white-space:nowrap}
+  .rel-atrasada{color:var(--destructive);font-weight:600}
+  @media print{
+    @page{margin:14mm}
+    html,body,.bg-background,.bg-card{background:#fff !important;color:#111 !important}
+    header.sticky,aside,.nav-inferior,.nao-imprimir,#toasts{display:none !important}
+    .casca-grade{display:block !important}
+    main{padding:0 !important}
+    .text-muted-foreground,.rel-tabela th{color:#555 !important}
+    .text-primary{color:#111 !important}
+    .border,.border-border,.border-b,.border-t,.rel-tabela th,.rel-tabela td{border-color:#ccc !important}
+    .rel-bloco{break-inside:avoid-page}
+    .rel-rolar{overflow:visible !important}
+    .rel-tabela{font-size:9pt !important;min-width:0 !important}
+    .rel-tabela th{white-space:normal !important}
+    .rel-tabela th,.rel-tabela td{padding:.35rem .4rem !important}
+    .rel-tabela tr{break-inside:avoid}
+    .barra-entrega{border:1px solid #999}
+    .barra-entrega i{background:#111 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .rel-atrasada,.text-destructive{color:#b00020 !important}
+  }
 </style>
 </head>
 <body>
@@ -282,7 +308,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-18.3";
+var VERSAO = "2026-09-18.4";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -296,6 +322,8 @@ var MODO_TESTE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]te
 
 /* ------------------------------------------------------------------ icones */
 var ICONES = {
+"arrow-left": "<path d=\"m12 19-7-7 7-7\"/> <path d=\"M19 12H5\"/>",
+"printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/> <path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/> <rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>",
 "list-checks": "<path d=\"M13 5h8\"/> <path d=\"M13 12h8\"/> <path d=\"M13 19h8\"/> <path d=\"m3 17 2 2 4-4\"/> <path d=\"m3 7 2 2 4-4\"/>",
 "check": "<path d=\"M20 6 9 17l-5-5\"/>",
 "house": "<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/> <path d=\"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>",
@@ -1763,7 +1791,7 @@ function casca(conteudo, caminho) {
         '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Sair" title="Sair" data-acao="sair"' + (S.saindo ? " disabled" : "") + ">" + icone("log-out") + "</button></div>" +
       "</div>" +
     "</header>" +
-    '<div class="mx-auto grid max-w-screen-2xl md:grid-cols-[260px_1fr]">' +
+    '<div class="casca-grade mx-auto grid max-w-screen-2xl md:grid-cols-[260px_1fr]">' +
       '<aside class="hidden min-h-[calc(100vh-4rem)] border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block"><nav aria-label="Navegação principal" class="space-y-1">' + lateral + "</nav></aside>" +
       '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + conteudo + "</main>" +
       (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto && !S.formEntrega.aberto ? dialogoFicha() : "") +
@@ -1897,6 +1925,35 @@ function calcularAlertas() {
       else if (diasContato > cfg.dias_sem_contato) lista.push(Object.assign({}, base, { nivel: "amarelo", peso: 2, titulo: p.nome + " está sem contato " + textoDias(diasContato, false), detalhe: "Limite combinado: " + cfg.dias_sem_contato + " dias" }));
     }
   });
+  // Entregas que a marca tem a receber: passou do prazo vira vermelho, vence em 7 dias vira
+  // amarelo. Um alerta por marca, para o vendedor dela, com a entrega mais antiga no detalhe.
+  // Vale mesmo com o patrocinador encerrado: o que foi prometido continua devido.
+  var semana = hojeMais(7);
+  var porPatro = {};
+  (S.combinados || []).forEach(function (c) {
+    if (!c.patrocinadorId || c.status !== "combinado" || !c.prazo) return;
+    var g = porPatro[c.patrocinadorId] || (porPatro[c.patrocinadorId] = { atrasadas: [], vencendo: [] });
+    if (c.atrasada) g.atrasadas.push(c); else if (c.prazo <= semana) g.vencendo.push(c);
+  });
+  (S.sponsors || []).forEach(function (p) {
+    var g = porPatro[p.id];
+    if (!g) return;
+    var base = { patro: p, vendedorUid: p.vendedorUid, vendedorNome: p.responsavelComercial, tipo: "entregas" };
+    var resumo = function (lista, comoVence) {
+      var primeira = lista[0];
+      return primeira.descricao + " " + comoVence(primeira) + (lista.length > 1 ? " · e mais " + (lista.length - 1) : "");
+    };
+    if (g.atrasadas.length) {
+      var na = g.atrasadas.length;
+      lista.push(Object.assign({}, base, { nivel: "vermelho", peso: 1, titulo: na + (na > 1 ? " entregas da " : " entrega da ") + p.nome + (na > 1 ? " passaram do prazo" : " passou do prazo"),
+        detalhe: resumo(g.atrasadas, function (c) { return "venceu " + textoDias(-diasAte(c.prazo), false); }) }));
+    }
+    if (g.vencendo.length) {
+      var nv = g.vencendo.length;
+      lista.push(Object.assign({}, base, { nivel: "amarelo", peso: 2, titulo: nv + (nv > 1 ? " entregas da " : " entrega da ") + p.nome + (nv > 1 ? " vencem" : " vence") + " nos próximos 7 dias",
+        detalhe: resumo(g.vencendo, function (c) { return "até " + formatDateOnly(c.prazo); }) }));
+    }
+  });
   return lista.sort(function (a, b) { return a.peso - b.peso || porNome(a.patro, b.patro); });
 }
 
@@ -1907,8 +1964,11 @@ function cartaoAlerta(a) {
       '<div class="min-w-0"><h3 class="break-words font-bold">' + esc(a.titulo) + "</h3>" +
       '<p class="mt-0.5 text-sm text-muted-foreground">' + esc(a.detalhe) + " · Vendedor: " + vend + (a.patro.master ? " · " + badgeMaster() : "") + "</p></div>" +
       '<div class="flex shrink-0 flex-wrap gap-2">' +
-        '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="nova-interacao" data-patro="' + esc(a.patro.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" +
-        '<button type="button" class="' + btnCls("ghost", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="editar-patro" data-id="' + esc(a.patro.id) + '">' + icone("pencil") + " Abrir</button>" +
+        (a.tipo === "entregas"
+          ? '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="ver-entregas-patro" data-id="' + esc(a.patro.id) + '">' + icone("package-check") + " Ver entregas</button>" +
+            '<a href="#/app/relatorio?patro=' + encodeURIComponent(a.patro.id) + '" class="' + btnCls("ghost", "default", "h-8 text-xs font-bold uppercase") + '">' + icone("file-text") + " Relatório</a>"
+          : '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="nova-interacao" data-patro="' + esc(a.patro.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" +
+            '<button type="button" class="' + btnCls("ghost", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="editar-patro" data-id="' + esc(a.patro.id) + '">' + icone("pencil") + " Abrir</button>") +
       "</div></div></article>";
 }
 
@@ -1968,12 +2028,12 @@ function telaInicio() {
           (S.combinados === null ? loadingList("Carregando entregas...", 2) : (pendentes.length ? pendentes.slice(0, 8).map(function (c) { return cartaoCombinado(c, true); }).join("") + (pendentes.length > 8 ? '<a href="#/app/propriedades" class="block border border-dashed border-border px-4 py-3 text-center text-sm text-primary hover:underline">Ver as ' + pendentes.length + " entregas em Propriedades</a>" : "") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada pendente. Tudo o que foi combinado já foi entregue.</p>')) +
         "</section>";
       })() +
-      '<p class="text-xs text-muted-foreground">Prazos em uso: contrato avisa a 90, 60 e 30 dias; sem contato acima de ' + cfg.dias_sem_contato + ' dias (patrocinadores e marcas desejo); Master a ' + cfg.dias_gatilho_master + ' dias da edição (Moto ' + esc(formatDateOnly(cfg.moto_data)) + ', Auto ' + esc(formatDateOnly(cfg.auto_data)) + '). ' + (ehAdmin() ? 'Ajuste na tela Equipe.' : 'Quem ajusta é o administrador.') + "</p>";
+      '<p class="text-xs text-muted-foreground">Prazos em uso: contrato avisa a 90, 60 e 30 dias; entrega avisa 7 dias antes do prazo e fica vermelha quando passa; sem contato acima de ' + cfg.dias_sem_contato + ' dias (patrocinadores e marcas desejo); Master a ' + cfg.dias_gatilho_master + ' dias da edição (Moto ' + esc(formatDateOnly(cfg.moto_data)) + ', Auto ' + esc(formatDateOnly(cfg.auto_data)) + '). ' + (ehAdmin() ? 'Ajuste na tela Equipe.' : 'Quem ajusta é o administrador.') + "</p>";
   }
   return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
     '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Hoje</div>' +
     '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Início</h1>' +
-    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">O que precisa de ação: renovações paradas, contratos vencendo e patrocinadores Master sem resposta.</p>' +
+    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">O que precisa de ação: renovações paradas, contratos vencendo, entregas atrasadas e patrocinadores Master sem resposta.</p>' +
     (tutorialVisto() || S.tour.ativo ? "" :
       '<div class="mt-5 flex flex-col gap-3 border border-primary bg-primary/8 p-4 sm:flex-row sm:items-center sm:justify-between">' +
         '<div><p class="font-bold">Primeira vez por aqui?</p><p class="text-sm text-muted-foreground">O tutorial de uso passa por cada tela em uns 3 minutos e explica as cores, os alertas e o que fazer em cada lugar.</p></div>' +
@@ -3104,6 +3164,7 @@ function dialogoFicha() {
       '<div class="flex flex-wrap gap-2">' +
         '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="nova-interacao" data-patro="' + esc(p.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" +
         '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="editar-patro" data-id="' + esc(p.id) + '">' + icone("pencil") + " Editar</button>" +
+        '<a href="#/app/relatorio?patro=' + encodeURIComponent(p.id) + '" class="' + btnCls("outline", "default", "font-bold uppercase") + '" title="Contratos, espaços e entregas desta marca numa página para imprimir">' + icone("file-text") + " Relatório</a>" +
       "</div>" +
       '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("package-check", "size-4 text-primary") + " Propriedades " +
         '<span class="font-normal text-muted-foreground">(' + nEnt.entregues + " de " + nEnt.total + " entregue" + (nEnt.total === 1 ? "" : "s") + (nEnt.atrasadas ? ", " + nEnt.atrasadas + " atrasada" + (nEnt.atrasadas > 1 ? "s" : "") : "") + ")</span></h3>" +
@@ -3124,6 +3185,117 @@ function dialogoFicha() {
       "</section>" +
       '<button type="button" data-acao="fechar-ficha" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
     "</div>";
+}
+
+/* ------------------------------------------------------ relatorio da marca */
+// Uma pagina por patrocinador para reuniao ou prestacao de contas: contratos, espacos, o que
+// ja foi entregue e o que falta. "Imprimir" usa o @media print: sai em branco, sem o menu.
+function espacosDaMarca(p) {
+  return (S.spaces || []).filter(function (e) {
+    return e.reservadoParaId === p.id || (!!p.espacoVinculadoId && e.id === p.espacoVinculadoId);
+  }).sort(porNome);
+}
+function telaRelatorio() {
+  var id = rotaAtual().params.get("patro") || "";
+  var voltar = '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="voltar-relatorio">' + icone("arrow-left") + " Voltar</button>";
+  if (S.sponsorsErro) return errorList(S.sponsorsErro, "recarregar-patrocinadores", S.sponsorsCarregando);
+  if (!S.sponsors) return loadingList("Montando o relatório...", 3);
+  var p = S.sponsors.find(function (x) { return x.id === id; });
+  if (!p) return '<section class="space-y-4"><p class="text-sm text-muted-foreground">Não achei esta marca. Abra o relatório pela ficha do patrocinador.</p>' + voltar + "</section>";
+  document.title = "Relatório " + p.nome + " · Painel Comercial";
+
+  var st = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
+  var cts = contratosDe(p.id);
+  var assinados = cts.filter(function (c) { return c.status === "assinado"; });
+  var valorAssinado = assinados.reduce(function (t, c) { return t + (c.valor || 0); }, 0);
+  var esp = espacosDaMarca(p);
+  var ents = combinadosDe(p.id);
+  var n = contarEntregas(ents);
+  var faltam = ents.filter(function (e) { return e.status === "combinado"; });
+  var entregues = ents.filter(function (e) { return e.status === "entregue"; }).sort(function (a, b) { return (b.entregueEm || "").localeCompare(a.entregueEm || ""); });
+  var conferir = ents.filter(function (e) { return e.status === "a_conferir"; });
+  var inters = (S.interactions || []).filter(function (i) { return i.patrocinadorId === p.id; }).slice(0, 8);
+  var vazio = function (t) { return '<p class="border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">' + t + "</p>"; };
+  var carregando = function (lista, t) { return lista === null ? loadingList(t, 1) : null; };
+  var bloco = function (titulo, qtd, miolo) {
+    return '<section class="rel-bloco space-y-3"><h2 class="text-sm font-black uppercase">' + titulo + (qtd != null ? ' <span class="font-normal text-muted-foreground">(' + qtd + ")</span>" : "") + "</h2>" + miolo + "</section>";
+  };
+  var tabela = function (cab, linhas) {
+    return '<div class="rel-rolar"><table class="rel-tabela"><thead><tr>' + cab.map(function (c) { return "<th" + (c.num ? ' class="rel-num"' : "") + ">" + c.t + "</th>"; }).join("") + "</tr></thead><tbody>" + linhas.join("") + "</tbody></table></div>";
+  };
+  var qtd = function (e) { return e.quantidade != null ? String(e.quantidade).replace(".", ",") : "—"; };
+  var numero = function (valor, rotulo, cls) {
+    return '<div class="border border-border bg-card px-5 py-4"><span class="' + cn("block text-3xl font-black leading-none", cls) + '">' + valor + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">' + rotulo + "</span></div>";
+  };
+
+  var secContratos = carregando(S.contracts, "Carregando contratos...") || (cts.length ? tabela(
+    [{ t: "Contrato" }, { t: "Status" }, { t: "Vigência" }, { t: "Valor", num: true }, { t: "Quem assina" }],
+    cts.map(function (c) {
+      return "<tr><td><b>" + esc(c.titulo) + "</b>" + (c.edicao ? '<div class="text-xs text-muted-foreground">Edição ' + esc(rotuloEdicao(c.edicao)) + "</div>" : "") + "</td>" +
+        "<td>" + esc(STATUS_CONTRATO[c.status].label) + (c.assinadoEm ? '<div class="text-xs text-muted-foreground">em ' + esc(formatDateOnly(c.assinadoEm)) + "</div>" : "") + "</td>" +
+        "<td>" + (c.inicio && c.fim ? esc(formatDateOnly(c.inicio)) + " a " + esc(formatDateOnly(c.fim)) : c.fim ? "até " + esc(formatDateOnly(c.fim)) : "—") + "</td>" +
+        '<td class="rel-num">' + (c.valor != null ? esc(formatCurrency(c.valor)) : "—") + "</td>" +
+        "<td>" + (c.signatarios.length ? esc(c.signatarios.map(function (x) { return x.nome; }).join(", ")) : "—") + "</td></tr>";
+    })) : vazio("Nenhum contrato guardado para esta marca."));
+
+  var secEspacos = carregando(S.spaces, "Carregando espaços...") || (esp.length ? tabela(
+    [{ t: "Espaço" }, { t: "Edição" }, { t: "Categoria" }, { t: "Tamanho", num: true }, { t: "Status" }],
+    esp.map(function (e) {
+      return "<tr><td><b>" + esc(e.nome) + "</b></td><td>" + esc(rotuloEdicao(e.edicao) || "—") + "</td><td>" + esc(e.categoria || "—") + "</td>" +
+        '<td class="rel-num">' + (e.metragem ? esc(String(e.metragem).replace(".", ",")) + " m²" : "—") + "</td><td>" + esc((STATUS_ESPACO[e.status] || { label: e.status }).label) + "</td></tr>";
+    })) : vazio("Nenhum espaço reservado ou vendido para esta marca no mapa."));
+
+  var secFaltam = carregando(S.combinados, "Carregando entregas...") || (faltam.length ? tabela(
+    [{ t: "O que falta entregar" }, { t: "Qtd.", num: true }, { t: "Tipo" }, { t: "Prazo" }],
+    faltam.map(function (e) {
+      return "<tr><td>" + esc(e.descricao) + '<div class="text-xs text-muted-foreground">' + esc(ORIGEM_ENTREGA[e.origem].label) + "</div></td>" +
+        '<td class="rel-num">' + esc(qtd(e)) + "</td><td>" + esc(CATEGORIA_ENTREGA[e.categoria]) + "</td>" +
+        "<td" + (e.atrasada ? ' class="rel-atrasada"' : "") + ">" + (e.prazo ? (e.atrasada ? "venceu " + esc(textoDias(-diasAte(e.prazo), false)) : esc(formatDateOnly(e.prazo))) : "sem prazo") + "</td></tr>";
+    })) : vazio("Nada pendente. Tudo o que foi combinado com esta marca já foi entregue."));
+
+  var secEntregues = S.combinados === null ? "" : (entregues.length ? tabela(
+    [{ t: "O que já foi entregue" }, { t: "Qtd.", num: true }, { t: "Tipo" }, { t: "Entregue" }],
+    entregues.map(function (e) {
+      return "<tr><td>" + esc(e.descricao) + (e.comprovacao ? '<div class="text-xs text-muted-foreground">' + esc(e.comprovacao) + "</div>" : "") + "</td>" +
+        '<td class="rel-num">' + esc(qtd(e)) + "</td><td>" + esc(CATEGORIA_ENTREGA[e.categoria]) + "</td>" +
+        "<td>" + (e.entregueEm ? esc(formatDateOnly(String(e.entregueEm).slice(0, 10))) : "—") + (e.entreguePorNome ? '<div class="text-xs text-muted-foreground">por ' + esc(e.entreguePorNome) + "</div>" : "") + "</td></tr>";
+    })) : vazio("Nenhuma entrega marcada como feita ainda."));
+
+  var secConferir = conferir.length
+    ? '<p class="text-sm text-muted-foreground">' + conferir.length + (conferir.length > 1 ? " itens lidos pela IA ainda não foram conferidos" : " item lido pela IA ainda não foi conferido") + " e não entram nas contas acima. Confira em Propriedades.</p>"
+    : "";
+
+  var secContatos = carregando(S.interactions, "Carregando contatos...") || (inters.length ? tabela(
+    [{ t: "Quando" }, { t: "Como" }, { t: "O que foi falado" }, { t: "Quem" }],
+    inters.map(function (i) {
+      return '<tr><td style="white-space:nowrap">' + esc(formatDateOnly(String(i.data).slice(0, 10))) + "</td><td>" + esc(i.tipo ? TIPO_INTERACAO[i.tipo] : "Contato") + "</td><td>" + esc(i.observacao || "") + "</td><td>" + esc(i.registradoPor || "—") + "</td></tr>";
+    })) : vazio("Nenhum contato registrado com esta marca."));
+
+  return '<section class="relatorio space-y-7">' +
+    '<header class="border-b border-border pb-6">' +
+      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Relatório do patrocinador</div>' +
+      '<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">' +
+        '<div class="min-w-0"><h1 class="break-words text-2xl font-black uppercase sm:text-3xl lg:text-4xl">' + esc(p.nome) + "</h1>" +
+        '<p class="mt-2 text-sm text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + " · " + esc(st.label) + " · Renovação: " + esc(RENOVACAO[p.renovacao].label) + (p.master ? " · Master" : "") +
+          (p.responsavelComercial ? " · Vendedor: " + esc(p.responsavelComercial) : "") + "</p>" +
+        '<p class="mt-1 text-xs text-muted-foreground">Gerado em ' + esc(formatDateTime(agoraIso())) + " por " + esc(S.nome || "") + " · Painel Comercial Festival Interlagos</p></div>" +
+        '<div class="nao-imprimir flex shrink-0 flex-wrap gap-2">' + voltar +
+          '<button type="button" class="' + btnCls("default", "default", "font-bold uppercase") + '" data-acao="imprimir-relatorio">' + icone("printer") + " Imprimir ou salvar em PDF</button></div>" +
+      "</div>" +
+    "</header>" +
+    '<div class="rel-bloco grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
+      numero(assinados.length ? esc(formatCurrency(valorAssinado)) : "—", "Em contratos assinados") +
+      numero(esp.length + (esp.length === 1 ? " espaço" : " espaços"), "Reservados ou vendidos no mapa") +
+      '<div class="border border-border bg-card px-5 py-4"><span class="block text-3xl font-black leading-none">' + n.entregues + " de " + n.total + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Entregas feitas (' + n.pct + "%)</span>" +
+        (n.total ? '<div class="barra-entrega mt-3"><i style="width:' + n.pct + '%"></i></div>' : "") + "</div>" +
+      numero(n.atrasadas + (n.atrasadas === 1 ? " entrega" : " entregas"), "Passaram do prazo", n.atrasadas ? "text-destructive" : "") +
+    "</div>" +
+    bloco("Contratos", S.contracts === null ? null : cts.length, secContratos) +
+    bloco("Espaços", S.spaces === null ? null : esp.length, secEspacos) +
+    bloco("Falta entregar", S.combinados === null ? null : faltam.length, secFaltam + secConferir) +
+    (S.combinados === null ? "" : bloco("Já entregue", entregues.length, secEntregues)) +
+    bloco("Últimos contatos", S.interactions === null ? null : inters.length, secContatos) +
+  "</section>";
 }
 
 /* ------------------------------------------------------ tela: marcas desejo */
@@ -3350,9 +3522,9 @@ function passosTour() {
     { titulo: "Bem-vindo ao Painel Comercial",
       texto: "<p>Este painel organiza a venda de patrocínio do festival: quem já patrocina, o que está à venda no mapa, as marcas que queremos trazer e tudo o que foi conversado e prometido a cada cliente.</p><p>O passeio leva uns 3 minutos e passa por cada tela. Use Próximo e Voltar, ou as setas do teclado. Pode sair a qualquer momento e refazer pelo botão Tutorial de uso, no topo.</p>" },
     { rota: "/app/inicio", alvo: "#inicio-contadores", titulo: "Início: os números do dia",
-      texto: "<p>Início é a tela para abrir todo dia. <b>Vermelho</b> é contrato vencido ou vencendo em 30 dias, e patrocinador Master sem renovar perto da edição. <b>Amarelo</b> é contrato vencendo em até 90 dias ou cliente sem contato há mais de " + cfg.dias_sem_contato + " dias.</p><p>A barra mostra quanto da base já renovou para a próxima edição. O último cartão conta as marcas desejo que estamos tentando trazer.</p>" },
+      texto: "<p>Início é a tela para abrir todo dia. <b>Vermelho</b> é contrato vencido ou vencendo em 30 dias, entrega que passou do prazo e patrocinador Master sem renovar perto da edição. <b>Amarelo</b> é contrato vencendo em até 90 dias, entrega que vence nos próximos 7 dias ou cliente sem contato há mais de " + cfg.dias_sem_contato + " dias.</p><p>A barra mostra quanto da base já renovou para a próxima edição. O último cartão conta as marcas desejo que estamos tentando trazer.</p>" },
     { rota: "/app/inicio", alvo: "#secao-meus-alertas", titulo: "Alertas com botão de ação",
-      texto: "<p>Cada alerta diz o que está acontecendo e quem é o vendedor responsável. <b>Registrar contato</b> grava a conversa e zera o aviso de sem contato. <b>Abrir</b> edita o cadastro.</p><p>Os seus alertas vêm primeiro. Os do resto da equipe aparecem logo abaixo, para todo mundo saber de tudo.</p>" },
+      texto: "<p>Cada alerta diz o que está acontecendo e quem é o vendedor responsável. <b>Registrar contato</b> grava a conversa e zera o aviso de sem contato. <b>Abrir</b> edita o cadastro. No alerta de entrega, <b>Ver entregas</b> leva direto ao que falta daquela marca.</p><p>Os seus alertas vêm primeiro. Os do resto da equipe aparecem logo abaixo, para todo mundo saber de tudo.</p>" },
     { rota: "/app/inicio", alvo: "#secao-marcas-acao", titulo: "Marcas desejo esfriando",
       texto: "<p>Aqui entram as marcas que ainda não patrocinam e pararam: mais de " + cfg.dias_sem_contato + " dias sem contato ou com a próxima ação vencida. O botão Abrir leva para a ficha da marca.</p>" },
     { rota: "/app/inicio", alvo: "#secao-combinados", titulo: "Entregas pendentes",
@@ -3370,13 +3542,13 @@ function passosTour() {
     { rota: "/app/patrocinadores", alvo: "#bloco-lista-patro", titulo: "Lendo a lista",
       texto: "<p>Cada linha mostra contato, espaço vinculado, vendedor, vencimento do contrato e o selo de renovação (sem contato, em negociação, renovado ou recusou). Contrato a 30 dias do vencimento vira <b>em risco</b> sozinho e o espaço volta para o mapa como disponível.</p><p>Clique no nome da marca para abrir a ficha completa.</p>" },
     { rota: "/app/patrocinadores", alvo: "[role=dialog]", abrir: "ficha", titulo: "A ficha do cliente",
-      texto: "<p>A ficha junta tudo de um cliente: dados, espaço, vendedor, vencimento, último contato, os <b>combinados</b> e as últimas interações.</p><p>Combinado é o que foi prometido: escreva em uma frase, diga quem prometeu e quando. Depois marque Entregue ou Cancelado. Tudo isso fica visível para a equipe inteira.</p>" },
+      texto: "<p>A ficha junta tudo de um cliente: dados, espaço, vendedor, vencimento, último contato, as <b>entregas</b> de Propriedades, os contratos e as últimas interações.</p><p>Toda promessa vira entrega: escreva em uma frase, diga quem prometeu e o prazo. Depois marque Entregue ou Cancelado.</p><p>O botão <b>Relatório</b> monta uma página com contratos, espaços, o que já foi entregue e o que falta, pronta para imprimir ou salvar em PDF e levar para a reunião.</p>" },
     { rota: "/app/marcas", alvo: "#bloco-funil", titulo: "Marcas desejo: o funil",
       texto: "<p>Aqui ficam as marcas que ainda não patrocinam e queremos trazer, por mercado (telefonia, bet, alimentação, lifestyle e tecnologia, saúde, mobilidade e outros).</p><p>Cada uma anda pelo funil: Mapeada, Primeiro contato, Proposta, Negociação, Fechada ou Perdida. As caixas contam por estágio e filtram a lista quando clicadas.</p>" },
     { rota: "/app/marcas", alvo: "#bloco-lista-marca", titulo: "Trabalhando o funil",
       texto: "<p>Mude o estágio direto na linha. Marque sempre a próxima ação e a data: se vencer, fica vermelha. Marca parada mais de " + cfg.dias_sem_contato + " dias sem contato ganha o selo <b>Esfriando</b>.</p><p>Quando fechar, escolha Fechada ou use Virou patrocinador na ficha: a marca vai para a carteira já com todo o histórico de contatos e combinados.</p>" },
     { rota: "/app/contratos", alvo: "#bloco-lista-contratos", titulo: "Contratos com as marcas",
-      texto: "<p>Cada contrato fica guardado com o PDF, a vigência, o valor e quem assina. O status diz onde ele está: rascunho, aguardando assinatura, assinado ou cancelado.</p><p>Contrato assinado com data de fim atualiza sozinho o vencimento do patrocinador, e é dali que saem os alertas de renovação. Pela ficha do patrocinador dá para subir o contrato direto.</p>" },
+      texto: "<p>Cada contrato fica guardado com o PDF, a vigência, o valor e quem assina. Em <b>Quem assina</b>, cada pessoa precisa de nome e e-mail: é para o e-mail que o contrato vai.</p><p><b>Enviar para assinar</b> manda o PDF pela DocuSign. Quando todo mundo assina, o contrato vira <b>Assinado</b> sozinho, o PDF do cartão passa a ser o assinado e os espaços da marca no mapa ficam reservados. A tela se atualiza na sua frente, sem precisar recarregar.</p><p>Contrato assinado com data de fim também atualiza o vencimento do patrocinador, e é dali que saem os alertas de renovação.</p>" },
     { rota: "/app/interacoes", alvo: "#bloco-lista-inter", titulo: "Histórico de interações",
       texto: "<p>Toda conversa registrada com qualquer marca, com o tipo (ligação, reunião, WhatsApp, e-mail, proposta, encontro) e quem registrou. Os filtros do topo separam por marca, por pessoa ou por tipo.</p><p>Registrar contato vale para patrocinador e para marca desejo. Sugerir próximo passo usa inteligência artificial para propor a próxima ação com base no histórico.</p>" },
     admin ? { rota: "/app/equipe", alvo: "#bloco-equipe", titulo: "Equipe e níveis de acesso",
@@ -3384,7 +3556,7 @@ function passosTour() {
     admin ? { rota: "/app/equipe", alvo: "#form-config", titulo: "Parâmetros dos alertas",
       texto: "<p>As datas das duas edições, o limite de dias sem contato e com quantos dias da edição um Master sem renovar vira alerta vermelho. Mudou aqui, muda para todo mundo na hora.</p>" } : null,
     { titulo: "Pronto. O dia a dia em quatro passos",
-      texto: "<p><b>1.</b> Abra o Início e resolva os alertas.<br><b>2.</b> Toda conversa vira Registrar contato.<br><b>3.</b> Toda promessa vira combinado na ficha do cliente.<br><b>4.</b> Marca nova entra em Marcas desejo e sobe pelo funil até virar patrocinador.</p><p>Para rever este passeio, clique em Tutorial de uso no topo da tela.</p>" },
+      texto: "<p><b>1.</b> Abra o Início e resolva os alertas.<br><b>2.</b> Toda conversa vira Registrar contato.<br><b>3.</b> Toda promessa vira entrega na ficha do cliente.<br><b>4.</b> Marca nova entra em Marcas desejo e sobe pelo funil até virar patrocinador.</p><p>Para rever este passeio, clique em Tutorial de uso no topo da tela.</p>" },
   ].filter(Boolean);
 }
 
@@ -3621,6 +3793,7 @@ var TITULOS = {
   "/app/contratos": "Contratos — Painel Comercial Festival Interlagos",
   "/app/propriedades": "Propriedades — Painel Comercial Festival Interlagos",
   "/app/equipe": "Equipe — Painel Comercial Festival Interlagos",
+  "/app/relatorio": "Relatório da marca — Painel Comercial Festival Interlagos",
 };
 
 async function prepararTela(caminho) {
@@ -3666,6 +3839,13 @@ async function prepararTela(caminho) {
     if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // lista de espacos do formulario
   }
   if (caminho === "/app/equipe") { getProfiles().then(function (p) { S.perfis = p; render(); }); }
+  if (caminho === "/app/relatorio") {
+    if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
+    if (!S.contracts && !S.contractsCarregando) carregar("contracts", getContracts);
+    if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces);
+    if (!S.combinados && !S.combinadosCarregando) carregar("combinados", getCombinados);
+    if (!S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions);
+  }
   if (caminho === "/app/interacoes") {
     if (!S.interactions && !S.interactionsCarregando) carregar("interactions", getInteractions);
     if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors); // select do formulario
@@ -3692,7 +3872,7 @@ function render() {
   if (ultimaRota !== null && ultimaRota !== caminho) { S.ficha = null; S.fichaProsp = null; S.ampliada = null; }
   if (caminho === "/auth") raiz.innerHTML = telaAuth();
   else {
-    var tela = caminho === "/app/inicio" ? telaInicio() : caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/marcas" ? telaMarcas() : caminho === "/app/contratos" ? telaContratos() : caminho === "/app/propriedades" ? telaPropriedades() : caminho === "/app/equipe" ? telaEquipe() : telaInteracoes();
+    var tela = caminho === "/app/inicio" ? telaInicio() : caminho === "/app/espacos" ? telaEspacos() : caminho === "/app/patrocinadores" ? telaPatrocinadores() : caminho === "/app/marcas" ? telaMarcas() : caminho === "/app/contratos" ? telaContratos() : caminho === "/app/propriedades" ? telaPropriedades() : caminho === "/app/equipe" ? telaEquipe() : caminho === "/app/relatorio" ? telaRelatorio() : telaInteracoes();
     raiz.innerHTML = casca(tela, caminho);
     if (ultimaRota !== caminho) { prepararTela(caminho); window.scrollTo(0, 0); }
   }
@@ -3864,6 +4044,13 @@ document.addEventListener("click", async function (ev) {
     } catch (e) { S.contratoMudando = false; render(); toast.error("Não foi possível salvar. Tente de novo."); }
     return;
   }
+  if (acao === "ver-entregas-patro") {
+    S.fe = { q: "", status: "pendentes", origem: "todas", patro: id || "todos" };
+    irPara("/app/propriedades");
+    return;
+  }
+  if (acao === "imprimir-relatorio") { window.print(); return; }
+  if (acao === "voltar-relatorio") { if (history.length > 1) history.back(); else irPara("/app/patrocinadores"); return; }
   if (acao === "ver-entregas-contrato") {
     var cv = (S.contracts || []).find(function (x) { return x.id === id; });
     if (!cv) return;
