@@ -1,0 +1,38 @@
+# Publica a funcao que reserva o espaco quando o contrato vira assinado.
+#
+# Roda sozinha quando algo dentro de comercial-funcoes/ muda no main, e tambem dá para
+# disparar na mao pela aba Actions do GitHub.
+#
+# Antes da primeira vez, precisa existir o segredo FIREBASE_SERVICE_ACCOUNT no repositorio,
+# com o JSON da conta de serviço do projeto painel-comercial-fi. O passo a passo está em
+# comercial-funcoes/LEIA-ME.md.
+name: Publicar funções do painel comercial
+
+on:
+  push:
+    branches: [main]
+    paths: ["comercial-funcoes/**"]
+  workflow_dispatch:
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar dependências da função
+        working-directory: comercial-funcoes/functions
+        run: npm install
+
+      - name: Guardar a credencial em arquivo
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/credencial.json"
+
+      - name: Publicar no Firebase
+        working-directory: comercial-funcoes
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/credencial.json
+        run: npx --yes firebase-tools@13 deploy --only functions --project painel-comercial-fi --non-interactive
