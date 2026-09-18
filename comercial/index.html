@@ -308,7 +308,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-18.4";
+var VERSAO = "2026-09-18.5";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -730,6 +730,9 @@ async function getSpaces() {
       reservadoParaId: space.reservado_para_id || null,
       reservadoParaNome: space.reservado_para_nome || "",
       reservadoPorContrato: space.reservado_por_contrato || null,
+      // reserva feita na mao tem prazo; a de contrato assinado (reservado_para_id preenchido) nao
+      reservadoAte: /^\d{4}-\d{2}-\d{2}$/.test(space.reservado_ate || "") ? space.reservado_ate : null,
+      fila: Array.isArray(space.fila) ? space.fila.filter(function (f) { return f && f.id && f.marca_nome; }) : [],
       vendedorUid: space.vendedor_uid || null,
       vendedorNome: space.vendedor_nome || "",
     };
@@ -765,6 +768,9 @@ async function saveSpace(data) {
     vendedor_uid: vend ? vend.id : null, vendedor_nome: vend ? vend.nome : "" };
   // mesma regra do seletor de status: espaco liberado nao guarda o nome de quem estava nele
   if (data.status === "disponivel") { payload.reservado_para_id = null; payload.reservado_para_nome = ""; }
+  // mesma regra do seletor: virou reservado agora, ganha prazo; deixou de ser reservado, perde
+  if (data.status === "reservado") { if (data.statusAntes !== "reservado") payload.reservado_ate = hojeMais(DIAS_RESERVA); }
+  else payload.reservado_ate = null;
   if (!data.id && data.mapa) {
     // espaco criado a partir do mapa: guarda a posicao para o desenho achar o documento
     payload.mapa = data.mapa; payload.edicao = data.edicao; payload.zona = data.zona; payload.codigo = data.codigo; payload.tipo = data.tipo;
@@ -775,8 +781,16 @@ async function saveSpace(data) {
   } catch (e) { throw new Error("Não foi possível salvar o espaço."); }
 }
 
+// Reserva feita na mao vale DIAS_RESERVA dias. Quando vence, o painel so avisa: quem decide
+// se renova ou libera e o vendedor. Reserva de contrato assinado nao tem prazo.
+var DIAS_RESERVA = 15;
+function reservaNaMao(e) { return !!e && e.status === "reservado" && !e.reservadoParaId && !!e.reservadoAte; }
+function reservaDeContrato(e) { return !!e && e.status === "reservado" && !!e.reservadoParaId; }
+
 async function changeSpaceStatus(id, status, espaco) {
   var dados = { status: status };
+  if (status === "reservado") { if (!espaco || espaco.status !== "reservado") dados.reservado_ate = hojeMais(DIAS_RESERVA); }
+  else dados.reservado_ate = null;
   // quem reserva ou vende vira o responsavel; espaco liberado fica sem responsavel
   if (status === "disponivel") {
     dados.vendedor_uid = null; dados.vendedor_nome = "";
@@ -1345,7 +1359,7 @@ async function reservarEspacosDoContrato(contrato) {
     if (deOutro) { conflitos.push(e.nome + " (já é de " + ((e.patrocinador && e.patrocinador.nome) || e.reservadoParaNome) + ")"); return; }
     if (e.status === "vendido") return; // ja esta fechado com a propria marca, nao rebaixa
     if (e.status === "reservado" && e.reservadoParaId === marca.id) return; // ja estava reservado para ela
-    mudancas.push({ col: "espacos", id: e.id, dados: { status: "reservado", reservado_para_id: marca.id, reservado_para_nome: marca.nome, reservado_por_contrato: contrato.id } });
+    mudancas.push({ col: "espacos", id: e.id, dados: { status: "reservado", reservado_para_id: marca.id, reservado_para_nome: marca.nome, reservado_por_contrato: contrato.id, reservado_ate: null } });
     reservados.push(e.nome);
   });
   if (mudancas.length) {
@@ -1550,7 +1564,8 @@ var S = {
   contracts: null, contractsErro: null, contractsCarregando: false,
   reservasConferidas: false,
   assinaturaMexendo: null,
-  mexidaPropria: {}, // contrato -> hora em que esta pessoa mexeu nele; a tela ao vivo nao repete o aviso
+  mexidaPropria: {},
+  filaMexendo: false, // contrato -> hora em que esta pessoa mexeu nele; a tela ao vivo nao repete o aviso
   formContrato: { aberto: false, contrato: null, patroId: null, salvando: false, modo: "ia", lendo: false, lido: null },
   fc: { q: "", status: "todos", vendedor: "todos" },
   contratoMudando: false,
@@ -1954,7 +1969,27 @@ function calcularAlertas() {
         detalhe: resumo(g.vencendo, function (c) { return "até " + formatDateOnly(c.prazo); }) }));
     }
   });
-  return lista.sort(function (a, b) { return a.peso - b.peso || porNome(a.patro, b.patro); });
+  // Espacos: reserva feita na mao que venceu (vermelho) ou vence em 3 dias (amarelo), e espaco
+  // livre com marca na fila (amarelo, para oferecer a primeira). Vai para quem cuida do espaco.
+  (S.spaces || []).forEach(function (e) {
+    var onde = e.nome + (e.edicao ? " (" + rotuloEdicao(e.edicao) + ")" : "");
+    var baseE = { espaco: e, nome: e.nome, vendedorUid: e.vendedorUid, vendedorNome: e.vendedorNome };
+    if (reservaNaMao(e)) {
+      var dr = diasAte(e.reservadoAte);
+      var prox = filaOrdenada(e)[0];
+      var depois = prox ? " · Na fila: " + prox.marca_nome + (e.fila.length > 1 ? " e mais " + (e.fila.length - 1) : "") : "";
+      if (dr < 0) lista.push(Object.assign({}, baseE, { nivel: "vermelho", peso: 1, tipo: "reserva", titulo: "Reserva de " + onde + " venceu " + textoDias(-dr, false), detalhe: "Renove o prazo ou libere o espaço" + depois }));
+      else if (dr <= 3) lista.push(Object.assign({}, baseE, { nivel: "amarelo", peso: 2, tipo: "reserva", titulo: "Reserva de " + onde + (dr === 0 ? " vence hoje" : " vence " + textoDias(dr, true)), detalhe: "Feche com a marca ou renove o prazo" + depois }));
+    }
+    if (e.status === "disponivel" && e.fila.length) {
+      var primeiro = filaOrdenada(e)[0];
+      lista.push(Object.assign({}, baseE, { nivel: "amarelo", peso: 2, tipo: "fila", vendedorUid: primeiro.por_uid || e.vendedorUid, vendedorNome: primeiro.por_nome || e.vendedorNome,
+        titulo: onde + " está livre e tem " + e.fila.length + (e.fila.length > 1 ? " marcas" : " marca") + " na fila",
+        detalhe: "A primeira é " + primeiro.marca_nome + (mesmaMarca(primeiro.marca_nome, e.ocupante2026) ? ", que ocupou o espaço em 2026" : "") + ". Ofereça o espaço" }));
+    }
+  });
+  var nomeDoAlerta = function (a) { return a.patro ? a.patro.nome : a.nome || ""; };
+  return lista.sort(function (a, b) { return a.peso - b.peso || nomeDoAlerta(a).localeCompare(nomeDoAlerta(b), "pt-BR"); });
 }
 
 function cartaoAlerta(a) {
@@ -1962,9 +1997,12 @@ function cartaoAlerta(a) {
   return '<article class="' + cn("border border-border bg-card px-4 py-3", "alerta-" + a.nivel) + '">' +
     '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">' +
       '<div class="min-w-0"><h3 class="break-words font-bold">' + esc(a.titulo) + "</h3>" +
-      '<p class="mt-0.5 text-sm text-muted-foreground">' + esc(a.detalhe) + " · Vendedor: " + vend + (a.patro.master ? " · " + badgeMaster() : "") + "</p></div>" +
+      '<p class="mt-0.5 text-sm text-muted-foreground">' + esc(a.detalhe) + " · Vendedor: " + vend + (a.patro && a.patro.master ? " · " + badgeMaster() : "") + "</p></div>" +
       '<div class="flex shrink-0 flex-wrap gap-2">' +
-        (a.tipo === "entregas"
+        (a.tipo === "reserva" || a.tipo === "fila"
+          ? (a.tipo === "reserva" ? '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="prorrogar-reserva" data-id="' + esc(a.espaco.id) + '">' + icone("history") + " Mais " + DIAS_RESERVA + " dias</button>" : "") +
+            '<button type="button" class="' + btnCls(a.tipo === "reserva" ? "ghost" : "outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="abrir-espaco" data-mapa="' + esc(a.espaco.mapa || "") + '">' + icone("map", "size-4") + " Ver no mapa</button>"
+          : a.tipo === "entregas"
           ? '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="ver-entregas-patro" data-id="' + esc(a.patro.id) + '">' + icone("package-check") + " Ver entregas</button>" +
             '<a href="#/app/relatorio?patro=' + encodeURIComponent(a.patro.id) + '" class="' + btnCls("ghost", "default", "h-8 text-xs font-bold uppercase") + '">' + icone("file-text") + " Relatório</a>"
           : '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="nova-interacao" data-patro="' + esc(a.patro.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" +
@@ -2028,7 +2066,7 @@ function telaInicio() {
           (S.combinados === null ? loadingList("Carregando entregas...", 2) : (pendentes.length ? pendentes.slice(0, 8).map(function (c) { return cartaoCombinado(c, true); }).join("") + (pendentes.length > 8 ? '<a href="#/app/propriedades" class="block border border-dashed border-border px-4 py-3 text-center text-sm text-primary hover:underline">Ver as ' + pendentes.length + " entregas em Propriedades</a>" : "") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada pendente. Tudo o que foi combinado já foi entregue.</p>')) +
         "</section>";
       })() +
-      '<p class="text-xs text-muted-foreground">Prazos em uso: contrato avisa a 90, 60 e 30 dias; entrega avisa 7 dias antes do prazo e fica vermelha quando passa; sem contato acima de ' + cfg.dias_sem_contato + ' dias (patrocinadores e marcas desejo); Master a ' + cfg.dias_gatilho_master + ' dias da edição (Moto ' + esc(formatDateOnly(cfg.moto_data)) + ', Auto ' + esc(formatDateOnly(cfg.auto_data)) + '). ' + (ehAdmin() ? 'Ajuste na tela Equipe.' : 'Quem ajusta é o administrador.') + "</p>";
+      '<p class="text-xs text-muted-foreground">Prazos em uso: contrato avisa a 90, 60 e 30 dias; entrega avisa 7 dias antes do prazo e fica vermelha quando passa; reserva feita na mão vale " + DIAS_RESERVA + " dias e avisa 3 dias antes de vencer; sem contato acima de ' + cfg.dias_sem_contato + ' dias (patrocinadores e marcas desejo); Master a ' + cfg.dias_gatilho_master + ' dias da edição (Moto ' + esc(formatDateOnly(cfg.moto_data)) + ', Auto ' + esc(formatDateOnly(cfg.auto_data)) + '). ' + (ehAdmin() ? 'Ajuste na tela Equipe.' : 'Quem ajusta é o administrador.') + "</p>";
   }
   return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
     '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Hoje</div>' +
@@ -2148,7 +2186,8 @@ function desenharMapa(edicao) {
       var rot = patro || ocupante;
       var tit = nome + "\n" + (doc ? STATUS_ESPACO[doc.status].label : "Sem cadastro") +
         (patro ? "\nPatrocinador: " + patro : "") + (ocupante ? "\nOcupante 2026: " + ocupante : "") + (doc && doc.vendedorNome ? "\nVendedor: " + doc.vendedorNome : "") +
-        (item.m2 ? "\n" + item.m2 + " m²" : "") + (risco ? "\nRisco de renovação: " + risco : "");
+        (item.m2 ? "\n" + item.m2 + " m²" : "") + (risco ? "\nRisco de renovação: " + risco : "") +
+        (reservaNaMao(doc) ? "\nReserva vale até " + formatDateOnly(doc.reservadoAte) : "") + (doc && doc.fila.length ? "\nFila: " + doc.fila.length + (doc.fila.length > 1 ? " marcas" : " marca") : "");
       celulas.push(
         '<g class="cel st-' + st + (risco ? " risco" : "") + '" data-acao="mapa-espaco" data-mapa="' + escXml(chave) + '" role="button" tabindex="0" aria-label="' + escXml(nome) + '">' +
           "<title>" + escXml(tit) + "</title>" +
@@ -2259,7 +2298,11 @@ function dialogoDetalhe() {
     linha("Patrocinador vinculado", patro) +
     (doc ? linha("Vendedor responsável", doc.vendedorNome ? esc(doc.vendedorNome) : '<span class="text-muted-foreground">Ninguém ainda</span>') : "") +
     (doc ? linha("Valor", doc.valor ? esc(formatCurrency(doc.valor)) : '<span class="text-muted-foreground">A definir</span>') : "") +
-    "</dl>";
+    (reservaDeContrato(doc) ? linha("Reserva", "Contrato assinado da " + esc(doc.reservadoParaNome || "marca") + ", sem prazo") : "") +
+    (reservaNaMao(doc) ? linha("Reserva vale até", textoPrazoReserva(doc)) : "") +
+    "</dl>" +
+    (reservaNaMao(doc) ? '<div class="mt-2 flex justify-end"><button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="prorrogar-reserva" data-id="' + esc(doc.id) + '"' + (S.filaMexendo ? " disabled" : "") + ">" + icone("history") + " Mais " + DIAS_RESERVA + " dias de reserva</button></div>" : "") +
+    (doc ? blocoFila(doc) : "");
   var acoes;
   if (doc) {
     acoes = '<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">' +
@@ -2277,6 +2320,42 @@ function dialogoDetalhe() {
       corpo + acoes +
       '<button type="button" data-acao="fechar-detalhe" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
     "</div>";
+}
+
+// Fila de interessados: marcas que querem o espaco se ele ficar livre. Vale a ordem de
+// chegada, e a marca que ocupou o espaco em 2026 (a renovante) fica sempre na frente.
+function filaOrdenada(e) {
+  return (e.fila || []).slice().sort(function (a, b) {
+    var ra = mesmaMarca(a.marca_nome, e.ocupante2026) ? 0 : 1, rb = mesmaMarca(b.marca_nome, e.ocupante2026) ? 0 : 1;
+    return ra - rb || String(a.entrou_em || "").localeCompare(String(b.entrou_em || ""));
+  });
+}
+function textoPrazoReserva(e) {
+  var d = diasAte(e.reservadoAte);
+  return esc(formatDateOnly(e.reservadoAte)) + " · " + (d < 0 ? '<span class="text-destructive">venceu ' + esc(textoDias(-d, false)) + "</span>" : d === 0 ? '<span class="text-destructive">vence hoje</span>' : "faltam " + d + (d === 1 ? " dia" : " dias"));
+}
+function blocoFila(e) {
+  var fila = filaOrdenada(e);
+  var jaNaFila = {};
+  fila.forEach(function (f) { jaNaFila[f.tipo + ":" + f.marca_id] = true; });
+  var patros = (S.sponsors || []).filter(function (p) { return !jaNaFila["patrocinador:" + p.id]; }).map(function (p) { return { valor: "patrocinador:" + p.id, rotulo: p.nome }; });
+  var marcas = (S.prospects || []).filter(emAndamento).filter(function (m) { return !jaNaFila["marca:" + m.id]; }).map(function (m) { return { valor: "marca:" + m.id, rotulo: m.nome }; });
+  var opcoes = [{ valor: "", rotulo: "Escolha a marca" }];
+  if (patros.length) opcoes.push({ grupo: "Patrocinadores", itens: patros });
+  if (marcas.length) opcoes.push({ grupo: "Marcas desejo", itens: marcas });
+  return '<section class="mt-4 space-y-2 border-t border-border pt-4">' +
+    '<h3 class="text-xs font-bold uppercase">Fila de interessados <span class="font-normal text-muted-foreground">(' + fila.length + ")</span></h3>" +
+    '<p class="text-xs text-muted-foreground">Marcas que querem este espaço se ele ficar livre. Vale a ordem de chegada, e a marca que ocupou o espaço em 2026 fica sempre na frente.</p>' +
+    (fila.length ? '<ol class="space-y-1.5">' + fila.map(function (f, i) {
+      var renov = mesmaMarca(f.marca_nome, e.ocupante2026);
+      return '<li class="flex items-center justify-between gap-3 border border-border bg-card px-3 py-2 text-sm">' +
+        '<div class="min-w-0"><b>' + (i + 1) + "º " + esc(f.marca_nome) + "</b>" + (renov ? ' <span class="' + cn(BADGE, "ml-1 text-foreground border-primary/30 bg-primary/15") + '">Ocupou em 2026</span>' : "") +
+        '<div class="text-xs text-muted-foreground">' + (f.tipo === "marca" ? "Marca desejo · " : "") + "entrou em " + esc(formatDateOnly(String(f.entrou_em || "").slice(0, 10))) + (f.por_nome ? " por " + esc(f.por_nome) : "") + "</div></div>" +
+        '<button type="button" class="' + btnCls("ghost", "icon") + '" data-acao="fila-sair" data-id="' + esc(e.id) + '" data-item="' + esc(f.id) + '" title="Tirar da fila" aria-label="Tirar ' + esc(f.marca_nome) + ' da fila"' + (S.filaMexendo ? " disabled" : "") + ">" + icone("x", "h-4 w-4") + "</button></li>";
+    }).join("") + "</ol>" : "") +
+    '<div class="flex flex-col gap-2 sm:flex-row">' + selectNativo("fila-marca", "fila_marca", opcoes, "") +
+      '<button type="button" class="' + btnCls("outline", "default", "shrink-0 font-bold uppercase") + '" data-acao="fila-entrar" data-id="' + esc(e.id) + '"' + (S.filaMexendo ? " disabled" : "") + ">" + icone("plus") + " Pôr na fila</button></div>" +
+  "</section>";
 }
 
 // Zona inteira em tela cheia: e a mesma zona do mapa, so que grande o bastante
@@ -3534,7 +3613,7 @@ function passosTour() {
     { rota: "/app/propriedades", alvo: "#bloco-numeros-entregas", titulo: "Propriedades: o que cada marca tem a receber",
       texto: "<p>A lista completa por marca, com a barra de quanto já foi entregue. Cada item diz de onde veio: do <b>contrato</b>, de um <b>acordo depois do contrato</b> (aquela demanda que surge no meio do caminho) ou de uma <b>cortesia</b>.</p><p>Marque como entregue no próprio item. Os números no topo mostram o que falta, o que atrasou e quanto está sendo dado fora do contrato.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-mapa", titulo: "Mapa de espaços por edição",
-      texto: "<p>O mapa reproduz as plantas de 2026, com abas para Moto e Auto. <b>Verde</b> é disponível, <b>amarelo</b> reservado, <b>branco</b> vendido. <b>Borda vermelha tracejada</b> é espaço cujo patrocinador está em risco de renovação.</p><p>Toque num espaço para ver a marca, o vendedor, o valor e trocar o status na hora.</p><p>O botão <b>Ampliar</b>, no canto de cada zona, abre a zona inteira em tela cheia, com o nome de cada marca legível. Lá dentro dá para trocar entre grade e tabela.</p>" },
+      texto: "<p>O mapa reproduz as plantas de 2026, com abas para Moto e Auto. <b>Verde</b> é disponível, <b>amarelo</b> reservado, <b>branco</b> vendido. <b>Borda vermelha tracejada</b> é espaço cujo patrocinador está em risco de renovação.</p><p>Toque num espaço para ver a marca, o vendedor, o valor e trocar o status na hora.</p><p>Reserva feita na mão vale " + DIAS_RESERVA + " dias: perto de vencer, o Início avisa quem cuida do espaço, que renova o prazo ou libera. Reserva de contrato assinado não vence.</p><p>No mesmo lugar fica a <b>fila de interessados</b>: marcas que querem o espaço se ele ficar livre. Vale a ordem de chegada, com a marca que ocupou em 2026 na frente, e quando o espaço fica livre o Início avisa para oferecer à primeira.</p><p>O botão <b>Ampliar</b>, no canto de cada zona, abre a zona inteira em tela cheia, com o nome de cada marca legível. Lá dentro dá para trocar entre grade e tabela.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-lista", titulo: "A mesma coisa em lista",
       texto: "<p>Embaixo do mapa fica a lista com busca por nome e filtro por status, para quem prefere tabela. Os números do topo contam patrocinadores em risco, espaços disponíveis e ativos. Novo espaço serve para algo fora da planta.</p>" },
     { rota: "/app/patrocinadores", alvo: "#filtros-patro", titulo: "Carteira: quem já patrocina",
@@ -3834,6 +3913,10 @@ async function prepararTela(caminho) {
     if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // formulario de patrocinador aberto daqui
   }
   if (caminho === "/app/espacos" && !S.spaces && !S.spacesCarregando) recarregarEspacos();
+  if (caminho === "/app/espacos") {
+    if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors); // seletor da fila de interessados
+    if (!S.prospects && !S.prospectsCarregando) carregar("prospects", getProspects);
+  }
   if (caminho === "/app/patrocinadores") {
     if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
     if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // lista de espacos do formulario
@@ -4042,6 +4125,46 @@ document.addEventListener("click", async function (ev) {
       await carregar("contracts", getContracts);
       toast.success(acao === "usar-dados-do-pdf" ? "Contrato atualizado com o que está escrito no PDF." : "Mantido como estava. O aviso não volta neste contrato.");
     } catch (e) { S.contratoMudando = false; render(); toast.error("Não foi possível salvar. Tente de novo."); }
+    return;
+  }
+  if (acao === "fila-entrar" || acao === "fila-sair" || acao === "prorrogar-reserva") {
+    var ef = (S.spaces || []).find(function (x) { return x.id === id; });
+    if (!ef || S.filaMexendo) return;
+    var mudanca, aviso;
+    if (acao === "prorrogar-reserva") {
+      var base = ef.reservadoAte && ef.reservadoAte > hojeMais(0) ? ef.reservadoAte : hojeMais(0);
+      var nova = new Date(base + "T12:00:00Z"); nova.setUTCDate(nova.getUTCDate() + DIAS_RESERVA);
+      mudanca = { reservado_ate: nova.toISOString().slice(0, 10) };
+      aviso = "Reserva de " + ef.nome + " vale até " + formatDateOnly(mudanca.reservado_ate) + ".";
+    } else if (acao === "fila-entrar") {
+      var sel = document.getElementById("fila-marca");
+      var val = sel ? sel.value : "";
+      if (!val) { toast.error("Escolha a marca que entra na fila."); return; }
+      var tipoF = val.split(":")[0], idF = val.slice(tipoF.length + 1);
+      var alvoF = tipoF === "marca" ? (S.prospects || []).find(function (m) { return m.id === idF; }) : (S.sponsors || []).find(function (x) { return x.id === idF; });
+      if (!alvoF) return;
+      mudanca = { fila: ef.fila.concat([{ id: novoId(), tipo: tipoF, marca_id: idF, marca_nome: alvoF.nome, entrou_em: agoraIso(), por_uid: S.uid, por_nome: S.nome }]) };
+      var pos = filaOrdenada(Object.assign({}, ef, { fila: mudanca.fila })).findIndex(function (f) { return f.marca_id === idF && f.tipo === tipoF; }) + 1;
+      aviso = alvoF.nome + " entrou na fila de " + ef.nome + " em " + pos + "º lugar.";
+    } else {
+      var item = alvo.getAttribute("data-item");
+      var saiu = ef.fila.find(function (f) { return f.id === item; });
+      mudanca = { fila: ef.fila.filter(function (f) { return f.id !== item; }) };
+      aviso = (saiu ? saiu.marca_nome : "A marca") + " saiu da fila de " + ef.nome + ".";
+    }
+    S.filaMexendo = true; render();
+    try {
+      await API.atualizar("espacos", ef.id, mudanca);
+      S.filaMexendo = false;
+      await recarregarEspacos();
+      toast.success(aviso);
+    } catch (e) { S.filaMexendo = false; render(); toast.error("Não foi possível salvar. Tente de novo."); }
+    return;
+  }
+  if (acao === "abrir-espaco") {
+    var chaveE = alvo.getAttribute("data-mapa");
+    if (chaveE) { S.detalhe = chaveE; irPara("/app/espacos?edicao=" + encodeURIComponent(chaveE.split(":")[0])); }
+    else irPara("/app/espacos");
     return;
   }
   if (acao === "ver-entregas-patro") {
@@ -4554,6 +4677,7 @@ document.addEventListener("submit", async function (ev) {
     var rawM2 = String(form.get("metragem") || "").replace(/\./g, "").replace(",", ".").trim();
     var data = {
       id: space ? space.id : undefined,
+      statusAntes: space ? space.status : null,
       nome: String(form.get("nome") || ""),
       categoria: String(form.get("categoria") || ""),
       valor: Number(rawValue),
