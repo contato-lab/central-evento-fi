@@ -38,6 +38,16 @@ Todas na conta padrão do projeto, `78864288270-compute@developer.gserviceaccoun
 - **Usuário do Cloud Datastore**, para ler e gravar no banco
 - **Destinatário do evento do Eventarc**, para receber o aviso do banco
 - **Builder do Cloud Run**, para montar o código na hora de publicar
+- **Chamador do Cloud Run**, só nesta função, para o aviso do banco conseguir entrar.
+  O console NÃO pede essa ao criar o gatilho. Sem ela, o registro mostra `POST 403` e
+  "The IAM principal lacks run.routes.invoke permission", e nada acontece.
+
+## Testado no ar em 18/09/2026
+
+Contrato da Yamaha, edição Moto, mudado de `rascunho` para `assinado` direto no Firestore,
+sem abrir o painel. Meio minuto depois a função registrou
+`reservados para Yamaha: Área 02 · Arena, Boulevard 06 · Boulevard, Box 12 · Boxes,
+Box 13 · Boxes, Tenda 3 · Mobilidade Urbana`, e o painel mostrou os cinco como Reservado.
 
 ## Para ver se ela está funcionando
 
