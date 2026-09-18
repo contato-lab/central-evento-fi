@@ -1,0 +1,218 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Teste do resumo diario</title>
+<style>body{font-family:system-ui;margin:16px}pre{white-space:pre-wrap;font-size:12px}iframe{width:640px;height:900px;border:1px solid #ccc}</style></head>
+<body>
+<h1>Teste do resumo diário (sem Node, com módulos de mentira)</h1>
+<pre id="saida">rodando...</pre>
+<iframe id="previa"></iframe>
+<script>
+(async function () {
+  var saida = document.getElementById("saida");
+  var log = [];
+  var ok = 0, falhou = 0;
+  function confere(nome, cond, extra) { if (cond) ok++; else falhou++; log.push((cond ? "OK   " : "FALHA ") + nome + (extra ? "  → " + extra : "")); }
+
+  var codigo = await (await fetch("index.js?r=" + Math.random())).text();
+  var dia = function (n) { var d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+
+  // ---------------------------------------------------------------- banco de mentira
+  var dados = {
+    patrocinadores: [
+      { id: "p1", nome: "Honda", status: "ativo", renovacao: "em_negociacao", vendedor_uid: "igor", vendedor_nome: "Igor Souza", data_vencimento_contrato: dia(20), criado_por: "x" },
+      { id: "p2", nome: "Yamaha", status: "ativo", renovacao: "renovado", vendedor_uid: "eric", vendedor_nome: "Eric Felix", data_vencimento_contrato: dia(300) },
+      { id: "p3", nome: "Kawasaki", status: "encerrado", renovacao: "sem_contato", vendedor_uid: "igor", vendedor_nome: "Igor Souza", data_vencimento_contrato: dia(-5) },
+      { id: "p4", nome: "Ducati", status: "ativo", renovacao: "recusou", vendedor_uid: "pedro", vendedor_nome: "Pedro Paulo", espaco_vinculado_id: "moto:box:05" },
+      // base 2026 com o cadastro encerrado (como as 110 reais): confirmou, Valor 2026, sinal em aberto, atendimento do Pedro
+      { id: "p5", nome: "Suzuki", status: "encerrado", renovacao: "renovado", renovacao_2027_em: dia(-10), pagamento_2027: "valor_2026", vendedor_uid: "igor", vendedor_nome: "Igor Souza", atendimento_uid: "pedro", atendimento_nome: "Pedro Paulo", data_vencimento_contrato: "2026-12-31" },
+      // base 2026 que confirmou e ja assinou o contrato 2027
+      { id: "p6", nome: "Triumph", status: "encerrado", renovacao: "renovado", renovacao_2027_em: dia(-3), pagamento_2027: "valor_2027", vendedor_uid: "eric", vendedor_nome: "Eric Felix", data_vencimento_contrato: "2026-12-31" },
+      // fora da base (nao ocupou espaco em 2026): continua com o aviso de vencimento de contrato
+      { id: "p7", nome: "Nexo Motors", status: "ativo", renovacao: "sem_contato", vendedor_uid: "eric", vendedor_nome: "Eric Felix", data_vencimento_contrato: dia(40) },
+      // Master fora da base com contrato 2027 assinado: nao pode aparecer como "nao renovou"
+      // base 2026 que ninguem marcou como confirmada, mas ja assinou o contrato 2027: conta como confirmada
+      { id: "p9", nome: "Harley", status: "encerrado", renovacao: "sem_contato", vendedor_uid: "igor", vendedor_nome: "Igor Souza", data_vencimento_contrato: "2026-12-31" },
+      { id: "p8", nome: "Aurora Seguros", status: "ativo", renovacao: "em_negociacao", master: true, vendedor_uid: "eric", vendedor_nome: "Eric Felix", data_vencimento_contrato: dia(500) },
+    ],
+    espacos: [
+      { id: "moto:box:07", nome: "Box 07 · Boxes", edicao: "moto", status: "reservado", reservado_ate: dia(-2), vendedor_uid: "eric", vendedor_nome: "Eric Felix", ocupante_2026: "Honda", fila: [{ id: "f1", marca_nome: "Suzuki", tipo: "patrocinador", marca_id: "s", entrou_em: "2026-09-10T10:00:00Z", por_uid: "igor", por_nome: "Igor Souza" }] },
+      { id: "moto:box:05", nome: "Box 05 · Boxes", edicao: "moto", status: "disponivel", ocupante_2026: "Ducati", fila: [
+        { id: "f2", marca_nome: "BMW", tipo: "patrocinador", marca_id: "b", entrou_em: "2026-09-01T10:00:00Z", por_uid: "pedro", por_nome: "Pedro Paulo" },
+        { id: "f3", marca_nome: "Ducati", tipo: "patrocinador", marca_id: "p4", entrou_em: "2026-09-12T10:00:00Z", por_uid: "igor", por_nome: "Igor Souza" }] },
+      { id: "moto:box:11", nome: "Box 11 · Boxes", edicao: "moto", status: "reservado", reservado_para_id: "p2", reservado_ate: dia(-9), vendedor_uid: "eric" },
+      { id: "moto:box:19", nome: "Box 19 · Boxes", edicao: "moto", status: "disponivel", ocupante_2026: "Suzuki", fila: [{ id: "f4", marca_nome: "Orbit Telecom", tipo: "marca", marca_id: "m2", entrou_em: "2026-09-02T10:00:00Z", por_uid: "eric", por_nome: "Eric Felix" }] },
+      { id: "moto:box:08", nome: "Box 08 · Boxes", edicao: "moto", status: "disponivel", ocupante_2026: "Honda", fila: [{ id: "f5", marca_nome: "LuckyBet", tipo: "marca", marca_id: "m1", entrou_em: "2026-09-03T10:00:00Z", por_uid: "pedro", por_nome: "Pedro Paulo" }] },
+      { id: "moto:box:16", nome: "Box 16 · Boxes", edicao: "moto", status: "reservado", reservado_para_id: "p6", ocupante_2026: "Triumph" },
+      { id: "moto:box:10", nome: "Box 10 · Boxes", edicao: "moto", status: "reservado", reservado_para_id: "p9", ocupante_2026: "Harley" },
+    ],
+    interacoes: [{ id: "i1", patrocinador_id: "p1", data: dia(-30) + "T10:00:00Z" }, { id: "i2", patrocinador_id: "p8", data: dia(-2) + "T10:00:00Z" }],
+    combinados: [
+      { id: "c1", patrocinador_id: "p1", descricao: "Camarote para 40 convidados", status: "combinado", prazo: dia(-3) },
+      { id: "c2", patrocinador_id: "p1", descricao: "300 ingressos", status: "prometido", prazo: dia(-1) },
+      { id: "c3", patrocinador_id: "p2", descricao: "Posts no Instagram", status: "combinado", prazo: dia(5) },
+      { id: "c4", patrocinador_id: "p2", descricao: "Arco de largada", status: "entregue", prazo: dia(-10) },
+    ],
+    contratos: [
+      { id: "k1", patrocinador_id: "p2", titulo: "Patrocínio 2027", status: "assinado", assinado_em: dia(-1), valor: 350000 },
+      { id: "k2", patrocinador_id: "p1", titulo: "Cessão de espaços 2027", status: "enviado", assinatura: { enviado_em: dia(-2) + "T09:00:00Z" } },
+      { id: "k3", patrocinador_id: "p4", titulo: "Antigo", status: "assinado", assinado_em: dia(-40) },
+      { id: "k4", patrocinador_id: "p6", titulo: "Boxes 2027", status: "assinado", assinado_em: dia(-5), inicio: "2027-02-01", fim: "2027-11-30" },
+      { id: "k6", patrocinador_id: "p9", titulo: "Box 10 · 2027", status: "assinado", assinado_em: dia(-8), inicio: "2027-03-01", fim: "2027-10-31" },
+      { id: "k5", patrocinador_id: "p8", titulo: "Master 2027", status: "assinado", assinado_em: dia(-6), inicio: "2027-01-01", fim: "2027-12-31" },
+    ],
+    prospeccao: [
+      { id: "m1", nome: "LuckyBet", estagio: "proposta", vendedor_uid: "igor", vendedor_nome: "Igor Souza", proxima_acao: "Enviar proposta", proxima_acao_data: dia(-4), created_at: dia(-3) + "T10:00:00Z" },
+      { id: "m2", nome: "Orbit Telecom", estagio: "mapeada", vendedor_uid: "eric", vendedor_nome: "Eric Felix", created_at: dia(-40) + "T10:00:00Z" },
+      { id: "m3", nome: "Perdida SA", estagio: "perdida", vendedor_uid: "eric", created_at: dia(-90) + "T10:00:00Z" },
+    ],
+    profiles: [
+      { id: "eric", nome: "Eric Pereira Felix", email: "eric@teste.local", papel: "dono" },
+      { id: "igor", nome: "Igor Souza", email: "igor@teste.local", papel: "vendedor" },
+      { id: "pedro", nome: "Pedro Paulo", email: "pedro@teste.local", papel: "vendedor" },
+      { id: "ana", nome: "Ana Sem Nada", email: "ana@teste.local", papel: "vendedor" },
+      { id: "semmail", nome: "Sem E-mail", papel: "admin" },
+    ],
+  };
+  // prazos da renovacao relativos a hoje: confirmacao em 5 dias, sinal em 3, contrato em 20
+  var cfgBanco = { dias_sem_contato: 14, moto_data: dia(200), auto_data: dia(214), prazo_confirmacao: dia(5), prazo_sinal: dia(3), prazo_assinatura: dia(20) };
+  var snap = function (lista) { return { forEach: function (fn) { lista.forEach(function (x) { var c = Object.assign({}, x); var id = c.id; delete c.id; fn({ id: id, data: function () { return c; } }); }); } }; };
+  var db = { collection: function (n) { return {
+    get: async function () { return snap(dados[n] || []); },
+    doc: function () { return { get: async function () { return { exists: true, data: function () { return cfgBanco; } }; } }; },
+  }; } };
+
+  var enviados = [], handlers = {}, env = {};
+  var modulos = {
+    "@google-cloud/functions-framework": { http: function (nome, fn) { handlers[nome] = fn; } },
+    "firebase-admin/app": { initializeApp: function () {} },
+    "firebase-admin/firestore": { getFirestore: function () { return db; } },
+    "nodemailer": { createTransport: function (cfg) { return { sendMail: async function (m) { enviados.push(Object.assign({ cfg: cfg }, m)); } }; } },
+    "crypto": { createHash: function () { return { update: function () { return { digest: function () { return "teste"; } }; } }; } },
+    "fs": { readFileSync: function () { return ""; } },
+  };
+  var modulo = { exports: {} };
+  new Function("require", "module", "exports", "__filename", "process", codigo)(function (n) { return modulos[n]; }, modulo, modulo.exports, "index.js", { env: env });
+  var F = modulo.exports;
+  var chamar = async function (query) {
+    var r = { code: 200, body: null };
+    await handlers.resumoDiario({ query: query || {} }, { status: function (c) { r.code = c; return this; }, send: function (b) { r.body = b; return this; }, json: function (b) { r.body = b; return this; } });
+    return r;
+  };
+
+  // ---------------------------------------------------------------- 1. regras
+  var cfg = { moto_data: dia(200), auto_data: dia(214), dias_sem_contato: 14, dias_gatilho_master: 90, prazo_confirmacao: dia(5), prazo_sinal: dia(3), prazo_assinatura: dia(20) };
+  var alertas = F.montarAlertas(Object.assign({}, dados, { cfg: cfg }));
+  var titulos = alertas.map(function (a) { return a.grupo + "/" + a.nivel + ": " + a.titulo; });
+  log.push("alertas (prazos chegando):\n  " + titulos.join("\n  "));
+  var achar = function (re) { return alertas.find(function (a) { return re.test(a.titulo); }); };
+  var a1 = achar(/Confirmação da renovação de Honda vence em 5 dias/);
+  confere("Honda (base, sem confirmar) com prazo em 5 dias: amarelo de renovação para o vendedor", a1 && a1.nivel === "amarelo" && a1.grupo === "renovacao" && a1.vendedorUid === "igor");
+  confere("Honda é da base: sem o aviso antigo de vencimento de contrato", !achar(/Contrato de Honda vence/));
+  confere("Honda sem contato há 30 dias vira outra pendência", (achar(/Honda está sem contato há 30 dias/) || {}).grupo === "outras");
+  var a2 = achar(/Sinal de 10% de Suzuki vence em 3 dias/);
+  confere("sinal da Suzuki (cadastro encerrado, mas da base) vai para o atendimento", a2 && a2.nivel === "amarelo" && a2.vendedorUid === "pedro" && a2.papelResp === "Atendimento", a2 && a2.vendedorUid);
+  var a3 = achar(/Contrato 2027 de Suzuki ainda não foi enviado/);
+  confere("Suzuki confirmou há 10 dias sem contrato: outra pendência para o vendedor", a3 && a3.grupo === "outras" && a3.vendedorUid === "igor");
+  confere("Triumph confirmou e assinou: nenhum alerta", !alertas.some(function (a) { return /Triumph/.test(a.titulo); }));
+  confere("Master com contrato 2027 assinado não aparece como não renovou", !achar(/Aurora Seguros é Master/));
+  confere("fora da base mantém o aviso de vencimento (Nexo, 40 dias)", (achar(/Contrato de Nexo Motors vence em 40 dias/) || {}).grupo === "outras");
+  confere("Kawasaki encerrado e fora da base não gera nada", !titulos.some(function (t) { return /Kawasaki/.test(t); }));
+  var a4 = achar(/Ducati recusou renovar/);
+  confere("Ducati recusou: azul, com o espaço de 2026 no detalhe", a4 && a4.nivel === "azul" && /Box 05/.test(a4.detalhe), a4 && a4.detalhe);
+  confere("2 entregas da Honda passaram do prazo, a mais antiga no detalhe", alertas.some(function (a) { return /2 entregas da Honda passaram do prazo/.test(a.titulo) && /^Camarote/.test(a.detalhe) && a.grupo === "outras"; }));
+  confere("entrega da Yamaha vence em 7 dias", titulos.some(function (t) { return /amarelo: 1 entrega da Yamaha vence nos próximos 7 dias/.test(t); }));
+  confere("entrega já entregue não alerta", !alertas.some(function (a) { return /Arco/.test(a.detalhe); }));
+  confere("reserva na mão do Box 07 venceu há 2 dias, com a fila no detalhe", alertas.some(function (a) { return /Reserva de Box 07 · Boxes \(Moto\) venceu há 2 dias/.test(a.titulo) && /Na fila: Suzuki/.test(a.detalhe) && a.vendedorUid === "eric" && a.grupo === "outras"; }));
+  confere("reserva de contrato (Box 11) não vence", !titulos.some(function (t) { return /Box 11/.test(t); }));
+  var fila = alertas.find(function (a) { return /Box 05/.test(a.titulo); });
+  confere("Box 05 livre com fila: Ducati (ocupou em 2026) é a primeira e o alerta vai para quem a pôs", fila && /A primeira é Ducati, que ocupou/.test(fila.detalhe) && fila.vendedorUid === "igor", fila && fila.detalhe);
+  confere("renovação vem antes das outras pendências na lista", alertas[0].grupo === "renovacao");
+  confere("Box 19 tem fila, mas a Suzuki renovou: não vira aviso de espaço livre", !alertas.some(function (a) { return /Box 19/.test(a.titulo); }));
+  confere("Box 08 tem fila, mas está guardado para a Honda até ela responder: não vira aviso", !alertas.some(function (a) { return /Box 08/.test(a.titulo); }));
+  confere("a fila dos dois boxes da Honda aparece no aviso de confirmação (senso de urgência)", /2 marcas estão na fila pelo espaço/.test((a1 || {}).detalhe || ""), (a1 || {}).detalhe);
+
+  // prazos vencidos: vira vermelho
+  var cfg2 = Object.assign({}, cfg, { prazo_confirmacao: dia(-2), prazo_sinal: dia(-1), prazo_assinatura: dia(-1) });
+  var alertas2 = F.montarAlertas(Object.assign({}, dados, { cfg: cfg2 }));
+  log.push("alertas (prazos vencidos):\n  " + alertas2.map(function (a) { return a.grupo + "/" + a.nivel + ": " + a.titulo; }).join("\n  "));
+  var achar2 = function (re) { return alertas2.find(function (a) { return re.test(a.titulo); }); };
+  confere("Honda passou do prazo sem confirmar: vermelho", (achar2(/^Honda não confirmou a renovação até \d\d\/\d\d$/) || {}).nivel === "vermelho");
+  confere("Suzuki confirmou mas não assinou até o prazo: vermelho", (achar2(/Suzuki confirmou, mas não assinou o contrato 2027/) || {}).nivel === "vermelho");
+  var s2 = achar2(/Suzuki não pagou o sinal de 10%/);
+  confere("sinal vencido da Suzuki: outra pendência, vai para o Valor 2027, com o atendimento", s2 && s2.grupo === "outras" && /Valor 2027/.test(s2.detalhe) && s2.vendedorUid === "pedro");
+  confere("Triumph continua sem alerta com os prazos vencidos", !alertas2.some(function (a) { return /Triumph/.test(a.titulo); }));
+  confere("prazo vencido há 2 dias: ainda dentro da semana de margem, nada para liberar", !alertas2.some(function (a) { return a.tipo === "liberar"; }));
+  var cfg3 = Object.assign({}, cfg2, { prazo_confirmacao: dia(-10) });
+  var alertas3 = F.montarAlertas(Object.assign({}, dados, { cfg: cfg3 }));
+  var lib = alertas3.find(function (a) { return a.tipo === "liberar"; });
+  confere("passou a semana de margem: aviso para liberar o Box 08 da Honda, com a fila", lib && /^Espaço de Honda pode ser liberado: Box 08$/.test(lib.titulo) && /1 marca espera na fila/.test(lib.detalhe) && lib.nivel === "vermelho", lib && lib.titulo);
+  confere("espaço vencido ainda não avisa a fila: só depois de alguém liberar", !alertas3.some(function (a) { return /Box 08.*está livre/.test(a.titulo); }));
+  var dadosLib = JSON.parse(JSON.stringify(dados)); dadosLib.espacos.find(function (e) { return e.id === "moto:box:08"; }).liberado_2027_em = dia(-1);
+  var alertas4 = F.montarAlertas(Object.assign({}, dadosLib, { cfg: cfg3 }));
+  confere("depois de liberado: some o aviso de liberar e a fila do Box 08 é avisada", !alertas4.some(function (a) { return a.tipo === "liberar"; }) && alertas4.some(function (a) { return /Box 08 · Boxes \(Moto\) está livre e tem 1 marca na fila/.test(a.titulo) && a.vendedorUid === "pedro"; }));
+
+  var pb = F.progressoBase(dados);
+  confere("base de 2026: 5 marcas, 3 confirmaram (60%), contando a Harley pelo contrato assinado", pb.total === 5 && pb.confirmaram === 3 && pb.pct === 60, JSON.stringify(pb));
+  confere("Harley assinou o contrato 2027 sem ninguém marcar a confirmação: nenhum alerta de renovação", !alertas.some(function (a) { return /Harley/.test(a.titulo) && a.grupo === "renovacao"; }) && !alertas2.some(function (a) { return /Harley/.test(a.titulo) && a.grupo === "renovacao"; }));
+
+  var marcas = F.marcasParadas(Object.assign({}, dados, { cfg: cfg }));
+  confere("LuckyBet com ação vencida (vermelho) e Orbit sem contato (amarelo); perdida fica de fora",
+    marcas.length === 2 && marcas.some(function (m) { return m.nome === "LuckyBet" && m.nivel === "vermelho"; }) && marcas.some(function (m) { return m.nome === "Orbit Telecom" && m.nivel === "amarelo"; }), JSON.stringify(marcas.map(function (m) { return m.nome + ":" + m.nivel; })));
+
+  var ass = F.contratosAssinados(dados, { desde: dia(-1), ate: dia(0) });
+  confere("assinado ontem entra; o antigo não", ass.length === 1 && ass[0].marca === "Yamaha");
+  var j = F.janelaAssinados();
+  confere("janela dos assinados: termina hoje e começa 1 ou 3 dias antes", j.ate === F.hojeMais(0) && (j.desde === F.hojeMais(-1) || j.desde === F.hojeMais(-3)), JSON.stringify(j));
+
+  // ---------------------------------------------------------------- 2. senha do Gmail
+  confere("lê e-mail e senha em duas linhas", JSON.stringify(F.lerGmail("painel.fi@gmail.com\nabcd efgh ijkl mnop")) === JSON.stringify({ email: "painel.fi@gmail.com", senha: "abcdefghijklmnop" }));
+  confere("lê com rótulos e senha junta", (F.lerGmail("email: painel.fi@gmail.com\nsenha de app: abcdefghijklmnop") || {}).senha === "abcdefghijklmnop");
+  confere("sem senha, não inventa", F.lerGmail("painel.fi@gmail.com") === null);
+
+  // ---------------------------------------------------------------- 3. quem recebe o quê (ensaio, sem enviar)
+  var r1 = await chamar({ ensaio: "1" });
+  log.push("ensaio:\n  " + (r1.body.envio || []).join("\n  "));
+  var para = (r1.body.envio || []).map(function (l) { return l.split(" → ")[0]; });
+  confere("ensaio não envia nada", enviados.length === 0);
+  confere("dono recebe; Igor e Pedro recebem os deles; Ana (sem nada) e quem não tem e-mail não recebem",
+    para.indexOf("eric@teste.local") >= 0 && para.indexOf("igor@teste.local") >= 0 && para.indexOf("pedro@teste.local") >= 0 && para.indexOf("ana@teste.local") < 0 && para.length === 3, para.join(", "));
+  var assuntoEric = (r1.body.envio || []).find(function (l) { return /^eric@/.test(l); });
+  confere("assunto do dono: prazo perto, outras pendências e assinados, com dia da semana e data", /Painel Comercial · 2 com prazo perto de vencer, \d+ outras pendências, 1 assinado · \S+, \d\d\/\d\d$/.test((assuntoEric || "").split(" → ")[1] || ""), assuntoEric);
+
+  // ---------------------------------------------------------------- 4. sem conta de envio: nao envia
+  var r2 = await chamar({});
+  confere("sem o segredo GMAIL, só registra e não envia", enviados.length === 0 && r2.body === "sem conta de envio", r2.body);
+
+  // ---------------------------------------------------------------- 5. com a conta e a trava de teste
+  env.GMAIL = "painel.fi@gmail.com\nabcd efgh ijkl mnop";
+  env.SO_PARA = "Eric@Teste.Local";
+  var r3 = await chamar({});
+  confere("com SO_PARA, manda só para o Eric", enviados.length === 1 && enviados[0].to === "eric@teste.local", enviados.map(function (e) { return e.to; }).join(","));
+  confere("usa o Gmail do segredo, porta 465", enviados[0] && enviados[0].cfg.auth.user === "painel.fi@gmail.com" && enviados[0].cfg.auth.pass === "abcdefghijklmnop" && enviados[0].cfg.port === 465);
+  confere("remetente com nome do painel", enviados[0] && enviados[0].from === '"Painel Comercial FI" <painel.fi@gmail.com>');
+  env.SO_PARA = "outra.pessoa@gmail.com";
+  enviados.length = 0;
+  await chamar({});
+  confere("SO_PARA de quem não tem perfil recebe a versão de administrador", enviados.length === 1 && enviados[0].to === "outra.pessoa@gmail.com" && /equipe inteira/.test(enviados[0].html));
+  env.SO_PARA = "";
+  enviados.length = 0;
+  await chamar({});
+  confere("sem a trava, manda para os 3", enviados.length === 3, enviados.map(function (e) { return e.to; }).join(","));
+  var igor = enviados.find(function (e) { return e.to === "igor@teste.local"; });
+  var eric = enviados.find(function (e) { return e.to === "eric@teste.local"; });
+  confere("Igor não vê alerta do Eric (Box 07), da Yamaha nem o sinal da Suzuki (é do atendimento)", igor && !/Box 07/.test(igor.html) && !/Yamaha vence/.test(igor.html) && !/Sinal de 10% de Suzuki/.test(igor.html));
+  confere("Igor vê os dele: confirmação da Honda, contrato da Suzuki e o Box 05 com fila", igor && /Confirmação da renovação de Honda/.test(igor.html) && /Contrato 2027 de Suzuki/.test(igor.html) && /Box 05/.test(igor.html));
+  var pedro = enviados.find(function (e) { return e.to === "pedro@teste.local"; });
+  confere("Pedro (atendimento da Suzuki) recebe o sinal", pedro && /Sinal de 10% de Suzuki/.test(pedro.html) && /Prazo perto de vencer/.test(pedro.html));
+  confere("seções com os nomes novos no e-mail do dono", /Prazo perto de vencer \(2\)/.test(eric.html) && /Outras pendências \(\d+\)/.test(eric.html) && /Atendimento: Pedro Paulo/.test(eric.html));
+  confere("dono vê quanto da base confirmou", /Renovação 2027:<\/b> 3 de 5 marcas da base de 2026 confirmaram \(60%\)/.test(eric.html) && /Renovação 2027: 3 de 5/.test(eric.text));
+  confere("todo mundo vê o assinado da Yamaha", enviados.every(function (e) { return /Yamaha<\/b> · Patrocínio 2027/.test(e.html); }));
+  confere("só o administrador vê 'Esperando assinatura'", /Esperando assinatura/.test(eric.html) && !/Esperando assinatura/.test(igor.html));
+  confere("texto puro também vai junto", /Abrir o painel: https:\/\/central/.test(eric.text));
+  confere("sem travessão no texto do e-mail", !/—/.test(eric.html) && !/—/.test(igor.html));
+
+  document.getElementById("previa").srcdoc = eric.html;
+  saida.textContent = (falhou ? "FALHAS: " + falhou + " · " : "") + "passou " + ok + " de " + (ok + falhou) + "\n\n" + log.join("\n");
+  window.resultadoTeste = { ok: ok, falhou: falhou };
+})().catch(function (e) { document.getElementById("saida").textContent = "ERRO: " + (e && e.stack || e); window.resultadoTeste = { erro: String(e) }; });
+</script>
+</body></html>
