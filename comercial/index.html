@@ -276,8 +276,10 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.17";
+var VERSAO = "2026-09-18.1";
 
+// funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
+var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
 var SDK = "https://www.gstatic.com/firebasejs/12.4.0/";
@@ -483,6 +485,23 @@ async function criarApiFirebase() {
     },
     // A IA le o PDF direto do Storage (gs://), sem baixar no navegador. Isso exige
     // o backend Vertex AI, que e o unico que aceita arquivo do proprio projeto.
+    // A funcao so atende quem esta logado: vai junto o comprovante de login do Firebase.
+    assinatura: async function (acao, contratoId) {
+      if (!auth.currentUser) throw new Error("Entre no painel de novo para continuar.");
+      var token = await auth.currentUser.getIdToken();
+      var r;
+      try {
+        r = await fetch(URL_ASSINATURA + "/" + acao, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          body: JSON.stringify({ contratoId: contratoId }),
+        });
+      } catch (e) { throw new Error("Não consegui falar com o serviço de assinatura. Confira a internet e tente de novo."); }
+      var j = {};
+      try { j = await r.json(); } catch (e) {}
+      if (!r.ok) throw new Error(j.erro || "O serviço de assinatura respondeu com erro " + r.status + ".");
+      return j;
+    },
     lerPdf: async function (sistema, prompt, caminho) {
       var aiMod = await import(SDK + "firebase-ai.js");
       var ai = aiMod.getAI(app, { backend: new aiMod.VertexAIBackend() });
@@ -563,6 +582,29 @@ async function criarApiTeste() {
     atualizar: async function (col, id, d) { await espera(300); var it = dados[col].find(function (x) { return x.id === id; }); Object.assign(it, d, { updated_at: agoraIso() }); },
     atualizarVarios: async function (lista) { lista.forEach(function (it) { var x = dados[it.col].find(function (y) { return y.id === it.id; }); Object.assign(x, it.dados); }); },
     subirArquivo: async function (caminho, arquivo) { await espera(600); arquivosTeste[caminho] = arquivo; return caminho; },
+    // imita a funcao da DocuSign: enviar deixa esperando, conferir ja devolve assinado
+    assinatura: async function (acao, contratoId) {
+      await espera(800);
+      var c = dados.contratos.find(function (x) { return x.id === contratoId; });
+      if (!c) throw new Error("Contrato não encontrado.");
+      if (acao === "enviar") {
+        var lista = (c.signatarios || []).filter(function (x) { return x.nome; });
+        var sem = lista.filter(function (x) { return !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(String(x.email || "")); });
+        if (!lista.length) throw new Error("Coloque em Quem assina pelo menos uma pessoa, com nome e e-mail.");
+        if (sem.length) throw new Error("Falta um e-mail válido para: " + sem.map(function (x) { return x.nome; }).join(", ") + ". Todo mundo que assina precisa de e-mail.");
+        c.status = "enviado";
+        c.assinatura = { provedor: "docusign", envelope_id: "teste", status: "enviado", enviado_em: agoraIso(), enviado_por: "teste", para: lista.map(function (x) { return x.email; }), concluida_em: null, detalhe: "" };
+        return { ok: true, para: c.assinatura.para };
+      }
+      if (acao === "conferir") {
+        if (!c.assinatura) return { situacao: "nunca-enviado" };
+        c.status = "assinado"; c.assinado_em = hojeMais(0);
+        c.assinatura.status = "assinado"; c.assinatura.concluida_em = agoraIso();
+        c.arquivo_nome = String(c.arquivo_nome || "contrato.pdf").replace(/\.pdf$/i, "") + " (assinado).pdf";
+        return { situacao: "assinado" };
+      }
+      throw new Error("acao desconhecida");
+    },
     urlArquivo: async function (caminho) { await espera(300); return URL.createObjectURL(arquivosTeste[caminho] || new Blob(["%PDF-1.4\n%teste\n"], { type: "application/pdf" })); },
     gerarTexto: async function () { await espera(900); return "Ligar para o contato até sexta, 18/09, e confirmar a proposta revisada."; },
     lerPdf: async function () {
@@ -904,6 +946,11 @@ async function getContracts() {
       titulo: c.titulo || "Contrato", status: STATUS_CONTRATO[c.status] ? c.status : "rascunho",
       inicio: c.inicio || "", fim: c.fim || "", valor: c.valor == null ? null : Number(c.valor),
       edicao: EDICOES_IDS.indexOf(c.edicao) >= 0 ? c.edicao : "",
+      // o segredo da volta da DocuSign fica so no banco, nao vem para a tela
+      assinatura: c.assinatura && c.assinatura.status ? {
+        status: c.assinatura.status, enviadoEm: c.assinatura.enviado_em || "", concluidaEm: c.assinatura.concluida_em || "",
+        para: Array.isArray(c.assinatura.para) ? c.assinatura.para : [], detalhe: c.assinatura.detalhe || "",
+      } : null,
       arquivoPath: c.arquivo_path || "", arquivoNome: c.arquivo_nome || "",
       signatarios: Array.isArray(c.signatarios) ? c.signatarios.map(function (x) { return { nome: x.nome || "", email: x.email || "" }; }) : [],
       observacao: c.observacao || "", assinadoEm: c.assinado_em || null,
@@ -1400,6 +1447,7 @@ var S = {
   ampliadaModo: "grade",
   contracts: null, contractsErro: null, contractsCarregando: false,
   reservasConferidas: false,
+  assinaturaMexendo: null,
   formContrato: { aberto: false, contrato: null, patroId: null, salvando: false, modo: "ia", lendo: false, lido: null },
   fc: { q: "", status: "todos", vendedor: "todos" },
   contratoMudando: false,
@@ -2528,6 +2576,36 @@ function telaInteracoes() {
 /* ------------------------------------------------------ ficha do patrocinador */
 // Contrato que ainda nao foi assinado mostra o que vai acontecer quando for, senao a
 // pessoa salva como rascunho e fica esperando a reserva que nunca vem.
+// Assinatura pela DocuSign: o botao so aparece quando da para mandar, e o cartao conta
+// em que pe esta cada envio.
+var EMAIL_VALIDO = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+function podeMandarAssinar(c) {
+  var a = c.assinatura;
+  return !!c.arquivoPath && c.status !== "assinado" && c.status !== "cancelado" && (!a || a.status === "recusado" || a.status === "cancelado");
+}
+function botaoAssinatura(c) {
+  var cls = btnCls("outline", "default", "h-8 text-xs font-bold uppercase");
+  var ocupado = S.assinaturaMexendo ? " disabled" : "";
+  if (c.assinatura && c.assinatura.status === "enviado") {
+    return '<button type="button" class="' + cls + '" data-acao="conferir-assinatura" data-id="' + esc(c.id) + '"' + ocupado + ' title="Pergunta agora para a DocuSign se já assinaram">' +
+      (S.assinaturaMexendo === c.id ? icone("loader-circle", "animate-spin") + " Conferindo..." : icone("history") + " Ver se assinaram") + "</button>";
+  }
+  if (!podeMandarAssinar(c)) return "";
+  return '<button type="button" class="' + cn(cls, "border-primary/60 text-primary") + '" data-acao="enviar-assinatura" data-id="' + esc(c.id) + '"' + ocupado + ' title="A DocuSign manda o PDF por e-mail para quem assina">' +
+    (S.assinaturaMexendo === c.id ? icone("loader-circle", "animate-spin") + " Enviando..." : icone("handshake") + " Enviar para assinar") + "</button>";
+}
+function linhaAssinatura(c) {
+  var a = c.assinatura;
+  if (!a) return "";
+  var dia = function (iso) { return iso ? formatDateOnly(String(iso).slice(0, 10)) : ""; };
+  var linha = function (cor, ic, texto) { return '<p class="mt-2 flex items-start gap-1.5 text-xs ' + cor + '">' + icone(ic, "size-3.5 shrink-0 translate-y-0.5") + "<span>" + texto + "</span></p>"; };
+  if (a.status === "enviado") return linha("text-warning-foreground", "bell", "Na DocuSign desde " + esc(dia(a.enviadoEm)) + ", esperando assinatura de " + esc(a.para.join(", ")) + ".");
+  if (a.status === "assinado") return linha("text-success", "check", "Assinado pela DocuSign em " + esc(dia(a.concluidaEm)) + ". O PDF deste cartão já é o assinado.");
+  if (a.status === "recusado") return linha("text-destructive", "triangle-alert", "Alguém recusou assinar na DocuSign. Dá para corrigir e mandar de novo.");
+  if (a.status === "cancelado") return linha("text-muted-foreground", "x", "O envio foi cancelado na DocuSign" + (a.detalhe ? ": " + esc(a.detalhe) : "") + ". Dá para mandar de novo.");
+  return "";
+}
+
 function espacosQueSeriamReservados(c) {
   if (!c || c.status === "assinado" || c.status === "cancelado" || !c.edicao || !S.spaces || !S.sponsors) return [];
   var marca = S.sponsors.find(function (p) { return p.id === c.patrocinadorId; });
@@ -2552,6 +2630,7 @@ function cartaoContrato(c, comPatro) {
       '<p class="mt-0.5 text-xs text-muted-foreground">' + quem + (c.assinadoEm ? " · assinado em " + esc(formatDateOnly(c.assinadoEm)) : "") + "</p>" +
       (c.observacao ? '<p class="mt-1 text-xs text-muted-foreground">' + esc(c.observacao) + "</p>" : "") +
       avisoDivergencia(c) +
+      linhaAssinatura(c) +
       (function () {
         var futuros = espacosQueSeriamReservados(c);
         if (!futuros.length) return "";
@@ -2564,6 +2643,7 @@ function cartaoContrato(c, comPatro) {
       selectNativo("contrato-" + c.id, "status", Object.keys(STATUS_CONTRATO).map(function (k) { return { valor: k, rotulo: STATUS_CONTRATO[k].label }; }), c.status, { className: "h-8 w-48", disabled: S.contratoMudando }) +
       (c.arquivoPath ? '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="abrir-contrato" data-id="' + esc(c.id) + '" title="' + esc(c.arquivoNome) + '">' + icone("paperclip") + " PDF</button>" : '<span class="text-xs text-muted-foreground">sem PDF</span>') +
       (c.arquivoPath ? botaoLerContrato(c) : "") +
+      botaoAssinatura(c) +
       '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar contrato" title="Editar contrato" data-acao="editar-contrato" data-id="' + esc(c.id) + '">' + icone("pencil") + "</button>" +
     "</div></div></article>";
 }
@@ -3560,6 +3640,37 @@ document.addEventListener("click", async function (ev) {
   if (acao === "recarregar-marcas") { carregar("prospects", getProspects); return; }
   if (acao === "recarregar-contratos") { carregar("contracts", getContracts); return; }
   if (acao === "recarregar-entregas") { carregar("combinados", getCombinados); return; }
+  if (acao === "enviar-assinatura") {
+    var ce = (S.contracts || []).find(function (x) { return x.id === id; });
+    if (!ce) return;
+    var quemAssina = ce.signatarios.filter(function (x) { return x.nome; });
+    var semEmail = quemAssina.filter(function (x) { return !EMAIL_VALIDO.test(x.email || ""); });
+    if (!quemAssina.length) { toast.error("Coloque em Quem assina pelo menos uma pessoa com e-mail. É pelo lápis do contrato."); return; }
+    if (semEmail.length) { toast.error("Falta um e-mail válido para: " + semEmail.map(function (x) { return x.nome; }).join(", ") + ". Arrume pelo lápis do contrato, no campo Quem assina."); return; }
+    if (!window.confirm("A DocuSign vai mandar este contrato por e-mail para:\n\n" + quemAssina.map(function (x) { return x.nome + " <" + x.email + ">"; }).join("\n") + "\n\nContinuar?")) return;
+    S.assinaturaMexendo = id; render();
+    try {
+      var ra = await API.assinatura("enviar", id);
+      S.assinaturaMexendo = null;
+      await carregar("contracts", getContracts);
+      toast.success("Enviado. " + ra.para.length + (ra.para.length > 1 ? " pessoas vão" : " pessoa vai") + " receber o e-mail da DocuSign para assinar.");
+    } catch (e) { S.assinaturaMexendo = null; render(); toast.error(e.message); }
+    return;
+  }
+  if (acao === "conferir-assinatura") {
+    S.assinaturaMexendo = id; render();
+    try {
+      var rc = await API.assinatura("conferir", id);
+      S.assinaturaMexendo = null;
+      if (rc.situacao === "assinado") {
+        await Promise.all([carregar("contracts", getContracts), carregar("spaces", getSpaces), carregar("sponsors", getSponsors)]);
+        toast.success("Assinado. O PDF assinado já está no cartão do contrato.");
+      } else if (rc.situacao === "recusado") { await carregar("contracts", getContracts); toast.error("Alguém recusou assinar na DocuSign."); }
+      else if (rc.situacao === "cancelado") { await carregar("contracts", getContracts); toast.error("O envio foi cancelado na DocuSign."); }
+      else { render(); toast.success("Ainda não assinaram. Quando assinarem, o contrato muda sozinho."); }
+    } catch (e) { S.assinaturaMexendo = null; render(); toast.error(e.message); }
+    return;
+  }
   if (acao === "usar-dados-do-pdf" || acao === "manter-como-esta") {
     var cd = (S.contracts || []).find(function (x) { return x.id === id; });
     if (!cd) return;
