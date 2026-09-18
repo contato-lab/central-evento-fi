@@ -1,0 +1,11 @@
+{
+  "name": "painel-comercial-fi-funcoes",
+  "description": "Reserva automatica de espaco quando o contrato vira assinado",
+  "main": "index.js",
+  "private": true,
+  "engines": { "node": "20" },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.1.0"
+  }
+}
