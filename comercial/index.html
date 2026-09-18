@@ -273,7 +273,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.9";
+var VERSAO = "2026-09-17.10";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -968,19 +968,27 @@ function pareceMesmaEntrega(a, b) {
   var repetidas = listaA.filter(function (p) { return uniB[p]; });
   var iguais = repetidas.length;
   var juntos = listaA.length + listaB.length - iguais;
-  // Quase todas as palavras batem: e a mesma entrega escrita de novo.
+  var menor = Math.min(listaA.length, listaB.length);
+  var semNumero = repetidas.filter(function (p) { return !/^[0-9]+$/.test(p); });
+  // Na duvida o certo e deixar passar e a pessoa cancelar o repetido. Sumir com uma
+  // entrega de verdade ninguem percebe, e e o erro que machuca.
+
+  // 1) quase toda palavra bate nos dois lados: e a mesma entrega escrita de novo.
   if (iguais / juntos >= 0.5) return true;
-  // Uma frase bem maior que a outra falando da mesma coisa. Na duvida o certo e deixar
-  // passar e a pessoa cancelar o repetido, nunca sumir com uma entrega de verdade.
-  // O assunto e a primeira palavra que nao e numero: em "60 credenciais VIP" o assunto
-  // e credenciais, nao o 60.
+
+  // 2) a frase curta cabe quase inteira dentro da longa, e o que se repete nao e so
+  //    numero. Pega o caso de a IA reescrever o comeco: "Nome da arena" e "Direito de
+  //    nomear a arena de provas na comunicacao oficial".
+  if (iguais / menor >= 0.75 && semNumero.length >= 2) return true;
+
+  // 3) as duas comecam pelo mesmo assunto e dividem metade das palavras. Assunto e a
+  //    primeira palavra que nao e numero: em "60 credenciais VIP" o assunto e
+  //    credenciais, nao o 60. Exige ainda dividir algo alem do assunto e do numero,
+  //    senao "25 credenciais de staff" e "25 credenciais de area VIP" virariam iguais.
   var assunto = function (l) { for (var i = 0; i < l.length; i++) if (!/^[0-9]+$/.test(l[i])) return l[i]; return l[0]; };
   var chave = assunto(A);
-  if (chave !== assunto(B) || iguais < 2) return false;
-  if (iguais / Math.min(listaA.length, listaB.length) < 0.5) return false;
-  // Alem do assunto e do numero, precisa dividir pelo menos mais uma palavra. Sem isso
-  // "25 credenciais de staff" e "25 credenciais de area VIP" virariam a mesma entrega.
-  return repetidas.some(function (p) { return p !== chave && !/^[0-9]+$/.test(p); });
+  if (chave !== assunto(B) || iguais < 2 || iguais / menor < 0.5) return false;
+  return semNumero.some(function (p) { return p !== chave; });
 }
 
 // Le o PDF do contrato com a IA e joga cada entrega em Propriedades como "a conferir".
@@ -1038,7 +1046,7 @@ async function lerContratoComIa(c) {
   // O que a marca ja tem vale como referencia, menos o que foi cancelado.
   var jaTem = combinadosDe(c.patrocinadorId).filter(function (e) { return e.status !== "cancelado"; })
     .map(function (e) { return { descricao: e.descricao, quantidade: e.quantidade }; });
-  var criados = 0, repetidos = 0;
+  var criados = 0, repetidos = 0, pulados = [];
   for (var k = 0; k < itens.length && k < 40; k++) {
     var it = itens[k] || {};
     var desc = String(it.descricao || "").trim().slice(0, 300);
@@ -1047,7 +1055,7 @@ async function lerContratoComIa(c) {
     var qtd = bruta !== null && isFinite(bruta) && bruta >= 0 ? bruta : null;
     var novo = { descricao: desc, quantidade: qtd };
     var repetida = jaTem.some(function (e) { return pareceMesmaEntrega(novo, e); });
-    if (repetida) { repetidos++; continue; }
+    if (repetida) { repetidos++; pulados.push(desc); continue; }
     try {
       await API.criar("combinados", {
         patrocinador_id: c.patrocinadorId, prospeccao_id: null,
@@ -1071,7 +1079,7 @@ async function lerContratoComIa(c) {
   if (!c.fim && dia(dados.vigencia_fim)) { faltando.fim = dados.vigencia_fim; completou.push("fim"); }
   if (c.valor == null && dados.valor != null && isFinite(Number(dados.valor)) && Number(dados.valor) > 0) { faltando.valor = Number(dados.valor); completou.push("valor"); }
   if (Object.keys(faltando).length) { try { await API.atualizar("contratos", c.id, faltando); } catch (e) { completou = []; } }
-  return { criados: criados, completou: completou, repetidos: repetidos };
+  return { criados: criados, completou: completou, repetidos: repetidos, pulados: pulados };
 }
 
 async function confirmarEntregasDoContrato(ids) {
@@ -3230,7 +3238,11 @@ document.addEventListener("click", async function (ev) {
       await Promise.all([carregar("combinados", getCombinados), carregar("contracts", getContracts)]);
       if (r.criados) toast.success(r.criados + " entrega" + (r.criados > 1 ? "s" : "") + " lida" + (r.criados > 1 ? "s" : "") + " do contrato. Confira em Propriedades antes de valer.");
       else toast.success("Nada novo neste contrato: o que a IA leu já estava cadastrado nesta marca.");
-      if (r.repetidos) toast.success(r.repetidos + " item" + (r.repetidos > 1 ? "ns" : "") + " que a marca já tinha não " + (r.repetidos > 1 ? "foram repetidos" : "foi repetido") + ".");
+      if (r.repetidos) {
+        var nomes = r.pulados.slice(0, 3).map(function (d) { return d.length > 60 ? d.slice(0, 60) + "..." : d; }).join(" · ");
+        var resto = r.repetidos > 3 ? " · e mais " + (r.repetidos - 3) : "";
+        toast.success("A marca já tinha " + r.repetidos + " dest" + (r.repetidos > 1 ? "es itens, que não entraram de novo" : "e item, que não entrou de novo") + ": " + nomes + resto);
+      }
       if (r.completou.length) toast.success("A IA também preencheu " + r.completou.join(", ") + " do contrato.");
     } catch (e) { S.lendoContrato = null; render(); toast.error(e.message); }
     return;
