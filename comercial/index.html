@@ -276,7 +276,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.16";
+var VERSAO = "2026-09-17.17";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -539,9 +539,9 @@ async function criarApiTeste() {
     { id: "im2", prospeccao_id: "m4", patrocinador_id: null, data: diasAtras(4), tipo: "proposta", observacao: "Proposta de tenda de 100 m² com posto médico.", proximo_passo: "Reunião de fechamento.", criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() }
   );
   dados.contratos = [
-    { id: "ct1", patrocinador_id: dados.patrocinadores[0].id, titulo: "Contrato de patrocínio Master 2027", status: "assinado", inicio: "2027-01-01", fim: "2027-12-31", valor: 450000, arquivo_path: "contratos/teste/master.pdf", arquivo_nome: "contrato-master-2027.pdf", signatarios: [{ nome: "Bianca Lima", email: "bianca@auroraseguros.example" }, { nome: "Diretoria do festival", email: "" }], observacao: "", assinado_em: hojeMais(-3), criado_por: "teste", created_at: diasAtras(10), updated_at: agoraIso() },
-    { id: "ct2", patrocinador_id: dados.patrocinadores[1].id, titulo: "Contrato de merchandising 2027", status: "enviado", inicio: "2027-01-01", fim: "2027-08-31", valor: 45000, arquivo_path: "", arquivo_nome: "", signatarios: [{ nome: "Fernanda Rocha", email: "fernanda@linhaverde.example" }], observacao: "Enviado para o jurídico deles em 15/09.", criado_por: "v1", created_at: diasAtras(2), updated_at: agoraIso() },
-    { id: "ct3", patrocinador_id: dados.patrocinadores[2].id, titulo: "Renovação 2027 (minuta)", status: "rascunho", inicio: "", fim: "", valor: null, arquivo_path: "", arquivo_nome: "", signatarios: [], observacao: "", criado_por: "teste", created_at: diasAtras(1), updated_at: agoraIso() },
+    { id: "ct1", patrocinador_id: dados.patrocinadores[0].id, titulo: "Contrato de patrocínio Master 2027", status: "assinado", edicao: "moto", inicio: "2027-01-01", fim: "2027-12-31", valor: 450000, arquivo_path: "contratos/teste/master.pdf", arquivo_nome: "contrato-master-2027.pdf", signatarios: [{ nome: "Bianca Lima", email: "bianca@auroraseguros.example" }, { nome: "Diretoria do festival", email: "" }], observacao: "", assinado_em: hojeMais(-3), criado_por: "teste", created_at: diasAtras(10), updated_at: agoraIso() },
+    { id: "ct2", patrocinador_id: dados.patrocinadores[1].id, titulo: "Contrato de merchandising 2027", status: "enviado", edicao: "moto", inicio: "2027-01-01", fim: "2027-08-31", valor: 45000, arquivo_path: "", arquivo_nome: "", signatarios: [{ nome: "Fernanda Rocha", email: "fernanda@linhaverde.example" }], observacao: "Enviado para o jurídico deles em 15/09.", criado_por: "v1", created_at: diasAtras(2), updated_at: agoraIso() },
+    { id: "ct3", patrocinador_id: dados.patrocinadores[2].id, titulo: "Renovação 2027 (minuta)", status: "rascunho", edicao: "moto", inicio: "", fim: "", valor: null, arquivo_path: "", arquivo_nome: "", signatarios: [], observacao: "", criado_por: "teste", created_at: diasAtras(1), updated_at: agoraIso() },
   ];
   var arquivosTeste = {};
   dados.combinados.push({ id: "cm1", prospeccao_id: "m4", patrocinador_id: null, descricao: "Desconto de 10% se assinar até 30/09", status: "prometido", prometido_por_uid: "teste", prometido_por_nome: "Eric Pereira Felix", data: hojeMais(-4), criado_por: "teste", created_at: agoraIso(), updated_at: agoraIso() });
@@ -663,6 +663,8 @@ async function saveSpace(data) {
     metragem: data.metragem == null || !isFinite(data.metragem) ? null : data.metragem,
     ocupante_2026: String(data.ocupante2026 || "").trim().slice(0, 120),
     vendedor_uid: vend ? vend.id : null, vendedor_nome: vend ? vend.nome : "" };
+  // mesma regra do seletor de status: espaco liberado nao guarda o nome de quem estava nele
+  if (data.status === "disponivel") { payload.reservado_para_id = null; payload.reservado_para_nome = ""; }
   if (!data.id && data.mapa) {
     // espaco criado a partir do mapa: guarda a posicao para o desenho achar o documento
     payload.mapa = data.mapa; payload.edicao = data.edicao; payload.zona = data.zona; payload.codigo = data.codigo; payload.tipo = data.tipo;
@@ -676,7 +678,13 @@ async function saveSpace(data) {
 async function changeSpaceStatus(id, status, espaco) {
   var dados = { status: status };
   // quem reserva ou vende vira o responsavel; espaco liberado fica sem responsavel
-  if (status === "disponivel") { dados.vendedor_uid = null; dados.vendedor_nome = ""; }
+  if (status === "disponivel") {
+    dados.vendedor_uid = null; dados.vendedor_nome = "";
+    // some o nome de quem estava reservado, senao o espaco fica Disponivel com marca em cima.
+    // reservado_por_contrato fica de proposito: e a marca de que aquele contrato ja agiu uma
+    // vez, e e o que impede a conferencia automatica de reservar de novo por cima da pessoa.
+    dados.reservado_para_id = null; dados.reservado_para_nome = "";
+  }
   else if (!espaco || !espaco.vendedorUid) { dados.vendedor_uid = S.uid; dados.vendedor_nome = S.nome; }
   try { await API.atualizar("espacos", id, dados); }
   catch (e) { throw new Error("Não foi possível alterar o status."); }
@@ -1212,6 +1220,33 @@ async function avisarReservaDeEspacos(contrato) {
   if (r.conflitos.length) toast.error("Não mexi em " + r.conflitos.length + " espaço" + (r.conflitos.length > 1 ? "s" : "") + " da " + r.marca + ": " + r.conflitos.slice(0, 3).join(" · ") + ". Resolva na tela de Espaços.");
 }
 
+// Ao abrir o painel, procura contrato assinado que nunca reservou espaco nenhum e
+// resolve. Pega o contrato assinado de outro computador e, amanha, o que voltar assinado
+// sozinho pela assinatura automatica.
+//
+// So mexe em contrato que NUNCA reservou nada. Se ele ja reservou uma vez e alguem
+// devolveu o espaco para Disponivel de proposito, foi decisao de gente e fica como esta.
+function contratoJaReservouAlgumaVez(c) {
+  return (S.spaces || []).some(function (e) { return e.reservadoPorContrato === c.id; });
+}
+async function conferirReservasPendentes() {
+  var assinados = (S.contracts || []).filter(function (c) {
+    return c.status === "assinado" && c.edicao && c.patrocinadorId && !contratoJaReservouAlgumaVez(c);
+  });
+  if (!assinados.length) return;
+  var feitos = [];
+  for (var i = 0; i < assinados.length && i < 20; i++) {
+    var r;
+    try { r = await reservarEspacosDoContrato(assinados[i]); } catch (e) { continue; }
+    if (r && r.reservados.length) feitos.push({ marca: r.marca, espacos: r.reservados });
+  }
+  if (!feitos.length) return;
+  try { await Promise.all([carregar("spaces", getSpaces), carregar("sponsors", getSponsors)]); } catch (e) {}
+  var total = feitos.reduce(function (n, x) { return n + x.espacos.length; }, 0);
+  var quem = feitos.map(function (x) { return x.marca }).join(", ");
+  toast.success(total + " espaço" + (total > 1 ? "s foram reservados" : " foi reservado") + " por contrato assinado fora daqui: " + quem + ".");
+}
+
 // O botao do cartao: le e grava de uma vez.
 async function lerContratoComIa(c) {
   if (!c || !c.arquivoPath) throw new Error("Este contrato não tem PDF anexado. Suba o PDF antes de ler.");
@@ -1364,6 +1399,7 @@ var S = {
   ampliada: null,
   ampliadaModo: "grade",
   contracts: null, contractsErro: null, contractsCarregando: false,
+  reservasConferidas: false,
   formContrato: { aberto: false, contrato: null, patroId: null, salvando: false, modo: "ia", lendo: false, lido: null },
   fc: { q: "", status: "todos", vendedor: "todos" },
   contratoMudando: false,
@@ -3315,6 +3351,11 @@ async function carregar(chave, fn) {
   catch (e) { S[chave] = null; S[chave + "Erro"] = e.message; }
   S[chave + "Carregando"] = false;
   render();
+  // assim que contratos, espacos e marcas estiverem na mao, uma vez por sessao
+  if (!S.reservasConferidas && S.contracts && S.spaces && S.sponsors) {
+    S.reservasConferidas = true;
+    try { await conferirReservasPendentes(); } catch (e) {}
+  }
 }
 function recarregarEspacos() { return Promise.all([carregar("spaces", getSpaces), carregar("overview", getSpacesOverview)]); }
 
