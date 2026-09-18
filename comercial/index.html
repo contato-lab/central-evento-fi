@@ -276,7 +276,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.13";
+var VERSAO = "2026-09-17.14";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -1019,10 +1019,11 @@ async function lerPdfDoContrato(caminho) {
     "quantidade é só a quantidade de coisas entregues, como 300 ingressos, 6 posts, 1 camarote. Metragem, área, porcentagem e duração não são quantidade: vão escritas na descrição. Quantidade por extenso vira número.\n" +
     "prazo só quando o contrato dá uma data. Prazo contado a partir da assinatura ou do fim do evento fica vazio, e essa condição entra na descrição.\n" +
     "categoria: espaco para área, estande e metragem; credenciais para ingressos, credenciais e vagas; midia para marca exposta, telão, posts, site e peças; hospitalidade para camarote com serviço, hotel e alimentação; ativacao para ação, experiência e test-drive; outro para exclusividade, relatório e o que não encaixar.\n\n" +
+    "Quando preencher quantidade, não comece a descrição repetindo esse número: o painel já mostra ele na frente do item.\n\n" +
     "Descrições do jeito certo:\n" +
     "- Área de ativação de 420 m² no Setor B-14 (prazo 2027-08-28, quantidade null)\n" +
     "- Camarote para 40 pessoas com comida e bebida, no sábado (quantidade 1)\n" +
-    "- 300 ingressos de cortesia para os três dias (quantidade 300)\n" +
+    "- Ingressos de cortesia para os três dias (quantidade 300)\n" +
     "- Marca no telão do palco principal, mínimo 12 inserções por dia (quantidade 12)\n" +
     "- Exclusividade em lubrificantes, menos para expositores da Feira (quantidade null)\n" +
     "- Espaço de 30 m² na área infantil, só se o Festival Kids acontecer (quantidade null)\n\n" +
@@ -1030,7 +1031,8 @@ async function lerPdfDoContrato(caminho) {
     "- A ORGANIZADORA disponibilizará à PATROCINADORA um camarote com capacidade para 40 pessoas (juridiquês)\n" +
     "- A desmontagem da área deverá ser concluída (é obrigação do patrocinador)\n" +
     "- A área será entregue para montagem, separado do item da própria área (prazo virou item)\n" +
-    "- quantidade 420 para uma área de 420 m² (metragem não é quantidade)\n\n" +
+    "- quantidade 420 para uma área de 420 m² (metragem não é quantidade)\n" +
+    "- 300 ingressos de cortesia, com quantidade 300 (o número aparece duas vezes na tela)\n\n" +
     "titulo é como a equipe chamaria este contrato, tipo \"Contrato de patrocínio Master 2027\". Sem nome de empresa e sem número de processo.\n" +
     "assinantes são as pessoas que assinam nas duas pontas, com o nome como está escrito. Se o contrato não trouxer e-mail, deixe o e-mail vazio.";
   var bruto;
@@ -1070,6 +1072,11 @@ async function gravarEntregasLidas(c, dados, pularCabecalho) {
     if (desc.length < 3) continue;
     var bruta = it.quantidade == null || it.quantidade === "" ? null : Number(it.quantidade);
     var qtd = bruta !== null && isFinite(bruta) && bruta >= 0 ? bruta : null;
+    // "15 · 15 vagas" fica feio: se a descricao comeca pelo proprio numero, tira.
+    if (qtd !== null) {
+      var semNumero = desc.replace(new RegExp("^" + String(qtd).replace(/\./g, "\\.") + "\\s+(?![m²x×])", "i"), "");
+      if (semNumero !== desc && semNumero.length > 3) desc = semNumero.charAt(0).toLocaleUpperCase("pt-BR") + semNumero.slice(1);
+    }
     var novo = { descricao: desc, quantidade: qtd };
     var repetida = jaTem.some(function (e) { return pareceMesmaEntrega(novo, e); });
     if (repetida) { repetidos++; pulados.push(desc); continue; }
