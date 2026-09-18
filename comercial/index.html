@@ -250,6 +250,12 @@
   .mapa-svg .t-m2{font-size:8px;opacity:.92}
   .mapa-svg .t-zona{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
   .mapa-svg .t-nota{font-size:10px;fill:var(--muted-foreground)}
+  /* quem assina: nome e e-mail lado a lado no computador, um embaixo do outro no celular */
+  .linha-assinante{display:grid;gap:.5rem;grid-template-columns:1fr auto;align-items:center}
+  .linha-assinante .la-nome{grid-column:1;grid-row:1}.linha-assinante .la-email{grid-column:1;grid-row:2}
+  .linha-assinante .la-tirar{grid-column:2;grid-row:1 / span 2}
+  @media (min-width:640px){.linha-assinante{grid-template-columns:1fr 1fr auto}.linha-assinante .la-email{grid-column:2;grid-row:1}.linha-assinante .la-tirar{grid-column:3;grid-row:1}}
+  .campo-falta{border-color:var(--warning)}
 </style>
 </head>
 <body>
@@ -276,7 +282,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-18.2";
+var VERSAO = "2026-09-18.3";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -995,7 +1001,49 @@ function lerSignatarios(texto) {
     return nome ? { nome: nome.slice(0, 120), email: email.slice(0, 160) } : null;
   }).filter(Boolean).slice(0, 10);
 }
-function escreverSignatarios(lista) { return (lista || []).map(function (x) { return x.nome + (x.email ? ", " + x.email : ""); }).join("\n"); }
+
+// Quem assina: cada pessoa numa linha com nome e e-mail em campos separados. Sem o e-mail a
+// DocuSign nao tem para onde mandar, e um campo proprio deixa isso claro para quem preenche.
+function limparAssinantes(lista) {
+  return (lista || []).map(function (x) {
+    var nome = String(x.nome || "").trim().slice(0, 120), email = String(x.email || "").trim().slice(0, 160);
+    return { nome: nome || email.split("@")[0], email: email };
+  }).filter(function (x) { return x.nome; }).slice(0, 10);
+}
+function faltaEmail(x) { return !!x.nome && !EMAIL_VALIDO.test(x.email || ""); }
+function linhaAssinante(p) {
+  p = p || { nome: "", email: "" };
+  var falta = faltaEmail(p) && !p.email;
+  return '<div class="linha-assinante">' +
+    '<input name="sig_nome" class="' + cn(INPUT, "la-nome") + '" value="' + esc(p.nome || "") + '" placeholder="Nome de quem assina" maxlength="120" aria-label="Nome de quem assina">' +
+    '<input name="sig_email" type="email" class="' + cn(INPUT, "la-email", falta && "campo-falta") + '" value="' + esc(p.email || "") + '" placeholder="' + (falta ? "Falta o e-mail" : "E-mail de quem assina") + '" maxlength="160" aria-label="E-mail de quem assina">' +
+    '<button type="button" class="' + btnCls("ghost", "icon", "la-tirar") + '" data-acao="remover-assinante" title="Tirar esta pessoa" aria-label="Tirar esta pessoa">' + icone("x", "h-4 w-4") + "</button>" +
+  "</div>";
+}
+function textoFaltaEmail(lista) {
+  var sem = (lista || []).filter(faltaEmail);
+  return sem.length ? "Falta o e-mail de " + sem.map(function (x) { return x.nome; }).join(", ") + ". Dá para salvar assim, mas só manda para assinar com o e-mail de todo mundo." : "";
+}
+function blocoAssinantes(lista) {
+  var linhas = (lista || []).filter(function (x) { return x.nome || x.email; });
+  if (!linhas.length) linhas = [{ nome: "", email: "" }];
+  return '<div class="space-y-2"><p class="' + LABEL + '">Quem assina</p>' +
+    '<p class="text-xs text-muted-foreground">Cada pessoa recebe o contrato no próprio e-mail para assinar pela DocuSign.</p>' +
+    '<div id="lista-assinantes" class="space-y-3">' + linhas.map(linhaAssinante).join("") + "</div>" +
+    '<p id="aviso-assinantes" class="text-xs text-warning-foreground">' + esc(textoFaltaEmail(linhas)) + "</p>" +
+    '<button type="button" class="' + btnCls("ghost", "default", "text-xs font-bold uppercase") + '" data-acao="adicionar-assinante">' + icone("plus") + " Adicionar quem assina</button></div>";
+}
+function assinantesDoFormulario(raiz) {
+  return Array.prototype.map.call(raiz.querySelectorAll(".linha-assinante"), function (l) {
+    return { nome: l.querySelector('[name="sig_nome"]').value.trim(), email: l.querySelector('[name="sig_email"]').value.trim() };
+  });
+}
+function atualizarAvisoAssinantes() {
+  var lista = document.getElementById("lista-assinantes");
+  var aviso = document.getElementById("aviso-assinantes");
+  if (!lista || !aviso) return;
+  aviso.textContent = textoFaltaEmail(assinantesDoFormulario(lista));
+}
 
 async function saveContract(data, arquivo, arquivoPronto) {
   var titulo = String(data.titulo || "").trim();
@@ -1010,7 +1058,7 @@ async function saveContract(data, arquivo, arquivoPronto) {
   var payload = {
     patrocinador_id: data.patrocinadorId, titulo: titulo, status: data.status, inicio: inicio, fim: fim, valor: valor,
     edicao: EDICOES_IDS.indexOf(data.edicao) >= 0 ? data.edicao : "",
-    signatarios: lerSignatarios(data.signatarios), observacao: String(data.observacao || "").trim().slice(0, 1000),
+    signatarios: Array.isArray(data.signatarios) ? limparAssinantes(data.signatarios) : lerSignatarios(data.signatarios), observacao: String(data.observacao || "").trim().slice(0, 1000),
   };
   if (arquivoPronto && arquivoPronto.path) { payload.arquivo_path = arquivoPronto.path; payload.arquivo_nome = arquivoPronto.nome; }
   if (arquivo) {
@@ -2873,7 +2921,7 @@ function dialogoContrato() {
           : '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-arquivo">PDF do contrato' + (c && c.arquivoNome ? " (trocar)" : "") + '</label><input id="contrato-arquivo" name="arquivo" type="file" accept="application/pdf,.pdf" class="' + cn(INPUT, "py-1.5") + '">' +
             (c && c.arquivoNome ? '<p class="text-xs text-muted-foreground">Guardado: ' + esc(c.arquivoNome) + "</p>" : '<p class="text-xs text-muted-foreground">Até 20 MB. Pode deixar sem PDF em rascunho.</p>') + "</div>") +
       "</div>" +
-      '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-signatarios">Quem assina (um por linha: Nome, e-mail)</label><textarea id="contrato-signatarios" name="signatarios" rows="3" maxlength="1500" placeholder="Bianca Lima, bianca@marca.com.br&#10;Diretoria do festival, contato@festival.com.br" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(escreverSignatarios(v.signatarios)) + "</textarea></div>" +
+      blocoAssinantes(v.signatarios) +
       '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-obs">Observação (opcional)</label><textarea id="contrato-obs" name="observacao" rows="2" maxlength="1000" placeholder="Ex.: minuta aprovada pelo jurídico em 15/09" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(v.observacao || "") + "</textarea></div>" +
       '<p class="text-xs text-muted-foreground">Ao marcar como assinado com data de fim, o vencimento do patrocinador passa a ser essa data.</p>' +
       '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
@@ -3914,6 +3962,24 @@ document.addEventListener("click", async function (ev) {
     } catch (e) { S.formContrato.lendo = false; render(); toast.error(e.message); }
     return;
   }
+  if (acao === "adicionar-assinante") {
+    var listaA = document.getElementById("lista-assinantes");
+    if (!listaA) return;
+    if (listaA.querySelectorAll(".linha-assinante").length >= 10) { toast.error("Cabem até 10 pessoas."); return; }
+    listaA.insertAdjacentHTML("beforeend", linhaAssinante());
+    var novaA = listaA.lastElementChild.querySelector('[name="sig_nome"]');
+    if (novaA) novaA.focus();
+    return;
+  }
+  if (acao === "remover-assinante") {
+    var linhaA = alvo.closest(".linha-assinante");
+    var listaR = document.getElementById("lista-assinantes");
+    if (!linhaA || !listaR) return;
+    linhaA.remove();
+    if (!listaR.querySelector(".linha-assinante")) listaR.insertAdjacentHTML("beforeend", linhaAssinante());
+    atualizarAvisoAssinantes();
+    return;
+  }
   if (acao === "fechar-form-contrato") { if (!S.formContrato.salvando) { S.formContrato.aberto = false; render(); } return; }
   if (acao === "abrir-contrato") {
     var ca = (S.contracts || []).find(function (x) { return x.id === id; });
@@ -3983,6 +4049,15 @@ document.addEventListener("click", async function (ev) {
 
 document.addEventListener("input", function (ev) {
   var el = ev.target;
+  if (el.closest && el.closest(".linha-assinante")) {
+    var linhaI = el.closest(".linha-assinante");
+    var nomeI = linhaI.querySelector('[name="sig_nome"]').value.trim(), campoE = linhaI.querySelector('[name="sig_email"]');
+    var faltaI = !!nomeI && !campoE.value.trim();
+    campoE.classList.toggle("campo-falta", faltaI);
+    campoE.placeholder = faltaI ? "Falta o e-mail" : "E-mail de quem assina";
+    atualizarAvisoAssinantes();
+    return;
+  }
   if (el.id === "busca") {
     trocarParametro("q", el.value);
     document.getElementById("bloco-lista").innerHTML = blocoListaEspacos();
@@ -4170,7 +4245,7 @@ document.addEventListener("submit", async function (ev) {
       patrocinadorId: atualC ? atualC.patrocinadorId : String(fct.get("patrocinador_id") || ""),
       titulo: fct.get("titulo"), status: String(fct.get("status") || "rascunho"), edicao: String(fct.get("edicao") || ""),
       inicio: fct.get("inicio"), fim: fct.get("fim"), valor: fct.get("valor"),
-      signatarios: fct.get("signatarios"), observacao: fct.get("observacao"),
+      signatarios: assinantesDoFormulario(ev.target), observacao: fct.get("observacao"),
       assinadoEm: atualC ? atualC.assinadoEm : null,
     };
     S.formContrato.salvando = true;
