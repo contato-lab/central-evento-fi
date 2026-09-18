@@ -276,7 +276,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-17.12";
+var VERSAO = "2026-09-17.13";
 
 var FIREBASE_CONFIG = {"apiKey":"AIzaSyDJsBb5Y4S_q0o7mM-TWZjAlpLtYJ16zKE","authDomain":"painel-comercial-fi.firebaseapp.com","projectId":"painel-comercial-fi","storageBucket":"painel-comercial-fi.firebasestorage.app","messagingSenderId":"78864288270","appId":"1:78864288270:web:cee1567b4980a187880a5f"};
 
@@ -566,6 +566,8 @@ async function criarApiTeste() {
     lerPdf: async function () {
       await espera(1800);
       return JSON.stringify({
+        titulo: "Contrato de patrocínio Master 2027",
+        assinantes: [{ nome: "Bianca Lima", email: "bianca@marca.com.br" }, { nome: "Diretoria do festival", email: "" }],
         vigencia_inicio: "2027-01-01", vigencia_fim: "2027-12-31", valor: 450000,
         entregas: [
           { descricao: "Área de 500 m² na Arena, com montagem por conta do patrocinador", quantidade: 1, categoria: "espaco", prazo: "2027-08-01", trecho: "Cláusula 3.1: fica cedida ao PATROCINADOR área de 500 m² na Arena." },
@@ -907,7 +909,7 @@ function lerSignatarios(texto) {
 }
 function escreverSignatarios(lista) { return (lista || []).map(function (x) { return x.nome + (x.email ? ", " + x.email : ""); }).join("\n"); }
 
-async function saveContract(data, arquivo) {
+async function saveContract(data, arquivo, arquivoPronto) {
   var titulo = String(data.titulo || "").trim();
   if (!data.patrocinadorId || titulo.length < 2 || titulo.length > 160 || !STATUS_CONTRATO[data.status]) throw new Error("Escolha o patrocinador, dê um título ao contrato e confira o status.");
   var ok = function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d || ""); };
@@ -921,6 +923,7 @@ async function saveContract(data, arquivo) {
     patrocinador_id: data.patrocinadorId, titulo: titulo, status: data.status, inicio: inicio, fim: fim, valor: valor,
     signatarios: lerSignatarios(data.signatarios), observacao: String(data.observacao || "").trim().slice(0, 1000),
   };
+  if (arquivoPronto && arquivoPronto.path) { payload.arquivo_path = arquivoPronto.path; payload.arquivo_nome = arquivoPronto.nome; }
   if (arquivo) {
     var limpo = arquivo.name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.-]+/g, "-").slice(0, 80) || "contrato.pdf";
     var caminho = "contratos/" + data.patrocinadorId + "/" + Date.now() + "-" + limpo;
@@ -996,9 +999,10 @@ function pareceMesmaEntrega(a, b) {
   return semNumero.some(function (p) { return p !== chave; });
 }
 
-// Le o PDF do contrato com a IA e joga cada entrega em Propriedades como "a conferir".
-async function lerContratoComIa(c) {
-  if (!c || !c.arquivoPath) throw new Error("Este contrato não tem PDF anexado. Suba o PDF antes de ler.");
+// Le o PDF e devolve o que a IA entendeu, sem gravar nada. Serve tanto para o botao do
+// cartao quanto para o formulario preencher os campos antes do contrato existir.
+async function lerPdfDoContrato(caminho) {
+  if (!caminho) throw new Error("Este contrato não tem PDF anexado. Suba o PDF antes de ler.");
   var sistema = "Você lê contratos de patrocínio de eventos em português do Brasil e extrai, em JSON, só o que o ORGANIZADOR do evento se comprometeu a entregar ao PATROCINADOR.\n" +
     "Nunca registre obrigação do patrocinador: pagamento, parcelas, multa por atraso, envio de arquivos e artes, contratação de seguro, apresentação de apólice, e a montagem, a operação e a desmontagem do espaço dele. Nada disso é entrega do evento.\n" +
     "Nunca registre regra de contrato: vigência, rescisão, foro, confidencialidade, reajuste.\n" +
@@ -1007,7 +1011,8 @@ async function lerContratoComIa(c) {
     "Se a entrega tiver condição ou exceção, coloque isso na própria descrição, em poucas palavras.\n" +
     "Não invente nada e não invente data.";
   var prompt = "Leia o contrato e devolva JSON com esta forma exata:\n" +
-    '{"vigencia_inicio":"AAAA-MM-DD ou vazio","vigencia_fim":"AAAA-MM-DD ou vazio","valor":número ou null,' +
+    '{"titulo":"o nome do contrato, curto","vigencia_inicio":"AAAA-MM-DD ou vazio","vigencia_fim":"AAAA-MM-DD ou vazio","valor":número ou null,' +
+    '"assinantes":[{"nome":"quem assina","email":"e-mail se o contrato trouxer, senão vazio"}],' +
     '"entregas":[{"descricao":"o que o evento entrega, curto","quantidade":número ou null,' +
     '"categoria":"espaco|credenciais|midia|hospitalidade|ativacao|outro","prazo":"AAAA-MM-DD ou vazio",' +
     '"trecho":"a frase do contrato que comprova este item"}]}\n\n' +
@@ -1025,9 +1030,11 @@ async function lerContratoComIa(c) {
     "- A ORGANIZADORA disponibilizará à PATROCINADORA um camarote com capacidade para 40 pessoas (juridiquês)\n" +
     "- A desmontagem da área deverá ser concluída (é obrigação do patrocinador)\n" +
     "- A área será entregue para montagem, separado do item da própria área (prazo virou item)\n" +
-    "- quantidade 420 para uma área de 420 m² (metragem não é quantidade)";
+    "- quantidade 420 para uma área de 420 m² (metragem não é quantidade)\n\n" +
+    "titulo é como a equipe chamaria este contrato, tipo \"Contrato de patrocínio Master 2027\". Sem nome de empresa e sem número de processo.\n" +
+    "assinantes são as pessoas que assinam nas duas pontas, com o nome como está escrito. Se o contrato não trouxer e-mail, deixe o e-mail vazio.";
   var bruto;
-  try { bruto = await comPrazo(API.lerPdf(sistema, prompt, c.arquivoPath), 120000, "A IA demorou mais de dois minutos. Tente de novo."); }
+  try { bruto = await comPrazo(API.lerPdf(sistema, prompt, caminho), 120000, "A IA demorou mais de dois minutos. Tente de novo."); }
   catch (e) {
     var m = String((e && e.message) || e);
     var codigo = (e && e.code) || "";
@@ -1044,9 +1051,14 @@ async function lerContratoComIa(c) {
   var dados;
   try { dados = JSON.parse(String(bruto).replace(/^[^{[]*/, "").replace(/[^}\]]*$/, "")); }
   catch (e) { throw new Error("A IA respondeu em um formato que não deu para entender. Tente de novo."); }
-  var itens = (dados && dados.entregas) || [];
-  if (!itens.length) throw new Error("A IA não encontrou entregas neste PDF. Confira se o arquivo é mesmo o contrato.");
+  if (!dados || !(dados.entregas || []).length) throw new Error("A IA não encontrou entregas neste PDF. Confira se o arquivo é mesmo o contrato.");
+  return dados;
+}
 
+// Grava em Propriedades o que a leitura trouxe. pularCabecalho serve para quando a
+// pessoa ja conferiu vigencia e valor na tela antes de salvar.
+async function gravarEntregasLidas(c, dados, pularCabecalho) {
+  var itens = (dados && dados.entregas) || [];
   var dia = function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(String(d || "")) ? d : ""; };
   // O que a marca ja tem vale como referencia, menos o que foi cancelado.
   var jaTem = combinadosDe(c.patrocinadorId).filter(function (e) { return e.status !== "cancelado"; })
@@ -1077,6 +1089,8 @@ async function lerContratoComIa(c) {
   }
   if (!criados && !repetidos) throw new Error("Não foi possível guardar as entregas lidas.");
 
+  if (pularCabecalho) return { criados: criados, completou: [], repetidos: repetidos, pulados: pulados, divergiu: [] };
+
   // Campo vazio a IA preenche. Campo que uma pessoa digitou ela nunca sobrescreve: se
   // o PDF disser outra coisa, ela so guarda o que leu e o cartao mostra o recado.
   var completou = [], divergiu = [];
@@ -1090,6 +1104,13 @@ async function lerContratoComIa(c) {
 
   if (Object.keys(mudanca).length) { try { await API.atualizar("contratos", c.id, mudanca); } catch (e) { completou = []; divergiu = []; } }
   return { criados: criados, completou: completou, repetidos: repetidos, pulados: pulados, divergiu: divergiu };
+}
+
+// O botao do cartao: le e grava de uma vez.
+async function lerContratoComIa(c) {
+  if (!c || !c.arquivoPath) throw new Error("Este contrato não tem PDF anexado. Suba o PDF antes de ler.");
+  var dados = await lerPdfDoContrato(c.arquivoPath);
+  return await gravarEntregasLidas(c, dados, false);
 }
 
 async function confirmarEntregasDoContrato(ids) {
@@ -1237,7 +1258,7 @@ var S = {
   ampliada: null,
   ampliadaModo: "grade",
   contracts: null, contractsErro: null, contractsCarregando: false,
-  formContrato: { aberto: false, contrato: null, patroId: null, salvando: false },
+  formContrato: { aberto: false, contrato: null, patroId: null, salvando: false, modo: "ia", lendo: false, lido: null },
   fc: { q: "", status: "todos", vendedor: "todos" },
   contratoMudando: false,
   formEntrega: { aberto: false, entrega: null, patroId: null, marcaId: null, salvando: false },
@@ -2483,36 +2504,85 @@ function telaContratos() {
 
 function dialogoContrato() {
   var c = S.formContrato.contrato;
-  var patroId = c ? c.patrocinadorId : (S.formContrato.patroId || "");
+  var lido = S.formContrato.lido;
+  var patroId = c ? c.patrocinadorId : (lido ? lido.patroId : (S.formContrato.patroId || ""));
   var opcoes = [{ valor: "", rotulo: "Escolha o patrocinador" }].concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
   var status = Object.keys(STATUS_CONTRATO).map(function (k) { return { valor: k, rotulo: STATUS_CONTRATO[k].label }; });
-  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-contrato"></div>' +
-    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-contrato" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
-      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-contrato" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (c ? "Editar contrato" : "Novo contrato") + "</h2>" +
-      '<p class="text-sm text-muted-foreground">O PDF fica guardado no painel e só quem está logado vê. A assinatura pela plataforma vem na próxima fase.</p></div>' +
-      '<form id="form-contrato" class="space-y-5 pt-2">' +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-patro">Patrocinador</label>' + selectNativo("contrato-patro", "patrocinador_id", opcoes, patroId, { disabled: !!c }) + "</div>" +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-titulo">Título</label><input id="contrato-titulo" name="titulo" class="' + INPUT + '" value="' + esc(c ? c.titulo : "") + '" placeholder="Ex.: Contrato de patrocínio 2027" required maxlength="160"></div>' +
-        '<div class="grid gap-5 sm:grid-cols-3">' +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-inicio">Início</label><input id="contrato-inicio" name="inicio" type="date" class="' + INPUT + '" value="' + esc(c ? c.inicio : "") + '"></div>' +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-fim">Fim (vencimento)</label><input id="contrato-fim" name="fim" type="date" class="' + INPUT + '" value="' + esc(c ? c.fim : "") + '"></div>' +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-valor">Valor (R$)</label><input id="contrato-valor" name="valor" type="number" min="0" step="0.01" inputmode="decimal" class="' + INPUT + '" value="' + (c && c.valor != null ? c.valor : "") + '" placeholder="0"></div>' +
-        "</div>" +
-        '<div class="grid gap-5 sm:grid-cols-2">' +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-status">Status</label>' + selectNativo("contrato-status", "status", status, c ? c.status : "rascunho") + "</div>" +
-          '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-arquivo">PDF do contrato' + (c && c.arquivoNome ? " (trocar)" : "") + '</label><input id="contrato-arquivo" name="arquivo" type="file" accept="application/pdf,.pdf" class="' + cn(INPUT, "py-1.5") + '">' +
-            (c && c.arquivoNome ? '<p class="text-xs text-muted-foreground">Guardado: ' + esc(c.arquivoNome) + "</p>" : '<p class="text-xs text-muted-foreground">Até 20 MB. Pode deixar sem PDF em rascunho.</p>') + "</div>" +
-        "</div>" +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-signatarios">Quem assina (um por linha: Nome, e-mail)</label><textarea id="contrato-signatarios" name="signatarios" rows="3" maxlength="1500" placeholder="Bianca Lima, bianca@marca.com.br&#10;Diretoria do festival, contato@festival.com.br" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(c ? escreverSignatarios(c.signatarios) : "") + "</textarea></div>" +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-obs">Observação (opcional)</label><textarea id="contrato-obs" name="observacao" rows="2" maxlength="1000" placeholder="Ex.: minuta aprovada pelo jurídico em 15/09" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(c ? c.observacao : "") + "</textarea></div>" +
-        '<p class="text-xs text-muted-foreground">Ao marcar como assinado com data de fim, o vencimento do patrocinador passa a ser essa data.</p>' +
-        '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
-          '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-contrato">Cancelar</button>' +
-          '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.formContrato.salvando ? " disabled" : "") + ">" + (S.formContrato.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar contrato</button>" +
-        "</div>" +
-      "</form>" +
+  // valores que aparecem nos campos: do contrato em edicao, do que a IA leu, ou vazio
+  var d = lido ? lido.dados : null;
+  var v = c ? c : {
+    titulo: d && d.titulo ? String(d.titulo).slice(0, 160) : "",
+    inicio: d && /^\d{4}-\d{2}-\d{2}$/.test(d.vigencia_inicio || "") ? d.vigencia_inicio : "",
+    fim: d && /^\d{4}-\d{2}-\d{2}$/.test(d.vigencia_fim || "") ? d.vigencia_fim : "",
+    valor: d && d.valor != null && isFinite(Number(d.valor)) && Number(d.valor) > 0 ? Number(d.valor) : null,
+    signatarios: d && Array.isArray(d.assinantes) ? d.assinantes.slice(0, 10).map(function (x) { return { nome: String(x.nome || "").slice(0, 120), email: String(x.email || "").slice(0, 160) }; }).filter(function (x) { return x.nome; }) : [],
+    status: "rascunho", observacao: "", arquivoNome: "",
+  };
+  var caixa = function (miolo) {
+    return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-contrato"></div>' +
+      '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-contrato" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' + miolo +
       '<button type="button" data-acao="fechar-form-contrato" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">' + icone("x", "h-4 w-4") + '<span class="sr-only">Close</span></button>' +
-    "</div>";
+      "</div>";
+  };
+  var cabecalho = function (sub) {
+    return '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-contrato" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (c ? "Editar contrato" : "Novo contrato") + "</h2>" +
+      '<p class="text-sm text-muted-foreground">' + sub + "</p></div>";
+  };
+  var campoPatro = '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-patro">Patrocinador</label>' + selectNativo("contrato-patro", "patrocinador_id", opcoes, patroId, { disabled: !!c }) + "</div>";
+
+  // ---------------------------------------------------- caminho 1: deixar a IA ler
+  if (!c && S.formContrato.modo === "ia" && !lido) {
+    var lendo = S.formContrato.lendo;
+    return caixa(
+      cabecalho("Suba o PDF e a IA preenche os campos para você. Você confere tudo antes de salvar.") +
+      '<div class="space-y-5 pt-2">' +
+        campoPatro +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-arquivo">PDF do contrato</label>' +
+          '<input id="contrato-arquivo" type="file" accept="application/pdf,.pdf" class="' + cn(INPUT, "py-1.5") + '"' + (lendo ? " disabled" : "") + ">" +
+          '<p class="text-xs text-muted-foreground">Até 20 MB. A IA lê a vigência, o valor, quem assina e as entregas combinadas.</p></div>' +
+        '<button type="button" class="' + btnCls("default", "lg", "w-full font-bold uppercase") + '" data-acao="ler-para-preencher"' + (lendo ? " disabled" : "") + ">" +
+          (lendo ? icone("loader-circle", "animate-spin") + " Lendo o contrato, isso leva alguns segundos..." : icone("sparkles") + " Ler o contrato e preencher") + "</button>" +
+        '<div class="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">' +
+          '<button type="button" class="' + btnCls("ghost", "default", "text-xs font-bold uppercase") + '" data-acao="contrato-modo-mao"' + (lendo ? " disabled" : "") + ">" + icone("pencil") + " Prefiro preencher na mão</button>" +
+          '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-contrato"' + (lendo ? " disabled" : "") + ">Cancelar</button>" +
+        "</div>" +
+      "</div>");
+  }
+
+  // ------------------------------------- caminho 2: formulario normal, com ou sem IA
+  var entregasLidas = lido ? (lido.dados.entregas || []).length : 0;
+  return caixa(
+    cabecalho(c ? "O PDF fica guardado no painel e só quem está logado vê." : "Confira os campos e salve. O PDF fica guardado no painel e só quem está logado vê.") +
+    (lido ? '<div class="border border-primary/40 bg-primary/10 px-3 py-2.5">' +
+      '<p class="flex items-center gap-1.5 text-xs font-bold uppercase text-primary">' + icone("sparkles", "size-4 shrink-0") + " A IA leu o contrato</p>" +
+      '<p class="mt-1 text-sm text-foreground">Preenchi o que achei no PDF. <b>Confira antes de salvar</b>, principalmente as datas e o valor.</p>' +
+      (entregasLidas ? '<p class="mt-1 text-sm text-foreground">' + entregasLidas + " entrega" + (entregasLidas > 1 ? "s vão" : " vai") + " para Propriedades quando você salvar, como a conferir.</p>" : "") +
+      "</div>" : "") +
+    '<form id="form-contrato" class="space-y-5 pt-2">' +
+      campoPatro +
+      '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-titulo">Título</label><input id="contrato-titulo" name="titulo" class="' + INPUT + '" value="' + esc(v.titulo || "") + '" placeholder="Ex.: Contrato de patrocínio 2027" required maxlength="160"></div>' +
+      '<div class="grid gap-5 sm:grid-cols-3">' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-inicio">Início</label><input id="contrato-inicio" name="inicio" type="date" class="' + INPUT + '" value="' + esc(v.inicio || "") + '"></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-fim">Fim (vencimento)</label><input id="contrato-fim" name="fim" type="date" class="' + INPUT + '" value="' + esc(v.fim || "") + '"></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-valor">Valor (R$)</label><input id="contrato-valor" name="valor" type="number" min="0" step="0.01" inputmode="decimal" class="' + INPUT + '" value="' + (v.valor != null ? v.valor : "") + '" placeholder="0"></div>' +
+      "</div>" +
+      '<div class="grid gap-5 sm:grid-cols-2">' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-status">Status</label>' + selectNativo("contrato-status", "status", status, v.status || "rascunho") + "</div>" +
+        (lido
+          ? '<div class="space-y-2"><label class="' + LABEL + '">PDF do contrato</label><p class="flex items-center gap-1.5 text-sm text-foreground">' + icone("paperclip", "size-4 shrink-0 text-primary") + esc(lido.arquivoNome) + "</p>" +
+            '<p class="text-xs text-muted-foreground">Já guardado. Para trocar, cancele e comece de novo.</p></div>'
+          : '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-arquivo">PDF do contrato' + (c && c.arquivoNome ? " (trocar)" : "") + '</label><input id="contrato-arquivo" name="arquivo" type="file" accept="application/pdf,.pdf" class="' + cn(INPUT, "py-1.5") + '">' +
+            (c && c.arquivoNome ? '<p class="text-xs text-muted-foreground">Guardado: ' + esc(c.arquivoNome) + "</p>" : '<p class="text-xs text-muted-foreground">Até 20 MB. Pode deixar sem PDF em rascunho.</p>') + "</div>") +
+      "</div>" +
+      '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-signatarios">Quem assina (um por linha: Nome, e-mail)</label><textarea id="contrato-signatarios" name="signatarios" rows="3" maxlength="1500" placeholder="Bianca Lima, bianca@marca.com.br&#10;Diretoria do festival, contato@festival.com.br" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(escreverSignatarios(v.signatarios)) + "</textarea></div>" +
+      '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-obs">Observação (opcional)</label><textarea id="contrato-obs" name="observacao" rows="2" maxlength="1000" placeholder="Ex.: minuta aprovada pelo jurídico em 15/09" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(v.observacao || "") + "</textarea></div>" +
+      '<p class="text-xs text-muted-foreground">Ao marcar como assinado com data de fim, o vencimento do patrocinador passa a ser essa data.</p>' +
+      '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
+        (!c && !lido ? '<button type="button" class="' + btnCls("ghost", "default", "text-xs font-bold uppercase sm:mr-auto") + '" data-acao="contrato-modo-ia">' + icone("sparkles") + " Deixar a IA preencher</button>" : "") +
+        '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-contrato">Cancelar</button>' +
+        '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.formContrato.salvando ? " disabled" : "") + ">" + (S.formContrato.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar contrato</button>" +
+      "</div>" +
+    "</form>");
 }
 
 function cartaoCombinado(c, comPatro) {
@@ -2941,7 +3011,7 @@ function passosTour() {
     { rota: "/app/inicio", alvo: "#secao-combinados", titulo: "Entregas pendentes",
       texto: "<p>Tudo o que foi combinado com um cliente e ainda não foi entregue, com quem prometeu e o prazo. O que passou do prazo vem primeiro, em vermelho.</p>" },
     { rota: "/app/contratos", alvo: "#bloco-lista-contratos", titulo: "Ler o contrato com IA",
-      texto: "<p>No contrato que tem PDF, o botão <b>Ler com IA</b> abre o arquivo, tira cada entrega e joga em Propriedades.</p><p>Os itens entram como <b>a conferir</b> e não contam até alguém confirmar. Cada um mostra o trecho do contrato de onde saiu, então conferir é passar o olho e clicar.</p><p>Depois de lido, o botão trava e vira <b>Lido pela IA</b>, para ninguém ler duas vezes sem querer. Passe o mouse nele para ver quantas entregas saíram dali e ir direto para elas.</p>" },
+      texto: "<p>Em <b>Novo contrato</b> você escolhe: sobe o PDF e a IA preenche os campos para você conferir, ou preenche tudo na mão. Os dois caminhos levam ao mesmo lugar.</p><p>No contrato que já está guardado, o botão <b>Ler com IA</b> abre o arquivo, tira cada entrega e joga em Propriedades.</p><p>Os itens entram como <b>a conferir</b> e não contam até alguém confirmar. Cada um mostra o trecho do contrato de onde saiu, então conferir é passar o olho e clicar.</p><p>Depois de lido, o botão trava e vira <b>Lido pela IA</b>, para ninguém ler duas vezes sem querer. Passe o mouse nele para ver quantas entregas saíram dali e ir direto para elas.</p>" },
     { rota: "/app/propriedades", alvo: "#bloco-numeros-entregas", titulo: "Propriedades: o que cada marca tem a receber",
       texto: "<p>A lista completa por marca, com a barra de quanto já foi entregue. Cada item diz de onde veio: do <b>contrato</b>, de um <b>acordo depois do contrato</b> (aquela demanda que surge no meio do caminho) ou de uma <b>cortesia</b>.</p><p>Marque como entregue no próprio item. Os números no topo mostram o que falta, o que atrasou e quanto está sendo dado fora do contrato.</p>" },
     { rota: "/app/espacos", alvo: "#bloco-mapa", titulo: "Mapa de espaços por edição",
@@ -3376,13 +3446,38 @@ document.addEventListener("click", async function (ev) {
   }
   if (acao === "fechar-form-entrega") { if (!S.formEntrega.salvando) { S.formEntrega.aberto = false; render(); } return; }
   if (acao === "novo-contrato") {
-    S.formContrato = { aberto: true, contrato: null, patroId: alvo.getAttribute("data-patro") || S.ficha || null, salvando: false }; render();
+    S.formContrato = { aberto: true, contrato: null, patroId: alvo.getAttribute("data-patro") || S.ficha || null, salvando: false, modo: "ia", lendo: false, lido: null }; render();
     setTimeout(function () { var el = document.getElementById(S.formContrato.patroId ? "contrato-titulo" : "contrato-patro"); if (el) el.focus(); }, 0);
     return;
   }
   if (acao === "editar-contrato") {
     var ct = (S.contracts || []).find(function (x) { return x.id === id; });
-    if (ct) { S.formContrato = { aberto: true, contrato: ct, patroId: ct.patrocinadorId, salvando: false }; render(); }
+    if (ct) { S.formContrato = { aberto: true, contrato: ct, patroId: ct.patrocinadorId, salvando: false, modo: "mao", lendo: false, lido: null }; render(); }
+    return;
+  }
+  if (acao === "contrato-modo-mao") { S.formContrato.modo = "mao"; render(); return; }
+  if (acao === "contrato-modo-ia") { S.formContrato.modo = "ia"; render(); return; }
+  if (acao === "ler-para-preencher") {
+    var selPatro = document.getElementById("contrato-patro");
+    var campoArq = document.getElementById("contrato-arquivo");
+    var patroEscolhido = selPatro ? String(selPatro.value || "") : "";
+    var pdf = campoArq && campoArq.files && campoArq.files[0] ? campoArq.files[0] : null;
+    if (!patroEscolhido) { toast.error("Escolha o patrocinador antes, porque o arquivo fica guardado na pasta dele."); return; }
+    if (!pdf) { toast.error("Escolha o PDF do contrato."); return; }
+    if (pdf.size > 20 * 1024 * 1024) { toast.error("O PDF passa de 20 MB."); return; }
+    if (pdf.type && pdf.type !== "application/pdf") { toast.error("Só aceitamos PDF."); return; }
+    S.formContrato.lendo = true; render();
+    try {
+      var nomeLimpo = pdf.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w.-]+/g, "-").slice(0, 80) || "contrato.pdf";
+      var caminhoPdf = "contratos/" + patroEscolhido + "/" + Date.now() + "-" + nomeLimpo;
+      try { await API.subirArquivo(caminhoPdf, pdf); } catch (e) { throw new Error("Não foi possível guardar o PDF. Tente de novo."); }
+      var lidoDados = await lerPdfDoContrato(caminhoPdf);
+      S.formContrato.lendo = false;
+      S.formContrato.lido = { patroId: patroEscolhido, arquivoPath: caminhoPdf, arquivoNome: pdf.name, dados: lidoDados };
+      S.formContrato.modo = "mao";
+      render();
+      toast.success("Contrato lido. Confira os campos antes de salvar.");
+    } catch (e) { S.formContrato.lendo = false; render(); toast.error(e.message); }
     return;
   }
   if (acao === "fechar-form-contrato") { if (!S.formContrato.salvando) { S.formContrato.aberto = false; render(); } return; }
@@ -3628,6 +3723,7 @@ document.addEventListener("submit", async function (ev) {
     ev.preventDefault();
     var fct = new FormData(ev.target);
     var atualC = S.formContrato.contrato;
+    var lidoC = S.formContrato.lido;
     var arquivoC = ev.target.querySelector('input[type="file"]');
     var arq = arquivoC && arquivoC.files && arquivoC.files[0] ? arquivoC.files[0] : null;
     var dadosC = {
@@ -3642,12 +3738,22 @@ document.addEventListener("submit", async function (ev) {
     var btnC = ev.target.querySelector('button[type="submit"]');
     if (btnC) { btnC.disabled = true; btnC.insertAdjacentHTML("afterbegin", icone("loader-circle", "animate-spin")); }
     try {
-      var resC = await saveContract(dadosC, arq);
-      S.formContrato = { aberto: false, contrato: null, patroId: null, salvando: false };
+      var resC = await saveContract(dadosC, arq, lidoC ? { path: lidoC.arquivoPath, nome: lidoC.arquivoNome } : null);
+      // as entregas so entram depois que a pessoa conferiu e salvou o cabecalho
+      var entregasGravadas = 0;
+      if (lidoC && resC.id) {
+        try {
+          var rEnt = await gravarEntregasLidas({ id: resC.id, patrocinadorId: dadosC.patrocinadorId, inicio: dadosC.inicio, fim: dadosC.fim, valor: dadosC.valor }, lidoC.dados, true);
+          entregasGravadas = rEnt.criados;
+        } catch (e) {}
+      }
+      S.formContrato = { aberto: false, contrato: null, patroId: null, salvando: false, modo: "ia", lendo: false, lido: null };
       var esperasC = [carregar("contracts", getContracts)];
+      if (lidoC) esperasC.push(carregar("combinados", getCombinados));
       if (resC.vencimentoAtualizado) esperasC.push(carregar("sponsors", getSponsors));
       await Promise.all(esperasC);
       toast.success(atualC ? "Contrato atualizado." : "Contrato guardado.");
+      if (entregasGravadas) toast.success(entregasGravadas + " entrega" + (entregasGravadas > 1 ? "s foram" : " foi") + " para Propriedades. Confira lá antes de valer.");
       if (resC.vencimentoAtualizado) toast.success("Vencimento do patrocinador passou para " + formatDateOnly(resC.vencimentoAtualizado) + ".");
     } catch (e) {
       S.formContrato.salvando = false;
@@ -3819,7 +3925,7 @@ window.addEventListener("scroll", fecharMenu, true);
       S.prospects = null; S.fichaProsp = null; S.formProsp = { aberto: false, prosp: null, salvando: false };
       S.tour = { ativo: false, passo: 0, esperando: false }; S.tourAbriuFicha = false;
       S.ampliada = null; S.ampliadaModo = "grade";
-      S.contracts = null; S.formContrato = { aberto: false, contrato: null, patroId: null, salvando: false }; S.fc = { q: "", status: "todos", vendedor: "todos" };
+      S.contracts = null; S.formContrato = { aberto: false, contrato: null, patroId: null, salvando: false, modo: "ia", lendo: false, lido: null }; S.fc = { q: "", status: "todos", vendedor: "todos" };
       S.formEntrega = { aberto: false, entrega: null, patroId: null, marcaId: null, salvando: false }; S.fe = { q: "", status: "todos", origem: "todas", patro: "todos" };
       var tourEl = document.getElementById("tour"); if (tourEl) tourEl.remove();
       S.fpr = { q: "", mercado: "todos", vendedor: "todos", estagio: "andamento" };
