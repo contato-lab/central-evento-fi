@@ -269,6 +269,9 @@
     box-shadow:0 10px 30px rgba(0,0,0,.14)}
   .divisor-dock{width:1px;height:22px;background:var(--border);flex-shrink:0}
   .amostra{width:12px;height:12px;border-radius:3px;display:inline-block;flex-shrink:0}
+  /* o app.css compilado nao tem w-80: a busca fica com largura fixa so a partir do tablet */
+  .busca-curta{width:100%}
+  @media (min-width:640px){ .busca-curta{width:320px;flex-shrink:0} }
   @media (max-width:640px){ .dock-mapa{position:static;margin:0;width:auto;max-width:100%;border-radius:0;
     border-left:0;border-right:0;border-bottom:0;box-shadow:none} }
   /* quatro numeros lado a lado ja no notebook, nao so em tela grande */
@@ -507,7 +510,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.7";
+var VERSAO = "2026-09-21.8";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -5049,7 +5052,7 @@ function telaEspacos() {
   };
   return '<section class="space-y-5">' +
     '<div class="flex flex-wrap items-center gap-3">' +
-      '<div class="relative w-full sm:w-80">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+      '<div class="relative busca-curta">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
       '<input id="busca" aria-label="Buscar espaço ou marca" placeholder="Buscar espaço ou marca" class="' + cn(INPUT, "h-9 bg-card pl-10 text-sm") + '" value="' + esc(f.search) + '"></div>' +
       '<div role="radiogroup" aria-label="Situação do espaço" class="seg-trilho flex shrink-0">' +
         chipFiltro("todos", "Todos") + chipFiltro("disponivel", "Disponíveis") + chipFiltro("reservado", "Reservados") + chipFiltro("vendido", "Vendidos") + "</div>" +
