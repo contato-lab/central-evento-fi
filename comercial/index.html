@@ -327,6 +327,32 @@
     .mestre-detalhe{grid-template-columns:260px minmax(0,1fr);align-items:start}
     .lista-marcas{position:sticky;top:72px;max-height:calc(100vh - 96px);overflow-y:auto;padding-right:4px}
   }
+  /* ---- utilitarios que o app.css compilado nao trouxe (o visual antigo nao os usava) ----
+     Sem isto o espaco entre blocos some e as telas ficam coladas. Definir de novo o que ja existe nao faz mal. */
+  .space-y-0\.5>:not([hidden])~:not([hidden]){margin-top:.125rem}
+  .space-y-4>:not([hidden])~:not([hidden]){margin-top:1rem}
+  .space-y-5>:not([hidden])~:not([hidden]){margin-top:1.25rem}
+  .space-y-6>:not([hidden])~:not([hidden]){margin-top:1.5rem}
+  .gap-6{gap:1.5rem}.gap-2\.5{gap:.625rem}.gap-y-2{row-gap:.5rem}
+  .mt-2\.5{margin-top:.625rem}.mt-\[7px\]{margin-top:7px}
+  .py-2\.5{padding-top:.625rem;padding-bottom:.625rem}
+  .pb-6{padding-bottom:1.5rem}.pb-20{padding-bottom:5rem}
+  .items-baseline{align-items:baseline}.inline-block{display:inline-block}
+  .underline{text-decoration-line:underline}.align-top{vertical-align:top}.normal-case{text-transform:none}
+  .min-h-\[52px\]{min-height:52px}
+  .shadow-\[var\(--sombra-cartao\)\]{box-shadow:var(--sombra-cartao)}
+  .bg-success{background-color:var(--success)}
+  .border-foreground\/20{border-color:color-mix(in srgb,var(--foreground) 20%,transparent)}
+  .border-primary\/40{border-color:color-mix(in srgb,var(--primary) 40%,transparent)}
+  .border-primary\/60{border-color:color-mix(in srgb,var(--primary) 60%,transparent)}
+  .border-warning\/40{border-color:color-mix(in srgb,var(--warning) 40%,transparent)}
+  @media (min-width:640px){
+    .sm\:gap-3{gap:.75rem}.sm\:px-3{padding-left:.75rem;padding-right:.75rem}.sm\:px-3\.5{padding-left:.875rem;padding-right:.875rem}
+    .sm\:py-8{padding-top:2rem;padding-bottom:2rem}.sm\:text-lg{font-size:1.125rem;line-height:1.75rem}
+    .sm\:inline{display:inline}.sm\:pb-20{padding-bottom:5rem}
+  }
+  @media (min-width:768px){.md\:pb-10{padding-bottom:2.5rem}}
+  @media (min-width:1024px){.lg\:px-8{padding-left:2rem;padding-right:2rem}}
   /* ---- barra de filtros das listas ---- */
   .grade-filtros{grid-template-columns:1fr}
   @media (min-width:640px){ .grade-filtros{grid-template-columns:repeat(2,minmax(0,1fr))} .busca-larga{grid-column:span 2} }
@@ -565,7 +591,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.11";
+var VERSAO = "2026-09-21.12";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
