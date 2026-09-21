@@ -258,7 +258,10 @@
   .nav-inferior{display:flex;overflow-x:auto;scrollbar-width:none}
   .nav-inferior::-webkit-scrollbar{display:none}
   .nav-inferior>a{flex:1 0 auto;min-width:70px}
-  .nav-inferior{position:relative;-webkit-mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 22px),transparent 100%);mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 22px),transparent 100%)}
+  /* o menu de baixo fica preso no rodape do celular; "relative" aqui anulava o "fixed" e jogava o menu
+     para o fim da pagina, so alcancavel depois de rolar tudo */
+  .nav-inferior{-webkit-mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 22px),transparent 100%);mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 22px),transparent 100%)}
+  .nav-inferior{background:var(--vidro);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-top:1px solid var(--vidro-borda)}
   .nav-inferior span{font-size:10px;letter-spacing:-.01em}
   .barra-entrega{height:6px;background:var(--trilho);border-radius:99px;overflow:hidden}
   .barra-entrega i{display:block;height:6px;background:var(--primary)}
@@ -453,7 +456,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.3";
+var VERSAO = "2026-09-21.4";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
