@@ -214,6 +214,7 @@
   .amp-cel.st-nenhum{background:#0c0c0c;border-color:rgba(255,255,255,.28);border-style:dashed;color:rgba(255,255,255,.8)}
   .amp-cel.st-nenhum .cod{color:rgba(255,255,255,.65)}
   .amp-cel.risco{outline:2px dashed var(--destructive);outline-offset:2px}
+  @media (min-width:420px){ .xs\\:inline{display:inline} }
   .amp-cel.r27-guardado{background:rgba(255,255,255,.04);border-style:dashed}
   .amp-cel.r27-renovou{background:rgba(255,194,75,.15);border-color:var(--warning)}
   .amp-cel.r27-renovou .cod{color:var(--warning)}
@@ -343,7 +344,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.1";
+var VERSAO = "2026-09-21.2";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -417,6 +418,34 @@ function cn() {
 }
 var EDICOES_IDS = EDICOES.map(function (e) { return e.id; });
 function rotuloEdicao(id) { var e = EDICOES.find(function (x) { return x.id === id; }); return e ? e.curto : ""; }
+
+/* ------------------------------------------------- edicao (Moto e Auto) */
+// O painel inteiro pode ficar so numa edicao, como o mapa ja fazia. "tudo" mostra as duas.
+// O que nao tem edicao no cadastro (marca sem espaco e sem contrato, por exemplo) aparece
+// sempre: nada some sem a pessoa saber. A escolha fica guardada no navegador.
+var EDICAO_TUDO = "tudo";
+var EDICAO_CHAVE = "fi-edicao";
+function edicaoValida(v) { return v === EDICAO_TUDO || EDICOES_IDS.indexOf(v) >= 0 ? v : null; }
+function edicaoEscolhida() {
+  if (!S.edicao) {
+    var g = null;
+    try { g = localStorage.getItem(EDICAO_CHAVE); } catch (e) {}
+    S.edicao = edicaoValida(g) || EDICAO_TUDO;
+  }
+  return S.edicao;
+}
+function mudarEdicao(v) {
+  S.edicao = edicaoValida(v) || EDICAO_TUDO;
+  try { localStorage.setItem(EDICAO_CHAVE, S.edicao); } catch (e) {}
+}
+function filtrandoEdicao() { return edicaoEscolhida() !== EDICAO_TUDO; }
+// eds e a lista de edicoes daquela coisa. Vazia quer dizer "nao da para saber": passa sempre.
+function passaEdicao(eds) {
+  if (!filtrandoEdicao()) return true;
+  if (!eds || !eds.length) return true;
+  return eds.indexOf(edicaoEscolhida()) >= 0;
+}
+function rotuloEdicaoEscolhida() { var e = edicaoEscolhida(); return e === EDICAO_TUDO ? "Moto e Auto" : rotuloEdicao(e); }
 function agoraIso() { return new Date().toISOString(); }
 // Nenhuma espera fica pendurada para sempre: sem isso um botao fica girando sem fim.
 function comPrazo(promessa, ms, recado) {
@@ -1146,9 +1175,18 @@ async function getSpacesOverview() {
   var r;
   try { r = await Promise.all([API.listar("patrocinadores"), API.listar("espacos")]); }
   catch (e) { throw new Error("Não foi possível calcular os indicadores."); }
+  // guarda os espacos por edicao: o numero de disponiveis segue a edicao escolhida no topo
+  var disp = { tudo: 0 };
+  EDICOES_IDS.forEach(function (id) { disp[id] = 0; });
+  r[1].forEach(function (e) {
+    if (e.status !== "disponivel") return;
+    disp.tudo++;
+    if (disp[e.edicao] != null) disp[e.edicao]++;
+  });
   return {
     patrocinadoresEmRisco: r[0].filter(function (p) { return p.status === "em_risco_de_renovacao"; }).length,
-    espacosDisponiveis: r[1].filter(function (e) { return e.status === "disponivel"; }).length,
+    espacosDisponiveis: disp.tudo,
+    disponiveisPorEdicao: disp,
     patrocinadoresAtivos: r[0].filter(function (p) { return p.status === "ativo"; }).length,
   };
 }
@@ -2104,6 +2142,7 @@ var S = {
   fc: { q: "", status: "todos", vendedor: "todos" },
   // tela Valores (diretoria): contratos de 2027 ou todos, e a edicao
   fv: { tipo: "2027", edicao: "todas" },
+  edicao: null, // Moto, Auto ou tudo: vale para o painel inteiro (ver edicaoEscolhida)
   contratoMudando: false,
   formEntrega: { aberto: false, entrega: null, patroId: null, marcaId: null, salvando: false },
   fe: { q: "", status: "todos", origem: "todas", patro: "todos" },
@@ -2204,6 +2243,47 @@ function naBase2026(p) {
   return !!m[chaveMarca(p.nome)];
 }
 function espacos2026De(p) { var m = espacos2026PorMarca(); return (m && m[chaveMarca(p.nome)]) || []; }
+// De que edicao e cada coisa. Marca: pelos espacos de 2026, pelo espaco vinculado e pelos
+// contratos dela. Quem nao tem nada disso fica sem edicao e aparece nas duas.
+function juntaEdicao(lista, ed) { if (ed && lista.indexOf(ed) < 0) lista.push(ed); }
+function edicoesDaMarca(p) {
+  if (!p) return [];
+  var eds = [];
+  espacos2026De(p).forEach(function (e) { juntaEdicao(eds, e.edicao); });
+  if (p.espacoVinculadoId) {
+    var v = (S.spaces || []).find(function (e) { return e.id === p.espacoVinculadoId; });
+    if (v) juntaEdicao(eds, v.edicao);
+  }
+  (S.contracts || []).forEach(function (c) { if (c.patrocinadorId === p.id) juntaEdicao(eds, c.edicao); });
+  return eds;
+}
+function edicoesDaMarcaDesejo(m) {
+  if (!m || !m.espacoInteresseId) return [];
+  var e = (S.spaces || []).find(function (x) { return x.id === m.espacoInteresseId; });
+  return e && e.edicao ? [e.edicao] : [];
+}
+// Entrega: a edicao do contrato de onde ela veio; sem contrato, a da marca
+function edicoesDaEntrega(c) {
+  if (!c) return [];
+  if (c.contratoId) {
+    var ct = (S.contracts || []).find(function (x) { return x.id === c.contratoId; });
+    if (ct && ct.edicao) return [ct.edicao];
+  }
+  if (c.patrocinadorId) return edicoesDaMarca((S.sponsors || []).find(function (x) { return x.id === c.patrocinadorId; }));
+  if (c.prospeccaoId) return edicoesDaMarcaDesejo((S.prospects || []).find(function (x) { return x.id === c.prospeccaoId; }));
+  return [];
+}
+function edicoesDaInteracao(it) {
+  if (!it) return [];
+  if (it.patrocinadorId) return edicoesDaMarca((S.sponsors || []).find(function (x) { return x.id === it.patrocinadorId; }));
+  if (it.prospeccaoId) return edicoesDaMarcaDesejo((S.prospects || []).find(function (x) { return x.id === it.prospeccaoId; }));
+  return [];
+}
+// Alerta: se e de um espaco, a edicao dele; se e de uma marca, as edicoes dela
+function edicoesDoAlerta(a) {
+  if (a && a.espaco) return a.espaco.edicao ? [a.espaco.edicao] : [];
+  return a && a.patro ? edicoesDaMarca(a.patro) : [];
+}
 // "Moto: Box 07, Box 08 · Auto: Box 11"; com max, corta e diz quantos faltam
 function textoEspacos2026(p, max) {
   var todos = espacos2026De(p), porEd = {}, usados = 0;
@@ -2784,7 +2864,7 @@ async function conferirLeiturasPendentes() {
 
 /* ------------------------------------------------ marcas desejo por setor */
 function blocoSetores() {
-  var lista = S.prospects || [];
+  var lista = (S.prospects || []).filter(function (m) { return passaEdicao(edicoesDaMarcaDesejo(m)); });
   var por = {};
   lista.forEach(function (m) { (por[m.mercado] = por[m.mercado] || []).push(m); });
   var cards = Object.keys(MERCADOS).map(function (k) {
@@ -2803,6 +2883,7 @@ function blocoSetores() {
 function renovacaoFiltrada() {
   var f = S.fr, q = chaveMarca(f.q);
   return (S.sponsors || []).filter(naBase2026).filter(function (p) {
+    if (!passaEdicao(edicoesDaMarca(p))) return false;
     if (q && chaveMarca(p.nome).indexOf(q) < 0) return false;
     if (f.vendedor === "ninguem" ? !!p.vendedorUid : (f.vendedor !== "todos" && p.vendedorUid !== f.vendedor)) return false;
     if (f.atendimento === "ninguem" ? !!p.atendimentoUid : (f.atendimento !== "todos" && p.atendimentoUid !== f.atendimento)) return false;
@@ -2819,7 +2900,7 @@ function renovacaoFiltrada() {
 }
 function blocoNumerosRenovacao() {
   if (!S.sponsors || !S.spaces) return "";
-  var base = S.sponsors.filter(naBase2026);
+  var base = S.sponsors.filter(naBase2026).filter(function (p) { return passaEdicao(edicoesDaMarca(p)); });
   var resp = function (r) { return base.filter(function (p) { return respostaDe(p) === r; }).length; };
   var conf = resp("confirmou"), rec = resp("recusou");
   var v26 = base.filter(function (p) { return p.pagamento2027 === "valor_2026"; });
@@ -3728,6 +3809,28 @@ function navVisivel() {
   });
 }
 
+// Botoes Moto | Auto | Tudo no topo: valem para o painel inteiro.
+function seletorEdicao() {
+  var atual = edicaoEscolhida();
+  var botao = function (id, rotulo, titulo) {
+    var ativo = atual === id;
+    return '<button type="button" role="radio" aria-checked="' + ativo + '" title="' + esc(titulo) + '" data-acao="edicao-global" data-edicao="' + id + '" class="' +
+      cn("h-8 px-1.5 text-[11px] font-bold uppercase sm:px-3 sm:text-xs", ativo ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted") + '">' + esc(rotulo) + "</button>";
+  };
+  return '<div role="radiogroup" aria-label="Edição do festival" class="flex shrink-0 overflow-hidden rounded-md border border-border bg-card">' +
+    EDICOES.map(function (e) { return botao(e.id, e.curto, "Mostrar só a edição " + e.rotulo); }).join("") +
+    botao(EDICAO_TUDO, "Tudo", "Mostrar as duas edições") + "</div>";
+}
+// Rotas que obedecem a edicao escolhida (as outras mostram tudo sempre)
+var ROTAS_COM_EDICAO = { "/app/inicio": 1, "/app/renovacao": 1, "/app/espacos": 1, "/app/patrocinadores": 1, "/app/marcas": 1, "/app/contratos": 1, "/app/propriedades": 1, "/app/interacoes": 1, "/app/valores": 1 };
+function avisoEdicao(caminho) {
+  if (!filtrandoEdicao() || !ROTAS_COM_EDICAO[caminho]) return "";
+  return '<p class="mb-6 flex flex-wrap items-center gap-2 border px-4 py-3 text-sm" style="border-color:var(--warning);background:rgba(255,194,75,.1)">' +
+    icone("triangle-alert", "size-4") + "<span>Esta tela está mostrando só a edição <b>" + esc(rotuloEdicaoEscolhida()) +
+    "</b>. O que não tem edição no cadastro continua aparecendo.</span>" +
+    '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="edicao-global" data-edicao="' + EDICAO_TUDO + '">Ver as duas</button></p>';
+}
+
 function casca(conteudo, caminho) {
   var itensNav = navVisivel();
   var lateral = itensNav.map(function (item) {
@@ -3746,8 +3849,8 @@ function casca(conteudo, caminho) {
         '<a href="#/app/inicio" class="flex min-w-0 items-center gap-3"><img src="logo-festival-branco.png?v=2" alt="Suhai Festival Interlagos" class="h-10 w-auto shrink-0">' +
         '<span class="hidden h-6 w-px bg-border sm:block"></span><span class="hidden truncate text-sm font-bold uppercase tracking-wider sm:block">Painel Comercial</span></a>' +
         // o nome (apelido, se tiver) e a foto levam para Minha conta
-        '<div class="flex items-center gap-2 sm:gap-4"><span class="flex min-w-0 items-center gap-2"><a href="#/app/conta" class="link-conta" title="Minha conta: foto, nome, e-mail e senha"' + (caminho === "/app/conta" ? ' aria-current="page"' : "") + ">" +
-          avatar(S.fotoUrl, S.nome, "p") + '<span class="max-w-28 truncate text-sm font-medium sm:max-w-52"><span class="sr-only">Minha conta: </span>' + esc(S.apelido || S.nome) + "</span></a>" +
+        '<div class="flex items-center gap-2 sm:gap-4">' + seletorEdicao() + '<span class="flex min-w-0 items-center gap-2"><a href="#/app/conta" class="link-conta" title="Minha conta: foto, nome, e-mail e senha"' + (caminho === "/app/conta" ? ' aria-current="page"' : "") + ">" +
+          avatar(S.fotoUrl, S.nome, "p") + '<span class="hidden max-w-28 truncate text-sm font-medium xs:inline sm:max-w-52"><span class="sr-only">Minha conta: </span>' + esc(S.apelido || S.nome) + "</span></a>" +
         (ehAdmin() ? '<span class="' + cn(BADGE, "hidden text-foreground border-primary/30 bg-primary/15 sm:inline-flex") + '">' + esc(PAPEIS[S.papel]) + "</span>" : "") + "</span>" +
         '<button type="button" class="' + btnCls("outline", "default", "h-9 gap-1.5 px-2.5 text-xs font-bold uppercase sm:px-3") + '" data-acao="tutorial" title="Tutorial de uso: passeio guiado por cada tela do painel" aria-label="Tutorial de uso">' + icone("circle-help") + '<span class="hidden sm:inline">Tutorial de uso</span></button>' +
         '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Sair" title="Sair" data-acao="sair"' + (S.saindo ? " disabled" : "") + ">" + icone("log-out") + "</button></div>" +
@@ -3755,7 +3858,7 @@ function casca(conteudo, caminho) {
     "</header>" +
     '<div class="casca-grade mx-auto grid max-w-screen-2xl md:grid-cols-[260px_1fr]">' +
       '<aside class="hidden min-h-[calc(100vh-4rem)] border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block"><nav aria-label="Navegação principal" class="space-y-1">' + lateral + "</nav></aside>" +
-      '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + conteudo + "</main>" +
+      '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + avisoEdicao(caminho) + conteudo + "</main>" +
       (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto && !S.formEntrega.aberto ? dialogoFicha() : "") +
       (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto && !S.formEntrega.aberto ? dialogoFichaProspeccao() : "") +
       (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formContrato.aberto ? dialogoContrato() : "") + (S.formEntrega.aberto ? dialogoEntrega() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
@@ -3795,7 +3898,10 @@ function blocoVisaoGeral() {
   var o = S.overview;
   // so os tres numeros: a lista de conversas recentes saiu daqui (mora no Historico de Interacoes)
   var numeros = o
-    ? indicador("Patrocinadores em risco de renovação", o.patrocinadoresEmRisco, true) + indicador("Espaços disponíveis", o.espacosDisponiveis) + indicador("Patrocinadores ativos", o.patrocinadoresAtivos)
+    ? indicador("Patrocinadores em risco de renovação", o.patrocinadoresEmRisco, true) +
+      indicador("Espaços disponíveis" + (filtrandoEdicao() ? " (" + rotuloEdicaoEscolhida() + ")" : ""),
+        o.disponiveisPorEdicao && filtrandoEdicao() ? (o.disponiveisPorEdicao[edicaoEscolhida()] || 0) : o.espacosDisponiveis) +
+      indicador("Patrocinadores ativos", o.patrocinadoresAtivos)
     : '<div class="' + SKELETON + ' h-24 w-full rounded-none"></div><div class="' + SKELETON + ' h-24 w-full rounded-none"></div><div class="' + SKELETON + ' h-24 w-full rounded-none"></div>';
   return '<div class="grid gap-3 sm:grid-cols-3">' + numeros + "</div>";
 }
@@ -3964,6 +4070,7 @@ function calcularAlertas() {
       titulo: (g.espacos.length > 1 ? "Espaços de " + p.nome + " podem ser liberados: " : "Espaço de " + p.nome + " pode ser liberado: ") + g.espacos.map(nomeCurto).join(", ").replace(/, ([^,]*)$/, " e $1"),
       detalhe: "Passou a semana de margem depois de " + dataCurta(g.motivo === "assinatura" ? configAtual().prazo_assinatura : configAtual().prazo_confirmacao) + (g.motivo === "assinatura" ? " sem o contrato 2027 assinado" : " sem a confirmação") + ". " + (nf ? nf + (nf > 1 ? " marcas esperam" : " marca espera") + " na fila" : "Ninguém na fila ainda") });
   });
+  if (filtrandoEdicao()) lista = lista.filter(function (a) { return passaEdicao(edicoesDoAlerta(a)); });
   var nomeDoAlerta = function (a) { return a.patro ? a.patro.nome : a.nome || ""; };
   var ordem = function (a) { return (a.grupo === "outras" ? 10 : 0) + a.peso; }; // renovacao primeiro
   return lista.sort(function (a, b) { return ordem(a) - ordem(b) || nomeDoAlerta(a).localeCompare(nomeDoAlerta(b), "pt-BR"); });
@@ -4029,9 +4136,9 @@ function telaInicio() {
     var meus = alertas.filter(function (a) { return a.vendedorUid === S.uid; });
     var admin = alertas.filter(function (a) { return a.admin; });
     var outros = alertas.filter(function (a) { return a.vendedorUid !== S.uid && !(ehAdmin() && a.admin); });
-    var pendentes = (S.combinados || []).filter(function (c) { return c.status === "combinado"; }).slice().sort(function (a, b) { return (b.atrasada ? 1 : 0) - (a.atrasada ? 1 : 0) || (a.prazo || "9999").localeCompare(b.prazo || "9999"); });
+    var pendentes = (S.combinados || []).filter(function (c) { return c.status === "combinado" && passaEdicao(edicoesDaEntrega(c)); }).slice().sort(function (a, b) { return (b.atrasada ? 1 : 0) - (a.atrasada ? 1 : 0) || (a.prazo || "9999").localeCompare(b.prazo || "9999"); });
     // % da base: as marcas que ocuparam espaco em 2026 e ja confirmaram a renovacao 2027
-    var baseR = S.sponsors.filter(naBase2026);
+    var baseR = S.sponsors.filter(naBase2026).filter(function (p) { return passaEdicao(edicoesDaMarca(p)); });
     var confR = baseR.filter(function (p) { return respostaDe(p) === "confirmou"; });
     var recR = baseR.filter(function (p) { return respostaDe(p) === "recusou"; }).length;
     var v26R = baseR.filter(function (p) { return p.pagamento2027 === "valor_2026"; });
@@ -4048,7 +4155,7 @@ function telaInicio() {
       return '<div class="mt-3 flex flex-wrap gap-1.5">' + lista.slice(0, 6).map(function (p) { return '<button type="button" class="' + cn(BADGE, "nome-contador text-foreground") + '" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button>"; }).join("") +
         (lista.length > 6 ? '<a href="#/app/renovacao" class="' + cn(BADGE, "text-primary") + '">e mais ' + (lista.length - 6) + "</a>" : "") + "</div>";
     };
-    var andamento = (S.prospects || []).filter(emAndamento);
+    var andamento = (S.prospects || []).filter(emAndamento).filter(function (m) { return passaEdicao(edicoesDaMarcaDesejo(m)); });
     var precisam = andamento.filter(function (m) { return m.esfriando || m.atrasada; });
     var nEsfriando = andamento.filter(function (m) { return m.esfriando; }).length;
     var nAtrasada = andamento.filter(function (m) { return m.atrasada; }).length;
@@ -4092,7 +4199,7 @@ function telaInicio() {
           "</section>";
       })() +
       (function () {
-        var ne = contarEntregas(S.combinados || []);
+        var ne = contarEntregas((S.combinados || []).filter(function (c) { return passaEdicao(edicoesDaEntrega(c)); }));
         return '<section id="secao-combinados" class="space-y-3"><h2 class="text-sm font-black uppercase">Entregas pendentes <span class="font-normal text-muted-foreground">(' + pendentes.length + (ne.atrasadas ? ", " + ne.atrasadas + " atrasada" + (ne.atrasadas > 1 ? "s" : "") : "") + ")</span></h2>" +
           (S.combinados === null ? loadingList("Carregando entregas...", 2) : (pendentes.length ? pendentes.slice(0, 8).map(function (c) { return cartaoCombinado(c, true); }).join("") + (pendentes.length > 8 ? '<a href="#/app/propriedades" class="block border border-dashed border-border px-4 py-3 text-center text-sm text-primary hover:underline">Ver as ' + pendentes.length + " entregas em Propriedades</a>" : "") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada pendente. Tudo o que foi combinado já foi entregue.</p>')) +
         "</section>";
@@ -4179,7 +4286,10 @@ function opcoesEspacos(atualId, valorAtual) {
 /* ---------------------------------------------------------- mapa de espacos */
 function edicaoAtual() {
   var e = rotaAtual().params.get("edicao");
-  return EDICOES.some(function (x) { return x.id === e; }) ? e : EDICOES[0].id;
+  if (EDICOES_IDS.indexOf(e) >= 0) return e;
+  // sem edicao no endereco, o mapa segue a escolha do topo (com "tudo", mostra a primeira)
+  var g = edicaoEscolhida();
+  return EDICOES_IDS.indexOf(g) >= 0 ? g : EDICOES[0].id;
 }
 function espacosPorChave() {
   var m = {};
@@ -4642,6 +4752,7 @@ function patrocinadoresFiltrados() {
   var f = S.fp;
   var term = f.q.trim().toLocaleLowerCase("pt-BR");
   return (S.sponsors || []).filter(function (p) {
+    if (!passaEdicao(edicoesDaMarca(p))) return false;
     if (f.tipo !== "todos" && p.tipo !== f.tipo) return false;
     if (f.status !== "todos" && p.status !== f.status) return false;
     if (f.vendedor !== "todos" && (p.vendedorUid || "") !== f.vendedor) return false;
@@ -5208,6 +5319,7 @@ async function tirarFotoConta() {
 function interacoesFiltradas() {
   var f = S.fi;
   return (S.interactions || []).filter(function (it) {
+    if (!passaEdicao(edicoesDaInteracao(it))) return false;
     if (f.patro !== "todos") {
       if (f.patro.indexOf("p:") === 0) { if (it.prospeccaoId !== f.patro.slice(2)) return false; }
       else if (it.patrocinadorId !== f.patro) return false;
@@ -5505,7 +5617,8 @@ function nomeDoPatroFiltro(id) {
 }
 function contratosDaMarcaFiltrada() {
   var patro = patroFiltroContratos();
-  return (S.contracts || []).filter(function (c) { return !patro || c.patrocinadorId === patro; });
+  // a edicao escolhida no topo vale aqui: assim os numeros e a lista contam a mesma coisa
+  return (S.contracts || []).filter(function (c) { return (!patro || c.patrocinadorId === patro) && passaEdicao(c.edicao ? [c.edicao] : []); });
 }
 function contratosFiltrados() {
   var f = S.fc, term = f.q.trim().toLocaleLowerCase("pt-BR");
@@ -5726,6 +5839,8 @@ function blocoMaioresNegociacoes(lista) {
 }
 function telaValores() {
   if (!ehAdmin()) return "";
+  // a tela abre ja na edicao escolhida no topo; os chips daqui continuam funcionando
+  if (filtrandoEdicao() && S.fv.edicao !== edicaoEscolhida()) S.fv.edicao = edicaoEscolhida();
   var f = S.fv;
   var chip = function (campo, valor, rotulo) {
     var ativo = f[campo] === valor;
@@ -5939,6 +6054,7 @@ function blocoNumerosEntregas(n, extra) {
 function entregasFiltradas() {
   var f = S.fe, term = f.q.trim().toLocaleLowerCase("pt-BR");
   return (S.combinados || []).filter(function (c) {
+    if (!passaEdicao(edicoesDaEntrega(c))) return false;
     if (f.status === "pendentes" ? c.status !== "combinado" : f.status !== "todos" && c.status !== f.status) return false;
     if (f.origem !== "todas" && c.origem !== f.origem) return false;
     if (f.patro !== "todos" && (c.patrocinadorId || "p:" + c.prospeccaoId) !== f.patro) return false;
@@ -5986,7 +6102,7 @@ function blocoListaEntregas() {
 
 function telaPropriedades() {
   var f = S.fe;
-  var n = contarEntregas(S.combinados || []);
+  var n = contarEntregas((S.combinados || []).filter(function (c) { return passaEdicao(edicoesDaEntrega(c)); }));
   var marcas = [{ valor: "todos", rotulo: "Todas as marcas" }]
     .concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }))
     .concat((S.prospects || []).map(function (m) { return { valor: "p:" + m.id, rotulo: m.nome + " (marca desejo)" }; }));
@@ -6223,6 +6339,7 @@ function marcasFiltradas() {
   var f = S.fpr;
   var term = f.q.trim().toLocaleLowerCase("pt-BR");
   return (S.prospects || []).filter(function (m) {
+    if (!passaEdicao(edicoesDaMarcaDesejo(m))) return false;
     if (f.estagio === "andamento") { if (!emAndamento(m)) return false; }
     else if (f.estagio !== "todos" && m.estagio !== f.estagio) return false;
     if (f.mercado !== "todos" && m.mercado !== f.mercado) return false;
@@ -6237,7 +6354,7 @@ function marcasFiltradas() {
 
 function blocoFunil() {
   var f = S.fpr;
-  var lista = S.prospects || [];
+  var lista = (S.prospects || []).filter(function (m) { return passaEdicao(edicoesDaMarcaDesejo(m)); });
   var andamento = lista.filter(emAndamento);
   var esfr = andamento.filter(function (m) { return m.esfriando; }).length;
   var atras = andamento.filter(function (m) { return m.atrasada; }).length;
@@ -7382,7 +7499,18 @@ document.addEventListener("click", async function (ev) {
     return;
   }
   if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
+  if (acao === "edicao-global") {
+    mudarEdicao(alvo.getAttribute("data-edicao"));
+    trocarParametro("edicao", "");
+    if (S.fv) S.fv.edicao = filtrandoEdicao() ? edicaoEscolhida() : "todas";
+    fecharMenu();
+    render();
+    return;
+  }
   if (acao === "edicao") {
+    // aba do mapa: muda a escolha do painel inteiro, para nao ficarem duas verdades
+    mudarEdicao(alvo.getAttribute("data-edicao"));
+    if (S.fv) S.fv.edicao = edicaoEscolhida();
     trocarParametro("edicao", alvo.getAttribute("data-edicao"));
     fecharMenu();
     render();
@@ -7919,7 +8047,8 @@ function conferirVersao() {
     toast("success", "Tem uma versão nova do painel.", { rotulo: "Atualizar", ms: 600000, fn: function () { location.reload(); } });
   }).catch(function () {});
 }
-setInterval(conferirVersao, 5 * 60 * 1000);
+// fora do navegador (conferencia de codigo) nao existe timer: so liga quando existe
+if (typeof setInterval === "function") setInterval(conferirVersao, 5 * 60 * 1000);
 
 (async function iniciar() {
   render();
