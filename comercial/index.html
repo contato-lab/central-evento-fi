@@ -299,6 +299,34 @@
     border-left:0;border-right:0;border-bottom:0;box-shadow:none} }
   /* quatro numeros lado a lado ja no notebook, nao so em tela grande */
   @media (min-width:1024px){ .grade-numeros{grid-template-columns:repeat(4,minmax(0,1fr))} }
+  /* ---- Propriedades: marcas a esquerda, entregas a direita ---- */
+  .mestre-detalhe{display:grid;grid-template-columns:1fr;gap:12px}
+  .lista-marcas{display:flex;flex-direction:column;gap:2px}
+  .marca-linha{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;border-radius:8px;
+    background:transparent;text-align:left;cursor:pointer;color:var(--foreground)}
+  .marca-linha:hover{background:var(--accent)}
+  .marca-linha-ativa,.marca-linha-ativa:hover{background:var(--nav-ativo);box-shadow:var(--sombra-cartao)}
+  .selo-atraso{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--destructive);color:#fff;
+    font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+  .detalhe-marca{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);box-shadow:var(--sombra-cartao);min-width:0}
+  .linha-entrega{display:flex;align-items:center;gap:12px;padding:10px 16px}
+  .linha-entrega-atrasada{box-shadow:inset 3px 0 0 var(--destructive)}
+  .linha-entrega select{width:9rem}
+  .selo-conferir{font-size:11px;font-weight:500;padding:2px 7px;border-radius:6px;background:var(--verde-fraco);color:var(--foreground);white-space:nowrap;flex-shrink:0}
+  /* celular: ou a lista, ou a marca aberta */
+  @media (max-width:767px){
+    .mestre-detalhe.escolhida .lista-marcas{display:none}
+    .mestre-detalhe:not(.escolhida) .detalhe-marca{display:none}
+    .lista-marcas{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);padding:6px}
+    /* no celular o texto ocupa a linha inteira e os controles descem para a linha de baixo */
+    .linha-entrega{flex-wrap:wrap;gap:8px 12px}
+    .linha-entrega>div:first-child{flex-basis:100%}
+  }
+  /* computador: as duas colunas, a lista parada enquanto o lado direito rola */
+  @media (min-width:768px){
+    .mestre-detalhe{grid-template-columns:260px minmax(0,1fr);align-items:start}
+    .lista-marcas{position:sticky;top:72px;max-height:calc(100vh - 96px);overflow-y:auto;padding-right:4px}
+  }
   /* ---- barra de filtros das listas ---- */
   .grade-filtros{grid-template-columns:1fr}
   @media (min-width:640px){ .grade-filtros{grid-template-columns:repeat(2,minmax(0,1fr))} .busca-larga{grid-column:span 2} }
@@ -537,7 +565,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.10";
+var VERSAO = "2026-09-21.11";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -2364,6 +2392,7 @@ var S = {
   sugerindo: null,
   maisAberto: false,   // gaveta "Mais" do menu de baixo, no celular
   listaEspacos: false, // a lista embaixo do mapa so aparece pelo botao Lista
+  marcaEntregas: null, // Propriedades: marca aberta a direita (null = a de mais atraso; no celular, mostra a lista)
   alertaAba: "meus",   // Início: "meus" ou "equipe"
   auth: { mode: "login", name: "", email: "", password: "", error: "", message: "", loading: false },
   form: { aberto: false, espaco: null, salvando: false, prefill: null },
@@ -6590,37 +6619,89 @@ function entregasFiltradas() {
   });
 }
 
+// Uma entrega em uma linha: o que e, categoria e prazo, o selo e os mesmos controles do cartao.
+// A frase do contrato e o "combinado por" ficam no lapis (editar), para a lista caber na tela.
+function linhaEntrega(c) {
+  var st = STATUS_ENTREGA[c.status];
+  var qtd = c.quantidade != null ? String(c.quantidade).replace(".", ",") + " · " : "";
+  var prazo = c.prazo ? (c.atrasada ? '<span class="text-destructive">venceu ' + esc(textoDias(-diasAte(c.prazo), false)) + "</span>" : "até " + esc(formatDateOnly(c.prazo))) : "sem prazo";
+  return '<div class="' + cn("linha-entrega", c.atrasada && "linha-entrega-atrasada", c.status === "entregue" && "opacity-70") + '">' +
+    '<div class="min-w-0 flex-1">' +
+      '<p class="truncate text-sm font-semibold" title="' + esc(c.descricao || "") + '">' + esc(qtd) + esc(c.descricao || "") + "</p>" +
+      '<p class="truncate text-xs text-muted-foreground">' + [esc(CATEGORIA_ENTREGA[c.categoria] || ""), esc((ORIGEM_ENTREGA[c.origem] || {}).label || ""), prazo].filter(Boolean).join(" · ") + "</p>" +
+    "</div>" +
+    '<div class="flex shrink-0 flex-wrap items-center gap-2">' + badge(st, "whitespace-nowrap") +
+      (podeMexer() ?
+        selectNativo("combinado-" + c.id, "status", Object.keys(STATUS_ENTREGA).map(function (k) { return { valor: k, rotulo: STATUS_ENTREGA[k].label }; }), c.status, { className: "h-8 w-36 text-xs", disabled: S.combinadoMudando }) +
+        (c.status === "a_conferir" ? '<button type="button" class="' + btnCls("default", "default", "h-8 text-xs font-semibold") + '" data-acao="confirmar-entrega" data-id="' + esc(c.id) + '">' + icone("check") + " Confirmar</button>" : "") +
+        '<button type="button" class="' + btnCls("ghost", "icon", "h-8 w-8") + '" aria-label="Editar entrega" title="Editar entrega: aqui ficam a frase do contrato e quem combinou" data-acao="editar-entrega" data-id="' + esc(c.id) + '">' + icone("pencil") + "</button>" : "") +
+    "</div></div>";
+}
+
+// Propriedades: marcas a esquerda, entregas da marca escolhida a direita. No celular vira duas
+// telas: a lista, e ao tocar numa marca, as entregas dela com a seta de voltar.
 function blocoListaEntregas() {
   if (S.combinadosErro) return errorList(S.combinadosErro, "recarregar-entregas", S.combinadosCarregando);
   if (!S.combinados) return loadingList("Carregando entregas...", 3);
   if (!S.combinados.length) return emptyList("package-check", "Nenhuma entrega registrada ainda", podeMexer() ? "Use Nova entrega, ou leia um contrato com a IA para trazer tudo de uma vez." : "");
   var lista = entregasFiltradas();
   if (!lista.length) return emptyList("package-check", "Nenhuma entrega encontrada", "Ajuste a busca ou os filtros.");
-  // agrupado por marca, para o time enxergar marca por marca
-  var grupos = {};
+
+  var grupos = {}, ordem = [];
   lista.forEach(function (c) {
     var chave = c.patrocinadorId || "p:" + c.prospeccaoId;
-    (grupos[chave] = grupos[chave] || []).push(c);
+    if (!grupos[chave]) { grupos[chave] = []; ordem.push(chave); }
+    grupos[chave].push(c);
   });
   var nomeDe = function (chave) {
     if (chave.indexOf("p:") === 0) {
       var m = (S.prospects || []).find(function (x) { return x.id === chave.slice(2); });
-      return { nome: m ? m.nome + " · marca desejo" : "Marca desejo", acao: "ficha-marca", id: chave.slice(2) };
+      return { nome: m ? m.nome : "Marca desejo", sufixo: " · marca desejo", acao: "ficha-marca", id: chave.slice(2) };
     }
-    var p = (S.sponsors || []).find(function (x) { return x.id === chave; });
-    return { nome: p ? p.nome : "Patrocinador", acao: "ficha", id: chave };
+    var pt = (S.sponsors || []).find(function (x) { return x.id === chave; });
+    return { nome: pt ? pt.nome : "Patrocinador", sufixo: "", acao: "ficha", id: chave };
   };
-  return Object.keys(grupos).map(function (chave) {
-    var ref = nomeDe(chave), n = contarEntregas(grupos[chave]);
-    return '<section class="space-y-3">' +
-      '<div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-2">' +
-        '<button type="button" class="text-left text-sm font-black uppercase hover:underline" data-acao="' + ref.acao + '" data-id="' + esc(ref.id) + '">' + esc(ref.nome) + "</button>" +
-        '<span class="text-xs text-muted-foreground">' + n.entregues + " de " + n.total + " entregue" + (n.total === 1 ? "" : "s") + (n.atrasadas ? " · " + n.atrasadas + " atrasada" + (n.atrasadas > 1 ? "s" : "") : "") + "</span>" +
+  var marcas = ordem.map(function (chave) { return { chave: chave, ref: nomeDe(chave), n: contarEntregas(grupos[chave]), itens: grupos[chave] }; });
+  // quem tem atraso vem primeiro, depois quem tem mais coisa faltando, depois o nome
+  marcas.sort(function (x, y) { return y.n.atrasadas - x.n.atrasadas || y.n.faltam - x.n.faltam || x.ref.nome.localeCompare(y.ref.nome, "pt-BR"); });
+
+  // a marca aberta: a escolhida, se ainda esta na lista; senao a primeira (que e a de mais atraso)
+  var escolhida = S.marcaEntregas && grupos[S.marcaEntregas] ? S.marcaEntregas : marcas[0].chave;
+  var ativa = marcas.find(function (m) { return m.chave === escolhida; });
+
+  var linhasMarcas = marcas.map(function (m) {
+    var ativo = m.chave === escolhida;
+    return '<button type="button" class="' + cn("marca-linha", ativo && "marca-linha-ativa") + '" data-acao="entregas-marca" data-chave="' + esc(m.chave) + '" aria-current="' + (ativo ? "true" : "false") + '">' +
+      '<span class="min-w-0 flex-1"><span class="block truncate text-sm font-medium">' + esc(m.ref.nome) + (m.ref.sufixo ? '<span class="font-normal text-muted-foreground">' + m.ref.sufixo + "</span>" : "") + "</span>" +
+      '<span class="barra-entrega mt-1.5"><i style="width:' + m.n.pct + '%"></i></span></span>' +
+      (m.n.total ? '<span class="shrink-0 text-xs text-muted-foreground">' + m.n.entregues + "/" + m.n.total + "</span>" : "") +
+      (m.n.aConferir ? '<span class="selo-conferir" title="Lidas do contrato pela IA, esperando conferência">' + m.n.aConferir + " a conferir</span>" : "") +
+      (m.n.atrasadas ? '<span class="selo-atraso" title="' + m.n.atrasadas + (m.n.atrasadas > 1 ? " entregas atrasadas" : " entrega atrasada") + '">' + m.n.atrasadas + "</span>" : "") +
+      icone("chevron-right", "size-4 shrink-0 text-muted-foreground md:hidden") + "</button>";
+  }).join("");
+
+  var itensOrdenados = ativa.itens.slice().sort(function (x, y) {
+    var ordemStatus = { a_conferir: 0, combinado: 1, entregue: 2, cancelado: 3 };
+    return (y.atrasada ? 1 : 0) - (x.atrasada ? 1 : 0) || (ordemStatus[x.status] || 0) - (ordemStatus[y.status] || 0) || String(x.prazo || "9999").localeCompare(String(y.prazo || "9999"));
+  });
+  var detalhe =
+    '<div class="flex items-start justify-between gap-3 border-b border-border px-4 py-3">' +
+      '<div class="min-w-0">' +
+        '<button type="button" class="md:hidden mb-1 flex items-center gap-1 text-xs text-muted-foreground" data-acao="entregas-voltar">' + icone("chevron-left", "size-4") + " Marcas</button>" +
+        '<button type="button" class="block truncate text-left text-base font-semibold hover:underline" data-acao="' + ativa.ref.acao + '" data-id="' + esc(ativa.ref.id) + '" title="Abrir a ficha">' + esc(ativa.ref.nome) + "</button>" +
+        '<p class="text-xs text-muted-foreground">' + ativa.n.entregues + " de " + ativa.n.total + " entregue" + (ativa.n.total === 1 ? "" : "s") +
+          (ativa.n.atrasadas ? ' · <span class="text-destructive">' + ativa.n.atrasadas + " atrasada" + (ativa.n.atrasadas > 1 ? "s" : "") + "</span>" : "") +
+          (ativa.n.aConferir ? " · " + ativa.n.aConferir + " a conferir" : "") + "</p>" +
+        '<div class="barra-entrega mt-2"><i style="width:' + ativa.n.pct + '%"></i></div>' +
       "</div>" +
-      '<div class="barra-entrega"><i style="width:' + n.pct + '%"></i></div>' +
-      '<div class="grid gap-3">' + grupos[chave].map(function (c) { return cartaoCombinado(c, false); }).join("") + "</div>" +
-    "</section>";
-  }).join('<div class="h-6"></div>');
+      (podeMexer() && ativa.ref.acao === "ficha" ? '<button type="button" class="' + btnCls("outline", "default", "h-8 shrink-0 gap-1.5 text-xs font-medium") + '" data-acao="nova-entrega" data-patro="' + esc(ativa.ref.id) + '">' + icone("plus") + " Nova entrega</button>" : "") +
+    "</div>" +
+    '<div class="divide-y divide-border">' + itensOrdenados.map(linhaEntrega).join("") + "</div>";
+
+  return '<div class="' + cn("mestre-detalhe", S.marcaEntregas && "escolhida") + '">' +
+    '<aside class="lista-marcas" aria-label="Marcas com entregas">' + linhasMarcas + "</aside>" +
+    '<section class="detalhe-marca">' + detalhe + "</section>" +
+  "</div>";
 }
 
 function telaPropriedades() {
@@ -7585,7 +7666,7 @@ var OPCOES_STATUS = [{ valor: "disponivel", rotulo: "Disponível" }, { valor: "r
 // tutorial, fechar janela, sair). Abrir o PDF do contrato fica de fora de proposito.
 var AVISO_SO_VER = "Seu acesso é só de visualização.";
 var ACOES_DE_LEITURA = {
-  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "limpar-filtros": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
+  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "limpar-filtros": 1, "entregas-marca": 1, "entregas-voltar": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
@@ -8017,6 +8098,8 @@ document.addEventListener("click", async function (ev) {
   if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
   if (acao === "mais") { S.maisAberto = !S.maisAberto; render(); return; }
   if (acao === "lista-espacos") { S.listaEspacos = !S.listaEspacos; render(); return; }
+  if (acao === "entregas-marca") { S.marcaEntregas = alvo.getAttribute("data-chave"); render(); return; }
+  if (acao === "entregas-voltar") { S.marcaEntregas = null; render(); return; }
   if (acao === "limpar-filtros") {
     var tela = alvo.getAttribute("data-tela");
     if (tela === "patro") S.fp = { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos" };
