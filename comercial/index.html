@@ -75,6 +75,13 @@
     --mapa-vendido-texto:#3C3C43;
     --mapa-zona:rgba(0,0,0,.03);
     --mapa-zona-borda:rgba(0,0,0,.1);
+    --am-livre-fundo:#E7F6EA;--am-livre-borda:#9FD7AB;
+    --am-guardado-fundo:#FFFFFF;--am-guardado-borda:#8E8E93;
+    --am-reservado-fundo:#FFF4DC;--am-reservado-borda:#F0C36A;
+    --am-vendido-fundo:#E3E3E8;--am-vendido-borda:#C7C7CC;
+    --am-fila:#F5A524;
+    --vidro-dock:rgba(255,255,255,.62);--vidro-dock-borda:rgba(255,255,255,.75);
+    --dock-divisor:rgba(0,0,0,.12);
     --verde-fraco:rgba(124,196,42,.14);
     --verde-texto:#2E8B3C;
     --ambar-fraco:rgba(224,140,0,.14);
@@ -113,6 +120,13 @@
     --sidebar-accent:rgba(255,255,255,.08);
     --sidebar-accent-foreground:#F5F5F7;
     --sidebar-border:rgba(255,255,255,.08);
+    --am-livre-fundo:rgba(143,227,155,.2);--am-livre-borda:#6FBF7F;
+    --am-guardado-fundo:transparent;--am-guardado-borda:rgba(255,255,255,.45);
+    --am-reservado-fundo:rgba(255,194,75,.2);--am-reservado-borda:#C9973A;
+    --am-vendido-fundo:rgba(255,255,255,.14);--am-vendido-borda:rgba(255,255,255,.26);
+    --am-fila:#FFC24B;
+    --vidro-dock:rgba(40,40,44,.72);--vidro-dock-borda:rgba(255,255,255,.14);
+    --dock-divisor:rgba(255,255,255,.16);
     --vidro:rgba(18,18,20,.72);
     --vidro-borda:rgba(255,255,255,.1);
     --sombra-cartao:0 1px 2px rgba(0,0,0,.4);
@@ -260,15 +274,24 @@
   @media (min-width:768px){ .casca-grade{display:grid;grid-template-columns:224px minmax(0,1fr)} }
   @media (min-width:1100px){ .grade-inicio{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start} }
   /* ---- mapa: barra flutuante em vidro, como o Dock do Mac ---- */
-  .area-mapa{position:relative;background:var(--mapa-chao)}
-  .dock-mapa{position:sticky;bottom:12px;z-index:5;margin:-58px auto 12px;width:max-content;
-    display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:16px;max-width:calc(100% - 24px);
-    flex-wrap:wrap;justify-content:center;
-    background:var(--vidro);border:1px solid var(--vidro-borda);
+  .cartao-mapa{overflow:visible}
+  .cartao-mapa>div:first-child{border-top-left-radius:var(--radius);border-top-right-radius:var(--radius)}
+  .area-mapa{position:relative;background:var(--mapa-chao);
+    border-bottom-left-radius:var(--radius);border-bottom-right-radius:var(--radius)}
+  .dock-mapa{position:sticky;bottom:14px;z-index:5;margin:-60px auto 14px;width:max-content;
+    display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:16px;max-width:calc(100% - 28px);
+    flex-wrap:wrap;justify-content:center;font-size:12px;
+    background:var(--vidro-dock);border:1px solid var(--vidro-dock-borda);
     backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
-    box-shadow:0 10px 30px rgba(0,0,0,.14)}
-  .divisor-dock{width:1px;height:22px;background:var(--border);flex-shrink:0}
+    box-shadow:0 10px 30px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.55)}
+  .dock-mapa .seg-trilho{background:rgba(0,0,0,.06)}
+  html[data-tema="escuro"] .dock-mapa .seg-trilho{background:rgba(255,255,255,.08)}
+  .divisor-dock{width:1px;height:22px;background:var(--dock-divisor);flex-shrink:0}
+  .legenda-dock{display:flex;align-items:center;gap:12px;color:var(--foreground);white-space:nowrap}
+  .legenda-dock>span{display:flex;align-items:center;gap:6px}
   .amostra{width:12px;height:12px;border-radius:3px;display:inline-block;flex-shrink:0}
+  .amostra-fila{min-width:16px;height:16px;border-radius:8px;background:var(--am-fila);color:#1d1d1f;
+    font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0 3px}
   /* o app.css compilado nao tem w-80: a busca fica com largura fixa so a partir do tablet */
   .busca-curta{width:100%}
   @media (min-width:640px){ .busca-curta{width:320px;flex-shrink:0} }
@@ -510,7 +533,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.8";
+var VERSAO = "2026-09-21.9";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -4777,27 +4800,27 @@ function blocoMapa() {
     var c = contagemEdicao(edicao);
     resumo = [c.disponivel + " disponíveis", c.reservado + " reservados", c.vendido + " vendidos"]
       .concat(c.vencido ? [c.vencido + " com prazo vencido"] : []).join(" · ");
-    var legenda = function (estilo, txt) { return '<span class="flex items-center gap-1.5"><span class="amostra" style="' + estilo + '"></span>' + txt + "</span>"; };
+    var legenda = function (nome, txt) {
+      return "<span><span class=\"amostra\" style=\"background:var(--am-" + nome + "-fundo);border:1px " + (nome === "guardado" ? "dashed" : "solid") + " var(--am-" + nome + "-borda)\"></span>" + txt + "</span>";
+    };
     corpo =
       '<div class="area-mapa">' +
         '<div class="overflow-x-auto p-2 pb-20 sm:p-3 sm:pb-20">' + desenharMapa(edicao) + "</div>" +
         '<div role="toolbar" aria-label="Ferramentas do mapa" class="dock-mapa">' +
           '<div role="tablist" aria-label="Edição do mapa" class="seg-trilho flex shrink-0">' + abas + "</div>" +
           '<span class="divisor-dock"></span>' +
-          '<span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">' +
-            legenda("background:var(--verde-fraco);border:1px solid var(--success)", "Livre") +
-            legenda("background:var(--card);border:1px dashed var(--muted-foreground)", "Guardado") +
-            legenda("background:var(--ambar-fraco);border:1px solid var(--warning)", "Reservado") +
-            legenda("background:var(--mapa-vendido);border:1px solid var(--border)", "Vendido") +
-            legenda("background:var(--warning);border:1px solid var(--warning);border-radius:8px", "Fila") +
+          '<span class="legenda-dock">' +
+            legenda("livre", "Livre") + legenda("guardado", "Guardado") +
+            legenda("reservado", "Reservado") + legenda("vendido", "Vendido") +
+            '<span><span class="amostra-fila">' + (c.fila || 0) + "</span>Fila</span>" +
           "</span>" +
           '<span class="divisor-dock"></span>' +
-          '<button type="button" class="' + btnCls("outline", "default", "h-8 shrink-0 text-xs font-medium") + '" data-acao="lista-espacos" aria-pressed="' + (S.listaEspacos ? "true" : "false") + '">' +
+          '<button type="button" class="' + btnCls("outline", "default", "h-8 shrink-0 gap-1.5 px-3 text-xs font-medium") + '" data-acao="lista-espacos" aria-pressed="' + (S.listaEspacos ? "true" : "false") + '">' +
             icone("list-checks", "size-4") + (S.listaEspacos ? " Esconder lista" : " Lista") + "</button>" +
         "</div>" +
       "</div>";
   }
-  return '<div class="rounded-md border border-border bg-card shadow-[var(--sombra-cartao)] overflow-hidden">' +
+  return '<div class="cartao-mapa rounded-md border border-border bg-card shadow-[var(--sombra-cartao)]">' +
     '<div class="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">' +
       '<div class="flex items-baseline gap-2.5"><h2 class="text-sm font-semibold">Mapa de espaços</h2>' +
       '<span class="text-xs text-muted-foreground">' + (podeMexer() ? "toque em um espaço para ver e mudar o status" : "toque em um espaço para ver os detalhes") + "</span></div>" +
