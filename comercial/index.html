@@ -256,6 +256,9 @@
   .min-h-\[60px\]{min-height:60px}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}.grid-cols-7{grid-template-columns:repeat(7,minmax(0,1fr))}
   /* menu do celular: com muitos itens ele rola de lado em vez de espremer */
   .nav-inferior{display:flex;overflow-x:auto;scrollbar-width:none}
+  /* o "display:flex" daqui e mais novo que o "md:hidden" das classes e ganha dele;
+     sem esta linha o menu de baixo aparecia tambem no computador */
+  @media (min-width:768px){ .nav-inferior{display:none} }
   .nav-inferior::-webkit-scrollbar{display:none}
   .nav-inferior>a{flex:1 0 auto;min-width:70px}
   /* o menu de baixo fica preso no rodape do celular; "relative" aqui anulava o "fixed" e jogava o menu
@@ -456,7 +459,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.4";
+var VERSAO = "2026-09-21.5";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
