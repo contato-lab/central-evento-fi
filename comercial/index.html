@@ -299,6 +299,10 @@
     border-left:0;border-right:0;border-bottom:0;box-shadow:none} }
   /* quatro numeros lado a lado ja no notebook, nao so em tela grande */
   @media (min-width:1024px){ .grade-numeros{grid-template-columns:repeat(4,minmax(0,1fr))} }
+  /* ---- barra de filtros das listas ---- */
+  .grade-filtros{grid-template-columns:1fr}
+  @media (min-width:640px){ .grade-filtros{grid-template-columns:repeat(2,minmax(0,1fr))} .busca-larga{grid-column:span 2} }
+  @media (min-width:1100px){ .grade-filtros{grid-template-columns:repeat(4,minmax(0,1fr))} }
   /* ---- cartoes e paineis do Inicio ---- */
   .cartao-alerta{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--border);
     background:var(--card);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sombra-cartao)}
@@ -533,7 +537,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.9";
+var VERSAO = "2026-09-21.10";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -2368,7 +2372,7 @@ var S = {
   papel: "vendedor",
   perfis: null,
   formPatro: { aberto: false, patro: null, salvando: false },
-  fp: { q: "", tipo: "todos", status: "todos", vendedor: "todos", master: "todos", renovacao: "todos" },
+  fp: { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos" },
   papelMudando: false,
   config: null,
   formInter: { aberto: false, patroId: null, salvando: false },
@@ -2394,13 +2398,13 @@ var S = {
   mexidaPropria: {},
   filaMexendo: false, // contrato -> hora em que esta pessoa mexeu nele; a tela ao vivo nao repete o aviso
   formContrato: { aberto: false, contrato: null, patroId: null, salvando: false, modo: "ia", lendo: false, lido: null },
-  fc: { q: "", status: "todos", vendedor: "todos" },
+  fc: { q: "", status: "todos", vendedor: "todos", cuida: "todos", renov: "todos", tipo: "todos", prazo: "todos" },
   // tela Valores (diretoria): contratos de 2027 ou todos, e a edicao
   fv: { tipo: "2027", edicao: "todas" },
   edicao: null, // Moto, Auto ou tudo: vale para o painel inteiro (ver edicaoEscolhida)
   contratoMudando: false,
   formEntrega: { aberto: false, entrega: null, patroId: null, marcaId: null, salvando: false },
-  fe: { q: "", status: "todos", origem: "todas", patro: "todos" },
+  fe: { q: "", status: "todos", origem: "todas", patro: "todos", cuida: "todos", renov: "todos", tipo: "todos", prazo: "todos" },
   fr: { q: "", sit: "todas", vendedor: "todos", atendimento: "todos" },
   lendoContrato: null,
   confirmandoEntregas: false,
@@ -2569,6 +2573,117 @@ function respostaDe(p) {
 }
 // podeVer: a pessoa enxerga os contratos desta marca. Sem isso o painel nao sabe se falta contrato,
 // entao nunca afirma "nao enviado" nem conta a marca como sem contrato.
+// ------------------------------------------------------------ filtros de marca
+// Os mesmos cinco filtros valem em Contratos e em Propriedades. Cada um recebe a marca
+// (o patrocinador) e diz se ela passa. Marca desejo nao tem renovacao nem tipo, entao so
+// aparece quando o filtro esta em "todos".
+// as marcas que aparecem no seletor de Contratos: as que tem contrato guardado, em ordem
+function marcasDosContratos() {
+  var vistos = {}, itens = [];
+  (S.contracts || []).forEach(function (c) {
+    if (!c.patrocinadorId || vistos[c.patrocinadorId]) return;
+    vistos[c.patrocinadorId] = 1;
+    itens.push({ valor: c.patrocinadorId, rotulo: c.patrocinador || "sem nome" });
+  });
+  itens.sort(function (a, b) { return a.rotulo.localeCompare(b.rotulo, "pt-BR"); });
+  return [{ valor: "", rotulo: "Todas as marcas" }].concat(itens);
+}
+
+function campoBusca(id, textoAjuda, valor) {
+  return '<div class="relative busca-larga">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+    '<input id="' + id + '" aria-label="' + esc(textoAjuda) + '" placeholder="' + esc(textoAjuda) + '" class="' + cn(INPUT, "h-10 bg-card pl-10") + '" value="' + esc(valor) + '"></div>';
+}
+function botaoLimpar(ligados, tela) {
+  return ligados ? '<button type="button" class="' + btnCls("ghost", "default", "h-8 gap-1.5 px-2 text-xs font-medium text-muted-foreground") + '" data-acao="limpar-filtros" data-tela="' + tela + '">' + icone("x", "size-4") + " Limpar filtros</button>" : "";
+}
+function barraDeFiltros(id, campos, ligados, tela) {
+  return '<div class="space-y-2"><div id="' + id + '" class="grade-filtros grid gap-3">' + campos + "</div>" +
+    '<div id="limpar-' + tela + '">' + botaoLimpar(ligados, tela) + "</div></div>";
+}
+
+function marcaPorId(id) { return (S.sponsors || []).find(function (x) { return x.id === id; }) || null; }
+
+function opcoesQuemCuida() {
+  return [{ valor: "todos", rotulo: "Quem cuida: todos" }, { valor: "eu", rotulo: "Minhas marcas" }]
+    .concat((S.perfis || []).map(function (x) { return { valor: x.id, rotulo: rotuloPessoa(x) }; }));
+}
+function passaQuemCuida(p, valor) {
+  if (!valor || valor === "todos") return true;
+  if (!p) return false;
+  var uid = valor === "eu" ? S.uid : valor;
+  return !!uid && (p.vendedorUid === uid || p.atendimentoUid === uid);
+}
+
+var OPCOES_RENOV_MARCA = [
+  { valor: "todos", rotulo: "Toda renovação 2027" },
+  { valor: "confirmou", rotulo: "Confirmou a renovação" },
+  { valor: "sem_resposta", rotulo: "Ainda sem resposta" },
+  { valor: "recusou", rotulo: "Recusou" },
+  { valor: "sinal_pago", rotulo: "Sinal de 10% pago" },
+  { valor: "assinado", rotulo: "Contrato 2027 assinado" },
+];
+function passaRenovMarca(p, valor) {
+  if (!valor || valor === "todos") return true;
+  if (!p) return false;
+  var r = respostaDe(p);
+  if (valor === "confirmou") return r === "confirmou";
+  if (valor === "recusou") return r === "recusou";
+  if (valor === "sem_resposta") return r === "sem_contato" || r === "em_negociacao";
+  if (valor === "sinal_pago") return !!p.sinalPagoEm;
+  if (valor === "assinado") return !!situacao2027(p).assinado;
+  return true;
+}
+
+function opcoesTipoMarca() {
+  return [{ valor: "todos", rotulo: "Master e comuns" }, { valor: "master", rotulo: "Só Master" }]
+    .concat(Object.keys(TIPO_PATROCINADOR).map(function (k) { return { valor: k, rotulo: "Só " + TIPO_PATROCINADOR[k] }; }));
+}
+function passaTipoMarca(p, valor) {
+  if (!valor || valor === "todos") return true;
+  if (!p) return false;
+  if (valor === "master") return !!p.master;
+  return p.tipo === valor;
+}
+
+var OPCOES_PRAZO_MARCA = [
+  { valor: "todos", rotulo: "Todo vencimento" },
+  { valor: "vencendo", rotulo: "Vence em 90 dias" },
+  { valor: "vencido", rotulo: "Contrato já venceu" },
+];
+function passaPrazoMarca(p, valor) {
+  if (!valor || valor === "todos") return true;
+  if (!p) return false;
+  var d = diasAte(p.dataVencimentoContrato);
+  if (d === null) return false;
+  if (valor === "vencido") return d < 0;
+  return d >= 0 && d <= 90;
+}
+
+var OPCOES_PRAZO_CONTRATO = [
+  { valor: "todos", rotulo: "Todo prazo" },
+  { valor: "vencendo", rotulo: "Vencendo em 90 dias" },
+  { valor: "vencido", rotulo: "Já vencidos" },
+];
+function passaPrazoContrato(c, valor) {
+  if (!valor || valor === "todos") return true;
+  if (c.status === "cancelado" || c.diasParaVencer === null || c.diasParaVencer === undefined) return false;
+  if (valor === "vencido") return c.diasParaVencer < 0;
+  return c.diasParaVencer >= 0 && c.diasParaVencer <= 90;
+}
+
+var OPCOES_PRAZO_ENTREGA = [
+  { valor: "todos", rotulo: "Todo prazo" },
+  { valor: "atrasadas", rotulo: "Atrasadas" },
+  { valor: "a_entregar", rotulo: "A entregar, dentro do prazo" },
+  { valor: "sem_prazo", rotulo: "Sem prazo combinado" },
+];
+function passaPrazoEntrega(c, valor) {
+  if (!valor || valor === "todos") return true;
+  if (valor === "atrasadas") return !!c.atrasada;
+  if (valor === "sem_prazo") return !c.prazo;
+  return c.status === "combinado" && !c.atrasada;
+}
+
 function situacao2027(p) {
   var pode = podeVerContratosDe(p);
   var ve = !!S.contracts && pode;
@@ -5150,12 +5265,11 @@ function patrocinadoresFiltrados() {
   var term = f.q.trim().toLocaleLowerCase("pt-BR");
   return (S.sponsors || []).filter(function (p) {
     if (!passaEdicao(edicoesDaMarca(p))) return false;
-    if (f.tipo !== "todos" && p.tipo !== f.tipo) return false;
     if (f.status !== "todos" && p.status !== f.status) return false;
-    if (f.vendedor !== "todos" && (p.vendedorUid || "") !== f.vendedor) return false;
-    if (f.master === "sim" && !p.master) return false;
-    if (f.master === "nao" && p.master) return false;
-    if (f.renovacao !== "todos" && p.renovacao !== f.renovacao) return false;
+    if (!passaQuemCuida(p, f.cuida)) return false;
+    if (!passaRenovMarca(p, f.renov)) return false;
+    if (!passaTipoMarca(p, f.tipoMarca)) return false;
+    if (!passaPrazoMarca(p, f.prazo)) return false;
     if (term) {
       var texto = [p.nome, p.contato, p.espacoVinculado, p.responsavelComercial, nomePessoa(p.vendedorUid, p.responsavelComercial)].join(" ").toLocaleLowerCase("pt-BR");
       if (texto.indexOf(term) < 0) return false;
@@ -5222,20 +5336,16 @@ function blocoListaPatrocinadores() {
 
 function telaPatrocinadores() {
   var f = S.fp;
-  var vendedores = [{ valor: "todos", rotulo: "Todos os vendedores" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: rotuloPessoa(p) }; }));
+  var ligados = !!(f.q.trim() || f.status !== "todos" || f.cuida !== "todos" || f.renov !== "todos" || f.tipoMarca !== "todos" || f.prazo !== "todos");
   return '<section class="space-y-6">' +
-    '<div id="filtros-patro" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
-      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
-      '<input id="busca-patro" aria-label="Buscar patrocinador" placeholder="Buscar por nome, contato ou espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
+    barraDeFiltros("filtros-patro",
+      campoBusca("busca-patro", "Buscar por nome, contato ou espaço", f.q) +
       selectNativo("filtro-status", "filtro-status", [{ valor: "todos", rotulo: "Todos os status" }].concat(Object.keys(STATUS_PATROCINADOR).map(function (k) { return { valor: k, rotulo: STATUS_PATROCINADOR[k].label }; })), f.status, { className: "h-10 bg-card" }) +
-      selectNativo("filtro-vendedor", "filtro-vendedor", vendedores, f.vendedor, { className: "h-10 bg-card" }) +
-      selectNativo("filtro-renovacao", "filtro-renovacao", [{ valor: "todos", rotulo: "Toda renovação" }].concat(Object.keys(RENOVACAO).map(function (k) { return { valor: k, rotulo: RENOVACAO[k].label }; })), f.renovacao, { className: "h-10 bg-card" }) +
-    "</div>" +
-    '<details' + (f.tipo !== "todos" || f.master !== "todos" ? " open" : "") + '><summary class="cursor-pointer text-sm text-muted-foreground">Mais filtros</summary>' +
-      '<div class="mt-3 grid gap-3 sm:grid-cols-2">' +
-        selectNativo("filtro-tipo", "filtro-tipo", [{ valor: "todos", rotulo: "Todos os tipos" }].concat(Object.keys(TIPO_PATROCINADOR).map(function (k) { return { valor: k, rotulo: TIPO_PATROCINADOR[k] }; })), f.tipo, { className: "h-10 bg-card" }) +
-        selectNativo("filtro-master", "filtro-master", [{ valor: "todos", rotulo: "Master e comuns" }, { valor: "sim", rotulo: "Só Master" }, { valor: "nao", rotulo: "Só comuns" }], f.master, { className: "h-10 bg-card" }) +
-      "</div></details>" +
+      selectNativo("filtro-cuida", "filtro-cuida", opcoesQuemCuida(), f.cuida, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-renovacao", "filtro-renovacao", OPCOES_RENOV_MARCA, f.renov, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-tipo-marca", "filtro-tipo-marca", opcoesTipoMarca(), f.tipoMarca, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-prazo-marca", "filtro-prazo-marca", OPCOES_PRAZO_MARCA, f.prazo, { className: "h-10 bg-card" }),
+      ligados, "patro") +
     '<div id="bloco-lista-patro">' + blocoListaPatrocinadores() + "</div>" +
   "</section>";
 }
@@ -6003,14 +6113,28 @@ function contratosDaMarcaFiltrada() {
   // a edicao escolhida no topo vale aqui: assim os numeros e a lista contam a mesma coisa
   return (S.contracts || []).filter(function (c) { return (!patro || c.patrocinadorId === patro) && passaEdicao(c.edicao ? [c.edicao] : []); });
 }
-function contratosFiltrados() {
+// Tudo menos o status: e deste recorte que saem os quatro numeros do topo (que sao a
+// divisao por status) e, com o status junto, a lista.
+function contratosDoRecorte() {
   var f = S.fc, term = f.q.trim().toLocaleLowerCase("pt-BR");
   return contratosDaMarcaFiltrada().filter(function (c) {
-    if (f.status !== "todos" && c.status !== f.status) return false;
-    if (f.vendedor !== "todos" && c.criadoPor !== f.vendedor) return false;
+    var marca = marcaPorId(c.patrocinadorId);
+    if (!passaQuemCuida(marca, f.cuida)) return false;
+    if (!passaRenovMarca(marca, f.renov)) return false;
+    if (!passaTipoMarca(marca, f.tipo)) return false;
+    if (!passaPrazoContrato(c, f.prazo)) return false;
     if (term && [c.patrocinador, c.titulo, c.observacao].concat(c.signatarios.map(function (x) { return x.nome; })).join(" ").toLocaleLowerCase("pt-BR").indexOf(term) < 0) return false;
     return true;
   });
+}
+function contratosFiltrados() {
+  var f = S.fc;
+  return contratosDoRecorte().filter(function (c) { return f.status === "todos" || c.status === f.status; });
+}
+// algum filtro de marca ligado? serve para mostrar o "Limpar filtros"
+function filtrosContratoLigados() {
+  var f = S.fc;
+  return !!(f.q.trim() || f.status !== "todos" || f.cuida !== "todos" || f.renov !== "todos" || f.tipo !== "todos" || f.prazo !== "todos" || patroFiltroContratos());
 }
 
 function blocoListaContratos() {
@@ -6025,10 +6149,22 @@ function blocoListaContratos() {
   return '<div class="grid gap-3">' + lista.map(function (c) { return cartaoContrato(c, true); }).join("") + "</div>";
 }
 
+// os quatro numeros do topo dos Contratos, separados para poderem ser redesenhados sozinhos
+function blocoNumerosContratos() {
+  var lista = S.contracts ? contratosDoRecorte() : [];
+  var n = { rascunho: 0, enviado: 0, assinado: 0, cancelado: 0 };
+  lista.forEach(function (c) { n[c.status]++; });
+  var vencendo = lista.filter(function (c) { return c.status === "assinado" && c.diasParaVencer !== null && c.diasParaVencer <= 90; }).length;
+  var cartao = function (num, rot, cls) { return '<div class="cartao-num"><span class="' + cn("block text-2xl font-semibold leading-none tracking-tight", cls) + '">' + num + '</span><span class="mt-1.5 block text-sm text-muted-foreground">' + rot + "</span></div>"; };
+  return '<div class="grade-numeros grid gap-4 sm:grid-cols-2">' +
+    cartao(n.enviado, "Aguardando assinatura", n.enviado && "text-warning-foreground") + cartao(n.assinado, "Assinados") +
+    cartao(vencendo, "Vencidos ou vencendo em 90 dias", vencendo && "text-destructive") + cartao(n.rascunho, "Rascunhos") + "</div>";
+}
+
 function telaContratos() {
   var f = S.fc;
   // com ?patro=ID os numeros do topo tambem sao so daquela marca
-  var patro = patroFiltroContratos(), daMarca = contratosDaMarcaFiltrada();
+  var patro = patroFiltroContratos(), daMarca = S.contracts ? contratosDoRecorte() : [];
   var n = { rascunho: 0, enviado: 0, assinado: 0, cancelado: 0 };
   daMarca.forEach(function (c) { n[c.status]++; });
   var vencendo = daMarca.filter(function (c) { return c.status === "assinado" && c.diasParaVencer !== null && c.diasParaVencer <= 90; }).length;
@@ -6039,14 +6175,16 @@ function telaContratos() {
     (patro ? '<div id="filtro-marca-contratos" class="flex flex-col gap-3 border border-primary bg-primary/8 p-4 sm:flex-row sm:items-center sm:justify-between">' +
       '<p class="text-sm">Mostrando só os contratos de <b>' + esc(nomeDoPatroFiltro(patro)) + "</b>.</p>" +
       '<a href="#/app/contratos" class="' + btnCls("outline", "default", "h-8 shrink-0 text-xs font-bold uppercase") + '">' + icone("x") + " Ver de todas as marcas</a></div>" : "") +
-    '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
-      cartao(n.enviado, "Aguardando assinatura", n.enviado && "text-warning-foreground") + cartao(n.assinado, "Assinados") + cartao(vencendo, "Vencidos ou vencendo em 90 dias", vencendo && "text-destructive") + cartao(n.rascunho, "Rascunhos") +
-    "</div>" +
-    '<div id="filtros-contratos" class="grid gap-3 sm:grid-cols-[minmax(240px,1fr)_220px]">' +
-      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
-      '<input id="busca-contrato" aria-label="Buscar contrato" placeholder="Buscar por marca, título ou quem assina" class="' + cn(INPUT, "h-10 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
+    '<div id="numeros-contratos">' + blocoNumerosContratos() + "</div>" +
+    barraDeFiltros("filtros-contratos",
+      campoBusca("busca-contrato", "Buscar por marca, título ou quem assina", f.q) +
+      selectNativo("filtro-contrato-marca", "filtro-contrato-marca", marcasDosContratos(), patro, { className: "h-10 bg-card" }) +
       selectNativo("filtro-contrato-status", "filtro-contrato-status", status, f.status, { className: "h-10 bg-card" }) +
-    "</div>" +
+      selectNativo("filtro-contrato-cuida", "filtro-contrato-cuida", opcoesQuemCuida(), f.cuida, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-contrato-renov", "filtro-contrato-renov", OPCOES_RENOV_MARCA, f.renov, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-contrato-tipo", "filtro-contrato-tipo", opcoesTipoMarca(), f.tipo, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-contrato-prazo", "filtro-contrato-prazo", OPCOES_PRAZO_CONTRATO, f.prazo, { className: "h-10 bg-card" }),
+      filtrosContratoLigados(), "contratos") +
     '<div id="bloco-lista-contratos">' + blocoListaContratos() + "</div>" +
   "</section>";
 }
@@ -6421,18 +6559,33 @@ function blocoNumerosEntregas(n, extra) {
     "</div>" : "");
 }
 
-function entregasFiltradas() {
+function entregasDoRecorte() {
   var f = S.fe, term = f.q.trim().toLocaleLowerCase("pt-BR");
   return (S.combinados || []).filter(function (c) {
     if (!passaEdicao(edicoesDaEntrega(c))) return false;
+    if (f.patro !== "todos" && (c.patrocinadorId || "p:" + c.prospeccaoId) !== f.patro) return false;
+    var marca = marcaPorId(c.patrocinadorId);
+    if (!passaQuemCuida(marca, f.cuida)) return false;
+    if (!passaRenovMarca(marca, f.renov)) return false;
+    if (!passaTipoMarca(marca, f.tipo)) return false;
+    if (!passaPrazoEntrega(c, f.prazo)) return false;
+    if (term) {
+      var pa = (S.sponsors || []).find(function (x) { return x.id === c.patrocinadorId; });
+      var ma = (S.prospects || []).find(function (x) { return x.id === c.prospeccaoId; });
+      if ([c.descricao, c.comprovacao, pa && pa.nome, ma && ma.nome, CATEGORIA_ENTREGA[c.categoria]].join(" ").toLocaleLowerCase("pt-BR").indexOf(term) < 0) return false;
+    }
+    return true;
+  });
+}
+function filtrosEntregaLigados() {
+  var f = S.fe;
+  return !!(f.q.trim() || f.status !== "todos" || f.origem !== "todas" || f.patro !== "todos" || f.cuida !== "todos" || f.renov !== "todos" || f.tipo !== "todos" || f.prazo !== "todos");
+}
+function entregasFiltradas() {
+  var f = S.fe;
+  return entregasDoRecorte().filter(function (c) {
     if (f.status === "pendentes" ? c.status !== "combinado" : f.status !== "todos" && c.status !== f.status) return false;
     if (f.origem !== "todas" && c.origem !== f.origem) return false;
-    if (f.patro !== "todos" && (c.patrocinadorId || "p:" + c.prospeccaoId) !== f.patro) return false;
-    if (term) {
-      var p = (S.sponsors || []).find(function (x) { return x.id === c.patrocinadorId; });
-      var m = (S.prospects || []).find(function (x) { return x.id === c.prospeccaoId; });
-      if ([c.descricao, c.comprovacao, p && p.nome, m && m.nome, CATEGORIA_ENTREGA[c.categoria]].join(" ").toLocaleLowerCase("pt-BR").indexOf(term) < 0) return false;
-    }
     return true;
   });
 }
@@ -6472,7 +6625,7 @@ function blocoListaEntregas() {
 
 function telaPropriedades() {
   var f = S.fe;
-  var n = contarEntregas((S.combinados || []).filter(function (c) { return passaEdicao(edicoesDaEntrega(c)); }));
+  var n = contarEntregas(S.combinados ? entregasDoRecorte() : []);
   var marcas = [{ valor: "todos", rotulo: "Todas as marcas" }]
     .concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }))
     .concat((S.prospects || []).map(function (m) { return { valor: "p:" + m.id, rotulo: m.nome + " (marca desejo)" }; }));
@@ -6481,13 +6634,16 @@ function telaPropriedades() {
   var origens = [{ valor: "todas", rotulo: "Toda origem" }].concat(Object.keys(ORIGEM_ENTREGA).map(function (k) { return { valor: k, rotulo: ORIGEM_ENTREGA[k].label }; }));
   return '<section class="space-y-6">' +
     '<div id="bloco-numeros-entregas" class="space-y-3">' + blocoNumerosEntregas(n, true) + "</div>" +
-    '<div id="filtros-entregas" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
-      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
-      '<input id="busca-entrega" aria-label="Buscar entrega" placeholder="Buscar por marca ou entrega" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
-      selectNativo("filtro-entrega-patro", "filtro-entrega-patro", marcas, f.patro, { className: "h-11 bg-card" }) +
-      selectNativo("filtro-entrega-status", "filtro-entrega-status", status, f.status, { className: "h-11 bg-card" }) +
-      selectNativo("filtro-entrega-origem", "filtro-entrega-origem", origens, f.origem, { className: "h-11 bg-card" }) +
-    "</div>" +
+    barraDeFiltros("filtros-entregas",
+      campoBusca("busca-entrega", "Buscar por marca ou entrega", f.q) +
+      selectNativo("filtro-entrega-patro", "filtro-entrega-patro", marcas, f.patro, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-entrega-status", "filtro-entrega-status", status, f.status, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-entrega-cuida", "filtro-entrega-cuida", opcoesQuemCuida(), f.cuida, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-entrega-renov", "filtro-entrega-renov", OPCOES_RENOV_MARCA, f.renov, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-entrega-tipo", "filtro-entrega-tipo", opcoesTipoMarca(), f.tipo, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-entrega-prazo", "filtro-entrega-prazo", OPCOES_PRAZO_ENTREGA, f.prazo, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-entrega-origem", "filtro-entrega-origem", origens, f.origem, { className: "h-10 bg-card" }),
+      filtrosEntregaLigados(), "entregas") +
     '<div id="bloco-lista-entregas" class="space-y-3">' + blocoListaEntregas() + "</div>" +
   "</section>";
 }
@@ -7429,7 +7585,7 @@ var OPCOES_STATUS = [{ valor: "disponivel", rotulo: "Disponível" }, { valor: "r
 // tutorial, fechar janela, sair). Abrir o PDF do contrato fica de fora de proposito.
 var AVISO_SO_VER = "Seu acesso é só de visualização.";
 var ACOES_DE_LEITURA = {
-  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
+  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "limpar-filtros": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
@@ -7861,6 +8017,14 @@ document.addEventListener("click", async function (ev) {
   if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
   if (acao === "mais") { S.maisAberto = !S.maisAberto; render(); return; }
   if (acao === "lista-espacos") { S.listaEspacos = !S.listaEspacos; render(); return; }
+  if (acao === "limpar-filtros") {
+    var tela = alvo.getAttribute("data-tela");
+    if (tela === "patro") S.fp = { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos" };
+    if (tela === "contratos") { S.fc = { q: "", status: "todos", vendedor: "todos", cuida: "todos", renov: "todos", tipo: "todos", prazo: "todos" }; trocarParametro("patro", ""); }
+    if (tela === "entregas") S.fe = { q: "", status: "todos", origem: "todas", patro: "todos", cuida: "todos", renov: "todos", tipo: "todos", prazo: "todos" };
+    render();
+    return;
+  }
   if (acao === "filtro-espaco") { trocarParametro("status", alvo.getAttribute("data-filtro")); render(); return; }
   if (acao === "alerta-aba") { S.alertaAba = alvo.getAttribute("data-aba") || "meus"; render(); return; }
   if (acao === "tema") { mudarTema(temaValendo() === "escuro" ? "claro" : "escuro"); return; }
@@ -7997,16 +8161,22 @@ document.addEventListener("input", function (ev) {
   if (el.id === "busca-patro") {
     S.fp.q = el.value;
     document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
+    var f0 = S.fp;
+    document.getElementById("limpar-patro").innerHTML = botaoLimpar(!!(f0.q.trim() || f0.status !== "todos" || f0.cuida !== "todos" || f0.renov !== "todos" || f0.tipoMarca !== "todos" || f0.prazo !== "todos"), "patro");
     return;
   }
   if (el.id === "busca-entrega") {
     S.fe.q = el.value;
     document.getElementById("bloco-lista-entregas").innerHTML = blocoListaEntregas();
+    document.getElementById("bloco-numeros-entregas").innerHTML = blocoNumerosEntregas(contarEntregas(S.combinados ? entregasDoRecorte() : []), true);
+    document.getElementById("limpar-entregas").innerHTML = botaoLimpar(filtrosEntregaLigados(), "entregas");
     return;
   }
   if (el.id === "busca-contrato") {
     S.fc.q = el.value;
     document.getElementById("bloco-lista-contratos").innerHTML = blocoListaContratos();
+    document.getElementById("numeros-contratos").innerHTML = blocoNumerosContratos();
+    document.getElementById("limpar-contratos").innerHTML = botaoLimpar(filtrosContratoLigados(), "contratos");
     return;
   }
   if (el.id === "busca-renov") {
@@ -8045,22 +8215,26 @@ document.addEventListener("change", async function (ev) {
     if (caixa) caixa.innerHTML = blocoConfereMarca(el.value);
     return;
   }
-  var filtros = { "filtro-tipo": "tipo", "filtro-status": "status", "filtro-vendedor": "vendedor", "filtro-master": "master", "filtro-renovacao": "renovacao" };
+  var filtros = { "filtro-status": "status", "filtro-cuida": "cuida", "filtro-renovacao": "renov", "filtro-tipo-marca": "tipoMarca", "filtro-prazo-marca": "prazo" };
   if (filtros[el.id]) {
     S.fp[filtros[el.id]] = el.value;
-    document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
+    render();
     return;
   }
-  var filtrosEntrega = { "filtro-entrega-patro": "patro", "filtro-entrega-status": "status", "filtro-entrega-origem": "origem" };
+  var filtrosEntrega = { "filtro-entrega-patro": "patro", "filtro-entrega-status": "status", "filtro-entrega-origem": "origem",
+    "filtro-entrega-cuida": "cuida", "filtro-entrega-renov": "renov", "filtro-entrega-tipo": "tipo", "filtro-entrega-prazo": "prazo" };
   if (filtrosEntrega[el.id]) {
     S.fe[filtrosEntrega[el.id]] = el.value;
-    document.getElementById("bloco-lista-entregas").innerHTML = blocoListaEntregas();
+    render(); // os numeros do topo tambem seguem o recorte, entao redesenha a tela inteira
     return;
   }
-  var filtrosContrato = { "filtro-contrato-status": "status", "filtro-contrato-vendedor": "vendedor" };
+  // a marca escolhida vive no endereco (?patro=), que e o mesmo caminho de quando se chega pela ficha
+  if (el.id === "filtro-contrato-marca") { trocarParametro("patro", el.value); render(); return; }
+  var filtrosContrato = { "filtro-contrato-status": "status", "filtro-contrato-cuida": "cuida",
+    "filtro-contrato-renov": "renov", "filtro-contrato-tipo": "tipo", "filtro-contrato-prazo": "prazo" };
   if (filtrosContrato[el.id]) {
     S.fc[filtrosContrato[el.id]] = el.value;
-    document.getElementById("bloco-lista-contratos").innerHTML = blocoListaContratos();
+    render(); // os quatro numeros do topo tambem seguem o recorte
     return;
   }
   if (el.id && el.id.indexOf("contrato-") === 0 && el.name === "status" && el.id !== "contrato-status") {
