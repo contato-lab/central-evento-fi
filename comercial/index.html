@@ -217,19 +217,20 @@
   .menu-selecao{position:fixed}
   /* seletor no estilo do Mac: trilho cinza, pilula clara no escolhido */
   /* o logotipo nao pode ser espremido pelo resto do cabecalho */
-  header > div > a:first-child{flex-shrink:0}
+  .topo-pagina .logo-simbolo{width:28px;height:28px;border-radius:8px}
   /* em tela media os cartoes de dinheiro ficam estreitos: numero menor em vez de quebrado no meio */
   @media (min-width:768px) and (max-width:1100px){ .text-3xl.break-words{font-size:1.375rem} }
   /* no celular o cabecalho e apertado: tudo um pouco menor, sem rolar de lado */
   @media (max-width:520px){
-    header > div{padding-left:12px;padding-right:12px;gap:8px}
-    header button.h-9.w-9{width:34px;min-width:34px}
-    header .seg-botao{padding-left:7px;padding-right:7px}
-    header .link-conta{padding-left:2px;padding-right:2px}
+    .topo-pagina{padding-left:12px;padding-right:12px;gap:8px}
+    .topo-pagina button.h-9.w-9{width:34px;min-width:34px}
+    .topo-pagina .seg-botao{padding-left:7px;padding-right:7px}
   }
   .logo-simbolo{width:32px;height:32px;border-radius:9px;flex-shrink:0}
   .logo-largo{display:none}
-  @media (min-width:640px){.logo-simbolo{display:none}.logo-largo{display:block}}
+  /* o app.css compilado nao tem md:inline-flex nem xs:inline; estas duas fazem o mesmo papel */
+  .so-desktop{display:none}
+  @media (min-width:768px){ .so-desktop{display:inline-flex} }
   .seg-trilho{gap:2px;padding:3px;border-radius:10px;background:var(--trilho)}
   .seg-botao{border:0;background:transparent;border-radius:7px;color:var(--muted-foreground);white-space:nowrap}
   .seg-botao:hover{color:var(--foreground)}
@@ -255,6 +256,53 @@
   .bg-muted\/40{background-color:color-mix(in oklab,var(--muted) 40%,transparent)}.ml-2{margin-left:.5rem}.pt-1{padding-top:.25rem}.text-right{text-align:right}.w-36{width:9rem}
   .min-h-\[60px\]{min-height:60px}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}.grid-cols-7{grid-template-columns:repeat(7,minmax(0,1fr))}
   /* menu do celular: com muitos itens ele rola de lado em vez de espremer */
+  /* larguras de coluna proprias: o app.css compilado so traz as que o visual antigo usava */
+  @media (min-width:768px){ .casca-grade{display:grid;grid-template-columns:224px minmax(0,1fr)} }
+  @media (min-width:1100px){ .grade-inicio{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start} }
+  /* ---- mapa: barra flutuante em vidro, como o Dock do Mac ---- */
+  .area-mapa{position:relative;background:var(--mapa-chao)}
+  .dock-mapa{position:sticky;bottom:12px;z-index:5;margin:-58px auto 12px;width:max-content;
+    display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:16px;max-width:calc(100% - 24px);
+    flex-wrap:wrap;justify-content:center;
+    background:var(--vidro);border:1px solid var(--vidro-borda);
+    backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
+    box-shadow:0 10px 30px rgba(0,0,0,.14)}
+  .divisor-dock{width:1px;height:22px;background:var(--border);flex-shrink:0}
+  .amostra{width:12px;height:12px;border-radius:3px;display:inline-block;flex-shrink:0}
+  @media (max-width:640px){ .dock-mapa{position:static;margin:0;width:auto;max-width:100%;border-radius:0;
+    border-left:0;border-right:0;border-bottom:0;box-shadow:none} }
+  /* quatro numeros lado a lado ja no notebook, nao so em tela grande */
+  @media (min-width:1024px){ .grade-numeros{grid-template-columns:repeat(4,minmax(0,1fr))} }
+  /* ---- cartoes e paineis do Inicio ---- */
+  .cartao-alerta{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--border);
+    background:var(--card);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--sombra-cartao)}
+  .ponto{width:8px;height:8px;border-radius:4px;flex-shrink:0;display:inline-block}
+  .cartao-num{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);
+    padding:16px 20px;box-shadow:var(--sombra-cartao)}
+  .painel-lado{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);
+    box-shadow:var(--sombra-cartao);overflow:hidden}
+  .selo-lado{font-size:12px;font-weight:500;padding:3px 8px;border-radius:6px;
+    background:var(--ambar-fraco);color:var(--warning-foreground)}
+  /* ---- menu lateral, topo da tela e gaveta do celular (visual novo) ---- */
+  .casca-lado{position:sticky;top:0;height:100vh;flex-direction:column;padding:16px 10px;
+    background:var(--sidebar);border-right:1px solid var(--border)}
+  .item-lado{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:8px;
+    font-size:14px;font-weight:500;color:var(--muted-foreground);background:transparent;border:0;
+    text-align:left;cursor:pointer;transition:background .12s,color .12s}
+  .item-lado:hover{background:var(--accent);color:var(--foreground)}
+  .item-lado-ativo,.item-lado[aria-current="page"]{background:var(--nav-ativo);color:var(--foreground);
+    font-weight:600;box-shadow:var(--sombra-cartao)}
+  .topo-pagina{background:var(--vidro);backdrop-filter:blur(20px) saturate(180%);
+    -webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--vidro-borda)}
+  .item-baixo{display:flex;min-height:52px;flex:1 0 auto;min-width:64px;flex-direction:column;
+    align-items:center;justify-content:center;gap:2px;border-radius:10px;border:0;background:transparent;
+    padding:0 4px;font-size:11px;font-weight:500;line-height:1.1;color:var(--muted-foreground);cursor:pointer}
+  .item-baixo-ativo{background:var(--nav-ativo);color:var(--foreground);font-weight:600;box-shadow:var(--sombra-cartao)}
+  .gaveta-mais{position:fixed;left:8px;right:8px;bottom:78px;z-index:45;display:flex;flex-direction:column;
+    gap:2px;padding:8px;border-radius:14px;background:var(--vidro);border:1px solid var(--vidro-borda);
+    backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
+    box-shadow:0 12px 34px rgba(0,0,0,.18)}
+  @media (min-width:768px){ .gaveta-mais{display:none} }
   .nav-inferior{display:flex;overflow-x:auto;scrollbar-width:none}
   /* o "display:flex" daqui e mais novo que o "md:hidden" das classes e ganha dele;
      sem esta linha o menu de baixo aparecia tambem no computador */
@@ -459,7 +507,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.5";
+var VERSAO = "2026-09-21.7";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -2284,6 +2332,9 @@ var S = {
   interactions: null, interactionsErro: null, interactionsCarregando: false,
   statusMudando: false,
   sugerindo: null,
+  maisAberto: false,   // gaveta "Mais" do menu de baixo, no celular
+  listaEspacos: false, // a lista embaixo do mapa so aparece pelo botao Lista
+  alertaAba: "meus",   // Início: "meus" ou "equipe"
   auth: { mode: "login", name: "", email: "", password: "", error: "", message: "", loading: false },
   form: { aberto: false, espaco: null, salvando: false, prefill: null },
   detalhe: null,
@@ -3133,15 +3184,10 @@ function telaRenovacao() {
   var pessoasFiltro = function (todos) { return [{ valor: "todos", rotulo: todos }, { valor: "ninguem", rotulo: "Sem ninguém" }].concat((S.perfis || []).map(function (x) { return { valor: x.id, rotulo: rotuloPessoa(x) }; })); };
   var nBase = S.sponsors && S.spaces ? S.sponsors.filter(naBase2026).length : null;
   var prazo = function (rot, iso) { return "<li><b>" + rot + ":</b> até " + esc(dataComDia(iso)) + "</li>"; };
-  return '<section class="space-y-7">' +
-    '<header class="border-b border-border pb-7">' +
-      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Base 2026</div>' +
-      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Renovação 2027</h1>' +
-      '<p class="mt-2 max-w-3xl text-sm text-muted-foreground">' + (nBase === null ? "As marcas" : "As " + nBase + " marcas") + " que ocuparam espaço em 2026, numa lista só. " +
-        (podeMexer() ? "Marque quem respondeu o e-mail de renovação, como vai pagar e quem cuida de cada uma. Cada mudança salva na hora e já aparece no Início e no e-mail diário." : "Veja quem respondeu o e-mail de renovação, como vai pagar e quem cuida de cada uma.") + "</p>" +
-      '<ul class="mt-3 grid gap-1 text-sm sm:grid-cols-2">' + prazo("Confirmar a renovação", cfg.prazo_confirmacao) + prazo("Sinal de 10% (Valor 2026)", cfg.prazo_sinal) + prazo("Contrato 2027 assinado", cfg.prazo_assinatura) +
-        "<li><b>Edições 2027:</b> Moto em " + esc(dataCurta(cfg.moto_data)) + ", Auto em " + esc(dataCurta(cfg.auto_data)) + "</li></ul>" +
-    "</header>" +
+  return '<section class="space-y-6">' +
+    '<ul class="grid gap-1 rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground sm:grid-cols-2">' +
+      prazo("Confirmar a renovação", cfg.prazo_confirmacao) + prazo("Sinal de 10% (Valor 2026)", cfg.prazo_sinal) + prazo("Contrato 2027 assinado", cfg.prazo_assinatura) +
+      "<li><b>Edições 2027:</b> Moto em " + esc(dataCurta(cfg.moto_data)) + ", Auto em " + esc(dataCurta(cfg.auto_data)) + "</li></ul>" +
     '<div id="numeros-renov">' + blocoNumerosRenovacao() + "</div>" +
     '<div id="filtros-renov" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
@@ -3736,11 +3782,7 @@ function telaLixeira() {
       Object.keys(TIPOS_LIXEIRA).filter(function (k) { return n[k]; }).map(function (k) { return chip(k, TIPOS_LIXEIRA[k].grupo, n[k]); }).join("") + "</div>" +
       '<div class="grid gap-3">' + lista.map(cartaoLixeira).join("") + "</div>";
   }
-  return '<section class="space-y-7"><header id="topo-lixeira" class="border-b border-border pb-7">' +
-    '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Excluídos</div>' +
-    '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Lixeira</h1>' +
-    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">O que você exclui fica aqui. Dá para restaurar quando quiser. Só a diretoria exclui de vez.' + (ehAdmin() ? "" : " Aqui aparece só o que você mesmo excluiu.") + "</p>" +
-    "</header>" + corpo + "</section>";
+  return '<section class="space-y-6" id="topo-lixeira">' + corpo + "</section>";
 }
 // Quem teve o acesso retirado pelo dono ve so isto
 function telaSemAcesso() {
@@ -3962,19 +4004,20 @@ async function enviarAuth() {
 var NAV = [
   { to: "/app/inicio", label: "Início", shortLabel: "Início", icon: "house" },
   { to: "/app/renovacao", label: "Renovação 2027", shortLabel: "Renovação", icon: "list-checks" },
-  { to: "/app/espacos", label: "Painel de Espaços", shortLabel: "Espaços", icon: "building-2" },
-  { to: "/app/patrocinadores", label: "Cadastro de Patrocinador", shortLabel: "Carteira", icon: "handshake" },
+  { to: "/app/espacos", label: "Espaços", shortLabel: "Espaços", icon: "building-2" },
+  { to: "/app/patrocinadores", label: "Carteira", shortLabel: "Carteira", icon: "handshake" },
   { to: "/app/marcas", label: "Marcas desejo", shortLabel: "Desejo", icon: "target" },
   { to: "/app/contratos", label: "Contratos", shortLabel: "Contratos", icon: "file-text" },
   // so a diretoria (admin e dono): o menu esconde e o render barra a rota
   { to: "/app/valores", label: "Valores", shortLabel: "Valores", icon: "banknote", admin: true },
   { to: "/app/propriedades", label: "Propriedades", shortLabel: "Entregas", icon: "package-check" },
-  { to: "/app/interacoes", label: "Histórico de Interações", shortLabel: "Interações", icon: "history" },
-  { to: "/app/equipe", label: "Equipe", shortLabel: "Equipe", icon: "users", admin: true },
+  { to: "/app/interacoes", label: "Interações", shortLabel: "Interações", icon: "history" },
+  // rodape do menu lateral: ficam embaixo, separados do miolo do trabalho
+  { to: "/app/equipe", label: "Equipe", shortLabel: "Equipe", icon: "users", admin: true, rodape: true },
   // Comercial e Diretoria; Visualizacao nao ve (guarda no render e em podeVerLixeira)
-  { to: "/app/lixeira", label: "Lixeira", shortLabel: "Lixeira", icon: "trash-2", lixeira: true },
+  { to: "/app/lixeira", label: "Lixeira", shortLabel: "Lixeira", icon: "trash-2", lixeira: true, rodape: true },
   // todo mundo com acesso: foto, nome, apelido, e-mail e senha de quem esta logado
-  { to: "/app/conta", label: "Minha conta", shortLabel: "Conta", icon: "user-round" },
+  { to: "/app/conta", label: "Minha conta", shortLabel: "Conta", icon: "user-round", rodape: true },
 ];
 // Visualizacao ve o resto do painel so para leitura (o Relatorio da marca, sem os contratos).
 // Valores e so da diretoria (item admin no NAV); fica aqui tambem por garantia.
@@ -3999,49 +4042,150 @@ function seletorEdicao() {
     EDICOES.map(function (e) { return botao(e.id, e.curto, "Mostrar só a edição " + e.rotulo); }).join("") +
     botao(EDICAO_TUDO, "Tudo", "Mostrar as duas edições") + "</div>";
 }
-// Rotas que obedecem a edicao escolhida (as outras mostram tudo sempre)
-var ROTAS_COM_EDICAO = { "/app/inicio": 1, "/app/renovacao": 1, "/app/espacos": 1, "/app/patrocinadores": 1, "/app/marcas": 1, "/app/contratos": 1, "/app/propriedades": 1, "/app/interacoes": 1, "/app/valores": 1 };
-function avisoEdicao(caminho) {
-  if (!filtrandoEdicao() || !ROTAS_COM_EDICAO[caminho]) return "";
-  return '<p class="mb-6 flex flex-wrap items-center gap-2 border px-4 py-3 text-sm" style="border-color:var(--warning);background:rgba(255,194,75,.1)">' +
-    icone("triangle-alert", "size-4") + "<span>Esta tela está mostrando só a edição <b>" + esc(rotuloEdicaoEscolhida()) +
-    "</b>. O que não tem edição no cadastro continua aparecendo.</span>" +
-    '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="edicao-global" data-edicao="' + EDICAO_TUDO + '">Ver as duas</button></p>';
+// O aviso de edicao no topo das telas saiu a pedido do Eric: o seletor MOTO|AUTO|TUDO
+// do cabecalho ja mostra o que esta valendo, o aviso so repetia isso em toda tela.
+
+// Data de hoje por extenso, do jeito que aparece no topo do Inicio.
+function hojePorExtenso() {
+  try {
+    return new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  } catch (e) { return ""; }
+}
+
+// A linha curta ao lado do titulo de cada tela. So contexto: se nao souber, nao escreve nada.
+function assuntoDaTela(caminho) {
+  if (caminho === "/app/inicio") return hojePorExtenso();
+  if (caminho === "/app/espacos") {
+    if (!S.spaces) return "";
+    var c = contagemEdicao(edicaoAtual());
+    return c.total + (filtrandoEdicao() ? " na edição " + rotuloEdicaoEscolhida() : " espaços no mapa");
+  }
+  if (caminho === "/app/patrocinadores") {
+    if (!S.sponsors) return "";
+    var marcas = S.sponsors.filter(function (x) { return passaEdicao(edicoesDaMarca(x)); });
+    return marcas.length + (marcas.length === 1 ? " marca" : " marcas");
+  }
+  if (caminho === "/app/renovacao") {
+    if (!S.sponsors) return "";
+    return S.sponsors.filter(naBase2026).length + " marcas da base 2026";
+  }
+  if (caminho === "/app/contratos") {
+    if (!S.contracts) return "";
+    return contratosDaMarcaFiltrada().length + " contratos";
+  }
+  if (caminho === "/app/marcas") {
+    if (!S.prospects) return "";
+    return S.prospects.filter(emAndamento).length + " em andamento";
+  }
+  if (caminho === "/app/propriedades") {
+    if (!S.combinados) return "";
+    var pend = S.combinados.filter(function (c) { return c.status === "combinado"; }).length;
+    return pend + (pend === 1 ? " entrega pendente" : " entregas pendentes");
+  }
+  if (caminho === "/app/interacoes") return S.interactions ? S.interactions.length + " conversas" : "";
+  if (caminho === "/app/valores") return "Só a diretoria vê";
+  if (caminho === "/app/equipe") return S.perfis ? S.perfis.length + " com login" : "";
+  if (caminho === "/app/conta") return S.email || "";
+  return "";
+}
+
+// O botao principal de cada tela, que antes morava dentro dela.
+function acaoDaTela(caminho) {
+  if (!podeMexer()) return "";
+  var b = function (acao, ic, txt, extra) {
+    return '<button type="button" class="' + btnCls("default", "default", "h-9 shrink-0 gap-1.5 px-2.5 text-sm font-semibold sm:px-3.5") + '" data-acao="' + acao + '"' +
+      (extra || "") + ' title="' + esc(txt) + '" aria-label="' + esc(txt) + '">' + icone(ic) + '<span class="hidden sm:inline">' + esc(txt) + "</span></button>";
+  };
+  if (caminho === "/app/espacos") return b("novo", "plus", "Novo espaço");
+  if (caminho === "/app/patrocinadores") return b("novo-patro", "plus", "Novo patrocinador");
+  if (caminho === "/app/marcas") return b("nova-marca", "plus", "Nova marca desejo");
+  if (caminho === "/app/propriedades") return b("nova-entrega", "plus", "Nova entrega");
+  if (caminho === "/app/contratos") {
+    var patro = patroFiltroContratos();
+    return b("novo-contrato", "plus", "Novo contrato", patro ? ' data-patro="' + esc(patro) + '"' : "");
+  }
+  if (caminho === "/app/interacoes") return b("nova-interacao", "message-square-plus", "Registrar contato");
+  return "";
+}
+
+// O tutorial de uso virou o botao de ajuda, para nao ocupar lugar no topo.
+function botaoAjuda() {
+  return '<button type="button" class="' + btnCls("outline", "icon", "so-desktop") + '" data-acao="tutorial" title="Tutorial de uso: passeio guiado por cada tela do painel" aria-label="Tutorial de uso">' + icone("circle-help") + "</button>";
+}
+
+// Bloco da marca no alto do menu lateral.
+function marcaLateral() {
+  return '<a href="#/app/inicio" class="mb-3 flex items-center gap-2.5 rounded-md px-2 py-1.5" title="Painel Comercial do Festival Interlagos">' +
+    '<img src="icone-festival.png?v=3" alt="" class="logo-simbolo">' +
+    '<span class="flex min-w-0 flex-col leading-tight"><span class="truncate text-sm font-semibold">Painel Comercial</span>' +
+    '<span class="truncate text-xs text-muted-foreground">Festival Interlagos</span></span></a>';
+}
+
+// Linha da pessoa no pe do menu lateral: foto, nome e a saida.
+function contaLateral(caminho) {
+  return '<div class="mt-2 flex items-center gap-1 border-t border-border pt-2">' +
+    '<a href="#/app/conta" class="' + cn("item-lado min-w-0 flex-1", caminho === "/app/conta" && "item-lado-ativo") + '"' + (caminho === "/app/conta" ? ' aria-current="page"' : "") + ' title="Minha conta: foto, nome, e-mail e senha">' +
+      avatar(S.fotoUrl, S.nome, "p") +
+      '<span class="flex min-w-0 flex-col leading-tight"><span class="truncate text-sm font-medium">' + esc(S.apelido || S.nome) + "</span>" +
+      '<span class="truncate text-xs text-muted-foreground">' + esc(PAPEIS[S.papel] || "Minha conta") + "</span></span></a>" +
+    '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Sair" title="Sair" data-acao="sair"' + (S.saindo ? " disabled" : "") + ">" + icone("log-out") + "</button></div>";
 }
 
 function casca(conteudo, caminho) {
   var itensNav = navVisivel();
-  var lateral = itensNav.map(function (item) {
+  var link = function (item) {
     var ativo = caminho === item.to;
-    return '<a href="#' + item.to + '" class="' + cn("flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-foreground/65 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground", ativo && "bg-sidebar-primary text-sidebar-primary-foreground") + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
-      icone(item.icon, "size-4") + esc(item.label) + "</a>";
-  }).join("");
-  var inferior = itensNav.map(function (item) {
+    return '<a href="#' + item.to + '" class="' + cn("item-lado", ativo && "item-lado-ativo") + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
+      icone(item.icon, "size-4 shrink-0") + '<span class="truncate">' + esc(item.label) + "</span></a>";
+  };
+  var principais = itensNav.filter(function (i) { return !i.rodape; });
+  var lateral = principais.map(link).join("");
+  var lateralRodape = itensNav.filter(function (i) { return i.rodape && i.to !== "/app/conta"; }).map(link).join("");
+
+  // celular: 4 atalhos e a gaveta "Mais" com o resto
+  var curtos = principais.slice(0, 4);
+  var resto = itensNav.filter(function (i) { return curtos.indexOf(i) === -1; });
+  var botaoInferior = function (item) {
     var ativo = caminho === item.to;
-    return '<a href="#' + item.to + '" class="' + cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] font-medium leading-tight text-muted-foreground", ativo && "bg-accent text-accent-foreground") + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
+    return '<a href="#' + item.to + '" class="' + cn("item-baixo", ativo && "item-baixo-ativo") + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
       icone(item.icon, "size-5") + "<span>" + esc(item.shortLabel) + "</span></a>";
-  }).join("");
-  return '<div class="min-h-screen bg-background text-foreground">' +
-    '<header class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">' +
-      '<div class="mx-auto flex h-16 max-w-screen-2xl items-center justify-between gap-4 px-4 sm:px-6">' +
-        '<a href="#/app/inicio" class="flex min-w-0 items-center gap-3">' + logoCabecalho() + 
-        '<span class="hidden h-6 w-px bg-border sm:block"></span><span class="hidden truncate text-sm font-bold uppercase tracking-wider sm:block">Painel Comercial</span></a>' +
-        // o nome (apelido, se tiver) e a foto levam para Minha conta
-        '<div class="flex items-center gap-2 sm:gap-4">' + seletorEdicao() + botaoTema() + '<span class="flex min-w-0 items-center gap-2"><a href="#/app/conta" class="link-conta" title="Minha conta: foto, nome, e-mail e senha"' + (caminho === "/app/conta" ? ' aria-current="page"' : "") + ">" +
-          avatar(S.fotoUrl, S.nome, "p") + '<span class="hidden max-w-28 truncate text-sm font-medium xs:inline sm:max-w-52"><span class="sr-only">Minha conta: </span>' + esc(S.apelido || S.nome) + "</span></a>" +
-        (ehAdmin() ? '<span class="' + cn(BADGE, "hidden text-foreground border-primary/30 bg-primary/15 sm:inline-flex") + '">' + esc(PAPEIS[S.papel]) + "</span>" : "") + "</span>" +
-        '<button type="button" class="' + btnCls("outline", "default", "h-9 gap-1.5 px-2.5 text-xs font-bold uppercase sm:px-3") + '" data-acao="tutorial" title="Tutorial de uso: passeio guiado por cada tela do painel" aria-label="Tutorial de uso">' + icone("circle-help") + '<span class="hidden sm:inline">Tutorial de uso</span></button>' +
-        '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Sair" title="Sair" data-acao="sair"' + (S.saindo ? " disabled" : "") + ">" + icone("log-out") + "</button></div>" +
-      "</div>" +
-    "</header>" +
-    '<div class="casca-grade mx-auto grid max-w-screen-2xl md:grid-cols-[260px_1fr]">' +
-      '<aside class="hidden min-h-[calc(100vh-4rem)] border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block"><nav aria-label="Navegação principal" class="space-y-1">' + lateral + "</nav></aside>" +
-      '<main class="min-w-0 px-4 py-8 pb-28 sm:px-8 sm:py-12 md:pb-12 lg:px-12">' + avisoEdicao(caminho) + conteudo + "</main>" +
-      (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto && !S.formEntrega.aberto ? dialogoFicha() : "") +
-      (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto && !S.formEntrega.aberto ? dialogoFichaProspeccao() : "") +
-      (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formContrato.aberto ? dialogoContrato() : "") + (S.formEntrega.aberto ? dialogoEntrega() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
+  };
+  var inferior = curtos.map(botaoInferior).join("") +
+    '<button type="button" class="' + cn("item-baixo", S.maisAberto && "item-baixo-ativo") + '" data-acao="mais" aria-expanded="' + (S.maisAberto ? "true" : "false") + '">' +
+      icone("ellipsis", "size-5") + "<span>Mais</span></button>";
+  var gaveta = !S.maisAberto ? "" :
+    '<div class="gaveta-mais" role="menu">' +
+      resto.map(link).join("") +
+      '<button type="button" class="item-lado w-full" data-acao="tema">' + icone(temaValendo() === "escuro" ? "moon" : "sun", "size-4 shrink-0") + "Estilo: " + (temaValendo() === "escuro" ? "escuro" : "claro") + "</button>" +
+      '<button type="button" class="item-lado w-full" data-acao="tutorial">' + icone("circle-help", "size-4 shrink-0") + "Tutorial de uso</button>" +
+      '<button type="button" class="item-lado w-full" data-acao="sair"' + (S.saindo ? " disabled" : "") + ">" + icone("log-out", "size-4 shrink-0") + "Sair</button></div>";
+
+  var titulo = (NAV.find(function (i) { return i.to === caminho; }) || {}).label || "Painel Comercial";
+  var sub = assuntoDaTela(caminho);
+
+  return '<div class="casca-grade min-h-screen bg-background text-foreground">' +
+    '<aside class="casca-lado hidden md:flex"><nav aria-label="Navegação principal" class="flex min-h-0 flex-1 flex-col">' +
+      marcaLateral() +
+      '<div class="flex-1 space-y-0.5 overflow-y-auto">' + lateral + "</div>" +
+      '<div class="space-y-0.5 pt-2">' + lateralRodape + "</div>" +
+      contaLateral(caminho) +
+    "</nav></aside>" +
+    '<div class="flex min-w-0 flex-col">' +
+      '<header class="topo-pagina sticky top-0 z-40 flex min-h-14 flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">' +
+        '<div class="flex min-w-0 items-center gap-2 sm:gap-3">' +
+          '<a href="#/app/inicio" class="shrink-0 md:hidden" aria-label="Início"><img src="icone-festival.png?v=3" alt="" class="logo-simbolo"></a>' +
+          '<h1 class="truncate text-base font-semibold tracking-tight sm:text-lg">' + esc(titulo) + "</h1>" +
+          (sub ? '<span class="hidden truncate text-sm text-muted-foreground sm:block">' + esc(sub) + "</span>" : "") +
+        "</div>" +
+        '<div class="flex shrink-0 items-center gap-2">' + seletorEdicao() + botaoTema() + botaoAjuda() + acaoDaTela(caminho) + "</div>" +
+      "</header>" +
+      '<main class="min-w-0 px-4 py-6 pb-28 sm:px-6 sm:py-8 md:pb-10 lg:px-8">' + conteudo + "</main>" +
     "</div>" +
-    '<nav aria-label="Navegação principal" class="nav-inferior fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
+    (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto && !S.formEntrega.aberto ? dialogoFicha() : "") +
+    (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto && !S.formEntrega.aberto ? dialogoFichaProspeccao() : "") +
+    (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formContrato.aberto ? dialogoContrato() : "") + (S.formEntrega.aberto ? dialogoEntrega() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
+    gaveta +
+    '<nav aria-label="Navegação principal" class="nav-inferior fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
   "</div>";
 }
 
@@ -4275,9 +4419,11 @@ function cartaoAlerta(a) {
     if (contrato2027(a.patro)) return linkContratos("outline", "file-text", "Ver contrato");
     return mexe ? btnA("outline", "novo-contrato", ' data-patro="' + esc(a.patro.id) + '"', "plus", "Criar contrato") : "";
   };
-  return '<article class="' + cn("border border-border bg-card px-4 py-3", "alerta-" + a.nivel) + '">' +
-    '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">' +
-      '<div class="min-w-0"><h3 class="break-words font-bold">' + esc(a.titulo) + "</h3>" +
+  var CORES_ALERTA = { vermelho: "var(--destructive)", amarelo: "var(--warning)", azul: "var(--muted-foreground)" };
+  return '<article class="cartao-alerta">' +
+    '<span class="ponto mt-[7px]" style="background:' + (CORES_ALERTA[a.nivel] || "var(--muted-foreground)") + '"></span>' +
+    '<div class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">' +
+      '<div class="min-w-0"><h3 class="break-words font-semibold">' + esc(a.titulo) + "</h3>" +
       '<p class="mt-0.5 text-sm text-muted-foreground">' + esc(a.detalhe) + " · " + (a.papelResp || "Vendedor") + ": " + vend + (a.patro && a.patro.master ? " · " + badgeMaster() : "") + "</p></div>" +
       '<div class="flex shrink-0 flex-wrap gap-2">' +
         (a.tipo === "reserva" || a.tipo === "fila"
@@ -4341,61 +4487,93 @@ function telaInicio() {
       return '<section class="space-y-3"' + (id ? ' id="' + id + '"' : "") + '><h2 class="text-sm font-black uppercase">' + titulo + ' <span class="font-normal text-muted-foreground">(' + lista.length + ")</span></h2>" +
         (lista.length ? lista.map(cartaoAlerta).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">' + vazio + "</p>") + "</section>";
     };
+    var ponto = function (cor) { return '<span class="ponto" style="background:' + cor + '"></span>'; };
+    var cartaoNum = function (cor, rot, num, hint, extra) {
+      return '<div class="cartao-num">' +
+        '<span class="flex items-center gap-2 text-sm text-muted-foreground">' + ponto(cor) + rot + "</span>" +
+        '<span class="mt-1.5 block text-3xl font-semibold leading-none tracking-tight">' + num + "</span>" +
+        (hint ? '<span class="mt-1.5 block text-xs text-muted-foreground">' + hint + "</span>" : "") + (extra || "") + "</div>";
+    };
+    var abaAlerta = function (id, rot, n) {
+      var ativo = (S.alertaAba || "meus") === id;
+      return '<button type="button" role="radio" aria-checked="' + ativo + '" data-acao="alerta-aba" data-aba="' + id + '" class="' +
+        cn("seg-botao h-7 px-3 text-xs font-medium", ativo ? "seg-ativo" : "text-muted-foreground") + '">' + rot + ' <span class="opacity-60">' + n + "</span></button>";
+    };
+    var listaAba = (S.alertaAba || "meus") === "equipe" ? outros : meus;
+    var vazioAba = (S.alertaAba || "meus") === "equipe" ? "Nada pendente com os outros vendedores." : "Nada pendente com você hoje.";
+    var painel = function (titulo, link, rotuloLink, linhas) {
+      return '<section class="painel-lado">' +
+        '<div class="flex items-baseline justify-between gap-3 border-b border-border px-4 py-3">' +
+          '<h2 class="text-sm font-semibold">' + titulo + "</h2>" +
+          (link ? '<a href="#' + link + '" class="shrink-0 text-xs font-medium text-primary hover:underline">' + rotuloLink + "</a>" : "") +
+        "</div>" + '<div class="flex flex-col gap-3 px-4 py-3">' + linhas + "</div></section>";
+    };
+    var linhaPainel = function (nome, detalhe, selo, acao, id) {
+      return '<div class="flex items-center justify-between gap-3">' +
+        '<div class="min-w-0">' + (acao ? '<button type="button" class="block truncate text-left text-sm font-semibold hover:underline" data-acao="' + acao + '" data-id="' + esc(id) + '">' + esc(nome) + "</button>" : '<span class="block truncate text-sm font-semibold">' + esc(nome) + "</span>") +
+        '<span class="block truncate text-xs text-muted-foreground">' + detalhe + "</span></div>" +
+        (selo ? '<span class="selo-lado shrink-0">' + selo + "</span>" : "") + "</div>";
+    };
+    var nada = function (txt) { return '<p class="text-xs text-muted-foreground">' + txt + "</p>"; };
+    var soDia = function (iso) { return iso ? formatDateOnly(String(iso).slice(0, 10)) : ""; };
+
+    var esperando = ehVisualizacao() ? [] : (S.contracts || []).filter(function (c) { return c.status === "enviado"; });
+    var ne = contarEntregas((S.combinados || []).filter(function (c) { return passaEdicao(edicoesDaEntrega(c)); }));
+
     corpo =
-      '<div id="inicio-contadores" class="space-y-3">' +
-      '<div class="grid gap-3 lg:grid-cols-3">' +
-        '<div class="contador-vermelho border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none text-destructive">' + ren.vermelhas.length + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Não renovaram nem assinaram</span>' +
-          '<p class="mt-1 text-xs text-muted-foreground">Passaram de ' + esc(dataCurta(cfg.prazo_confirmacao)) + " sem confirmar a renovação ou de " + esc(dataCurta(cfg.prazo_assinatura)) + " sem assinar o contrato 2027.</p>" + nomesContador(ren.vermelhas) + "</div>" +
-        '<div class="contador-amarelo border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none" style="color:var(--warning)">' + ren.amarelas.length + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Prazo perto de vencer</span>' +
-          '<p class="mt-1 text-xs text-muted-foreground">Confirmação (até ' + esc(dataCurta(cfg.prazo_confirmacao)) + "), sinal de 10% (até " + esc(dataCurta(cfg.prazo_sinal)) + ") ou contrato (até " + esc(dataCurta(cfg.prazo_assinatura)) + ") vencendo nos próximos dias.</p>" + nomesContador(ren.amarelas) + "</div>" +
-        '<div class="contador-outras border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none">' + outrasPend.length + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Outras pendências</span>' +
-          '<p class="mt-1 text-xs text-muted-foreground">Entregas, reservas, fila de espaço, falta de contato e pagamento. Estão logo abaixo, junto com os alertas.</p>' +
-          (outrasPend.length ? '<p class="mt-3 text-xs">' + Object.keys(porTipo).map(function (k) { return esc(k) + " (" + porTipo[k] + ")"; }).join(" · ") + "</p>" : '<p class="mt-3 text-xs text-muted-foreground">Nada pendente.</p>') + "</div>" +
+      '<div id="inicio-contadores" class="grade-numeros grid gap-4 sm:grid-cols-2">' +
+        cartaoNum("var(--destructive)", "Não renovaram nem assinaram", ren.vermelhas.length, "Passaram do prazo sem responder") +
+        cartaoNum("var(--warning)", "Prazo perto de vencer", ren.amarelas.length, "Confirmação até " + esc(dataComDia(cfg.prazo_confirmacao))) +
+        cartaoNum("var(--muted-foreground)", "Outras pendências", outrasPend.length, outrasPend.length ? Object.keys(porTipo).map(function (k) { return esc(k) + " (" + porTipo[k] + ")"; }).join(" · ") : "Entregas, reservas e fila") +
+        cartaoNum("var(--primary)", "Base 2026 confirmou", confR.length + ' <span class="text-base font-medium text-muted-foreground">de ' + baseR.length + "</span>", "",
+          '<div class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted"><div class="h-1.5 rounded-full bg-primary" style="width:' + pct + '%"></div></div>' +
+          '<a href="#/app/renovacao" class="mt-2 inline-block text-xs font-medium text-primary hover:underline">Abrir a Renovação 2027</a>') +
       "</div>" +
-      '<div class="grid gap-3 sm:grid-cols-2">' +
-        '<div class="border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none">' + pct + '%</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Da base 2026 confirmou a renovação · meta 100%</span>' +
-          '<div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted"><div class="h-2 bg-success" style="width:' + pct + '%"></div></div>' +
-          '<p class="mt-2 text-xs text-muted-foreground">' + confR.length + " de " + baseR.length + " marcas confirmaram · " + recR + (recR === 1 ? " recusou" : " recusaram") + " · sinal pago: " + sinalR + " de " + v26R.length +
-            (ehVisualizacao() ? "" : " · contratos 2027 assinados: " + (assR === null ? "..." : assR)) + "</p>" +
-          (merch.length ? '<p class="mt-1 text-xs text-muted-foreground">Merchandising: ' + merch.length + (merch.length === 1 ? " marca" : " marcas") + ", " + merchRen + (merchRen === 1 ? " confirmou" : " confirmaram") + "</p>" : "") +
-          '<a href="#/app/renovacao" class="mt-1 inline-block text-xs font-bold uppercase text-primary hover:underline">Abrir a Renovação 2027</a></div>' +
-        '<div class="border border-border bg-card px-5 py-5"><span class="block text-4xl font-black leading-none">' + andamento.length + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">Marcas desejo em andamento</span>' +
-          '<p class="mt-2 text-xs text-muted-foreground">' + (S.prospects === null ? "Carregando..." : (podeVerConversas() ? nEsfriando + " esfriando · " : "") + nAtrasada + " com ação atrasada") + "</p>" +
-          '<a href="#/app/marcas" class="mt-1 inline-block text-xs font-bold uppercase text-primary hover:underline">Ver o funil</a></div>' +
-      "</div></div>" +
-      (ehAdmin() ? secao("Para administradores", admin, "Nenhum patrocinador Master em risco.") : "") +
-      secao("Meus alertas", meus, "Nada pendente com você hoje.", "secao-meus-alertas") +
-      secao("Alertas do resto da equipe", outros, "Nada pendente com os outros vendedores.", "secao-alertas-equipe") +
-      '<section id="secao-marcas-acao" class="space-y-3"><h2 class="text-sm font-black uppercase">Marcas desejo que precisam de ação <span class="font-normal text-muted-foreground">(' + precisam.length + ")</span></h2>" +
-        (S.prospects === null && !S.prospectsErro ? loadingList("Carregando marcas desejo...", 2) : (precisam.length ? precisam.map(cartaoMarcaAcao).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">' + (podeVerConversas() ? "Nenhuma marca desejo esfriando nem com ação atrasada." : "Nenhuma marca desejo com ação atrasada.") + "</p>")) +
-      "</section>" +
-      (function () {
-        if (ehVisualizacao()) return ""; // Visualizacao nao ve contrato
-        var esperando = (S.contracts || []).filter(function (c) { return c.status === "enviado"; });
-        return '<section id="secao-contratos" class="space-y-3"><h2 class="text-sm font-black uppercase">Contratos aguardando assinatura <span class="font-normal text-muted-foreground">(' + esperando.length + ")</span></h2>" +
-          (S.contracts === null && !S.contractsErro ? loadingList("Carregando contratos...", 1) : (esperando.length ? esperando.map(function (c) { return cartaoContrato(c, true); }).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum contrato esperando assinatura.</p>')) +
-          "</section>";
-      })() +
-      (function () {
-        var ne = contarEntregas((S.combinados || []).filter(function (c) { return passaEdicao(edicoesDaEntrega(c)); }));
-        return '<section id="secao-combinados" class="space-y-3"><h2 class="text-sm font-black uppercase">Entregas pendentes <span class="font-normal text-muted-foreground">(' + pendentes.length + (ne.atrasadas ? ", " + ne.atrasadas + " atrasada" + (ne.atrasadas > 1 ? "s" : "") : "") + ")</span></h2>" +
-          (S.combinados === null ? loadingList("Carregando entregas...", 2) : (pendentes.length ? pendentes.slice(0, 8).map(function (c) { return cartaoCombinado(c, true); }).join("") + (pendentes.length > 8 ? '<a href="#/app/propriedades" class="block border border-dashed border-border px-4 py-3 text-center text-sm text-primary hover:underline">Ver as ' + pendentes.length + " entregas em Propriedades</a>" : "") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nada pendente. Tudo o que foi combinado já foi entregue.</p>')) +
-        "</section>";
-      })() +
-      '<p class="text-xs text-muted-foreground">Prazos em uso: renovação 2027 confirmada até ' + esc(dataCurta(cfg.prazo_confirmacao)) + ", sinal de 10% até " + esc(dataCurta(cfg.prazo_sinal)) + " e contrato assinado até " + esc(dataCurta(cfg.prazo_assinatura)) +
-        " (o amarelo começa " + JANELA_AVISO.confirmacao + " dias antes, " + JANELA_AVISO.sinal + " no sinal); entrega avisa 7 dias antes do prazo; reserva feita na mão vale " + DIAS_RESERVA + " dias e avisa 3 dias antes de vencer; sem contato acima de " + cfg.dias_sem_contato +
-        " dias; Master a " + cfg.dias_gatilho_master + " dias da edição (Moto " + esc(formatDateOnly(cfg.moto_data)) + ", Auto " + esc(formatDateOnly(cfg.auto_data)) + "). " + (ehAdmin() ? "Ajuste na tela Equipe." : "Quem ajusta é o administrador.") + "</p>";
+
+      '<div class="grade-inicio grid gap-6">' +
+        '<div class="min-w-0 space-y-3">' +
+          '<div class="flex flex-wrap items-center justify-between gap-2">' +
+            '<h2 class="text-sm font-semibold">Alertas</h2>' +
+            '<div role="radiogroup" aria-label="De quem são os alertas" class="seg-trilho flex shrink-0">' + abaAlerta("meus", "Meus", meus.length) + abaAlerta("equipe", "Da equipe", outros.length) + "</div>" +
+          "</div>" +
+          '<div id="secao-meus-alertas" class="space-y-3">' +
+            (listaAba.length ? listaAba.map(cartaoAlerta).join("") : '<p class="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">' + vazioAba + "</p>") +
+          "</div>" +
+          (ehAdmin() && admin.length ? '<h2 class="pt-2 text-sm font-semibold">Para a diretoria <span class="font-normal text-muted-foreground">' + admin.length + "</span></h2>" + admin.map(cartaoAlerta).join("") : "") +
+          (precisam.length ? '<h2 id="secao-marcas-acao" class="pt-2 text-sm font-semibold">Marcas desejo que precisam de ação <span class="font-normal text-muted-foreground">' + precisam.length + "</span></h2>" + precisam.map(cartaoMarcaAcao).join("") : "") +
+        "</div>" +
+
+        '<aside class="min-w-0 space-y-4">' +
+          (ehVisualizacao() ? "" : painel("Aguardando assinatura", "/app/contratos", "Contratos",
+            S.contracts === null ? nada("Carregando...") : esperando.length
+              ? esperando.slice(0, 4).map(function (c) {
+                  return linhaPainel(c.patrocinador || c.titulo, esc(c.titulo) + (c.assinatura && c.assinatura.enviadoEm ? " · na DocuSign desde " + esc(soDia(c.assinatura.enviadoEm)) : ""), "Aguardando", "ficha", c.patrocinadorId);
+                }).join("")
+              : nada("Nenhum contrato esperando assinatura."))) +
+          painel("Entregas pendentes" + (ne.atrasadas ? ' <span class="text-warning-foreground">' + ne.atrasadas + " atrasada" + (ne.atrasadas > 1 ? "s" : "") + "</span>" : ""), "/app/propriedades", "Propriedades",
+            S.combinados === null ? nada("Carregando...") : pendentes.length
+              ? pendentes.slice(0, 4).map(function (c) {
+                  var dono = (S.sponsors || []).find(function (x) { return x.id === c.patrocinadorId; });
+                  return linhaPainel(dono ? dono.nome : "Sem marca", esc(c.descricao || ""), c.atrasada ? "Atrasada" : "A entregar", dono ? "ficha" : "", dono ? dono.id : "");
+                }).join("")
+              : nada("Nada pendente. Tudo o que foi combinado já foi entregue.")) +
+          painel('Marcas desejo em andamento <span class="font-normal text-muted-foreground">' + andamento.length + "</span>", "/app/marcas", "Ver o funil",
+            S.prospects === null ? nada("Carregando...") : andamento.length
+              ? andamento.slice(0, 5).map(function (m) {
+                  return '<div class="flex items-center justify-between gap-3 text-sm"><button type="button" class="truncate text-left hover:underline" data-acao="ficha-marca" data-id="' + esc(m.id) + '">' + esc(m.nome) + "</button>" +
+                    '<span class="shrink-0 text-xs ' + (m.atrasada ? "text-warning-foreground" : "text-muted-foreground") + '">' + (m.atrasada ? "ação atrasada" : m.esfriando ? "esfriando" : esc(ESTAGIOS[m.estagio].label.toLowerCase())) + "</span></div>";
+                }).join("")
+              : nada("Nenhuma marca desejo em andamento.")) +
+        "</aside>" +
+      "</div>";
   }
-  return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
-    '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Hoje</div>' +
-    '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Início</h1>' +
-    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">O que precisa de ação: a renovação 2027 da base de 2026 em primeiro lugar, depois entregas, reservas, fila de espaço e marcas desejo.</p>' +
+  return '<section class="space-y-6">' +
     (tutorialVisto() || S.tour.ativo ? "" :
-      '<div class="mt-5 flex flex-col gap-3 border border-primary bg-primary/8 p-4 sm:flex-row sm:items-center sm:justify-between">' +
-        '<div><p class="font-bold">Primeira vez por aqui?</p><p class="text-sm text-muted-foreground">O tutorial de uso passa por cada tela em uns 3 minutos e explica as cores, os alertas e o que fazer em cada lugar.</p></div>' +
-        '<div class="flex shrink-0 flex-wrap gap-2"><button type="button" class="' + btnCls("default", "default", "font-bold uppercase") + '" data-acao="tutorial">' + icone("circle-help") + " Começar tutorial</button>" +
-        '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="tutorial-depois">Agora não</button></div></div>') +
-    "</header>" + corpo + "</section>";
+      '<div class="flex flex-col gap-3 rounded-md border border-primary/40 bg-primary/8 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">' +
+        '<div><p class="font-semibold">Primeira vez por aqui?</p><p class="text-sm text-muted-foreground">O tutorial passa por cada tela em uns 3 minutos e explica as cores e o que fazer em cada lugar.</p></div>' +
+        '<div class="flex shrink-0 flex-wrap gap-2"><button type="button" class="' + btnCls("default", "default", "h-9 text-sm font-semibold") + '" data-acao="tutorial">' + icone("circle-help") + " Começar tutorial</button>" +
+        '<button type="button" class="' + btnCls("outline", "default", "h-9 text-sm font-medium") + '" data-acao="tutorial-depois">Agora não</button></div></div>') +
+    corpo + "</section>";
 }
 
 function dialogoInteracao() {
@@ -4586,33 +4764,41 @@ function blocoMapa() {
   var abas = EDICOES.map(function (e) {
     var ativo = e.id === edicao;
     return '<button type="button" role="tab" aria-selected="' + ativo + '" data-acao="edicao" data-edicao="' + e.id + '" class="' +
-      cn("h-11 border-b-2 px-4 text-sm font-bold uppercase", ativo ? "border-primary text-primary" : "border-transparent text-muted-foreground") + '">' + esc(e.rotulo) + "</button>";
+      cn("seg-botao h-7 px-3 text-xs font-medium", ativo ? "seg-ativo" : "text-muted-foreground") + '" title="' + esc(e.rotulo) + '">' + esc(e.curto || e.rotulo) + "</button>";
   }).join("");
+  var resumo = "";
   var corpo;
   if (S.spacesErro) corpo = errorList(S.spacesErro, "recarregar-espacos", S.spacesCarregando);
   else if (!S.spaces) corpo = '<div role="status" aria-live="polite" aria-busy="true" class="p-4"><span class="sr-only">Carregando mapa...</span><div class="' + SKELETON + ' h-64 w-full rounded-none"></div></div>';
   else {
     var c = contagemEdicao(edicao);
-    var chip = function (n, txt, cls) { return '<span class="' + cn(BADGE, "text-foreground", cls) + '">' + n + " " + txt + "</span>"; };
+    resumo = [c.disponivel + " disponíveis", c.reservado + " reservados", c.vendido + " vendidos"]
+      .concat(c.vencido ? [c.vencido + " com prazo vencido"] : []).join(" · ");
+    var legenda = function (estilo, txt) { return '<span class="flex items-center gap-1.5"><span class="amostra" style="' + estilo + '"></span>' + txt + "</span>"; };
     corpo =
-      '<div class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-xs sm:px-5">' +
-        chip(c.disponivel, "disponíveis", STATUS_ESPACO.disponivel.className) + chip(c.reservado, "reservados", STATUS_ESPACO.reservado.className) +
-        chip(c.vendido, "vendidos", STATUS_ESPACO.vendido.className) +
-        (c.risco ? chip(c.risco, "em risco de renovação", "border-destructive/40 bg-destructive/10 text-destructive") : "") +
-        (c.guardado ? chip(c.guardado, "guardados para a renovação", "border-dashed text-foreground") : "") +
-        (c.renovou ? chip(c.renovou, "renovados", STATUS_ESPACO.reservado.className) : "") +
-        (c.vencido ? chip(c.vencido, "com prazo vencido", "border-destructive/40 bg-destructive/10 text-destructive") : "") +
-        (c.fila ? chip(c.fila, "com fila", "border-warning/30 bg-warning/10 text-warning-foreground") : "") +
-        (c.semCadastro ? chip(c.semCadastro, "sem cadastro", "border-dashed text-muted-foreground") : "") +
-        '<span class="ml-auto text-muted-foreground">' + c.total + " espaços no mapa · " + (podeMexer() ? "toque em um espaço para ver e mudar o status" : "toque em um espaço para ver os detalhes") + "</span>" +
-      "</div>" +
-      '<div class="overflow-x-auto p-2 sm:p-3">' + desenharMapa(edicao) + "</div>";
+      '<div class="area-mapa">' +
+        '<div class="overflow-x-auto p-2 pb-20 sm:p-3 sm:pb-20">' + desenharMapa(edicao) + "</div>" +
+        '<div role="toolbar" aria-label="Ferramentas do mapa" class="dock-mapa">' +
+          '<div role="tablist" aria-label="Edição do mapa" class="seg-trilho flex shrink-0">' + abas + "</div>" +
+          '<span class="divisor-dock"></span>' +
+          '<span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">' +
+            legenda("background:var(--verde-fraco);border:1px solid var(--success)", "Livre") +
+            legenda("background:var(--card);border:1px dashed var(--muted-foreground)", "Guardado") +
+            legenda("background:var(--ambar-fraco);border:1px solid var(--warning)", "Reservado") +
+            legenda("background:var(--mapa-vendido);border:1px solid var(--border)", "Vendido") +
+            legenda("background:var(--warning);border:1px solid var(--warning);border-radius:8px", "Fila") +
+          "</span>" +
+          '<span class="divisor-dock"></span>' +
+          '<button type="button" class="' + btnCls("outline", "default", "h-8 shrink-0 text-xs font-medium") + '" data-acao="lista-espacos" aria-pressed="' + (S.listaEspacos ? "true" : "false") + '">' +
+            icone("list-checks", "size-4") + (S.listaEspacos ? " Esconder lista" : " Lista") + "</button>" +
+        "</div>" +
+      "</div>";
   }
-  return '<div class="border border-border bg-card">' +
-    '<div class="flex flex-col gap-3 border-b border-border px-4 pt-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">' +
-      '<div><div class="flex items-center gap-2">' + icone("map", "size-4 text-primary") + '<h2 class="text-sm font-black uppercase">Mapa de espaços</h2></div>' +
-      '<p class="mt-1 text-xs text-muted-foreground">Base: plantas de 2026. Verde = disponível, tracejado = guardado para a marca de 2026 até ela responder a renovação, amarelo = reservado ou renovado, branco = vendido, borda vermelha = prazo vencido ou renovação em risco. Bolinha amarela = quantas marcas estão na fila.</p></div>' +
-      '<div role="tablist" aria-label="Edição" class="flex">' + abas + "</div>" +
+  return '<div class="rounded-md border border-border bg-card shadow-[var(--sombra-cartao)] overflow-hidden">' +
+    '<div class="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">' +
+      '<div class="flex items-baseline gap-2.5"><h2 class="text-sm font-semibold">Mapa de espaços</h2>' +
+      '<span class="text-xs text-muted-foreground">' + (podeMexer() ? "toque em um espaço para ver e mudar o status" : "toque em um espaço para ver os detalhes") + "</span></div>" +
+      '<span class="text-xs text-muted-foreground">' + resumo + "</span>" +
     "</div>" + corpo + "</div>";
 }
 
@@ -4851,23 +5037,30 @@ function telaAmpliada() {
 
 function telaEspacos() {
   var f = filtroAtual();
-  return '<section class="space-y-7">' +
-    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
-      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span>Gestão comercial</div>' +
-      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Painel de Espaços</h1>' +
-      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">' + (podeVerValores() ? "Acompanhe disponibilidade, valores e vínculos comerciais do Festival Interlagos." : "Acompanhe a disponibilidade e as marcas de cada espaço do Festival Interlagos.") + "</p></div>" +
-      (podeMexer() ? '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="novo">' + icone("plus") + " Novo espaço</button>" : "") +
-    "</header>" +
-    '<div id="bloco-overview" class="space-y-7">' + blocoVisaoGeral() + "</div>" +
+  var c = S.spaces ? contagemEdicao(edicaoAtual()) : null;
+  var num = function (rot, valor) {
+    return '<div class="cartao-num"><span class="text-sm text-muted-foreground">' + rot + "</span>" +
+      '<span class="mt-1.5 block text-2xl font-semibold leading-none tracking-tight">' + (c ? valor : "&nbsp;") + "</span></div>";
+  };
+  var chipFiltro = function (id, rot) {
+    var ativo = f.filter === id;
+    return '<button type="button" role="radio" aria-checked="' + ativo + '" data-acao="filtro-espaco" data-filtro="' + id + '" class="' +
+      cn("seg-botao h-7 px-3 text-xs font-medium", ativo ? "seg-ativo" : "text-muted-foreground") + '">' + rot + "</button>";
+  };
+  return '<section class="space-y-5">' +
+    '<div class="flex flex-wrap items-center gap-3">' +
+      '<div class="relative w-full sm:w-80">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+      '<input id="busca" aria-label="Buscar espaço ou marca" placeholder="Buscar espaço ou marca" class="' + cn(INPUT, "h-9 bg-card pl-10 text-sm") + '" value="' + esc(f.search) + '"></div>' +
+      '<div role="radiogroup" aria-label="Situação do espaço" class="seg-trilho flex shrink-0">' +
+        chipFiltro("todos", "Todos") + chipFiltro("disponivel", "Disponíveis") + chipFiltro("reservado", "Reservados") + chipFiltro("vendido", "Vendidos") + "</div>" +
+    "</div>" +
+    '<div id="bloco-overview" class="grade-numeros grid gap-4 sm:grid-cols-2">' +
+      num("Disponíveis", c && c.disponivel) + num("Guardados para a renovação", c && c.guardado) +
+      num("Reservados", c && c.reservado) + num("Com fila", c && c.fila) + "</div>" +
     '<div id="bloco-mapa">' + blocoMapa() + "</div>" +
+    (S.listaEspacos ? '<div id="bloco-lista">' + blocoListaEspacos() + "</div>" : '<div id="bloco-lista" hidden></div>') +
     '<div id="bloco-disputados">' + blocoDisputados() + "</div>" +
     blocoCotasSemEspaco() +
-    '<div class="grid gap-3 sm:grid-cols-[minmax(240px,1fr)_220px]">' +
-      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
-      '<input id="busca" aria-label="Buscar por nome do espaço" placeholder="Buscar por nome do espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.search) + '"></div>' +
-      '<button type="button" role="combobox" aria-label="Filtrar por status" data-acao="menu-filtro" class="' + cn(SELECT_TRIGGER, "h-11 bg-card") + '"><span>' + esc(ROTULO_FILTRO[f.filter]) + "</span>" + icone("chevron-down", "h-4 w-4 opacity-50") + "</button>" +
-    "</div>" +
-    '<div id="bloco-lista">' + blocoListaEspacos() + "</div>" +
   "</section>" + (S.ampliada ? telaAmpliada() : "") + (S.detalhe && !S.form.aberto ? dialogoDetalhe() : "") + (S.form.aberto ? dialogoEspaco() : "");
 }
 
@@ -5004,22 +5197,19 @@ function blocoListaPatrocinadores() {
 function telaPatrocinadores() {
   var f = S.fp;
   var vendedores = [{ valor: "todos", rotulo: "Todos os vendedores" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: rotuloPessoa(p) }; }));
-  return '<section class="space-y-7">' +
-    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
-      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Carteira comercial</div>' +
-      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Cadastro de Patrocinador</h1>' +
-      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Contato, tipo, vendedor responsável, espaço vinculado e vencimento de contrato de cada patrocinador.</p></div>' +
-      (podeMexer() ? '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="novo-patro">' + icone("plus") + " Novo patrocinador</button>" : "") +
-    "</header>" +
-    '<div id="filtros-patro" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">' +
+  return '<section class="space-y-6">' +
+    '<div id="filtros-patro" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
       '<input id="busca-patro" aria-label="Buscar patrocinador" placeholder="Buscar por nome, contato ou espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
-      selectNativo("filtro-tipo", "filtro-tipo", [{ valor: "todos", rotulo: "Todos os tipos" }].concat(Object.keys(TIPO_PATROCINADOR).map(function (k) { return { valor: k, rotulo: TIPO_PATROCINADOR[k] }; })), f.tipo, { className: "h-11 bg-card" }) +
-      selectNativo("filtro-status", "filtro-status", [{ valor: "todos", rotulo: "Todos os status" }].concat(Object.keys(STATUS_PATROCINADOR).map(function (k) { return { valor: k, rotulo: STATUS_PATROCINADOR[k].label }; })), f.status, { className: "h-11 bg-card" }) +
-      selectNativo("filtro-vendedor", "filtro-vendedor", vendedores, f.vendedor, { className: "h-11 bg-card" }) +
-      selectNativo("filtro-master", "filtro-master", [{ valor: "todos", rotulo: "Master e comuns" }, { valor: "sim", rotulo: "Só Master" }, { valor: "nao", rotulo: "Só comuns" }], f.master, { className: "h-11 bg-card" }) +
-      selectNativo("filtro-renovacao", "filtro-renovacao", [{ valor: "todos", rotulo: "Toda renovação" }].concat(Object.keys(RENOVACAO).map(function (k) { return { valor: k, rotulo: RENOVACAO[k].label }; })), f.renovacao, { className: "h-11 bg-card" }) +
+      selectNativo("filtro-status", "filtro-status", [{ valor: "todos", rotulo: "Todos os status" }].concat(Object.keys(STATUS_PATROCINADOR).map(function (k) { return { valor: k, rotulo: STATUS_PATROCINADOR[k].label }; })), f.status, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-vendedor", "filtro-vendedor", vendedores, f.vendedor, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-renovacao", "filtro-renovacao", [{ valor: "todos", rotulo: "Toda renovação" }].concat(Object.keys(RENOVACAO).map(function (k) { return { valor: k, rotulo: RENOVACAO[k].label }; })), f.renovacao, { className: "h-10 bg-card" }) +
     "</div>" +
+    '<details' + (f.tipo !== "todos" || f.master !== "todos" ? " open" : "") + '><summary class="cursor-pointer text-sm text-muted-foreground">Mais filtros</summary>' +
+      '<div class="mt-3 grid gap-3 sm:grid-cols-2">' +
+        selectNativo("filtro-tipo", "filtro-tipo", [{ valor: "todos", rotulo: "Todos os tipos" }].concat(Object.keys(TIPO_PATROCINADOR).map(function (k) { return { valor: k, rotulo: TIPO_PATROCINADOR[k] }; })), f.tipo, { className: "h-10 bg-card" }) +
+        selectNativo("filtro-master", "filtro-master", [{ valor: "todos", rotulo: "Master e comuns" }, { valor: "sim", rotulo: "Só Master" }, { valor: "nao", rotulo: "Só comuns" }], f.master, { className: "h-10 bg-card" }) +
+      "</div></details>" +
     '<div id="bloco-lista-patro">' + blocoListaPatrocinadores() + "</div>" +
   "</section>";
 }
@@ -5207,17 +5397,14 @@ function telaEquipe() {
       '</tr></thead><tbody class="[&_tr:last-child]:border-0">' + linhas + "</tbody></table></div></div>" +
       '<div class="grid gap-3 md:hidden">' + cards + "</div>";
   }
-  return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
-    '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Acesso</div>' +
-    '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Equipe</h1>' +
-    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Quem tem login no painel e o que cada pessoa pode ver. Conta nova entra como Visualização. ' + (ehDono() ? "Você, como dono do sistema, sobe cada pessoa para o nível certo. Quem saiu da empresa: use Tirar acesso. A pessoa não entra mais, e o nome continua no histórico." : "Só o dono do sistema muda o nível das pessoas.") + "</p>" +
-    // Minha conta (cada um) e o que o dono faz pelos outros
-    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Cada pessoa troca a própria foto, o nome, o apelido, o e-mail e a senha em <a href="#/app/conta" class="font-semibold text-primary underline">Minha conta</a>.' +
-      (ehDono() ? " Aqui você também corrige o nome e o apelido de alguém, tira uma foto que não deveria estar ali e manda um link para a pessoa criar uma senha nova, se ela esqueceu." : "") + "</p>" +
-    '<div class="mt-4 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">' +
-      ["visualizacao", "vendedor", "admin", "dono"].map(function (k) { return '<div class="border border-border bg-card p-3"><span class="font-bold text-foreground">' + esc(PAPEIS[k]) + "</span><br>" + esc(FRASE_PAPEL[k]) + "</div>"; }).join("") +
-    "</div>" +
-    "</header>" + '<div id="bloco-equipe">' + corpo + "</div>" +
+  return '<section class="space-y-6">' +
+    '<details class="rounded-md border border-border bg-card px-4 py-3 text-sm">' +
+      '<summary class="cursor-pointer font-medium">O que cada nível vê</summary>' +
+      '<div class="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">' +
+        ["visualizacao", "vendedor", "admin", "dono"].map(function (k) { return '<div class="rounded-md border border-border p-3"><span class="font-semibold text-foreground">' + esc(PAPEIS[k]) + "</span><br>" + esc(FRASE_PAPEL[k]) + "</div>"; }).join("") +
+      "</div>" +
+      '<p class="mt-3 text-xs text-muted-foreground">Conta nova entra como Visualização. ' + (ehDono() ? "Você, como dono do sistema, sobe cada pessoa para o nível certo. Quem saiu da empresa: use Tirar acesso." : "Só o dono do sistema muda o nível das pessoas.") + "</p></details>" +
+    '<div id="bloco-equipe">' + corpo + "</div>" +
     (ehAdmin() ? blocoParametros() : "") + "</section>";
 }
 
@@ -5305,11 +5492,7 @@ function telaConta() {
   var nivel = '<div class="flex flex-wrap items-center gap-3"><span class="' + cn(BADGE, "text-foreground border-primary/30 bg-primary/15") + '">' + esc(PAPEIS[S.papel] || "") + "</span>" +
     '<span class="text-sm">' + esc(FRASE_PAPEL[S.papel] || "") + "</span></div>" +
     '<p class="text-sm text-muted-foreground">' + (ehDono() ? 'Você muda o nível das outras pessoas na tela <a href="#/app/equipe" class="font-semibold text-primary underline">Equipe</a>.' : "Para mudar o nível, fale com o dono do sistema.") + "</p>";
-  return '<section class="space-y-7"><header class="border-b border-border pb-7">' +
-    '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Perfil e login</div>' +
-    '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Minha conta</h1>' +
-    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Sua foto, seu nome e como você prefere ser chamado, o e-mail que você usa para entrar e a sua senha. Cada parte tem o seu botão de salvar.</p>' +
-    "</header>" +
+  return '<section class="space-y-6">' +
     '<div class="grid gap-5 lg:grid-cols-2">' +
       blocoConta("user-round", "Foto", foto) + blocoConta("pencil", "Nome e apelido", nome) +
       blocoConta("mail", "E-mail de login", email) + blocoConta("key-round", "Senha", senha) +
@@ -5552,12 +5735,7 @@ function telaInteracoes() {
   if ((S.prospects || []).length) patros.push({ grupo: "Marcas desejo", itens: S.prospects.map(function (m) { return { valor: "p:" + m.id, rotulo: m.nome }; }) });
   var vendedores = [{ valor: "todos", rotulo: "Registrado por qualquer um" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: rotuloPessoa(p) }; }));
   var tipos = [{ valor: "todos", rotulo: "Todos os tipos" }].concat(Object.keys(TIPO_INTERACAO).map(function (k) { return { valor: k, rotulo: TIPO_INTERACAO[k] }; }));
-  return '<section class="space-y-7"><header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
-    '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Relacionamento comercial</div>' +
-    '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Histórico de Interações</h1>' +
-    '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Consulte as conversas registradas e gere abordagens comerciais com base no histórico de cada patrocinador.</p></div>' +
-    '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="nova-interacao">' + icone("message-square-plus") + " Registrar contato</button>" +
-    "</header>" +
+  return '<section class="space-y-6">' +
     '<div id="filtros-inter" class="grid gap-3 sm:grid-cols-3">' +
       selectNativo("filtro-inter-patro", "filtro-inter-patro", patros, f.patro, { className: "h-11 bg-card" }) +
       selectNativo("filtro-inter-vendedor", "filtro-inter-vendedor", vendedores, f.vendedor, { className: "h-11 bg-card" }) +
@@ -5831,24 +6009,17 @@ function telaContratos() {
   var vendedores = [{ valor: "todos", rotulo: "Criado por qualquer um" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: rotuloPessoa(p) }; }));
   var status = [{ valor: "todos", rotulo: "Todos os status" }].concat(Object.keys(STATUS_CONTRATO).map(function (k) { return { valor: k, rotulo: STATUS_CONTRATO[k].label }; }));
   var cartao = function (num, rot, cls) { return '<div class="border border-border bg-card px-5 py-4"><span class="' + cn("block text-3xl font-black leading-none", cls) + '">' + num + '</span><span class="mt-2 block text-xs font-bold uppercase text-muted-foreground">' + rot + "</span></div>"; };
-  return '<section class="space-y-7">' +
-    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
-      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Jurídico e comercial</div>' +
-      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Contratos</h1>' +
-      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Todos os contratos com as marcas, com o PDF guardado, quem assina, vigência e status. Contrato assinado com data de fim atualiza o vencimento do patrocinador e os alertas.</p></div>' +
-      '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="novo-contrato"' + (patro ? ' data-patro="' + esc(patro) + '"' : "") + ">" + icone("plus") + " Novo contrato</button>" +
-    "</header>" +
+  return '<section class="space-y-6">' +
     (patro ? '<div id="filtro-marca-contratos" class="flex flex-col gap-3 border border-primary bg-primary/8 p-4 sm:flex-row sm:items-center sm:justify-between">' +
       '<p class="text-sm">Mostrando só os contratos de <b>' + esc(nomeDoPatroFiltro(patro)) + "</b>.</p>" +
       '<a href="#/app/contratos" class="' + btnCls("outline", "default", "h-8 shrink-0 text-xs font-bold uppercase") + '">' + icone("x") + " Ver de todas as marcas</a></div>" : "") +
     '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
       cartao(n.enviado, "Aguardando assinatura", n.enviado && "text-warning-foreground") + cartao(n.assinado, "Assinados") + cartao(vencendo, "Vencidos ou vencendo em 90 dias", vencendo && "text-destructive") + cartao(n.rascunho, "Rascunhos") +
     "</div>" +
-    '<div id="filtros-contratos" class="grid gap-3 sm:grid-cols-3">' +
+    '<div id="filtros-contratos" class="grid gap-3 sm:grid-cols-[minmax(240px,1fr)_220px]">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
-      '<input id="busca-contrato" aria-label="Buscar contrato" placeholder="Buscar por marca, título ou quem assina" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
-      selectNativo("filtro-contrato-status", "filtro-contrato-status", status, f.status, { className: "h-11 bg-card" }) +
-      selectNativo("filtro-contrato-vendedor", "filtro-contrato-vendedor", vendedores, f.vendedor, { className: "h-11 bg-card" }) +
+      '<input id="busca-contrato" aria-label="Buscar contrato" placeholder="Buscar por marca, título ou quem assina" class="' + cn(INPUT, "h-10 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
+      selectNativo("filtro-contrato-status", "filtro-contrato-status", status, f.status, { className: "h-10 bg-card" }) +
     "</div>" +
     '<div id="bloco-lista-contratos">' + blocoListaContratos() + "</div>" +
   "</section>";
@@ -6047,17 +6218,11 @@ function telaValores() {
         "<span>" + esc(qtdTexto(semValor, "contrato", "contratos")) + " sem valor preenchido: conta" + (semValor > 1 ? "m" : "") + ' na quantidade, mas não na soma. Preencha o valor em <a href="#/app/contratos" class="font-bold underline">Contratos</a>.</span></p>' : "") +
       (lista.length ? "" : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum contrato neste filtro. Troque para Todos os contratos ou outra edição.</p>') +
       secao("valores-por-vendedor", "Por vendedor", "O vendedor da marca na Carteira.", tabelaValores("Vendedor", valoresPorVendedor(lista), s)) +
-      secao("valores-por-edicao", "Por edição", "Contrato sem a edição preenchida entra na edição do espaço vinculado da marca.", tabelaValores("Edição", valoresPorEdicao(lista), s)) +
       secao("valores-espacos", "Espaços pela tabela de preços", "Soma do preço de cada espaço no cadastro. Espaço sem preço conta na quantidade, fora da soma. <b>Guardado para renovar</b> é o espaço disponível que ainda está com a marca que ocupou em 2026.", blocoEspacosValores()) +
       secao("valores-renovacao", "Renovação 2027 da base", "", blocoRenovacaoValores()) +
       secao("valores-abertas", "Maiores negociações abertas", "Os 10 contratos aguardando assinatura ou em rascunho com o maior valor.", blocoMaioresNegociacoes(lista));
   }
-  return '<section class="space-y-7">' +
-    '<header class="border-b border-border pb-7">' +
-      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Só a diretoria</div>' +
-      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Valores</h1>' +
-      '<p class="mt-2 max-w-3xl text-sm text-muted-foreground">Tudo o que está sendo negociado, em R$, somando o valor de cada contrato guardado no painel. Contrato cancelado ou na lixeira não entra. Só a diretoria vê esta tela.</p>' +
-    "</header>" +
+  return '<section class="space-y-6">' +
     '<div id="filtros-valores" class="space-y-2"><div class="flex flex-wrap items-center gap-2">' +
       chip("tipo", "2027", "Contratos 2027") + chip("tipo", "todos", "Todos os contratos") +
       '<span class="hidden h-6 w-px bg-border sm:block"></span>' +
@@ -6288,13 +6453,7 @@ function telaPropriedades() {
   var status = [{ valor: "todos", rotulo: "Todos os status" }, { valor: "pendentes", rotulo: "Só o que falta entregar" }]
     .concat(Object.keys(STATUS_ENTREGA).map(function (k) { return { valor: k, rotulo: STATUS_ENTREGA[k].label }; }));
   var origens = [{ valor: "todas", rotulo: "Toda origem" }].concat(Object.keys(ORIGEM_ENTREGA).map(function (k) { return { valor: k, rotulo: ORIGEM_ENTREGA[k].label }; }));
-  return '<section class="space-y-7">' +
-    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
-      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Entregas por marca</div>' +
-      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Propriedades</h1>' +
-      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Tudo o que foi combinado com cada marca, veio do contrato ou de um acordo depois dele. ' + (podeMexer() ? "Marque o que já foi entregue e veja o que falta." : "Veja o que já foi entregue e o que falta.") + "</p></div>" +
-      (podeMexer() ? '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="nova-entrega">' + icone("plus") + " Nova entrega</button>" : "") +
-    "</header>" +
+  return '<section class="space-y-6">' +
     '<div id="bloco-numeros-entregas" class="space-y-3">' + blocoNumerosEntregas(n, true) + "</div>" +
     '<div id="filtros-entregas" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
@@ -6615,15 +6774,10 @@ function telaMarcas() {
   var vendedores = [{ valor: "todos", rotulo: "Todos os vendedores" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: rotuloPessoa(p) }; }));
   var estagios = [{ valor: "andamento", rotulo: "Em andamento" }, { valor: "todos", rotulo: "Todos os estágios" }].concat(Object.keys(ESTAGIOS).map(function (k) { return { valor: k, rotulo: ESTAGIOS[k].label }; }));
   var mercados = [{ valor: "todos", rotulo: "Todos os mercados" }].concat(Object.keys(MERCADOS).map(function (k) { return { valor: k, rotulo: MERCADOS[k] }; }));
-  return '<section class="space-y-7">' +
-    '<header class="flex flex-col justify-between gap-5 border-b border-border pb-7 sm:flex-row sm:items-end"><div>' +
-      '<div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-primary"><span class="h-1 w-8 bg-primary"></span> Prospecção</div>' +
-      '<h1 class="text-2xl font-black uppercase sm:text-3xl lg:text-4xl">Marcas desejo</h1>' +
-      '<p class="mt-2 max-w-2xl text-sm text-muted-foreground">Marcas que ainda não patrocinam e queremos trazer. Cada uma anda pelo funil até virar patrocinador ou ser perdida.</p></div>' +
-      (podeMexer() ? '<button type="button" class="' + btnCls("default", "lg", "w-full shrink-0 font-bold uppercase sm:w-auto") + '" data-acao="nova-marca">' + icone("plus") + " Nova marca desejo</button>" : "") +
-    "</header>" +
-    '<section class="space-y-2"><h2 class="text-sm font-black uppercase">Por setor</h2><div id="bloco-setores">' + blocoSetores() + "</div></section>" +
-    '<section class="space-y-2"><h2 class="text-sm font-black uppercase">Por estágio do funil</h2><div id="bloco-funil">' + blocoFunil() + "</div></section>" +
+  return '<section class="space-y-6">' +
+    '<section class="space-y-3 rounded-md border border-border bg-card p-4">' +
+      '<h2 class="text-sm font-semibold">Por setor</h2><div id="bloco-setores">' + blocoSetores() + "</div>" +
+      '<h2 class="pt-1 text-sm font-semibold">Por estágio do funil</h2><div id="bloco-funil">' + blocoFunil() + "</div></section>" +
     '<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
       '<input id="busca-marca" aria-label="Buscar marca desejo" placeholder="Buscar por marca, contato ou espaço" class="' + cn(INPUT, "h-11 bg-card pl-10") + '" value="' + esc(f.q) + '"></div>' +
@@ -6641,9 +6795,10 @@ function cartaoMarcaAcao(m) {
   if (m.esfriando) motivos.push(m.ultimoContato ? "sem contato " + textoDias(m.diasParado, false) : "nenhum contato desde que entrou no funil, " + textoDias(m.diasParado, false));
   var nomeVendM = nomePessoa(m.vendedorUid, m.vendedorNome);
   var vend = nomeVendM ? esc(nomeVendM) : '<span class="text-muted-foreground">sem responsável</span>';
-  return '<article class="' + cn("border border-border bg-card px-4 py-3", m.atrasada ? "alerta-vermelho" : "alerta-amarelo") + '">' +
-    '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">' +
-      '<div class="min-w-0"><h3 class="break-words font-bold">' + esc(m.nome) + ' <span class="font-normal text-muted-foreground">· ' + esc(ESTAGIOS[m.estagio].label) + "</span></h3>" +
+  return '<article class="cartao-alerta">' +
+    '<span class="ponto mt-[7px]" style="background:' + (m.atrasada ? "var(--destructive)" : "var(--warning)") + '"></span>' +
+    '<div class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">' +
+      '<div class="min-w-0"><h3 class="break-words font-semibold">' + esc(m.nome) + ' <span class="font-normal text-muted-foreground">· ' + esc(ESTAGIOS[m.estagio].label) + "</span></h3>" +
       '<p class="mt-0.5 text-sm text-muted-foreground">' + esc(motivos.join(" · ")) + " · Vendedor: " + vend + "</p></div>" +
       '<div class="flex shrink-0 flex-wrap gap-2">' +
         (podeMexer() ? '<button type="button" class="' + btnCls("outline", "default", "h-8 text-xs font-bold uppercase") + '" data-acao="nova-interacao" data-patro="p:' + esc(m.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" : "") +
@@ -7057,9 +7212,9 @@ var TITULOS = {
   "/auth": "Entrar — Painel Comercial Festival Interlagos",
   "/app/inicio": "Início — Painel Comercial Festival Interlagos",
   "/app/renovacao": "Renovação 2027 — Painel Comercial Festival Interlagos",
-  "/app/espacos": "Painel de Espaços — Painel Comercial Festival Interlagos",
-  "/app/patrocinadores": "Cadastro de Patrocinador — Painel Comercial Festival Interlagos",
-  "/app/interacoes": "Histórico de Interações — Painel Comercial Festival Interlagos",
+  "/app/espacos": "Espaços — Painel Comercial Festival Interlagos",
+  "/app/patrocinadores": "Carteira — Painel Comercial Festival Interlagos",
+  "/app/interacoes": "Interações — Painel Comercial Festival Interlagos",
   "/app/marcas": "Marcas desejo — Painel Comercial Festival Interlagos",
   "/app/contratos": "Contratos — Painel Comercial Festival Interlagos",
   "/app/propriedades": "Propriedades — Painel Comercial Festival Interlagos",
@@ -7248,7 +7403,7 @@ var OPCOES_STATUS = [{ valor: "disponivel", rotulo: "Disponível" }, { valor: "r
 // tutorial, fechar janela, sair). Abrir o PDF do contrato fica de fora de proposito.
 var AVISO_SO_VER = "Seu acesso é só de visualização.";
 var ACOES_DE_LEITURA = {
-  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
+  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
@@ -7678,6 +7833,10 @@ document.addEventListener("click", async function (ev) {
     return;
   }
   if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
+  if (acao === "mais") { S.maisAberto = !S.maisAberto; render(); return; }
+  if (acao === "lista-espacos") { S.listaEspacos = !S.listaEspacos; render(); return; }
+  if (acao === "filtro-espaco") { trocarParametro("status", alvo.getAttribute("data-filtro")); render(); return; }
+  if (acao === "alerta-aba") { S.alertaAba = alvo.getAttribute("data-aba") || "meus"; render(); return; }
   if (acao === "tema") { mudarTema(temaValendo() === "escuro" ? "claro" : "escuro"); return; }
   if (acao === "tema-escolher") { mudarTema(alvo.getAttribute("data-tema")); return; }
   if (acao === "edicao-global") {
@@ -8209,7 +8368,8 @@ document.addEventListener("keydown", function (ev) {
   if (S.detalhe) { S.detalhe = null; render(); return; }
   if (S.ampliada) { S.ampliada = null; render(); }
 });
-window.addEventListener("hashchange", render);
+// trocou de tela: a gaveta "Mais" do celular fecha sozinha
+window.addEventListener("hashchange", function () { S.maisAberto = false; render(); });
 window.addEventListener("resize", fecharMenu);
 window.addEventListener("scroll", fecharMenu, true);
 
