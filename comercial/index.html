@@ -343,7 +343,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-18.10";
+var VERSAO = "2026-09-21.1";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -1144,20 +1144,12 @@ async function getSpaces() {
 
 async function getSpacesOverview() {
   var r;
-  // marcas desejo so para saber quais estao na lixeira: o contato de marca na lixeira some da
-  // atividade recente, mesmo quando esta leitura chega antes de qualquer outra da prospeccao
-  try { r = await Promise.all([API.listar("patrocinadores"), API.listar("espacos"), podeVerConversas() ? API.listar("interacoes") : Promise.resolve([]),
-    podeVerConversas() ? API.listar("prospeccao").catch(function () { return null; }) : Promise.resolve(null)]); }
+  try { r = await Promise.all([API.listar("patrocinadores"), API.listar("espacos")]); }
   catch (e) { throw new Error("Não foi possível calcular os indicadores."); }
-  var nomes = {};
-  r[0].forEach(function (p) { nomes[p.id] = p.nome; });
   return {
     patrocinadoresEmRisco: r[0].filter(function (p) { return p.status === "em_risco_de_renovacao"; }).length,
     espacosDisponiveis: r[1].filter(function (e) { return e.status === "disponivel"; }).length,
     patrocinadoresAtivos: r[0].filter(function (p) { return p.status === "ativo"; }).length,
-    atividadeRecente: r[2].filter(function (i) { return !daMarcaNaLixeira(i); }).sort(porDataDesc).slice(0, 10).map(function (i) {
-      return { id: i.id, data: i.data, observacao: i.observacao, patrocinador: nomes[i.patrocinador_id] || "Patrocinador" };
-    }),
   };
 }
 
@@ -3801,27 +3793,11 @@ function filtroAtual() {
 function blocoVisaoGeral() {
   if (S.overviewErro) return errorList(S.overviewErro, "recarregar-overview", S.overviewCarregando);
   var o = S.overview;
+  // so os tres numeros: a lista de conversas recentes saiu daqui (mora no Historico de Interacoes)
   var numeros = o
     ? indicador("Patrocinadores em risco de renovação", o.patrocinadoresEmRisco, true) + indicador("Espaços disponíveis", o.espacosDisponiveis) + indicador("Patrocinadores ativos", o.patrocinadoresAtivos)
     : '<div class="' + SKELETON + ' h-24 w-full rounded-none"></div><div class="' + SKELETON + ' h-24 w-full rounded-none"></div><div class="' + SKELETON + ' h-24 w-full rounded-none"></div>';
-  var lista;
-  if (!o) {
-    lista = '<div role="status" aria-live="polite" aria-busy="true" class="space-y-3 p-4"><span class="sr-only">Carregando atividade recente...</span>' +
-      '<div class="' + SKELETON + ' h-12 w-full rounded-none"></div><div class="' + SKELETON + ' h-12 w-full rounded-none"></div><div class="' + SKELETON + ' h-12 w-full rounded-none"></div></div>';
-  } else if (!o.atividadeRecente.length) {
-    lista = '<p class="px-4 py-8 text-center text-sm text-muted-foreground">Nenhuma interação registrada ainda</p>';
-  } else {
-    lista = '<ul class="divide-y divide-border">' + o.atividadeRecente.map(function (item) {
-      return '<li class="px-4 py-4 sm:px-5"><div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">' +
-        '<span class="break-words font-bold">' + esc(item.patrocinador) + "</span>" +
-        '<span class="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">' + icone("calendar-days", "size-3.5") + " " + esc(formatDateTime(item.data)) + "</span></div>" +
-        '<p class="mt-1.5 line-clamp-2 break-words text-sm text-muted-foreground">' + esc(item.observacao) + "</p></li>";
-    }).join("") + "</ul>";
-  }
-  // atividade recente sao as conversas registradas: Visualizacao nao ve o historico
-  return '<div class="grid gap-3 sm:grid-cols-3">' + numeros + "</div>" +
-    (podeVerConversas() ? '<div class="border border-border bg-card"><div class="flex items-center gap-2 border-b border-border px-4 py-4 sm:px-5">' + icone("history", "size-4 text-primary") +
-    '<h2 class="text-sm font-black uppercase">Atividade recente</h2></div>' + lista + "</div>" : "");
+  return '<div class="grid gap-3 sm:grid-cols-3">' + numeros + "</div>";
 }
 
 function blocoListaEspacos() {
@@ -7929,6 +7905,22 @@ window.addEventListener("resize", fecharMenu);
 window.addEventListener("scroll", fecharMenu, true);
 
 /* ------------------------------------------------------------------- inicio */
+// Aviso de versao nova: o painel e uma pagina so e nao recarrega sozinho, e o navegador guarda a
+// versao antiga por um tempo. A cada 5 minutos confere a versao publicada; se mudou, avisa e
+// oferece atualizar (o aviso fica 10 minutos e volta na proxima conferencia se ninguem clicar).
+var avisandoVersao = false;
+function conferirVersao() {
+  if (avisandoVersao || MODO_TESTE) return;
+  fetch("index.html?v=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : ""; }).then(function (t) {
+    var m = t.match(/var VERSAO = "([^"]+)"/);
+    if (!m || m[1] === VERSAO) return;
+    avisandoVersao = true;
+    setTimeout(function () { avisandoVersao = false; }, 600000);
+    toast("success", "Tem uma versão nova do painel.", { rotulo: "Atualizar", ms: 600000, fn: function () { location.reload(); } });
+  }).catch(function () {});
+}
+setInterval(conferirVersao, 5 * 60 * 1000);
+
 (async function iniciar() {
   render();
   try {
