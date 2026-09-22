@@ -420,6 +420,11 @@
   .linha-contrato-aberta{background:var(--muted)}
   .linha-contrato-aberta .linha-contrato-topo{background:transparent}
   .linha-contrato-corpo{padding-left:14px}
+  /* ---- Carteira: o que ainda nao foi preenchido ---- */
+  .celula-vazia{color:var(--muted-foreground);opacity:.55}
+  .aviso-cadastro{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius);
+    font-size:13px;background:var(--ambar-fraco);color:var(--foreground);border:1px solid var(--warning)}
+  @media (max-width:640px){ .aviso-cadastro{flex-wrap:wrap} }
   /* ---- Carteira: a tabela de 5 colunas cabe sem rolar de lado ---- */
   table.tabela-carteira{min-width:0}
   table.tabela-carteira td:nth-child(2){max-width:14rem}
@@ -668,7 +673,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.2";
+var VERSAO = "2026-09-22.3";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -5633,6 +5638,21 @@ function patrocinadoresFiltrados() {
 
 // Os quatro numeros da Carteira: total, quem esta ativo, quem esta em risco e quem ainda nao tem
 // dono. Os tres ultimos filtram a lista embaixo.
+// Quando quase toda a carteira esta pela metade, alguem precisa dizer isso UMA vez e oferecer a
+// saida, em vez de deixar a pessoa descobrir rolando 69 linhas iguais.
+function blocoAvisoCadastro() {
+  if (!S.sponsors || !podeMexer()) return "";
+  var base = S.sponsors.filter(function (p) { return passaEdicao(edicoesDaMarca(p)); });
+  if (base.length < 5) return "";
+  var semDono = base.filter(function (p) { return !p.vendedorUid && !p.atendimentoUid; }).length;
+  if (semDono < Math.ceil(base.length / 2)) return ""; // so aparece quando e a regra, nao a excecao
+  return '<div class="aviso-cadastro">' + icone("triangle-alert", "size-4 shrink-0") +
+    '<span class="min-w-0 flex-1">' + semDono + " das " + base.length + " marcas desta edição ainda estão sem vendedor e sem atendimento. " +
+      "Enquanto ninguém cuidar delas, elas não entram em nenhuma lista de <b>Minhas marcas</b> nem geram alerta.</span>" +
+    '<a href="#/app/renovacao" class="' + btnCls("outline", "default", "h-8 shrink-0 gap-1.5 text-xs font-medium") + '">' + icone("list-checks", "size-4") + " Definir na Renovação 2027</a>" +
+  "</div>";
+}
+
 function blocoNumerosCarteira() {
   if (!S.sponsors) return "";
   var base = S.sponsors.filter(function (p) { return passaEdicao(edicoesDaMarca(p)); });
@@ -5654,8 +5674,10 @@ function blocoListaPatrocinadores() {
   if (!S.sponsors.length) return emptyList("handshake", "Nenhum patrocinador cadastrado ainda", podeMexer() ? "Use o botão Novo patrocinador para cadastrar o primeiro." : "");
   var lista = patrocinadoresFiltrados();
   if (!lista.length) return emptyList("handshake", "Nenhum patrocinador encontrado", "Ajuste a busca ou os filtros.");
-  var semEspaco = '<span class="text-muted-foreground">Sem espaço</span>';
-  var semVendedor = '<span class="text-muted-foreground">Ninguém ainda</span>';
+  // Nada escrito onde nao ha dado: com 69 marcas, "Sem espaço" repetido 69 vezes vira barulho.
+  // O traco diz "em branco" sem competir com a informacao de verdade.
+  var vazio = '<span class="celula-vazia" title="Ainda não preenchido">—</span>';
+  var semEspaco = vazio, semVendedor = vazio;
   var th = function (cls, txt) { return '<th class="' + cn(TH, cls) + '">' + txt + "</th>"; };
   // Visualizacao: sem lapis e sem a data do ultimo contato (vem do historico de conversas)
   var mexe = podeMexer();
@@ -5663,20 +5685,21 @@ function blocoListaPatrocinadores() {
     if (!mexe) return "";
     return '<button type="button" class="' + btnCls("ghost", "icon") + '" aria-label="Editar ' + esc(p.nome) + '" title="Editar patrocinador" data-acao="editar-patro" data-id="' + esc(p.id) + '">' + icone("pencil") + "</button>";
   };
-  var ultimoContato = function (p) { return podeVerConversas() ? (p.ultimoContato ? "contato " + esc(textoDias(-diasAte(p.ultimoContato), false)) : "sem contato") : ""; };
+  // o selo ao lado ja diz "Sem contato" como situacao da renovacao; aqui e o historico de conversas
+  var ultimoContato = function (p) { return podeVerConversas() ? (p.ultimoContato ? "falou " + esc(textoDias(-diasAte(p.ultimoContato), false)) : "nenhuma conversa registrada") : ""; };
   // quem cuida da marca: vendedor e atendimento numa coluna so
   var quemCuida = function (p) {
     var v = nomePessoa(p.vendedorUid, p.responsavelComercial), a = nomePessoa(p.atendimentoUid, p.atendimentoNome);
-    if (!v && !a) return semVendedor;
-    return '<span class="block">' + (v ? esc(v) : '<span class="text-muted-foreground">sem vendedor</span>') + "</span>" +
-      '<span class="block text-xs text-muted-foreground">' + (a ? esc(a) + " no atendimento" : "sem atendimento") + "</span>";
+    if (!v && !a) return vazio;
+    return '<span class="block">' + (v ? esc(v) : '<span class="celula-vazia">sem vendedor</span>') + "</span>" +
+      (a ? '<span class="block text-xs text-muted-foreground">' + esc(a) + " no atendimento</span>" : "");
   };
   var linhas = lista.map(function (p) {
     var detail = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
     return '<tr class="' + cn(TR, p.status === "em_risco_de_renovacao" && "bg-primary/8 hover:bg-primary/12") + '">' +
       '<td class="' + cn(TD, "px-5 py-4 font-semibold") + '"><div class="flex flex-wrap items-center gap-2"><button type="button" class="text-left hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button>" + (p.master ? badgeMaster() : "") + "</div>" +
         '<div class="text-xs font-normal text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + (p.setor ? " · " + esc(SETORES[p.setor]) : "") + resumoCombinados(p.id) + "</div></td>" +
-      '<td class="' + cn(TD, "truncate") + '" title="' + esc(p.contato) + '">' + (p.contato ? esc(p.contato) : '<span class="text-muted-foreground">Sem contato</span>') + "</td>" +
+      '<td class="' + cn(TD, "truncate") + '" title="' + esc(p.contato) + '">' + (p.contato ? esc(p.contato) : vazio) + "</td>" +
       '<td class="' + TD + '">' + (p.espacoVinculado ? esc(p.espacoVinculado) : semEspacoFisico(p) ? badge(SELO_SEM_ESPACO, "whitespace-nowrap") + (textoContratou(p) ? '<div class="mt-1 truncate text-xs text-muted-foreground" title="' + esc(textoContratou(p)) + '">' + esc(textoContratou(p)) + "</div>" : "") : semEspaco) + "</td>" +
       '<td class="' + TD + '">' + quemCuida(p) + "</td>" +
       '<td class="' + TD + '"><div class="flex flex-wrap items-center gap-1.5">' + badge(detail, "shrink-0 whitespace-nowrap") + badge(RENOVACAO[p.renovacao], "shrink-0 whitespace-nowrap") + "</div>" +
@@ -5714,6 +5737,7 @@ function telaPatrocinadores() {
   var ligados = !!(f.q.trim() || f.status !== "todos" || f.cuida !== "todos" || f.renov !== "todos" || f.tipoMarca !== "todos" || f.prazo !== "todos" || f.setor !== "todos");
   return '<section class="space-y-6">' +
     '<div id="numeros-patro">' + blocoNumerosCarteira() + "</div>" +
+    blocoAvisoCadastro() +
     barraDeFiltros("filtros-patro",
       campoBusca("busca-patro", "Buscar por nome, contato ou espaço", f.q) +
       selectNativo("filtro-status", "filtro-status", [{ valor: "todos", rotulo: "Todos os status" }].concat(Object.keys(STATUS_PATROCINADOR).map(function (k) { return { valor: k, rotulo: STATUS_PATROCINADOR[k].label }; })), f.status, { className: "h-10 bg-card" }) +
