@@ -431,6 +431,13 @@
   .selo-divisao-falta{background:transparent;color:var(--muted-foreground);border:1px dashed var(--border)}
   @media (min-width:640px){.sm\:col-span-2{grid-column:span 2 / span 2}}
   .resumo-grupos{font-size:13px;color:var(--muted-foreground);margin:0 0 10px}
+  .chips-cobertas{display:flex;flex-wrap:wrap;gap:6px}
+  .chip-coberta{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--primary);border-radius:999px;
+    padding:3px 10px;font-size:12px;background:var(--primary-fraco,transparent);color:var(--foreground);cursor:pointer;font-family:inherit}
+  .chip-coberta-add{border-style:dashed;border-color:var(--border);color:var(--muted-foreground);background:transparent}
+  .selo-coberta{display:inline-flex;align-items:center;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:600;
+    white-space:nowrap;border:1px solid var(--primary);color:var(--foreground)}
+  .size-3{width:.75rem;height:.75rem}
   .selo-grupo{border:1px solid var(--border);border-radius:999px;padding:1px 9px;font-size:11px;
     color:var(--muted-foreground);background:transparent;cursor:pointer;font-family:inherit;white-space:nowrap}
   .selo-grupo:hover{border-color:var(--primary);color:var(--foreground)}
@@ -742,7 +749,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.13";
+var VERSAO = "2026-09-22.15";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -2130,6 +2137,7 @@ async function getContracts() {
         // quando alguem cancela o envio pelo painel (a funcao grava o e-mail de quem cancelou)
         canceladoEm: c.assinatura.cancelado_em || "", canceladoPor: c.assinatura.cancelado_por || "",
       } : null,
+      cobertos: Array.isArray(c.patrocinadores_cobertos) ? c.patrocinadores_cobertos.filter(Boolean) : [],
       arquivoPath: c.arquivo_path || "", arquivoNome: c.arquivo_nome || "",
       // PDF de antes da assinatura: so existe quando a DocuSign devolveu o contrato assinado
       arquivoOriginalPath: c.arquivo_original_path || "",
@@ -2152,7 +2160,11 @@ async function getContracts() {
     };
   }).sort(function (a, b) { return (b.updatedAt || "").localeCompare(a.updatedAt || ""); });
 }
-function contratosDe(patroId) { return (S.contracts || []).filter(function (c) { return c.patrocinadorId === patroId; }); }
+// Este e o ponto unico que liga contrato e marca. Com "cobertos" aqui dentro, a Renovacao, os
+// alertas, a ficha e a tela de Contratos passam a enxergar a marca coberta sem mexer em cada uma.
+function contratoCobre(c, patroId) { return c.patrocinadorId === patroId || (c.cobertos || []).indexOf(patroId) >= 0; }
+function ehCoberta(c, patroId) { return c.patrocinadorId !== patroId && (c.cobertos || []).indexOf(patroId) >= 0; }
+function contratosDe(patroId) { return (S.contracts || []).filter(function (c) { return contratoCobre(c, patroId); }); }
 
 // "Nome, e-mail" por linha vira lista de quem assina. Vale so nome, sem e-mail.
 function lerSignatarios(texto) {
@@ -2252,6 +2264,8 @@ async function saveContract(data, arquivo, arquivoPronto) {
     desconto: desc, desconto_motivo: String(data.descontoMotivo || "").trim().slice(0, 200),
     vendedor_uid: dono ? dono.vendedorUid || null : null, atendimento_uid: dono ? dono.atendimentoUid || null : null,
     edicao: EDICOES_IDS.indexOf(data.edicao) >= 0 ? data.edicao : "",
+    patrocinadores_cobertos: (Array.isArray(data.cobertos) ? data.cobertos : [])
+      .filter(function (x) { return x && x !== data.patrocinadorId; }).slice(0, 20),
     signatarios: Array.isArray(data.signatarios) ? limparAssinantes(data.signatarios) : lerSignatarios(data.signatarios), observacao: String(data.observacao || "").trim().slice(0, 1000),
   };
   if (arquivoPronto && arquivoPronto.path) { payload.arquivo_path = arquivoPronto.path; payload.arquivo_nome = arquivoPronto.nome; }
@@ -2393,7 +2407,7 @@ async function lerPdfDoContrato(caminho) {
     '"valores":{"exposicao":número ou null,"merchandising":número ou null,"hospitalidade":número ou null,"desconto":número ou null},' +
     '"empresa":{"razao_social":"razão social da patrocinadora","cnpj":"CNPJ da patrocinadora, ou vazio","endereco":"endereço da patrocinadora em uma linha, ou vazio"},' +
     '"entregas":[{"descricao":"o que o evento entrega, curto","quantidade":número ou null,' +
-    '"categoria":"espaco|credenciais|midia|hospitalidade|ativacao|outro","prazo":"AAAA-MM-DD ou vazio",' +
+    '"categoria":"espaco|credenciais|midia|hospitalidade|ativacao|outro","prazo":"AAAA-MM-DD ou vazio","marca":"a marca dona desta entrega, ou vazio",' +
     '"trecho":"a frase do contrato que comprova este item"}]}\n\n' +
     "quantidade é só a quantidade de coisas entregues, como 300 ingressos, 6 posts, 1 camarote. Metragem, área, porcentagem e duração não são quantidade: vão escritas na descrição. Quantidade por extenso vira número.\n" +
     "prazo só quando o contrato dá uma data. Prazo contado a partir da assinatura ou do fim do evento fica vazio, e essa condição entra na descrição.\n" +
@@ -2416,6 +2430,8 @@ async function lerPdfDoContrato(caminho) {
     "assinantes são as pessoas que assinam nas duas pontas, com o nome como está escrito. Se o contrato não trouxer e-mail, deixe o e-mail vazio.\n" +
     "patrocinadora é a empresa que está patrocinando, não a organizadora do evento. Copie a razão social como está no contrato.\n" +
     "empresa traz os dados de faturamento da patrocinadora, nunca os da organizadora. Se o contrato não trouxer o CNPJ ou o endereço, deixe vazio.\n" +
+    "marca só quando o contrato cobre MAIS DE UMA marca e diz de quem é cada entrega (por exemplo \"à MINI caberá\"). " +
+    "Contrato de uma marca só: deixe marca vazia em todos os itens.\n" +
     "valores só existe quando o contrato QUEBRA o valor total em partes, com os números escritos lá. " +
     "exposicao é o espaço em si: box, estande, área, metragem. " +
     "hospitalidade é camarote, hotel, transfer e alimentação de convidado. " +
@@ -2475,6 +2491,18 @@ function fecharDivisaoProposta(prop, total) {
 
 // Grava em Propriedades o que a leitura trouxe. pularCabecalho serve para quando a
 // pessoa ja conferiu vigencia e valor na tela antes de salvar.
+// contrato que cobre mais de uma marca: a entrega vai para a marca que a IA leu, quando bate
+function marcaDaEntrega(c, it) {
+  var nome = String((it && it.marca) || "").trim();
+  if (!nome) return c.patrocinadorId;
+  var candidatas = [c.patrocinadorId].concat(c.cobertos || []);
+  if (candidatas.length < 2) return c.patrocinadorId;
+  var achou = candidatas.find(function (id) {
+    var m = (S.sponsors || []).find(function (x) { return x.id === id; });
+    return m && marcaBate(m.nome, nome) === true;
+  });
+  return achou || c.patrocinadorId;
+}
 async function gravarEntregasLidas(c, dados, pularCabecalho) {
   var itens = (dados && dados.entregas) || [];
   // dados de faturamento: preenche so o que a marca ainda nao tem, e diz de onde veio
@@ -2509,7 +2537,7 @@ async function gravarEntregasLidas(c, dados, pularCabecalho) {
     if (repetida) { repetidos++; pulados.push(desc); continue; }
     try {
       var criado = await API.criar("combinados", {
-        patrocinador_id: c.patrocinadorId, prospeccao_id: null,
+        patrocinador_id: marcaDaEntrega(c, it), prospeccao_id: null,
         descricao: desc, status: "a_conferir", origem: "contrato",
         categoria: CATEGORIA_ENTREGA[it.categoria] ? it.categoria : "outro",
         quantidade: qtd,
@@ -2971,7 +2999,7 @@ function edicoesDaMarca(p) {
     var v = (S.spaces || []).find(function (e) { return e.id === p.espacoVinculadoId; });
     if (v) juntaEdicao(eds, v.edicao);
   }
-  (S.contracts || []).forEach(function (c) { if (c.patrocinadorId === p.id) juntaEdicao(eds, c.edicao); });
+  (S.contracts || []).forEach(function (c) { if (contratoCobre(c, p.id)) juntaEdicao(eds, c.edicao); });
   return eds;
 }
 function edicoesDaMarcaDesejo(m) {
@@ -3038,10 +3066,18 @@ function respostaDe(p) {
 // as marcas que aparecem no seletor de Contratos: as que tem contrato guardado, em ordem
 function marcasDosContratos() {
   var vistos = {}, itens = [];
+  var por = function (id, rotulo, coberta) {
+    if (!id || vistos[id]) return;
+    vistos[id] = 1;
+    itens.push({ valor: id, rotulo: rotulo + (coberta ? " (coberta)" : "") });
+  };
   (S.contracts || []).forEach(function (c) {
-    if (!c.patrocinadorId || vistos[c.patrocinadorId]) return;
-    vistos[c.patrocinadorId] = 1;
-    itens.push({ valor: c.patrocinadorId, rotulo: c.patrocinador || "sem nome" });
+    por(c.patrocinadorId, c.patrocinador || "sem nome", false);
+    // quem so aparece como coberta tambem entra, senao o contrato dela fica invisivel
+    (c.cobertos || []).forEach(function (id) {
+      var m = (S.sponsors || []).find(function (x) { return x.id === id; });
+      por(id, m ? m.nome : "sem nome", true);
+    });
   });
   itens.sort(function (a, b) { return a.rotulo.localeCompare(b.rotulo, "pt-BR"); });
   return [{ valor: "", rotulo: "Todas as marcas" }].concat(itens);
@@ -4992,6 +5028,7 @@ function casca(conteudo, caminho) {
     "</div>" +
     (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto && !S.formEntrega.aberto ? dialogoFicha() : "") +
     (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto && !S.formEntrega.aberto ? dialogoFichaProspeccao() : "") +
+    (S.cobertasAberto ? dialogoCobertas() : "") +
     (S.grupoDaMarca.aberto ? dialogoGrupoDaMarca() : "") +
     (S.escolherMarcas.aberto ? dialogoEscolherMarcas() : "") +
     (S.formGrupo.aberto ? dialogoGrupo() : "") +
@@ -6978,7 +7015,15 @@ function linhaContrato(c) {
   var venc = c.status !== "cancelado" && c.diasParaVencer !== null
     ? (c.diasParaVencer < 0 ? '<span class="text-destructive">venceu ' + esc(textoDias(-c.diasParaVencer, false)) + "</span>" : c.diasParaVencer <= 90 ? '<span class="text-warning-foreground">vence ' + esc(textoDias(c.diasParaVencer, true)) + "</span>" : "")
     : "";
-  var alertas = [divergenciasContrato(c).length ? '<span class="text-warning-foreground">o PDF diz outra coisa</span>' : "",
+  var patroFiltro = patroFiltroContratos();
+  var coberta = patroFiltro && ehCoberta(c, patroFiltro);
+  var nomesCobertos = (c.cobertos || []).map(function (id) {
+    var m = (S.sponsors || []).find(function (x) { return x.id === id; });
+    return m ? m.nome : "";
+  }).filter(Boolean);
+  var alertas = [coberta ? '<span class="text-muted-foreground">o valor está no contrato de ' + esc(c.patrocinador) + "</span>" : "",
+    !coberta && nomesCobertos.length ? '<span class="text-muted-foreground">cobre também: ' + esc(nomesCobertos.join(", ")) + "</span>" : "",
+    divergenciasContrato(c).length ? '<span class="text-warning-foreground">o PDF diz outra coisa</span>' : "",
     c.status === "enviado" ? '<span class="text-warning-foreground">na DocuSign</span>' : "",
     c.arquivoPath ? "" : '<span class="text-muted-foreground">sem PDF</span>'].filter(Boolean).join(" · ");
   return '<div class="' + cn("linha-contrato", aberto && "linha-contrato-aberta") + '">' +
@@ -6987,7 +7032,7 @@ function linhaContrato(c) {
       '<span class="min-w-0 flex-1">' +
         '<span class="block truncate text-sm font-semibold">' + esc(c.patrocinador || "Sem marca") + ' <span class="font-normal text-muted-foreground">· ' + esc(c.titulo) + "</span></span>" +
         '<span class="block truncate text-xs text-muted-foreground">' + [periodo ? esc(periodo) : "", c.valor ? esc(formatCurrency(c.valor)) : "", venc, alertas].filter(Boolean).join(" · ") + "</span>" +
-      "</span>" + seloDivisao(c) + badge(st, "shrink-0 whitespace-nowrap") + "</button>" +
+      "</span>" + (coberta ? '<span class="selo-coberta">Coberta</span>' : seloDivisao(c)) + badge(st, "shrink-0 whitespace-nowrap") + "</button>" +
     (aberto ? '<div class="linha-contrato-corpo">' + cartaoContrato(c, true, true) + "</div>" : "") +
   "</div>";
 }
@@ -7103,7 +7148,7 @@ function nomeDoPatroFiltro(id) {
 function contratosDaMarcaFiltrada() {
   var patro = patroFiltroContratos();
   // a edicao escolhida no topo vale aqui: assim os numeros e a lista contam a mesma coisa
-  return (S.contracts || []).filter(function (c) { return (!patro || c.patrocinadorId === patro) && passaEdicao(c.edicao ? [c.edicao] : []); });
+  return (S.contracts || []).filter(function (c) { return (!patro || contratoCobre(c, patro)) && passaEdicao(c.edicao ? [c.edicao] : []); });
 }
 // Tudo menos o status: e deste recorte que saem os quatro numeros do topo (que sao a
 // divisao por status) e, com o status junto, a lista.
@@ -7518,6 +7563,27 @@ function blocoConfereMarca(patroIdEscolhido) {
 }
 
 // Bloco da divisao do valor dentro do formulario de contrato.
+// o que esta escolhido agora no formulario (ainda nao salvo)
+function cobertosDoForm() {
+  if (S.formContrato.cobertos) return S.formContrato.cobertos;
+  var c = S.formContrato.contrato;
+  return c && c.cobertos ? c.cobertos.slice() : [];
+}
+function blocoCobertosContrato(v) {
+  var lista = cobertosDoForm();
+  var chip = function (id) {
+    var m = (S.sponsors || []).find(function (x) { return x.id === id; });
+    return '<button type="button" class="chip-coberta" data-acao="tirar-coberta" data-id="' + esc(id) + '" title="Tirar deste contrato">' + esc(m ? m.nome : "Marca") + icone("x", "size-3") + "</button>";
+  };
+  return '<div class="space-y-2"><label class="' + LABEL + '">Também neste contrato <span class="text-muted-foreground">(opcional)</span></label>' +
+    '<div class="chips-cobertas">' + lista.map(chip).join("") +
+      '<button type="button" class="chip-coberta chip-coberta-add" data-acao="escolher-cobertas">' + icone("plus", "size-3") + "Escolher marcas</button></div>" +
+    '<p class="text-[11px] leading-snug text-muted-foreground">' +
+      (lista.length
+        ? "O valor fica inteiro aqui, na marca principal. Quem está nesta lista passa a aparecer com contrato, mas <b>não soma dinheiro de novo</b>."
+        : "Use só quando um contrato cobre mais de uma marca, como BMW e Mini no mesmo documento. Se foram dois contratos, deixe vazio.") +
+    "</p></div>";
+}
 function blocoDivisaoContrato(v) {
   var d = (v && v.divisao) || {};
   var campo = function (k) {
@@ -7727,6 +7793,7 @@ function dialogoContrato() {
           : '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-arquivo">PDF do contrato' + (c && c.arquivoNome ? " (trocar)" : "") + '</label><input id="contrato-arquivo" name="arquivo" type="file" accept="application/pdf,.pdf" class="' + cn(INPUT, "py-1.5") + '">' +
             (c && c.arquivoNome ? '<p class="text-xs text-muted-foreground">Guardado: ' + esc(c.arquivoNome) + "</p>" : '<p class="text-xs text-muted-foreground">Até 20 MB. Pode deixar sem PDF em rascunho.</p>') + "</div>") +
       "</div>" +
+      blocoCobertosContrato(v) +
       blocoDivisaoContrato(v) +
       blocoAssinantes(v.signatarios) +
       '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-obs">Observação (opcional)</label><textarea id="contrato-obs" name="observacao" rows="2" maxlength="1000" placeholder="Ex.: minuta aprovada pelo jurídico em 15/09" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(v.observacao || "") + "</textarea></div>" +
@@ -8007,6 +8074,31 @@ function blocoGrupoFicha(p) {
 }
 
 // escolher o grupo de UMA marca (o contrario do Escolher marcas, que parte do grupo)
+function dialogoCobertas() {
+  var atual = cobertosDoForm();
+  var principal = S.formContrato.contrato ? S.formContrato.contrato.patrocinadorId : String((document.getElementById("contrato-patro") || {}).value || "");
+  var q = String(S.cobertasBusca || "").trim();
+  var todas = (S.sponsors || []).filter(function (p) { return p.id !== principal; })
+    .sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
+  var achadas = q ? todas.filter(function (p) { return chaveMarca(p.nome).indexOf(chaveMarca(q)) >= 0; }) : todas;
+  var linha = function (p) {
+    var on = atual.indexOf(p.id) >= 0;
+    var g = p.grupoId ? grupoPorId(p.grupoId) : null;
+    return '<button type="button" class="' + cn("linha-escolher", on && "linha-escolher-on") + '" data-acao="mexer-coberta" data-id="' + esc(p.id) + '">' +
+      '<span class="min-w-0 flex-1 text-left"><span class="block truncate text-sm font-semibold">' + esc(p.nome) + "</span>" +
+      (g ? '<span class="block text-xs text-muted-foreground">' + esc(g.nome) + "</span>" : "") + "</span>" +
+      (on ? icone("check", "size-4 shrink-0 text-success") : "") + "</button>";
+  };
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-cobertas"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-cob" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-cob" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">Marcas neste contrato</h2>' +
+        '<p class="text-sm text-muted-foreground">Marque as outras marcas que este mesmo documento cobre. O dinheiro continua contando uma vez só.</p></div>' +
+      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+        '<input id="busca-cobertas" placeholder="Buscar marca" autocomplete="off" class="' + cn(INPUT, "h-10 pl-9") + '" value="' + esc(q) + '"></div>' +
+      '<div class="lista-escolher">' + (achadas.length ? achadas.map(linha).join("") : '<p class="p-4 text-center text-sm text-muted-foreground">Nenhuma marca com esse nome.</p>') + "</div>" +
+      '<div class="flex justify-end"><button type="button" class="' + btnCls("default", "default", "font-bold uppercase") + '" data-acao="fechar-cobertas">Pronto</button></div>' +
+    "</div>";
+}
 function dialogoGrupoDaMarca() {
   var pid = S.grupoDaMarca.patroId;
   var p = (S.sponsors || []).find(function (x) { return x.id === pid; });
@@ -9010,7 +9102,7 @@ var ACOES_DE_LEITURA = {
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
-  "divisao-propriedades": 1, "abrir-contrato-divisao": 1, "carteira-visao": 1, "fechar-form-grupo": 1, "fechar-escolher-marcas": 1, "grupo-da-marca": 1, "fechar-grupo-da-marca": 1, "filtrar-por-grupo": 1, "recarregar-grupos": 1, "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
+  "divisao-propriedades": 1, "abrir-contrato-divisao": 1, "carteira-visao": 1, "fechar-form-grupo": 1, "fechar-escolher-marcas": 1, "grupo-da-marca": 1, "fechar-grupo-da-marca": 1, "filtrar-por-grupo": 1, "escolher-cobertas": 1, "fechar-cobertas": 1, "mexer-coberta": 1, "tirar-coberta": 1, "recarregar-grupos": 1, "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
   "recarregar-espacos": 1, "recarregar-overview": 1, "recarregar-patrocinadores": 1, "recarregar-marcas": 1, "recarregar-entregas": 1,
   "esqueci-senha": 1, "auth-voltar": 1,
 };
@@ -9169,6 +9261,18 @@ document.addEventListener("click", async function (ev) {
   if (acao === "carteira-visao") { S.fp.visao = alvo.getAttribute("data-valor") === "grupo" ? "grupo" : "marca"; render(); return; }
   if (acao === "novo-grupo") { S.formGrupo = { aberto: true, grupo: null, salvando: false }; render();
     setTimeout(function () { var e = document.getElementById("grupo-nome"); if (e) e.focus(); }, 0); return; }
+  if (acao === "escolher-cobertas") { S.cobertasAberto = true; S.cobertasBusca = ""; S.formContrato.cobertos = cobertosDoForm(); render();
+    setTimeout(function () { var e = document.getElementById("busca-cobertas"); if (e) e.focus(); }, 0); return; }
+  if (acao === "fechar-cobertas") { S.cobertasAberto = false; render(); return; }
+  if (acao === "mexer-coberta") {
+    var lc = cobertosDoForm().slice();
+    var iL = lc.indexOf(id);
+    if (iL >= 0) lc.splice(iL, 1); else lc.push(id);
+    S.formContrato.cobertos = lc; render(); return;
+  }
+  if (acao === "tirar-coberta") {
+    S.formContrato.cobertos = cobertosDoForm().filter(function (x) { return x !== id; }); render(); return;
+  }
   if (acao === "filtrar-por-grupo") { S.fp.visao = "marca"; S.fp.grupo = alvo.getAttribute("data-valor") || "todos"; S.ficha = null; render(); return; }
   if (acao === "grupo-da-marca") { S.grupoDaMarca = { aberto: true, patroId: id, salvando: false }; render(); return; }
   if (acao === "fechar-grupo-da-marca") { if (!S.grupoDaMarca.salvando) { S.grupoDaMarca.aberto = false; render(); } return; }
@@ -9590,7 +9694,7 @@ document.addEventListener("click", async function (ev) {
     atualizarAvisoAssinantes();
     return;
   }
-  if (acao === "fechar-form-contrato") { if (!S.formContrato.salvando) { S.formContrato.aberto = false; render(); } return; }
+  if (acao === "fechar-form-contrato") { if (!S.formContrato.salvando) { S.formContrato.aberto = false; S.formContrato.cobertos = null; render(); } return; }
   if (acao === "abrir-contrato") {
     var ca = (S.contracts || []).find(function (x) { return x.id === id; });
     try { await abrirArquivoContrato(ca); } catch (e) { toast.error(e.message); }
@@ -9789,6 +9893,12 @@ document.addEventListener("input", function (ev) {
       }, pega("contrato-valor"));
     }
     if (el.id === "contrato-valor") return;
+    return;
+  }
+  if (el.id === "busca-cobertas") {
+    S.cobertasBusca = el.value; render();
+    var nb = document.getElementById("busca-cobertas");
+    if (nb) { nb.focus(); try { nb.setSelectionRange(nb.value.length, nb.value.length); } catch (err) {} }
     return;
   }
   if (el.id === "busca-escolher") {
@@ -10105,6 +10215,7 @@ document.addEventListener("submit", async function (ev) {
       valor_exposicao: fct.get("valor_exposicao"), valor_merchandising: fct.get("valor_merchandising"),
       valor_hospitalidade: fct.get("valor_hospitalidade"),
       desconto: fct.get("desconto"), descontoMotivo: fct.get("desconto_motivo"),
+      cobertos: cobertosDoForm(),
       signatarios: assinantesDoFormulario(ev.target), observacao: fct.get("observacao"),
       assinadoEm: atualC ? atualC.assinadoEm : null,
     };
