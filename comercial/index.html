@@ -430,6 +430,12 @@
   .selo-divisao-ia{background:var(--ambar-fraco,rgba(255,194,75,.15));color:var(--warning-foreground);border:1px solid var(--warning)}
   .selo-divisao-falta{background:transparent;color:var(--muted-foreground);border:1px dashed var(--border)}
   @media (min-width:640px){.sm\:col-span-2{grid-column:span 2 / span 2}}
+  .lista-escolher{max-height:46vh;overflow-y:auto;border:1px solid var(--border);border-radius:10px}
+  .linha-escolher{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer}
+  .linha-escolher:last-child{border-bottom:0}
+  .linha-escolher:hover{background:var(--muted-fraco,rgba(127,127,127,.06))}
+  .linha-escolher-on{background:var(--primary-fraco,rgba(127,200,0,.10))}
+  .linha-escolher input{width:17px;height:17px;flex-shrink:0;cursor:pointer}
   .barra-visao{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
   .grupo-botoes-visao{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card)}
   .botao-visao{padding:6px 14px;font-size:13px;color:var(--muted-foreground);background:transparent;border:0;cursor:pointer;font-family:inherit}
@@ -723,7 +729,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.10";
+var VERSAO = "2026-09-22.11";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -2801,6 +2807,7 @@ var S = {
   fp: { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos", setor: "todos", visao: "marca" },
   grupos: null, gruposErro: null, gruposCarregando: false,
   formGrupo: { aberto: false, grupo: null, salvando: false },
+  escolherMarcas: { aberto: false, grupoId: null, marcados: null, busca: "", salvando: false },
   papelMudando: false,
   config: null,
   formInter: { aberto: false, patroId: null, salvando: false },
@@ -4967,6 +4974,7 @@ function casca(conteudo, caminho) {
     "</div>" +
     (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto && !S.formEntrega.aberto ? dialogoFicha() : "") +
     (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto && !S.formEntrega.aberto ? dialogoFichaProspeccao() : "") +
+    (S.escolherMarcas.aberto ? dialogoEscolherMarcas() : "") +
     (S.formGrupo.aberto ? dialogoGrupo() : "") +
     (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formContrato.aberto ? dialogoContrato() : "") + (S.formEntrega.aberto ? dialogoEntrega() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
     barraConversaR27() + gaveta +
@@ -6016,11 +6024,16 @@ function blocoListaGrupos() {
             chip(g.atendimentoNome ? "atendimento: " + g.atendimentoNome : "sem atendimento") +
           "</p>" +
         "</div>" +
-        (podeMexer() ? '<button type="button" class="' + btnCls("ghost", "icon", "h-8 w-8 shrink-0") + '" data-acao="editar-grupo" data-id="' + esc(g.id) + '" title="Editar o grupo"><span class="sr-only">Editar</span>' + icone("pencil") + "</button>" : "") +
+        (podeMexer()
+        ? '<div class="flex shrink-0 items-center gap-1.5">' +
+            '<button type="button" class="' + btnCls("outline", "default", "h-8 gap-1.5 px-2.5 text-xs font-bold uppercase") + '" data-acao="escolher-marcas" data-id="' + esc(g.id) + '">' + icone("plus", "size-3.5") + "Escolher marcas</button>" +
+            '<button type="button" class="' + btnCls("ghost", "icon", "h-8 w-8") + '" data-acao="editar-grupo" data-id="' + esc(g.id) + '" title="Editar o grupo"><span class="sr-only">Editar</span>' + icone("pencil") + "</button>" +
+          "</div>"
+        : "") +
       "</div>" +
       (marcas.length
         ? '<div class="cartao-grupo-marcas">' + marcas.map(marcaMini).join("") + "</div>"
-        : '<p class="mt-2 text-xs text-muted-foreground">Nenhuma marca neste grupo ainda. Abra a marca e escolha o grupo no cadastro.</p>') +
+        : '<p class="mt-2 text-xs text-muted-foreground">Nenhuma marca neste grupo ainda. Use <b>Escolher marcas</b> aqui em cima.</p>') +
       (g.observacao ? '<p class="mt-2 text-xs text-muted-foreground">' + esc(g.observacao) + "</p>" : "") +
     "</article>";
   };
@@ -7507,6 +7520,51 @@ function textoSomaDivisao(d, valor) {
     (dif > 0 ? "Sobra " : "Falta ") + esc(formatCurrency(Math.abs(dif))) + ".</span>";
 }
 
+// Escolher as marcas do grupo de uma vez: busca, caixinhas e um Salvar so.
+function textoContaEscolher() {
+  var e = S.escolherMarcas;
+  var n = Object.keys(e.marcados || {}).filter(function (k) { return e.marcados[k]; }).length;
+  var q = String(e.busca || "").trim();
+  var total = (S.sponsors || []).length;
+  var vendo = document.querySelectorAll(".linha-escolher").length;
+  return n + (n === 1 ? " marca marcada" : " marcas marcadas") + (q ? " · mostrando " + vendo + " de " + total : "");
+}
+function dialogoEscolherMarcas() {
+  var e = S.escolherMarcas;
+  var g = grupoPorId(e.grupoId);
+  if (!g) return "";
+  var q = String(e.busca || "").trim().toLowerCase();
+  var todas = (S.sponsors || []).slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
+  var achadas = q ? todas.filter(function (p) { return chaveMarca(p.nome).indexOf(chaveMarca(q)) >= 0; }) : todas;
+  var quantos = Object.keys(e.marcados).filter(function (k) { return e.marcados[k]; }).length;
+  var linha = function (p) {
+    var marcado = !!e.marcados[p.id];
+    var outro = p.grupoId && p.grupoId !== g.id ? grupoPorId(p.grupoId) : null;
+    return '<label class="' + cn("linha-escolher", marcado && "linha-escolher-on") + '">' +
+      '<input type="checkbox" data-marca="' + esc(p.id) + '"' + (marcado ? " checked" : "") + ">" +
+      '<span class="min-w-0 flex-1">' +
+        '<span class="block truncate text-sm font-semibold">' + esc(p.nome) + "</span>" +
+        (outro ? '<span class="block text-xs text-warning-foreground">hoje está em ' + esc(outro.nome) + ", vai mudar de grupo</span>"
+               : p.espacoVinculado ? '<span class="block text-xs text-muted-foreground">' + esc(p.espacoVinculado) + "</span>" : "") +
+      "</span></label>";
+  };
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-escolher-marcas"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-escolher" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-escolher" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">Marcas de ' + esc(g.nome) + "</h2>" +
+        '<p class="text-sm text-muted-foreground">Marque tudo que pertence a este grupo e salve uma vez só. Desmarcar tira a marca do grupo, não apaga nada.</p></div>' +
+      '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+        '<input id="busca-escolher" placeholder="Buscar marca" autocomplete="off" class="' + cn(INPUT, "h-10 pl-9") + '" value="' + esc(e.busca) + '"></div>' +
+      '<p id="conta-escolher" class="text-xs text-muted-foreground">' + textoContaEscolher() + "</p>" +
+      '<div class="lista-escolher">' + (achadas.length ? achadas.map(linha).join("") : '<p class="p-4 text-center text-sm text-muted-foreground">Nenhuma marca com esse nome.</p>') + "</div>" +
+      (g.atendimentoNome ? '<p class="text-xs text-muted-foreground">Quem entrar no grupo passa a ter <b>' + esc(g.atendimentoNome) + "</b> no atendimento.</p>" : "") +
+      '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-1">' +
+        '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-escolher-marcas"' + (e.salvando ? " disabled" : "") + ">Cancelar</button>" +
+        '<button type="button" class="' + btnCls("default", "default", "font-bold uppercase") + '" data-acao="salvar-escolher-marcas"' + (e.salvando ? " disabled" : "") + ">" + (e.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar</button>" +
+      "</div>" +
+      '<button type="button" data-acao="fechar-escolher-marcas" class="absolute right-4 top-4 rounded-sm opacity-70 cursor-pointer transition-opacity hover:opacity-100"><span class="sr-only">Fechar</span>' + icone("x", "h-4 w-4") + "</button>" +
+    "</div>";
+}
+
 function dialogoGrupo() {
   var g = S.formGrupo.grupo;
   var v = g || { nome: "", negocia: "separado", atendimentoUid: null, observacao: "" };
@@ -8850,7 +8908,7 @@ var ACOES_DE_LEITURA = {
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
-  "divisao-propriedades": 1, "abrir-contrato-divisao": 1, "carteira-visao": 1, "fechar-form-grupo": 1, "recarregar-grupos": 1, "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
+  "divisao-propriedades": 1, "abrir-contrato-divisao": 1, "carteira-visao": 1, "fechar-form-grupo": 1, "fechar-escolher-marcas": 1, "recarregar-grupos": 1, "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
   "recarregar-espacos": 1, "recarregar-overview": 1, "recarregar-patrocinadores": 1, "recarregar-marcas": 1, "recarregar-entregas": 1,
   "esqueci-senha": 1, "auth-voltar": 1,
 };
@@ -9009,6 +9067,48 @@ document.addEventListener("click", async function (ev) {
   if (acao === "carteira-visao") { S.fp.visao = alvo.getAttribute("data-valor") === "grupo" ? "grupo" : "marca"; render(); return; }
   if (acao === "novo-grupo") { S.formGrupo = { aberto: true, grupo: null, salvando: false }; render();
     setTimeout(function () { var e = document.getElementById("grupo-nome"); if (e) e.focus(); }, 0); return; }
+  if (acao === "escolher-marcas") {
+    var gE = grupoPorId(id);
+    if (!gE) return;
+    var marcados = {};
+    (S.sponsors || []).forEach(function (p) { if (p.grupoId === id) marcados[p.id] = true; });
+    S.escolherMarcas = { aberto: true, grupoId: id, marcados: marcados, busca: "", salvando: false };
+    render();
+    setTimeout(function () { var el = document.getElementById("busca-escolher"); if (el) el.focus(); }, 0);
+    return;
+  }
+  if (acao === "fechar-escolher-marcas") { if (!S.escolherMarcas.salvando) { S.escolherMarcas.aberto = false; render(); } return; }
+  if (acao === "salvar-escolher-marcas") {
+    var em = S.escolherMarcas;
+    var gS = grupoPorId(em.grupoId);
+    if (!gS || em.salvando) return;
+    // so grava quem realmente mudou de estado
+    var mudancas = [];
+    (S.sponsors || []).forEach(function (p) {
+      var quer = !!em.marcados[p.id], tem = p.grupoId === gS.id;
+      if (quer === tem) return;
+      var d = { grupo_id: quer ? gS.id : null };
+      // entrou no grupo e o grupo tem atendimento: a regra "quem atende uma atende todas"
+      if (quer && gS.atendimentoUid && p.atendimentoUid !== gS.atendimentoUid) {
+        d.atendimento_uid = gS.atendimentoUid; d.atendimento_nome = gS.atendimentoNome;
+      }
+      mudancas.push({ col: "patrocinadores", id: p.id, dados: d });
+    });
+    if (!mudancas.length) { S.escolherMarcas.aberto = false; render(); return; }
+    em.salvando = true; render();
+    try {
+      await API.atualizarVarios(mudancas);
+      S.escolherMarcas = { aberto: false, grupoId: null, marcados: null, busca: "", salvando: false };
+      S.sponsors = null;
+      await carregar("sponsors", getSponsors);
+      toast.success(qtdTexto(mudancas.length, "marca atualizada", "marcas atualizadas") + ".");
+    } catch (err) {
+      em.salvando = false;
+      toast.error("Não foi possível salvar. Confira a conexão e tente de novo.");
+    }
+    render();
+    return;
+  }
   if (acao === "editar-grupo") { S.formGrupo = { aberto: true, grupo: grupoPorId(id), salvando: false }; render(); return; }
   if (acao === "fechar-form-grupo") { if (!S.formGrupo.salvando) { S.formGrupo.aberto = false; render(); } return; }
   if (acao === "excluir-grupo") {
@@ -9557,6 +9657,22 @@ document.addEventListener("input", function (ev) {
     if (el.id === "contrato-valor") return;
     return;
   }
+  if (el.id === "busca-escolher") {
+    S.escolherMarcas.busca = el.value;
+    render();
+    var novo = document.getElementById("busca-escolher");
+    if (novo) { novo.focus(); try { novo.setSelectionRange(novo.value.length, novo.value.length); } catch (err) {} }
+    return;
+  }
+  if (el.getAttribute && el.getAttribute("data-marca")) {
+    // guarda a escolha sem redesenhar a lista inteira: a rolagem fica onde estava
+    S.escolherMarcas.marcados[el.getAttribute("data-marca")] = el.checked;
+    var pai = el.closest(".linha-escolher");
+    if (pai) pai.classList.toggle("linha-escolher-on", el.checked);
+    var conta = document.getElementById("conta-escolher");
+    if (conta) conta.textContent = textoContaEscolher();
+    return;
+  }
   if (el.id === "conversa-r27") { if (S.conversaR27) S.conversaR27.texto = el.value; return; }
   if (el.id === "busca-inter") {
     S.buscaInter = el.value;
@@ -10038,6 +10154,8 @@ document.addEventListener("keydown", function (ev) {
   if (S.formPatro.aberto && !S.formPatro.salvando) { S.formPatro.aberto = false; render(); return; }
   if (S.formInter.aberto && !S.formInter.salvando) { S.formInter.aberto = false; render(); return; }
   if (S.formProsp.aberto && !S.formProsp.salvando) { S.formProsp.aberto = false; render(); return; }
+  if (S.escolherMarcas.aberto && !S.escolherMarcas.salvando) { S.escolherMarcas.aberto = false; render(); return; }
+  if (S.formGrupo.aberto && !S.formGrupo.salvando) { S.formGrupo.aberto = false; render(); return; }
   if (S.formContrato.aberto && !S.formContrato.salvando) { S.formContrato.aberto = false; render(); return; }
   if (S.formEntrega.aberto && !S.formEntrega.salvando) { S.formEntrega.aberto = false; render(); return; }
   if (S.ficha) { S.ficha = null; render(); return; }
