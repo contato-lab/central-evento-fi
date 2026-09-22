@@ -390,6 +390,14 @@
   table.tabela-renov select{min-width:0;width:100%}
   table.tabela-renov td:first-child{min-width:0;max-width:16rem}
   table.tabela-renov th:last-child,table.tabela-renov td:last-child{width:12rem}
+  /* ---- Renovação: a coluna do próximo passo ---- */
+  table.tabela-renov th:nth-child(2),table.tabela-renov td:nth-child(2){width:28rem}
+  table.tabela-renov td:nth-child(2) select{max-width:13rem}
+  table.tabela-renov details summary::-webkit-details-marker{display:none}
+  table.tabela-renov details summary{list-style:none;display:inline-flex;align-items:center;gap:4px}
+  table.tabela-renov details summary::before{content:"›";display:inline-block;transition:transform .12s}
+  table.tabela-renov details[open] summary::before{transform:rotate(90deg)}
+  .min-w-40{min-width:10rem}
   /* ---- Contratos: uma linha por contrato, detalhe abre embaixo ---- */
   .linha-contrato{border-bottom:1px solid var(--border)}
   .linha-contrato:last-child{border-bottom:0}
@@ -647,7 +655,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.16";
+var VERSAO = "2026-09-22.1";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -3463,10 +3471,11 @@ function blocoNumerosRenovacao() {
     '<div class="faixa-funil">' +
       etapa("Base 2026", base.length, "marcas que ocuparam espaço", "") + seta +
       etapa("Confirmaram", conf, pct + "% da base", "confirmaram", true) + seta +
-      etapa("Sinal de 10% pago", sinal, "de " + v26.length + " no Valor 2026", "falta_sinal") + seta +
+      etapa("Sinal de 10% pago", sinal, v26.length ? "de " + v26.length + " no Valor 2026" : "ninguém escolheu o Valor 2026 ainda", "falta_sinal") + seta +
       (ehVisualizacao() ? "" : etapa("Contrato 2027 assinado", ass, "meta: a base toda", "falta_contrato")) +
     "</div>" +
-    '<div class="h-2 w-full overflow-hidden rounded-full bg-muted"><div class="h-2 rounded-full bg-success" style="width:' + pct + '%"></div></div>' +
+    '<div><div class="flex items-baseline justify-between text-xs text-muted-foreground"><span>Caminho da renovação</span><span>' + pct + "% da base confirmou · meta 100%</span></div>" +
+      '<div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted"><div class="h-2 rounded-full bg-success" style="width:' + pct + '%"></div></div></div>' +
     '<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">' +
       '<button type="button" class="' + cn("link-funil", S.fr && S.fr.sit === "sem_resposta" && "text-foreground font-semibold") + '" data-acao="renov-etapa" data-sit="sem_resposta">' +
         '<span class="ponto" style="background:var(--warning)"></span>Ainda sem resposta: <b class="font-semibold">' + semResp + "</b></button>" +
@@ -3476,6 +3485,23 @@ function blocoNumerosRenovacao() {
     "</div>" +
   "</div>";
 }
+// Qual e o proximo passo desta marca na renovacao 2027. E a unica pergunta que a tela responde,
+// entao a linha mostra so o passo em que a marca esta, com o botao daquele passo.
+function proximoPasso2027(p) {
+  var s = situacao2027(p), cfg = configAtual();
+  if (s.resposta === "recusou") return { titulo: "Recusou a renovação", nota: "o espaço dela volta para a fila", pronto: true };
+  if (s.resposta !== "confirmou") {
+    return { passo: "confirmar", titulo: "Confirmar a renovação", prazo: cfg.prazo_confirmacao,
+      nota: s.resposta === "em_negociacao" ? "está em negociação" : "" };
+  }
+  if (!s.forma) return { passo: "forma", titulo: "Escolher a forma de pagamento", prazo: cfg.prazo_sinal };
+  if (s.forma === "valor_2026" && !s.sinal) return { passo: "sinal", titulo: "Receber o sinal de 10%", prazo: cfg.prazo_sinal };
+  if (!s.contratosCarregados) return { titulo: "Contrato 2027", nota: "carregando...", pronto: true };
+  if (!s.assinado) return { passo: "contrato", titulo: "Assinar o contrato 2027", prazo: cfg.prazo_assinatura,
+    nota: s.contrato ? "está em " + (STATUS_CONTRATO[s.contrato.status] || {}).label.toLowerCase() : "ainda não foi enviado" };
+  return { titulo: "Nada, está em dia", nota: "renovada e com o contrato assinado", pronto: true };
+}
+
 function blocoListaRenovacao() {
   if (S.sponsorsErro) return errorList(S.sponsorsErro, "recarregar-patrocinadores", S.sponsorsCarregando);
   if (!S.sponsors || !S.spaces) return loadingList("Carregando a base de 2026...", 4);
@@ -3483,42 +3509,60 @@ function blocoListaRenovacao() {
   if (!lista.length) return emptyList("list-checks", "Nenhuma marca nesta situação", "Ajuste a busca ou os filtros.");
   var th = function (txt, cls) { return '<th class="' + cn(TH, "text-xs font-bold uppercase text-background", cls) + '">' + txt + "</th>"; };
   var mexe = podeMexer(), cfg = configAtual();
-  // A coluna "Datas" junta as tres antigas: cada pedaco vira texto, e o que falta vira um clique.
-  var pedacoData = function (rot, campo, p, valor, desligado) {
-    if (valor) return '<span class="text-foreground">' + rot + " " + esc(dataCurta(valor)) + "</span>";
-    if (desligado) return "";
-    if (!mexe) return '<span class="text-muted-foreground">' + rot + " ·</span>";
-    return '<button type="button" class="marcar-hoje" data-acao="r27-hoje" data-campo="' + campo + '" data-id="' + esc(p.id) + '" title="Marcar a data de hoje">' + rot + " hoje</button>";
-  };
+  var rotulo = function (txt) { return '<span class="block text-[10px] uppercase tracking-wide text-muted-foreground">' + txt + "</span>"; };
   var linha = function (p) {
-    var s = situacao2027(p), semSinal = s.forma !== "valor_2026", semResposta = s.resposta === "sem_contato" || s.resposta === "em_negociacao";
-    var datas = [pedacoData("confirmou", "conf", p, s.confirmou, false), pedacoData("sinal", "sinal", p, s.sinal, semSinal)].filter(Boolean).join(' <span class="text-muted-foreground">·</span> ');
-    var quem = [nomePessoa(p.vendedorUid, p.responsavelComercial), nomePessoa(p.atendimentoUid, p.atendimentoNome)].filter(Boolean);
+    var s = situacao2027(p), pp = proximoPasso2027(p);
+    // os botoes do passo em que a marca esta: so aparece o que faz sentido agora
+    var acoes = "";
+    if (mexe && pp.passo === "confirmar") {
+      acoes = '<button type="button" class="' + btnCls("default", "default", "h-8 gap-1.5 px-2.5 text-xs font-semibold") + '" data-acao="r27-confirmou" data-id="' + esc(p.id) + '">' + icone("check", "size-4") + " Confirmou hoje</button>" +
+        '<button type="button" class="' + btnCls("outline", "default", "h-8 px-2.5 text-xs font-medium") + '" data-acao="r27-recusou" data-id="' + esc(p.id) + '">Recusou</button>';
+    } else if (mexe && pp.passo === "forma") {
+      acoes = '<span class="min-w-40">' + rotulo("Forma de pagamento") + selectR27("r27t", "forma", p, opcoesForma(), "") + "</span>";
+    } else if (mexe && pp.passo === "sinal") {
+      acoes = '<button type="button" class="' + btnCls("default", "default", "h-8 gap-1.5 px-2.5 text-xs font-semibold") + '" data-acao="r27-hoje" data-campo="sinal" data-id="' + esc(p.id) + '">' + icone("check", "size-4") + " Sinal pago hoje</button>" +
+        '<button type="button" class="' + btnCls("outline", "default", "h-8 px-2.5 text-xs font-medium") + '" data-acao="r27-passar-2027" data-id="' + esc(p.id) + '">Passar para Valor 2027</button>';
+    } else if (mexe && pp.passo === "contrato") {
+      acoes = '<a href="#/app/contratos?patro=' + encodeURIComponent(p.id) + '" class="' + btnCls("outline", "default", "h-8 gap-1.5 px-2.5 text-xs font-medium") + '">' + icone("file-text", "size-4") + " Abrir contratos</a>";
+    }
+    // a resposta sempre pode ser corrigida, mas fica discreta atras de "outra resposta"
+    var corrigir = !mexe ? "" :
+      '<details class="mt-1.5"><summary class="cursor-pointer text-xs text-muted-foreground">Outra resposta</summary>' +
+        '<div class="mt-1.5 max-w-52 space-y-1.5">' + rotulo("Resposta da marca") + selectR27("r27t", "resp", p, opcoesResposta(), s.resposta) +
+        (s.resposta === "confirmou" && pp.passo !== "forma" ? rotulo("Forma de pagamento") + selectR27("r27t", "forma", p, opcoesForma(), s.forma || "") : "") +
+        rotulo("Confirmou em") + '<div class="flex gap-1.5">' + dataR27("r27t", "conf", p, s.confirmou, false) + botaoHojeR27("conf", p, false) + "</div>" +
+        (s.forma === "valor_2026" ? rotulo("Sinal pago em") + '<div class="flex gap-1.5">' + dataR27("r27t", "sinal", p, s.sinal, false) + botaoHojeR27("sinal", p, false) + "</div>" : "") +
+      "</div></details>";
+    // onde a marca esta hoje, em selos
+    var onde = [];
+    if (s.resposta === "confirmou") onde.push(badge({ label: "Confirmou" + (s.confirmou ? " " + dataCurta(s.confirmou) : ""), className: RENOVACAO.renovado.className }, "whitespace-nowrap"));
+    else if (s.resposta === "recusou") onde.push(badge(RENOVACAO.recusou, "whitespace-nowrap"));
+    else onde.push(badge({ label: s.resposta === "em_negociacao" ? "Em negociação" : "Sem resposta", className: RENOVACAO[s.resposta === "em_negociacao" ? "em_negociacao" : "sem_contato"].className }, "whitespace-nowrap"));
+    if (s.forma) onde.push('<span class="' + cn(BADGE, "whitespace-nowrap text-foreground") + '">' + esc(FORMA_PAGAMENTO[s.forma].label) + (s.sinal ? " · sinal " + esc(dataCurta(s.sinal)) : "") + "</span>");
+    if (!ehVisualizacao()) onde.push('<span class="inline-flex items-center gap-1 text-xs text-muted-foreground">Contrato:</span> ' + badgeContrato2027(s));
+    var v = nomePessoa(p.vendedorUid, p.responsavelComercial), a = nomePessoa(p.atendimentoUid, p.atendimentoNome);
     return '<tr class="' + cn(TR, s.resposta === "confirmou" && "linha-confirmada", s.resposta === "recusou" && "opacity-70") + '">' +
       '<td class="' + cn(TD, "px-4 py-3 align-top") + '"><button type="button" class="text-left font-semibold hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button>" + (totalNaFila(p) ? '<span class="amp-fila" title="Marcas na fila pelos espaços de 2026 desta marca">' + totalNaFila(p) + " na fila</span>" : "") +
         '<div class="mt-0.5 truncate text-xs text-muted-foreground" title="' + esc(textoEspacos2026(p)) + '">' + esc(textoEspacos2026(p, 3)) + "</div></td>" +
       '<td class="' + cn(TD, "align-top") + '">' +
-        // quem nao respondeu ganha os dois atalhos do dia a dia; o resto continua na lista suspensa
-        (semResposta && mexe
-          ? '<div class="flex flex-wrap gap-1.5">' +
-              '<button type="button" class="' + btnCls("outline", "default", "h-8 px-2.5 text-xs font-medium") + '" data-acao="r27-confirmou" data-id="' + esc(p.id) + '">' + icone("check", "size-4") + " Confirmou hoje</button>" +
-              '<button type="button" class="' + btnCls("ghost", "default", "h-8 px-2.5 text-xs font-medium") + '" data-acao="r27-recusou" data-id="' + esc(p.id) + '">Recusou</button>' +
-            "</div>"
-          : selectR27("r27t", "resp", p, opcoesResposta(), s.resposta)) +
-        (s.resposta === "confirmou" ? '<div class="mt-1.5">' + selectR27("r27t", "forma", p, opcoesForma(), s.forma || "") + "</div>" : "") +
+        '<div class="' + cn("text-sm", pp.pronto ? "text-muted-foreground" : "font-semibold") + '">' + esc(pp.titulo) +
+          (pp.prazo ? ' <span class="font-normal text-muted-foreground">· prazo ' + esc(dataCurta(pp.prazo)) + "</span>" : "") + "</div>" +
+        (pp.nota ? '<div class="text-xs text-muted-foreground">' + esc(pp.nota) + "</div>" : "") +
+        (acoes ? '<div class="mt-2 flex flex-wrap items-end gap-1.5">' + acoes + "</div>" : "") +
+        corrigir +
       "</td>" +
-      '<td class="' + cn(TD, "align-top text-xs") + '">' + (datas || '<span class="text-muted-foreground">·</span>') +
-        (ehVisualizacao() ? "" : '<div class="mt-1.5">' + badgeContrato2027(s) + "</div>") + "</td>" +
+      '<td class="' + cn(TD, "align-top") + '"><div class="flex flex-wrap items-center gap-1.5">' + onde.join("") + "</div></td>" +
       '<td class="' + cn(TD, "align-top") + '"' + (mexe && !podeTrocarResponsaveis(p) ? ' title="' + esc(AVISO_RESPONSAVEIS) + '"' : "") + ">" +
         (mexe && podeTrocarResponsaveis(p)
-          ? '<div class="space-y-1.5">' + selectR27("r27t", "vend", p, opcoesPessoas(), p.vendedorUid || "") + selectR27("r27t", "atend", p, opcoesPessoas(), p.atendimentoUid || "") + "</div>"
-          : '<span class="text-xs">' + (quem.length ? esc(quem.join(" · ")) : '<span class="text-muted-foreground">Ninguém ainda</span>') + "</span>") +
+          ? '<div class="space-y-1.5">' + rotulo("Vendedor") + selectR27("r27t", "vend", p, opcoesPessoas(), p.vendedorUid || "") +
+            rotulo("Atendimento") + selectR27("r27t", "atend", p, opcoesPessoas(), p.atendimentoUid || "") + "</div>"
+          : '<span class="text-xs">' + (v ? esc(v) : '<span class="text-muted-foreground">sem vendedor</span>') + '<br><span class="text-muted-foreground">' + (a ? esc(a) + " no atendimento" : "sem atendimento") + "</span></span>") +
       "</td></tr>";
   };
   var tabela = function (itens) {
     return '<div class="hidden overflow-hidden rounded-md border border-border bg-card md:block"><table class="tabela-renov w-full caption-bottom text-sm">' +
       '<thead class="[&_tr]:border-b bg-muted"><tr class="' + cn(TR, "hover:bg-muted") + '">' +
-        th("Marca", "px-4") + th("Situação") + th("Datas e contrato") + th("Quem cuida") +
+        th("Marca", "px-4") + th("O próximo passo") + th("Onde está") + th("Quem cuida") +
       '</tr></thead><tbody class="[&_tr:last-child]:border-0">' + itens.map(linha).join("") + "</tbody></table></div>" +
       '<div class="grid gap-3 md:hidden">' + itens.map(function (p) {
         return '<article class="rounded-md border border-border bg-card p-4"><h2 class="font-semibold"><button type="button" class="text-left hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button></h2>" +
@@ -4464,7 +4508,8 @@ function assuntoDaTela(caminho) {
   }
   if (caminho === "/app/renovacao") {
     if (!S.sponsors) return "";
-    return S.sponsors.filter(naBase2026).length + " marcas da base 2026";
+    // o mesmo recorte do funil embaixo, senao o titulo diz 110 e o funil diz 69
+    return S.sponsors.filter(naBase2026).filter(function (x) { return passaEdicao(edicoesDaMarca(x)); }).length + " marcas da base 2026";
   }
   if (caminho === "/app/contratos") {
     if (!S.contracts) return "";
