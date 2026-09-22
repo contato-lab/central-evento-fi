@@ -353,6 +353,21 @@
   }
   @media (min-width:768px){.md\:pb-10{padding-bottom:2.5rem}}
   @media (min-width:1024px){.lg\:px-8{padding-left:2rem;padding-right:2rem}}
+  /* ---- ficha: nada que esta dentro do dialogo pode alarga-lo (a coluna da grade era "auto") ---- */
+  [role="dialog"].grid{grid-template-columns:minmax(0,1fr)}
+  .tabela-hist{table-layout:fixed;width:100%;min-width:0;max-width:100%}
+  .tabela-hist td,.tabela-hist th{overflow-wrap:anywhere}
+  .grade-historico{grid-template-columns:1fr}
+  @media (min-width:640px){ .grade-historico{grid-template-columns:72px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto} }
+  /* ---- contatos da marca: uma linha por pessoa ---- */
+  .linha-contato{display:grid;gap:.5rem;grid-template-columns:auto 1fr auto;align-items:center}
+  .linha-contato .lc-principal{grid-column:1}.linha-contato .lc-nome{grid-column:2}.linha-contato .lc-tirar{grid-column:3}
+  .linha-contato .lc-cargo,.linha-contato .lc-tel,.linha-contato .lc-email{grid-column:2}
+  @media (min-width:640px){
+    .linha-contato{grid-template-columns:auto 1.2fr 1fr 1fr 1.3fr auto}
+    .linha-contato .lc-cargo{grid-column:3}.linha-contato .lc-tel{grid-column:4}.linha-contato .lc-email{grid-column:5}.linha-contato .lc-tirar{grid-column:6}
+    .linha-contato input{height:2.25rem;font-size:.8125rem}
+  }
   /* ---- barra de filtros das listas ---- */
   .grade-filtros{grid-template-columns:1fr}
   @media (min-width:640px){ .grade-filtros{grid-template-columns:repeat(2,minmax(0,1fr))} .busca-larga{grid-column:span 2} }
@@ -594,7 +609,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.13";
+var VERSAO = "2026-09-21.14";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -1603,6 +1618,11 @@ async function getSponsors() {
       sinalPagoEm: /^\d{4}-\d{2}-\d{2}$/.test(s.sinal_pago_em || "") ? s.sinal_pago_em : null,
       base2026: typeof s.base_2026 === "boolean" ? s.base_2026 : null,
       contratou: String(s.contratou || ""),
+      setor: SETORES[s.setor] ? s.setor : "",
+      razaoSocial: String(s.razao_social || ""), cnpj: String(s.cnpj || ""), endereco: String(s.endereco || ""), site: String(s.site || ""),
+      empresaOrigem: String(s.empresa_origem || ""),
+      contatos: contatosDe(s),
+      historico: historicoDe(s),
     };
   });
 }
@@ -1736,9 +1756,14 @@ async function changeCombinadoStatus(id, status) {
 
 async function saveSponsor(data) {
   var nome = String(data.nome || "").trim();
-  var contato = String(data.contato || "").trim();
+  var contatos = (data.contatos || []).map(function (c) {
+    return { nome: String(c.nome || "").trim().slice(0, 120), cargo: String(c.cargo || "").trim().slice(0, 80),
+      telefone: String(c.telefone || "").trim().slice(0, 40), email: String(c.email || "").trim().slice(0, 120), principal: c.principal === true };
+  }).filter(function (c) { return c.nome || c.email || c.telefone; }).slice(0, 12);
+  if (contatos.length && !contatos.some(function (c) { return c.principal; })) contatos[0].principal = true;
+  var contato = resumoContato(contatos) || String(data.contato || "").trim();
   var venc = String(data.dataVencimentoContrato || "").trim();
-  var ok = nome.length >= 1 && nome.length <= 120 && contato.length >= 1 && contato.length <= 200 &&
+  var ok = nome.length >= 1 && nome.length <= 120 && contato.length <= 200 &&
     /^\d{4}-\d{2}-\d{2}$/.test(venc) && TIPO_PATROCINADOR[data.tipo] && STATUS_PATROCINADOR[data.status];
   if (!ok) throw new Error("Não foi possível salvar o patrocinador. Confira os campos.");
   var antes = data.id ? (S.sponsors || []).find(function (x) { return x.id === data.id; }) : null;
@@ -1754,6 +1779,12 @@ async function saveSponsor(data) {
     responsavel_comercial: vend ? vend.nome : (data.responsavelComercial || ""),
   };
   payload.contratou = String(data.contratou || "").trim().slice(0, 500);
+  payload.contatos = contatos;
+  payload.setor = SETORES[data.setor] ? data.setor : "";
+  payload.razao_social = String(data.razaoSocial || "").trim().slice(0, 160);
+  payload.cnpj = String(data.cnpj || "").trim().slice(0, 20);
+  payload.endereco = String(data.endereco || "").trim().slice(0, 240);
+  payload.site = String(data.site || "").trim().slice(0, 120);
   var atend = data.atendimentoUid ? perfilPorUid(data.atendimentoUid) : null;
   var mesmoAtend = !atend && antes && data.atendimentoUid && antes.atendimentoUid === data.atendimentoUid;
   payload.atendimento_uid = atend ? atend.id : mesmoAtend ? antes.atendimentoUid : null;
@@ -1893,6 +1924,17 @@ function limparAssinantes(lista) {
   }).filter(function (x) { return x.nome; }).slice(0, 10);
 }
 function faltaEmail(x) { return !!x.nome && !EMAIL_VALIDO.test(x.email || ""); }
+function linhaContato(c) {
+  c = c || { nome: "", cargo: "", telefone: "", email: "", principal: false };
+  return '<div class="linha-contato">' +
+    '<input type="radio" name="ct_principal" value="' + (c.principal ? "1" : "0") + '" class="lc-principal size-4" title="Contato principal" aria-label="Contato principal"' + (c.principal ? " checked" : "") + ">" +
+    '<input name="ct_nome" class="' + cn(INPUT, "lc-nome") + '" value="' + esc(c.nome) + '" placeholder="Nome" maxlength="120" aria-label="Nome do contato">' +
+    '<input name="ct_cargo" class="' + cn(INPUT, "lc-cargo") + '" value="' + esc(c.cargo) + '" placeholder="Cargo" maxlength="80" aria-label="Cargo">' +
+    '<input name="ct_telefone" class="' + cn(INPUT, "lc-tel") + '" value="' + esc(c.telefone) + '" placeholder="Telefone" maxlength="40" aria-label="Telefone">' +
+    '<input name="ct_email" type="email" class="' + cn(INPUT, "lc-email") + '" value="' + esc(c.email) + '" placeholder="E-mail" maxlength="120" aria-label="E-mail">' +
+    '<button type="button" class="' + btnCls("ghost", "icon", "lc-tirar") + '" data-acao="remover-contato" title="Tirar este contato" aria-label="Tirar este contato">' + icone("x", "h-4 w-4") + "</button>" +
+  "</div>";
+}
 function linhaAssinante(p) {
   p = p || { nome: "", email: "" };
   var falta = faltaEmail(p) && !p.email;
@@ -2069,6 +2111,7 @@ async function lerPdfDoContrato(caminho) {
   var prompt = "Leia o contrato e devolva JSON com esta forma exata:\n" +
     '{"titulo":"o nome do contrato, curto","patrocinadora":"a empresa patrocinadora, como está escrita no contrato","vigencia_inicio":"AAAA-MM-DD ou vazio","vigencia_fim":"AAAA-MM-DD ou vazio","valor":número ou null,' +
     '"assinantes":[{"nome":"quem assina","email":"e-mail se o contrato trouxer, senão vazio"}],' +
+    '"empresa":{"razao_social":"razão social da patrocinadora","cnpj":"CNPJ da patrocinadora, ou vazio","endereco":"endereço da patrocinadora em uma linha, ou vazio"},' +
     '"entregas":[{"descricao":"o que o evento entrega, curto","quantidade":número ou null,' +
     '"categoria":"espaco|credenciais|midia|hospitalidade|ativacao|outro","prazo":"AAAA-MM-DD ou vazio",' +
     '"trecho":"a frase do contrato que comprova este item"}]}\n\n' +
@@ -2091,7 +2134,8 @@ async function lerPdfDoContrato(caminho) {
     "- 300 ingressos de cortesia, com quantidade 300 (o número aparece duas vezes na tela)\n\n" +
     "titulo é como a equipe chamaria este contrato, tipo \"Contrato de patrocínio Master 2027\". Sem nome de empresa e sem número de processo.\n" +
     "assinantes são as pessoas que assinam nas duas pontas, com o nome como está escrito. Se o contrato não trouxer e-mail, deixe o e-mail vazio.\n" +
-    "patrocinadora é a empresa que está patrocinando, não a organizadora do evento. Copie a razão social como está no contrato.";
+    "patrocinadora é a empresa que está patrocinando, não a organizadora do evento. Copie a razão social como está no contrato.\n" +
+    "empresa traz os dados de faturamento da patrocinadora, nunca os da organizadora. Se o contrato não trouxer o CNPJ ou o endereço, deixe vazio.";
   var bruto;
   try { bruto = await comPrazo(API.lerPdf(sistema, prompt, caminho), 120000, "A IA demorou mais de dois minutos. Tente de novo."); }
   catch (e) {
@@ -2118,6 +2162,17 @@ async function lerPdfDoContrato(caminho) {
 // pessoa ja conferiu vigencia e valor na tela antes de salvar.
 async function gravarEntregasLidas(c, dados, pularCabecalho) {
   var itens = (dados && dados.entregas) || [];
+  // dados de faturamento: preenche so o que a marca ainda nao tem, e diz de onde veio
+  try {
+    var emp = dados && dados.empresa, spx = marcaPorId(c.patrocinadorId);
+    if (emp && spx) {
+      var upd = {};
+      if (!spx.razaoSocial && emp.razao_social) upd.razao_social = String(emp.razao_social).trim().slice(0, 160);
+      if (!spx.cnpj && emp.cnpj) upd.cnpj = String(emp.cnpj).trim().slice(0, 20);
+      if (!spx.endereco && emp.endereco) upd.endereco = String(emp.endereco).trim().slice(0, 240);
+      if (Object.keys(upd).length) { upd.empresa_origem = "Lido do contrato em " + formatDateOnly(hojeMais(0)); await API.atualizar("patrocinadores", spx.id, upd); }
+    }
+  } catch (e) {}
   var dia = function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(String(d || "")) ? d : ""; };
   // O que a marca ja tem vale como referencia, menos o que foi cancelado.
   var jaTem = combinadosDe(c.patrocinadorId).filter(function (e) { return e.status !== "cancelado"; })
@@ -2431,7 +2486,7 @@ var S = {
   papel: "vendedor",
   perfis: null,
   formPatro: { aberto: false, patro: null, salvando: false },
-  fp: { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos" },
+  fp: { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos", setor: "todos" },
   papelMudando: false,
   config: null,
   formInter: { aberto: false, patroId: null, salvando: false },
@@ -3404,6 +3459,47 @@ function telaRenovacao() {
 }
 
 var TIPO_PATROCINADOR = { patrocinador: "Patrocinador", merchandising: "Merchandising", parceiro: "Parceiro" };
+// setor da marca: opcional, serve para agrupar e comparar concorrentes
+var SETORES = { montadora: "Montadora", seguros: "Seguros", banco: "Banco e financeira", combustivel: "Combustível e lubrificantes",
+  acessorios: "Acessórios e equipamentos", bebida: "Bebida e alimentação", telecom: "Telecom e tecnologia", midia: "Mídia",
+  servicos: "Serviços", governo: "Governo e entidades", outro: "Outro" };
+function opcoesSetor(comTodos) {
+  return (comTodos ? [{ valor: "todos", rotulo: "Todos os setores" }] : [{ valor: "", rotulo: "Setor (opcional)" }])
+    .concat(Object.keys(SETORES).map(function (k) { return { valor: k, rotulo: SETORES[k] }; }));
+}
+// contatos da marca: lista com cargo; a marca antiga so tinha uma linha de texto, que vira o primeiro
+function contatosDe(doc) {
+  var lista = Array.isArray(doc.contatos) ? doc.contatos.filter(function (c) { return c && (c.nome || c.email || c.telefone); }).map(function (c) {
+    return { nome: String(c.nome || ""), cargo: String(c.cargo || ""), telefone: String(c.telefone || ""), email: String(c.email || ""), principal: c.principal === true };
+  }) : [];
+  if (!lista.length && doc.contato) {
+    var partes = String(doc.contato).split(/\s+[·\-–]\s+|\s*\|\s*/);
+    var resto = partes.slice(1).join(" · ");
+    lista.push({ nome: partes[0] || "", cargo: "", telefone: /@/.test(resto) ? "" : resto, email: /@/.test(resto) ? resto : "", principal: true });
+  }
+  if (lista.length && !lista.some(function (c) { return c.principal; })) lista[0].principal = true;
+  return lista;
+}
+function contatoPrincipal(p) { return (p.contatos || []).find(function (c) { return c.principal; }) || (p.contatos || [])[0] || null; }
+// a linha de texto antiga continua existindo (busca, lista, e-mail diario): e o resumo do principal
+function resumoContato(lista) {
+  var c = lista.find(function (x) { return x.principal; }) || lista[0];
+  if (!c) return "";
+  return [c.nome, c.email || c.telefone].filter(Boolean).join(" · ").slice(0, 200);
+}
+function historicoDe(doc) {
+  return (Array.isArray(doc.historico) ? doc.historico : []).filter(function (h) { return h && Number(h.ano) >= 2000; }).map(function (h) {
+    return { ano: Number(h.ano), cota: String(h.cota || ""), espaco: String(h.espaco || ""), valor: h.valor == null || h.valor === "" ? null : Number(h.valor), obs: String(h.obs || "") };
+  }).sort(function (a, b) { return b.ano - a.ano; });
+}
+// o que falta preencher na ficha (nada e obrigatorio; a diretoria enxerga e quem cadastra pode ignorar)
+function faltaNaFicha(p) {
+  var f = [];
+  if (!p.setor) f.push("setor");
+  if (!p.cnpj) f.push("CNPJ");
+  if (!contatoPrincipal(p)) f.push("contato");
+  return f;
+}
 function ehAdmin() { return S.papel === "admin" || S.papel === "dono"; }
 function ehDono() { return S.papel === "dono"; }
 // Visualizacao: o resto da empresa. Ve tudo, menos contratos, valores (R$) e o historico de
@@ -5350,6 +5446,7 @@ function patrocinadoresFiltrados() {
     if (!passaRenovMarca(p, f.renov)) return false;
     if (!passaTipoMarca(p, f.tipoMarca)) return false;
     if (!passaPrazoMarca(p, f.prazo)) return false;
+    if (f.setor !== "todos" && p.setor !== f.setor) return false;
     if (term) {
       var texto = [p.nome, p.contato, p.espacoVinculado, p.responsavelComercial, nomePessoa(p.vendedorUid, p.responsavelComercial)].join(" ").toLocaleLowerCase("pt-BR");
       if (texto.indexOf(term) < 0) return false;
@@ -5378,7 +5475,7 @@ function blocoListaPatrocinadores() {
     var detail = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
     return '<tr class="' + cn(TR, p.status === "em_risco_de_renovacao" && "bg-primary/8 hover:bg-primary/12") + '">' +
       '<td class="' + cn(TD, "px-5 py-4 font-bold") + '"><div class="flex flex-wrap items-center gap-2"><button type="button" class="text-left hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button>" + (p.master ? badgeMaster() : "") + "</div>" +
-        '<div class="text-xs font-normal text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + resumoCombinados(p.id) + "</div></td>" +
+        '<div class="text-xs font-normal text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + (p.setor ? " · " + esc(SETORES[p.setor]) : "") + resumoCombinados(p.id) + "</div></td>" +
       '<td class="' + cn(TD, "max-w-56 truncate") + '">' + esc(p.contato) + "</td>" +
       '<td class="' + TD + '">' + (p.espacoVinculado ? esc(p.espacoVinculado) : semEspacoFisico(p) ? badge(SELO_SEM_ESPACO, "whitespace-nowrap") + (textoContratou(p) ? '<div class="mt-1 max-w-56 truncate text-xs text-muted-foreground" title="' + esc(textoContratou(p)) + '">' + esc(textoContratou(p)) + "</div>" : "") : semEspaco) + "</td>" +
       '<td class="' + TD + '">' + (nomePessoa(p.vendedorUid, p.responsavelComercial) ? esc(nomePessoa(p.vendedorUid, p.responsavelComercial)) : semVendedor) + "</td>" +
@@ -5391,7 +5488,7 @@ function blocoListaPatrocinadores() {
     var detail = STATUS_PATROCINADOR[p.status] || STATUS_PATROCINADOR.ativo;
     return '<article class="' + cn("border border-border bg-card p-4", p.status === "em_risco_de_renovacao" && "border-primary bg-primary/8") + '">' +
       '<div class="flex items-start justify-between gap-3"><div class="min-w-0"><h2 class="break-words font-bold"><button type="button" class="text-left hover:underline" data-acao="ficha" data-id="' + esc(p.id) + '">' + esc(p.nome) + "</button></h2>" +
-      '<div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + (p.master ? badgeMaster() : "") + resumoCombinados(p.id) + "</div></div>" +
+      '<div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">' + esc(TIPO_PATROCINADOR[p.tipo]) + (p.setor ? " · " + esc(SETORES[p.setor]) : "") + (p.master ? badgeMaster() : "") + resumoCombinados(p.id) + "</div></div>" +
       '<div class="flex shrink-0 items-center gap-1">' + badge(detail, "shrink-0 whitespace-nowrap") + editar(p) + "</div></div>" +
       '<div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">' + badge(RENOVACAO[p.renovacao], "whitespace-nowrap") + ultimoContato(p) + "</div>" +
       '<dl class="mt-4 space-y-3 text-sm">' +
@@ -5416,7 +5513,7 @@ function blocoListaPatrocinadores() {
 
 function telaPatrocinadores() {
   var f = S.fp;
-  var ligados = !!(f.q.trim() || f.status !== "todos" || f.cuida !== "todos" || f.renov !== "todos" || f.tipoMarca !== "todos" || f.prazo !== "todos");
+  var ligados = !!(f.q.trim() || f.status !== "todos" || f.cuida !== "todos" || f.renov !== "todos" || f.tipoMarca !== "todos" || f.prazo !== "todos" || f.setor !== "todos");
   return '<section class="space-y-6">' +
     barraDeFiltros("filtros-patro",
       campoBusca("busca-patro", "Buscar por nome, contato ou espaço", f.q) +
@@ -5424,7 +5521,8 @@ function telaPatrocinadores() {
       selectNativo("filtro-cuida", "filtro-cuida", opcoesQuemCuida(), f.cuida, { className: "h-10 bg-card" }) +
       selectNativo("filtro-renovacao", "filtro-renovacao", OPCOES_RENOV_MARCA, f.renov, { className: "h-10 bg-card" }) +
       selectNativo("filtro-tipo-marca", "filtro-tipo-marca", opcoesTipoMarca(), f.tipoMarca, { className: "h-10 bg-card" }) +
-      selectNativo("filtro-prazo-marca", "filtro-prazo-marca", OPCOES_PRAZO_MARCA, f.prazo, { className: "h-10 bg-card" }),
+      selectNativo("filtro-prazo-marca", "filtro-prazo-marca", OPCOES_PRAZO_MARCA, f.prazo, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-setor", "filtro-setor", opcoesSetor(true), f.setor, { className: "h-10 bg-card" }),
       ligados, "patro") +
     '<div id="bloco-lista-patro">' + blocoListaPatrocinadores() + "</div>" +
   "</section>";
@@ -5445,13 +5543,20 @@ function dialogoPatrocinador() {
       '<p class="text-sm text-muted-foreground">' + (fechando ? "A marca desejo sai do funil e entra na carteira. Contatos e combinados registrados até aqui vão junto." : "Quem é o cliente, quem cuida dele e o que ele ocupa no festival.") + "</p></div>" +
       '<form id="form-patro" class="space-y-5 pt-2">' +
         '<div class="space-y-2"><label class="' + LABEL + '" for="patro-nome">Nome da marca</label><input id="patro-nome" name="nome" class="' + INPUT + '" value="' + esc(v.nome || "") + '" required maxlength="120"></div>' +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-contato">Contato</label><input id="patro-contato" name="contato" placeholder="Nome · e-mail ou telefone" class="' + INPUT + '" value="' + esc(v.contato || "") + '" required maxlength="200"></div>' +
         '<div class="grid gap-5 sm:grid-cols-2">' +
           '<div class="space-y-2"><label class="' + LABEL + '" for="patro-tipo">Tipo</label>' + selectNativo("patro-tipo", "tipo", tipos, v.tipo || "patrocinador") + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-setor">Setor</label>' + selectNativo("patro-setor", "setor", opcoesSetor(false), v.setor || "") + "</div>" +
+        "</div>" +
+        '<div class="space-y-2"><div class="flex items-center justify-between"><span class="' + LABEL + '">Contatos</span>' +
+          '<button type="button" class="' + btnCls("outline", "default", "h-8 gap-1 text-xs font-medium") + '" data-acao="add-contato">' + icone("plus", "size-4") + " Adicionar</button></div>" +
+          '<div id="lista-contatos" class="space-y-2">' + ((v.contatos && v.contatos.length ? v.contatos : [{ nome: "", cargo: "", telefone: "", email: "", principal: true }]).map(linhaContato).join("")) + "</div>" +
+          '<p class="text-xs text-muted-foreground">Nome, cargo, telefone e e-mail de cada pessoa. A bolinha marca o contato principal.</p></div>' +
+        '<div class="grid gap-5 sm:grid-cols-2">' +
           // quem nao pode trocar os responsaveis ve o select travado; o envio guarda os de antes
           '<div class="space-y-2"><label class="' + LABEL + '" for="patro-vendedor">Vendedor responsável</label>' + selectVendedor("patro-vendedor", "vendedor_uid", (p || pre) ? v.vendedorUid : S.uid, true, { disabled: travaResp }) + "</div>" +
+          '<div class="space-y-2"><label class="' + LABEL + '" for="patro-atendimento">Atendimento</label>' + selectVendedor("patro-atendimento", "atendimento_uid", v.atendimentoUid || "", true, { disabled: travaResp }) + "</div>" +
         "</div>" +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-atendimento">Atendimento</label>' + selectVendedor("patro-atendimento", "atendimento_uid", v.atendimentoUid || "", true, { disabled: travaResp }) +
+        '<div class="space-y-2">' +
           '<p class="text-xs text-muted-foreground">' + (travaResp ? AVISO_RESPONSAVEIS : "Quem cuida do dia a dia da marca e marca o pagamento do sinal. Pode ser outra pessoa, diferente do vendedor.") + "</p></div>" +
         '<label class="' + cn("flex items-start gap-3 border border-border p-3 text-sm", !admin && "opacity-60") + '"><input type="checkbox" name="master" value="sim" class="mt-0.5 size-4"' + (v.master ? " checked" : "") + (admin ? "" : " disabled") + ">" +
           '<span><span class="font-bold">Patrocinador Master</span><br><span class="text-xs text-muted-foreground">' + (admin ? "Marca que pagou mais e tem mais direitos no festival. Ganha prioridade na renovação e alerta vermelho." : "Só um administrador pode marcar ou desmarcar o selo Master.") + "</span></span></label>" +
@@ -5468,6 +5573,17 @@ function dialogoPatrocinador() {
           selectNativo("patro-renovacao", "renovacao", Object.keys(RENOVACAO).map(function (k) { return { valor: k, rotulo: RENOVACAO[k].label }; }), v.renovacao || "sem_contato") +
           (p && p.ultimoContato ? '<p class="text-xs text-muted-foreground">Último contato registrado: ' + esc(formatDateTime(p.ultimoContato)) + "</p>" : '<p class="text-xs text-muted-foreground">Nenhum contato registrado ainda.</p>') + "</div>" +
         '<p class="text-xs text-muted-foreground">Contrato a 30 dias ou menos do vencimento vira "Em risco de renovação" sozinho, e o espaço vinculado volta a ficar disponível.</p>' +
+        '<details class="rounded-md border border-border px-4 py-3"' + (v.razaoSocial || v.cnpj || v.endereco || v.site ? " open" : "") + '><summary class="cursor-pointer text-sm font-medium">Empresa e faturamento <span class="font-normal text-muted-foreground">· opcional</span></summary>' +
+          '<div class="mt-3 grid gap-4 sm:grid-cols-[2fr_1fr]">' +
+            '<div class="space-y-2"><label class="' + LABEL + '" for="patro-razao">Razão social</label><input id="patro-razao" name="razao_social" class="' + INPUT + '" value="' + esc(v.razaoSocial || "") + '" maxlength="160"></div>' +
+            '<div class="space-y-2"><label class="' + LABEL + '" for="patro-cnpj">CNPJ</label><input id="patro-cnpj" name="cnpj" class="' + INPUT + '" value="' + esc(v.cnpj || "") + '" maxlength="20" placeholder="00.000.000/0000-00"></div>' +
+          "</div>" +
+          '<div class="mt-4 grid gap-4 sm:grid-cols-[2fr_1fr]">' +
+            '<div class="space-y-2"><label class="' + LABEL + '" for="patro-endereco">Endereço</label><input id="patro-endereco" name="endereco" class="' + INPUT + '" value="' + esc(v.endereco || "") + '" maxlength="240"></div>' +
+            '<div class="space-y-2"><label class="' + LABEL + '" for="patro-site">Site</label><input id="patro-site" name="site" class="' + INPUT + '" value="' + esc(v.site || "") + '" maxlength="120" placeholder="marca.com.br"></div>' +
+          "</div>" +
+          (v.empresaOrigem ? '<p class="mt-2 text-xs text-success">' + esc(v.empresaOrigem) + "</p>" : '<p class="mt-2 text-xs text-muted-foreground">Quando a IA ler um contrato desta marca, ela preenche o que estiver em branco aqui.</p>') +
+        "</details>" +
         '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
           (p ? botaoExcluir("patrocinador", p, "sm:mr-auto") : "") +
           '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-patro">Cancelar</button>' +
@@ -6814,6 +6930,80 @@ function dialogoEntrega() {
     "</div>";
 }
 
+// ---- blocos novos da ficha: contatos, empresa e historico por edicao
+function blocoContatosFicha(p) {
+  var mexe = podeMexer();
+  var itens = p.contatos.map(function (c) {
+    var meios = [c.telefone ? '<a href="tel:' + esc(c.telefone.replace(/\s/g, "")) + '" class="hover:underline">' + esc(c.telefone) + "</a>" : "",
+      c.email ? '<a href="mailto:' + esc(c.email) + '" class="hover:underline">' + esc(c.email) + "</a>" : ""].filter(Boolean).join(" · ");
+    return '<div class="flex items-start gap-2 py-2 text-sm">' +
+      icone(c.principal ? "star" : "user-round", "mt-0.5 size-4 shrink-0 " + (c.principal ? "text-warning-foreground" : "text-muted-foreground")) +
+      '<div class="min-w-0"><span class="font-medium">' + esc(c.nome || "Sem nome") + "</span>" + (c.cargo ? ' <span class="text-muted-foreground">· ' + esc(c.cargo) + "</span>" : "") +
+      (meios ? '<br><span class="text-xs text-muted-foreground">' + meios + "</span>" : "") + "</div></div>";
+  }).join("");
+  return '<section class="space-y-1"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("users", "size-4 text-primary") + " Contatos " +
+    '<span class="font-normal text-muted-foreground">(' + p.contatos.length + ")</span></h3>" +
+    (itens ? '<div class="divide-y divide-border">' + itens + "</div>" : '<p class="text-sm text-muted-foreground">Nenhum contato ainda.' + (mexe ? " Adicione em Editar." : "") + "</p>") +
+  "</section>";
+}
+function blocoEmpresaFicha(p) {
+  var tem = p.razaoSocial || p.cnpj || p.endereco || p.site;
+  var linhaE = function (rot, val) { return val ? '<div class="flex justify-between gap-4 py-1.5 text-sm"><span class="text-xs font-bold uppercase text-muted-foreground">' + rot + '</span><span class="text-right">' + val + "</span></div>" : ""; };
+  return '<details class="rounded-md border border-border px-4 py-2"><summary class="cursor-pointer text-sm font-medium">Empresa e faturamento' +
+    (tem ? "" : ' <span class="font-normal text-muted-foreground">· ainda em branco</span>') + "</summary>" +
+    '<div class="mt-2 divide-y divide-border">' +
+      linhaE("Razão social", esc(p.razaoSocial)) + linhaE("CNPJ", esc(p.cnpj)) + linhaE("Endereço", esc(p.endereco)) +
+      linhaE("Site", p.site ? '<a href="' + esc(/^https?:/.test(p.site) ? p.site : "https://" + p.site) + '" target="_blank" rel="noopener" class="text-primary hover:underline">' + esc(p.site) + "</a>" : "") +
+    "</div>" +
+    (p.empresaOrigem ? '<p class="mt-2 flex items-center gap-1 text-xs text-success">' + icone("check", "size-3.5") + " " + esc(p.empresaOrigem) + "</p>" :
+      '<p class="mt-2 text-xs text-muted-foreground">' + (tem ? "" : "Quando a IA ler um contrato desta marca, ela preenche o que estiver em branco. ") + (podeMexer() ? "Para corrigir, use Editar." : "") + "</p>") +
+  "</details>";
+}
+// as linhas do historico: 2026 vem do mapa, 2027 vem do contrato, o resto foi digitado
+function historicoCompleto(p) {
+  var linhas = p.historico.map(function (h) { return Object.assign({ origem: "manual" }, h); });
+  var veC = !!S.contracts && podeVerContratosDe(p);
+  if (naBase2026(p)) {
+    var esp = espacos2026De(p).map(function (x) { return x && x.nome ? x.nome : String(x); }).filter(Boolean);
+    var c26 = veC ? contratosDe(p.id).filter(function (c) { return c.status === "assinado" && /^2026/.test(c.fim || ""); }) : [];
+    var v26 = c26.reduce(function (n, c) { return n + (Number(c.valor) || 0); }, 0);
+    linhas.push({ ano: 2026, cota: p.master ? "Master" : (TIPO_PATROCINADOR[p.tipo] || ""), espaco: esp.join(", "), valor: v26 || null, origem: "base", situacao: "Participou" });
+  }
+  var c27 = veC ? contrato2027(p) : null;
+  if (c27) linhas.push({ ano: 2027, cota: p.master ? "Master" : (TIPO_PATROCINADOR[p.tipo] || ""), espaco: p.espacoVinculado || "", valor: Number(c27.valor) || null, origem: "contrato", situacao: (STATUS_CONTRATO[c27.status] || {}).label || "" });
+  var vistos = {};
+  return linhas.filter(function (h) { if (vistos[h.ano]) return false; vistos[h.ano] = 1; return true; }).sort(function (a, b) { return b.ano - a.ano; });
+}
+function blocoHistoricoFicha(p) {
+  var mexe = podeMexer(), linhas = historicoCompleto(p);
+  var total = linhas.reduce(function (n, h) { return n + (h.valor || 0); }, 0);
+  var tr = function (h) {
+    return "<tr>" +
+      '<td class="py-2 pr-3 font-semibold">' + h.ano + "</td>" +
+      '<td class="py-2 pr-3">' + (h.espaco ? esc(h.espaco) : '<span class="text-muted-foreground">sem espaço</span>') + "</td>" +
+      '<td class="py-2 pr-3">' + esc(h.cota || "") + "</td>" +
+      '<td class="py-2 pr-3 text-right">' + (h.valor ? esc(formatCurrency(h.valor)) : '<span class="text-muted-foreground">·</span>') + "</td>" +
+      '<td class="py-2 text-right text-xs text-muted-foreground">' + (h.origem === "manual" ? "participou" + (mexe ? ' <button type="button" class="ml-1 text-destructive hover:underline" data-acao="historico-remover" data-id="' + esc(p.id) + '" data-ano="' + h.ano + '">tirar</button>' : "") : esc(h.situacao || "")) + "</td>" +
+    "</tr>";
+  };
+  var form = !mexe ? "" :
+    '<details class="form-historico rounded-md border border-dashed border-border px-3 py-2"><summary class="cursor-pointer text-xs text-muted-foreground">Adicionar edição passada</summary>' +
+      '<div class="grade-historico mt-2 grid gap-2">' +
+        '<input name="h_ano" type="number" min="2000" max="2100" placeholder="Ano" class="' + cn(INPUT, "h-9 text-sm") + '" aria-label="Ano">' +
+        '<input name="h_espaco" placeholder="Espaço" class="' + cn(INPUT, "h-9 text-sm") + '" maxlength="160" aria-label="Espaço">' +
+        '<input name="h_cota" placeholder="Cota" class="' + cn(INPUT, "h-9 text-sm") + '" maxlength="60" aria-label="Cota">' +
+        '<input name="h_valor" placeholder="Valor (opcional)" class="' + cn(INPUT, "h-9 text-sm") + '" maxlength="20" aria-label="Valor">' +
+        '<button type="button" class="' + btnCls("outline", "default", "h-9 text-xs font-medium") + '" data-acao="historico-add" data-id="' + esc(p.id) + '"' + (S.historicoMexendo ? " disabled" : "") + ">Guardar</button>" +
+      "</div>" +
+      '<p class="mt-2 text-xs text-muted-foreground">Só o ano já vale como "participou". Espaço, cota e valor são opcionais.</p></details>';
+  return '<section class="space-y-2"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("calendar", "size-4 text-primary") + " Histórico por edição " +
+    (total ? '<span class="font-normal text-muted-foreground">(' + esc(formatCurrency(total)) + " em " + linhas.length + (linhas.length === 1 ? " edição)" : " edições)") + "</span>" : "") + "</h3>" +
+    (linhas.length ? '<table class="tabela-hist w-full text-sm"><thead><tr class="text-left text-xs text-muted-foreground"><th class="pb-1 pr-3 font-medium">Edição</th><th class="pb-1 pr-3 font-medium">Espaço</th><th class="pb-1 pr-3 font-medium">Cota</th><th class="pb-1 pr-3 text-right font-medium">Valor</th><th class="pb-1 text-right font-medium">Situação</th></tr></thead>' +
+      '<tbody class="divide-y divide-border">' + linhas.map(tr).join("") + "</tbody></table>"
+      : '<p class="text-sm text-muted-foreground">Nenhuma edição registrada ainda. 2026 entra sozinha quando a marca está no mapa; 2027 entra com o contrato.</p>') +
+    form + "</section>";
+}
+
 function dialogoFicha() {
   var p = (S.sponsors || []).find(function (x) { return x.id === S.ficha; });
   if (!p) return "";
@@ -6827,9 +7017,8 @@ function dialogoFicha() {
   return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-ficha"></div>' +
     '<div role="dialog" aria-modal="true" aria-labelledby="titulo-ficha" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto sm:max-w-xl">' +
       '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-ficha" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + esc(p.nome) + "</h2>" +
-      '<div class="flex flex-wrap items-center gap-2 pt-1">' + badge(st) + badge(RENOVACAO[p.renovacao]) + '<span class="' + cn(BADGE, "text-foreground") + '">' + esc(TIPO_PATROCINADOR[p.tipo]) + "</span>" + (p.master ? badgeMaster() : "") + "</div></div>" +
+      '<div class="flex flex-wrap items-center gap-2 pt-1">' + badge(st) + badge(RENOVACAO[p.renovacao]) + '<span class="' + cn(BADGE, "text-foreground") + '">' + esc(TIPO_PATROCINADOR[p.tipo]) + "</span>" + (p.setor ? '<span class="' + cn(BADGE, "text-foreground") + '">' + esc(SETORES[p.setor]) + "</span>" : "") + (p.master ? badgeMaster() : "") + "</div></div>" +
       "<dl>" +
-        linha("Contato", esc(p.contato)) +
         linha("Espaço vinculado", p.espacoVinculado ? esc(p.espacoVinculado) : semEspacoFisico(p) ? badge(SELO_SEM_ESPACO) : '<span class="text-muted-foreground">Sem espaço</span>') +
         (p.contratou || semEspacoFisico(p) ? linha("O que contratou", textoContratou(p) ? esc(textoContratou(p)) : '<span class="text-muted-foreground">' + (mexe ? "Não informado. Preencha em Editar." : "Não informado.") + "</span>") : "") +
         linha("Vendedor responsável", nomePessoa(p.vendedorUid, p.responsavelComercial) ? esc(nomePessoa(p.vendedorUid, p.responsavelComercial)) : '<span class="text-muted-foreground">Ninguém ainda</span>') +
@@ -6837,6 +7026,7 @@ function dialogoFicha() {
         linha("Vencimento do contrato", esc(formatDateOnly(p.dataVencimentoContrato))) +
         (conversas ? linha("Último contato", p.ultimoContato ? esc(formatDateTime(p.ultimoContato)) : '<span class="text-muted-foreground">Nenhum registrado</span>') : "") +
       "</dl>" +
+      blocoContatosFicha(p) + blocoEmpresaFicha(p) +
       blocoRenovacaoFicha(p) +
       '<div class="flex flex-wrap gap-2">' +
         (mexe ? '<button type="button" class="' + btnCls("outline", "default", "font-bold uppercase") + '" data-acao="nova-interacao" data-patro="' + esc(p.id) + '">' + icone("message-square-plus") + " Registrar contato</button>" +
@@ -6845,6 +7035,7 @@ function dialogoFicha() {
         botaoExcluir("patrocinador", p) +
       "</div>" +
       blocoFilaDaMarca("patrocinador", p.id, true) +
+      blocoHistoricoFicha(p) +
       '<section class="space-y-3"><h3 class="flex items-center gap-2 text-sm font-black uppercase">' + icone("package-check", "size-4 text-primary") + " Propriedades " +
         '<span class="font-normal text-muted-foreground">(' + nEnt.entregues + " de " + nEnt.total + " entregue" + (nEnt.total === 1 ? "" : "s") + (nEnt.atrasadas ? ", " + nEnt.atrasadas + " atrasada" + (nEnt.atrasadas > 1 ? "s" : "") : "") + ")</span></h3>" +
         (nEnt.total ? '<div class="barra-entrega"><i style="width:' + nEnt.pct + '%"></i></div>' : "") +
@@ -7717,7 +7908,7 @@ var OPCOES_STATUS = [{ valor: "disponivel", rotulo: "Disponível" }, { valor: "r
 // tutorial, fechar janela, sair). Abrir o PDF do contrato fica de fora de proposito.
 var AVISO_SO_VER = "Seu acesso é só de visualização.";
 var ACOES_DE_LEITURA = {
-  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "limpar-filtros": 1, "alerta-situacao": 1, "abrir-renov-confirmaram": 1, "entregas-marca": 1, "entregas-voltar": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
+  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "limpar-filtros": 1, "add-contato": 1, "remover-contato": 1, "alerta-situacao": 1, "abrir-renov-confirmaram": 1, "entregas-marca": 1, "entregas-voltar": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
@@ -8149,11 +8340,43 @@ document.addEventListener("click", async function (ev) {
   if (acao === "fechar-detalhe") { S.detalhe = null; fecharMenu(); render(); return; }
   if (acao === "mais") { S.maisAberto = !S.maisAberto; render(); return; }
   if (acao === "lista-espacos") { S.listaEspacos = !S.listaEspacos; render(); return; }
+  if (acao === "add-contato") { var lc = document.getElementById("lista-contatos"); if (lc) lc.insertAdjacentHTML("beforeend", linhaContato()); return; }
+  if (acao === "remover-contato") {
+    var lct = alvo.closest(".linha-contato"), pai = lct && lct.parentElement;
+    if (lct) lct.remove();
+    if (pai && !pai.querySelector(".linha-contato")) pai.insertAdjacentHTML("beforeend", linhaContato({ nome: "", cargo: "", telefone: "", email: "", principal: true }));
+    return;
+  }
+  if (acao === "historico-add" || acao === "historico-remover") {
+    var ph = (S.sponsors || []).find(function (x) { return x.id === id; });
+    if (!ph) return;
+    var lista = ph.historico.slice();
+    if (acao === "historico-remover") {
+      var anoR = Number(alvo.getAttribute("data-ano"));
+      lista = lista.filter(function (h) { return h.ano !== anoR; });
+    } else {
+      var caixa = alvo.closest(".form-historico");
+      var pega = function (n) { var e = caixa && caixa.querySelector('[name="' + n + '"]'); return e ? e.value.trim() : ""; };
+      var ano = Number(pega("h_ano"));
+      if (!(ano >= 2000 && ano <= 2100)) { toast.error("Informe o ano da edição, com quatro dígitos."); return; }
+      var valorTxt = pega("h_valor").replace(/[^\d,\.]/g, "").replace(/\./g, "").replace(",", ".");
+      var novoH = { ano: ano, cota: pega("h_cota").slice(0, 60), espaco: pega("h_espaco").slice(0, 160), valor: valorTxt ? Number(valorTxt) : null, obs: "" };
+      lista = lista.filter(function (h) { return h.ano !== ano; }).concat([novoH]);
+    }
+    S.historicoMexendo = true; render();
+    try {
+      await API.atualizar("patrocinadores", ph.id, { historico: lista });
+      await carregar("sponsors", getSponsors);
+      toast.success(acao === "historico-add" ? "Edição guardada no histórico." : "Linha tirada do histórico.");
+    } catch (e) { toast.error("Não foi possível salvar o histórico."); }
+    S.historicoMexendo = false; render();
+    return;
+  }
   if (acao === "entregas-marca") { S.marcaEntregas = alvo.getAttribute("data-chave"); render(); return; }
   if (acao === "entregas-voltar") { S.marcaEntregas = null; render(); return; }
   if (acao === "limpar-filtros") {
     var tela = alvo.getAttribute("data-tela");
-    if (tela === "patro") S.fp = { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos" };
+    if (tela === "patro") S.fp = { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos", setor: "todos" };
     if (tela === "contratos") { S.fc = { q: "", status: "todos", vendedor: "todos", cuida: "todos", renov: "todos", tipo: "todos", prazo: "todos" }; trocarParametro("patro", ""); }
     if (tela === "entregas") S.fe = { q: "", status: "todos", origem: "todas", patro: "todos", cuida: "todos", renov: "todos", tipo: "todos", prazo: "todos" };
     render();
@@ -8298,7 +8521,7 @@ document.addEventListener("input", function (ev) {
     S.fp.q = el.value;
     document.getElementById("bloco-lista-patro").innerHTML = blocoListaPatrocinadores();
     var f0 = S.fp;
-    document.getElementById("limpar-patro").innerHTML = botaoLimpar(!!(f0.q.trim() || f0.status !== "todos" || f0.cuida !== "todos" || f0.renov !== "todos" || f0.tipoMarca !== "todos" || f0.prazo !== "todos"), "patro");
+    document.getElementById("limpar-patro").innerHTML = botaoLimpar(!!(f0.q.trim() || f0.status !== "todos" || f0.cuida !== "todos" || f0.renov !== "todos" || f0.tipoMarca !== "todos" || f0.prazo !== "todos" || f0.setor !== "todos"), "patro");
     return;
   }
   if (el.id === "busca-entrega") {
@@ -8351,7 +8574,7 @@ document.addEventListener("change", async function (ev) {
     if (caixa) caixa.innerHTML = blocoConfereMarca(el.value);
     return;
   }
-  var filtros = { "filtro-status": "status", "filtro-cuida": "cuida", "filtro-renovacao": "renov", "filtro-tipo-marca": "tipoMarca", "filtro-prazo-marca": "prazo" };
+  var filtros = { "filtro-status": "status", "filtro-cuida": "cuida", "filtro-renovacao": "renov", "filtro-tipo-marca": "tipoMarca", "filtro-prazo-marca": "prazo", "filtro-setor": "setor" };
   if (filtros[el.id]) {
     S.fp[filtros[el.id]] = el.value;
     render();
@@ -8607,7 +8830,18 @@ document.addEventListener("submit", async function (ev) {
     var travaP = !!atual && !podeTrocarResponsaveis(atual);
     var dadosP = {
       id: atual ? atual.id : undefined,
-      nome: String(fp.get("nome") || ""), contato: String(fp.get("contato") || ""),
+      nome: String(fp.get("nome") || ""), contato: atual ? atual.contato : "",
+      contatos: (function () {
+        // o radio so traz o marcado: descobre qual linha e a principal pela posicao
+        var linhas = [].slice.call(ev.target.querySelectorAll(".linha-contato"));
+        return linhas.map(function (l) {
+          var g = function (n) { var e = l.querySelector('[name="' + n + '"]'); return e ? e.value : ""; };
+          var r = l.querySelector('[name="ct_principal"]');
+          return { nome: g("ct_nome"), cargo: g("ct_cargo"), telefone: g("ct_telefone"), email: g("ct_email"), principal: !!(r && r.checked) };
+        });
+      })(),
+      setor: String(fp.get("setor") || ""),
+      razaoSocial: String(fp.get("razao_social") || ""), cnpj: String(fp.get("cnpj") || ""), endereco: String(fp.get("endereco") || ""), site: String(fp.get("site") || ""),
       tipo: String(fp.get("tipo") || "patrocinador"), status: String(fp.get("status") || "ativo"),
       vendedorUid: travaP ? atual.vendedorUid : fp.get("vendedor_uid") || null, atendimentoUid: travaP ? atual.atendimentoUid : fp.get("atendimento_uid") || null,
       espacoVinculadoId: fp.get("espaco_vinculado_id") || null,
