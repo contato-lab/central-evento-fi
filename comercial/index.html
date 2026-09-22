@@ -757,7 +757,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.21";
+var VERSAO = "2026-09-22.22";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -6833,9 +6833,11 @@ function blocoListaInteracoes() {
       || (m.renovAberta && m.dias === null);
   };
   var lista = termo ? todas.filter(function (m) { return chaveMarca(m.nome).indexOf(termo) >= 0; }) : todas.filter(naFila);
-  // urgencia: acao atrasada, depois esfriando, depois quem esta ha mais tempo sem falar
-  var peso = function (m) { return m.atrasada ? 0 : m.esfriando ? 1 : m.dias === null ? 2 : 3; };
-  lista.sort(function (x, y) { var dx = x.dias == null ? 9999 : x.dias, dy = y.dias == null ? 9999 : y.dias;
+  // urgencia: acao atrasada, esfriando, conversa em andamento (mais parada primeiro) e, por fim,
+  // quem nunca foi contatado. Sao 110 marcas nessa ultima faixa: se elas vierem antes, enterram
+  // as conversas vivas, que e justamente o que esta tela serve para retomar.
+  var peso = function (m) { return m.atrasada ? 0 : m.esfriando ? 1 : m.dias !== null ? 2 : 3; };
+  lista.sort(function (x, y) { var dx = x.dias == null ? -1 : x.dias, dy = y.dias == null ? -1 : y.dias;
     return peso(x) - peso(y) || dy - dx || x.nome.localeCompare(y.nome, "pt-BR"); });
 
   // busca sem resultado NAO pode engolir o campo de busca, senao a pessoa nao corrige o que digitou
