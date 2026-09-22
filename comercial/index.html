@@ -757,7 +757,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.20";
+var VERSAO = "2026-09-22.21";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -5427,7 +5427,7 @@ function telaInicio() {
           "</div>" +
           '<div id="secao-meus-alertas" class="space-y-3">' +
             (listaAba.length ? listaAba.map(cartaoAlerta).join("") : '<p class="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">' + vazioAba +
-              (S.alertaSituacao && outraAba.n ? ' <button type="button" class="font-medium text-primary hover:underline" data-acao="alerta-aba" data-aba="' + outraAba.id + '">' + outraAba.txt + " (" + outraAba.n + ")</button>" : "") + "</p>") +
+              (outraAba.n ? ' <button type="button" class="font-medium text-primary hover:underline" data-acao="alerta-aba" data-aba="' + outraAba.id + '">' + outraAba.txt + " (" + outraAba.n + ")</button>" : "") + "</p>") +
           "</div>" +
           (ehAdmin() && adminSit.length ? '<h2 class="pt-2 text-sm font-semibold">Para a diretoria <span class="font-normal text-muted-foreground">' + adminSit.length + "</span></h2>" + adminSit.map(cartaoAlerta).join("") : "") +
           (precisam.length && !S.alertaSituacao ? '<h2 id="secao-marcas-acao" class="pt-2 text-sm font-semibold">Marcas desejo que precisam de ação <span class="font-normal text-muted-foreground">' + precisam.length + "</span></h2>" + precisam.map(cartaoMarcaAcao).join("") : "") +
@@ -6806,6 +6806,8 @@ function blocoListaInteracoes() {
   (S.sponsors || []).filter(function (p) { return passaEdicao(edicoesDaMarca(p)); }).forEach(function (p) {
     var m = juntar(p.id, p.nome, false, p.id);
     m.ultimo = p.ultimoContato || null;
+    // mesma porta do alerta "Nenhum contato registrado" do Inicio: marca ainda em jogo
+    m.renovAberta = p.renovacao === "sem_contato" || p.renovacao === "em_negociacao";
   });
   (S.prospects || []).filter(function (x) { return passaEdicao(edicoesDaMarcaDesejo(x)); }).forEach(function (x) {
     var m = juntar("p:" + x.id, x.nome, true, x.id);
@@ -6823,7 +6825,13 @@ function blocoListaInteracoes() {
   var todas = Object.keys(mapa).map(function (k) { return mapa[k]; });
   todas.forEach(function (m) { m.dias = m.ultimo ? Math.max(0, -diasAte(m.ultimo)) : null; });
   // quem entra na fila: tem conversa, ou esta atrasada, ou passou do limite de dias sem contato
-  var naFila = function (m) { return m.conversas.length || m.atrasada || m.esfriando || (m.dias !== null && m.dias > limite); };
+  // Quem nunca foi contatado E o que mais precisa de contato: antes ficava de fora porque nao
+  // tinha conversa nem dias para comparar, e a tela escondia a base inteira.
+  var naFila = function (m) {
+    return m.conversas.length || m.atrasada || m.esfriando
+      || (m.dias !== null && m.dias > limite)
+      || (m.renovAberta && m.dias === null);
+  };
   var lista = termo ? todas.filter(function (m) { return chaveMarca(m.nome).indexOf(termo) >= 0; }) : todas.filter(naFila);
   // urgencia: acao atrasada, depois esfriando, depois quem esta ha mais tempo sem falar
   var peso = function (m) { return m.atrasada ? 0 : m.esfriando ? 1 : m.dias === null ? 2 : 3; };
@@ -7165,16 +7173,16 @@ function nomeDoPatroFiltro(id) {
   var c = (S.contracts || []).find(function (x) { return x.patrocinadorId === id; });
   return c ? c.patrocinador : "esta marca";
 }
-function contratosDaMarcaFiltrada() {
+function contratosDaMarcaFiltrada(ignorarEdicao) {
   var patro = patroFiltroContratos();
   // a edicao escolhida no topo vale aqui: assim os numeros e a lista contam a mesma coisa
-  return (S.contracts || []).filter(function (c) { return (!patro || contratoCobre(c, patro)) && passaEdicao(c.edicao ? [c.edicao] : []); });
+  return (S.contracts || []).filter(function (c) { return (!patro || contratoCobre(c, patro)) && (ignorarEdicao || passaEdicao(c.edicao ? [c.edicao] : [])); });
 }
 // Tudo menos o status: e deste recorte que saem os quatro numeros do topo (que sao a
 // divisao por status) e, com o status junto, a lista.
-function contratosDoRecorte() {
+function contratosDoRecorte(ignorarEdicao) {
   var f = S.fc, term = f.q.trim().toLocaleLowerCase("pt-BR");
-  return contratosDaMarcaFiltrada().filter(function (c) {
+  return contratosDaMarcaFiltrada(ignorarEdicao).filter(function (c) {
     var marca = marcaPorId(c.patrocinadorId);
     if (!passaQuemCuida(marca, f.cuida)) return false;
     if (!passaRenovMarca(marca, f.renov)) return false;
@@ -7184,9 +7192,9 @@ function contratosDoRecorte() {
     return true;
   });
 }
-function contratosFiltrados() {
+function contratosFiltrados(ignorarEdicao) {
   var f = S.fc;
-  return contratosDoRecorte().filter(function (c) { return f.status === "todos" || c.status === f.status; });
+  return contratosDoRecorte(ignorarEdicao).filter(function (c) { return f.status === "todos" || c.status === f.status; });
 }
 // algum filtro de marca ligado? serve para mostrar o "Limpar filtros"
 function filtrosContratoLigados() {
@@ -7202,7 +7210,18 @@ function blocoListaContratos() {
   if (!S.contracts.length) return emptyList("file-text", "Nenhum contrato guardado ainda", "Abra a ficha de um patrocinador e use Novo contrato, ou o botão acima.");
   var lista = contratosFiltrados();
   if (!lista.length && patro) return emptyList("file-text", "Os filtros escondem os contratos de " + nomeDoPatroFiltro(patro), "A marca tem " + qtdTexto(contratosDaMarcaFiltrada().length, "contrato", "contratos") + ". Ajuste a busca ou os filtros acima para ver.");
-  if (!lista.length) return emptyList("file-text", "Nenhum contrato encontrado", "Ajuste a busca ou os filtros.");
+  if (!lista.length) {
+    // o filtro de edicao fica longe, no topo da pagina, e nao parece filtro de contrato: quando e
+    // ELE que esvaziou a lista, a mensagem tem que dizer isso em vez de mandar mexer nos outros
+    var semEdicao = filtrandoEdicao() ? contratosFiltrados(true).length : 0;
+    if (semEdicao) {
+      return '<div class="border border-dashed border-border px-4 py-14 text-center">' + icone("file-text", "mx-auto size-7 text-muted-foreground") +
+        '<p class="mt-3 font-semibold">Nenhum contrato na ' + esc(rotuloEdicao(edicaoEscolhida())) + "</p>" +
+        '<p class="mt-1 text-sm text-muted-foreground">' + esc(qtdTexto(semEdicao, "contrato", "contratos")) + " na outra edição, com estes mesmos filtros.</p>" +
+        '<button type="button" class="' + btnCls("outline", "default", "mt-3 text-xs font-bold uppercase") + '" data-acao="edicao" data-edicao="' + EDICAO_TUDO + '">Ver as duas edições</button></div>';
+    }
+    return emptyList("file-text", "Nenhum contrato encontrado", "Ajuste a busca ou os filtros.");
+  }
   return '<div class="overflow-hidden rounded-md border border-border bg-card">' + lista.map(linhaContrato).join("") + "</div>";
 }
 
@@ -7452,10 +7471,14 @@ function tabelaGrupoTipo(lista) {
     if (!g) { semGrupo.push(c); return; }
     (porGrupo[g.id] = porGrupo[g.id] || { grupo: g, itens: [] }).itens.push(c);
   });
+  // grupo sem contrato tambem entra, com zero: some da tela da a impressao de que quebrou
+  (S.grupos || []).forEach(function (g) { if (!porGrupo[g.id]) porGrupo[g.id] = { grupo: g, itens: [] }; });
   var linhas = Object.keys(porGrupo).map(function (k) {
     var g = porGrupo[k];
     var quantas = marcasDoGrupo(g.grupo.id).length;
-    return { id: g.grupo.id, nome: g.grupo.nome, abaixo: quantas + (quantas === 1 ? " marca" : " marcas"), soma: somarPorTipo(g.itens) };
+    return { id: g.grupo.id, nome: g.grupo.nome,
+      abaixo: quantas + (quantas === 1 ? " marca" : " marcas") + (g.itens.length ? "" : ", nenhum contrato ainda"),
+      soma: somarPorTipo(g.itens) };
   }).sort(function (a, b) { return b.soma.todos.total - a.soma.todos.total; });
   if (semGrupo.length) {
     var quantasSoltas = (S.sponsors || []).filter(function (p) { return !p.grupoId || !grupoPorId(p.grupoId); }).length;
