@@ -363,6 +363,9 @@
   .ponto{width:8px;height:8px;border-radius:4px;flex-shrink:0;display:inline-block}
   .cartao-num{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);
     padding:16px 20px;box-shadow:var(--sombra-cartao)}
+  .cartao-num-botao{text-align:left;cursor:pointer;width:100%;transition:border-color .12s,box-shadow .12s}
+  .cartao-num-botao:hover{border-color:var(--ring)}
+  .cartao-num-ativo,.cartao-num-ativo:hover{border:2px solid var(--ring);padding:15px 19px;box-shadow:0 0 0 3px var(--verde-fraco)}
   .painel-lado{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);
     box-shadow:var(--sombra-cartao);overflow:hidden}
   .selo-lado{font-size:12px;font-weight:500;padding:3px 8px;border-radius:6px;
@@ -591,7 +594,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-21.12";
+var VERSAO = "2026-09-21.13";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -2420,6 +2423,7 @@ var S = {
   listaEspacos: false, // a lista embaixo do mapa so aparece pelo botao Lista
   marcaEntregas: null, // Propriedades: marca aberta a direita (null = a de mais atraso; no celular, mostra a lista)
   alertaAba: "meus",   // Início: "meus" ou "equipe"
+  alertaSituacao: null, // Início: cartao clicado ("vermelhas", "amarelas", "outras") filtra os alertas; null = todos
   auth: { mode: "login", name: "", email: "", password: "", error: "", message: "", loading: false },
   form: { aberto: false, espaco: null, salvando: false, prefill: null },
   detalhe: null,
@@ -4684,19 +4688,38 @@ function telaInicio() {
         (lista.length ? lista.map(cartaoAlerta).join("") : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">' + vazio + "</p>") + "</section>";
     };
     var ponto = function (cor) { return '<span class="ponto" style="background:' + cor + '"></span>'; };
-    var cartaoNum = function (cor, rot, num, hint, extra) {
-      return '<div class="cartao-num">' +
-        '<span class="flex items-center gap-2 text-sm text-muted-foreground">' + ponto(cor) + rot + "</span>" +
+    var cartaoNum = function (cor, rot, num, hint, extra, situacao) {
+      var miolo = '<span class="flex items-center gap-2 text-sm text-muted-foreground">' + ponto(cor) + rot + "</span>" +
         '<span class="mt-1.5 block text-3xl font-semibold leading-none tracking-tight">' + num + "</span>" +
-        (hint ? '<span class="mt-1.5 block text-xs text-muted-foreground">' + hint + "</span>" : "") + (extra || "") + "</div>";
+        (hint ? '<span class="mt-1.5 block text-xs text-muted-foreground">' + hint + "</span>" : "") + (extra || "");
+      if (!situacao) return '<div class="cartao-num">' + miolo + "</div>";
+      var ativo = S.alertaSituacao === situacao;
+      // o cartao e um botao: clicou, a lista de alertas embaixo mostra so essa situacao
+      return '<button type="button" class="' + cn("cartao-num cartao-num-botao", ativo && "cartao-num-ativo") + '" data-acao="alerta-situacao" data-situacao="' + situacao + '" aria-pressed="' + ativo + '" title="' + (ativo ? "Mostrar todos os alertas" : "Mostrar só estas marcas nos alertas") + '">' +
+        miolo + '<span class="mt-2 block text-xs font-medium text-primary">' + (ativo ? "Mostrando estas abaixo · limpar" : "Ver quais marcas") + "</span></button>";
     };
     var abaAlerta = function (id, rot, n) {
       var ativo = (S.alertaAba || "meus") === id;
       return '<button type="button" role="radio" aria-checked="' + ativo + '" data-acao="alerta-aba" data-aba="' + id + '" class="' +
         cn("seg-botao h-7 px-3 text-xs font-medium", ativo ? "seg-ativo" : "text-muted-foreground") + '">' + rot + ' <span class="opacity-60">' + n + "</span></button>";
     };
-    var listaAba = (S.alertaAba || "meus") === "equipe" ? outros : meus;
-    var vazioAba = (S.alertaAba || "meus") === "equipe" ? "Nada pendente com os outros vendedores." : "Nada pendente com você hoje.";
+    var idsVermelhas = {}; ren.vermelhas.forEach(function (x) { idsVermelhas[x.id] = 1; });
+    var ROTULO_SITUACAO = { vermelhas: "não renovaram nem assinaram", amarelas: "prazo perto de vencer", outras: "outras pendências" };
+    var daSituacao = function (a) {
+      var sit = S.alertaSituacao;
+      if (!sit) return true;
+      if (sit === "outras") return a.grupo === "outras";
+      if (a.grupo !== "renovacao" || !a.patro) return false;
+      if (sit === "vermelhas") return a.nivel === "vermelho";
+      return a.nivel === "amarelo" && !idsVermelhas[a.patro.id];
+    };
+    var meusSit = meus.filter(daSituacao), outrosSit = outros.filter(daSituacao);
+    var listaAba = (S.alertaAba || "meus") === "equipe" ? outrosSit : meusSit;
+    var outraAba = (S.alertaAba || "meus") === "equipe" ? { id: "meus", n: meusSit.length, txt: "Ver as suas" } : { id: "equipe", n: outrosSit.length, txt: "Ver as da equipe" };
+    var adminSit = admin.filter(daSituacao);
+    var vazioAba = S.alertaSituacao
+      ? ((S.alertaAba || "meus") === "equipe" ? "Nenhuma marca da equipe nesta situação." : "Nenhuma marca sua nesta situação.")
+      : ((S.alertaAba || "meus") === "equipe" ? "Nada pendente com os outros vendedores." : "Nada pendente com você hoje.");
     var painel = function (titulo, link, rotuloLink, linhas) {
       return '<section class="painel-lado">' +
         '<div class="flex items-baseline justify-between gap-3 border-b border-border px-4 py-3">' +
@@ -4718,25 +4741,27 @@ function telaInicio() {
 
     corpo =
       '<div id="inicio-contadores" class="grade-numeros grid gap-4 sm:grid-cols-2">' +
-        cartaoNum("var(--destructive)", "Não renovaram nem assinaram", ren.vermelhas.length, "Passaram do prazo sem responder") +
-        cartaoNum("var(--warning)", "Prazo perto de vencer", ren.amarelas.length, "Confirmação até " + esc(dataComDia(cfg.prazo_confirmacao))) +
-        cartaoNum("var(--muted-foreground)", "Outras pendências", outrasPend.length, outrasPend.length ? Object.keys(porTipo).map(function (k) { return esc(k) + " (" + porTipo[k] + ")"; }).join(" · ") : "Entregas, reservas e fila") +
+        cartaoNum("var(--destructive)", "Não renovaram nem assinaram", ren.vermelhas.length, "Passaram do prazo sem responder", "", "vermelhas") +
+        cartaoNum("var(--warning)", "Prazo perto de vencer", ren.amarelas.length, "Confirmação até " + esc(dataComDia(cfg.prazo_confirmacao)), "", "amarelas") +
+        cartaoNum("var(--muted-foreground)", "Outras pendências", outrasPend.length, outrasPend.length ? Object.keys(porTipo).map(function (k) { return esc(k) + " (" + porTipo[k] + ")"; }).join(" · ") : "Entregas, reservas e fila", "", "outras") +
         cartaoNum("var(--primary)", "Base 2026 confirmou", confR.length + ' <span class="text-base font-medium text-muted-foreground">de ' + baseR.length + "</span>", "",
           '<div class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted"><div class="h-1.5 rounded-full bg-primary" style="width:' + pct + '%"></div></div>' +
-          '<a href="#/app/renovacao" class="mt-2 inline-block text-xs font-medium text-primary hover:underline">Abrir a Renovação 2027</a>') +
+          '<button type="button" class="mt-2 inline-block text-xs font-medium text-primary hover:underline" data-acao="abrir-renov-confirmaram">Ver quem confirmou na Renovação 2027</button>') +
       "</div>" +
 
       '<div class="grade-inicio grid gap-6">' +
         '<div class="min-w-0 space-y-3">' +
           '<div class="flex flex-wrap items-center justify-between gap-2">' +
-            '<h2 class="text-sm font-semibold">Alertas</h2>' +
+            '<h2 class="text-sm font-semibold">Alertas' + (S.alertaSituacao ? ' <span class="font-normal text-muted-foreground">· ' + ROTULO_SITUACAO[S.alertaSituacao] + ", " + listaAba.length + "</span>" +
+              ' <button type="button" class="ml-1 text-xs font-medium text-primary hover:underline" data-acao="alerta-situacao" data-situacao="' + S.alertaSituacao + '">Limpar</button>' : "") + "</h2>" +
             '<div role="radiogroup" aria-label="De quem são os alertas" class="seg-trilho flex shrink-0">' + abaAlerta("meus", "Meus", meus.length) + abaAlerta("equipe", "Da equipe", outros.length) + "</div>" +
           "</div>" +
           '<div id="secao-meus-alertas" class="space-y-3">' +
-            (listaAba.length ? listaAba.map(cartaoAlerta).join("") : '<p class="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">' + vazioAba + "</p>") +
+            (listaAba.length ? listaAba.map(cartaoAlerta).join("") : '<p class="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">' + vazioAba +
+              (S.alertaSituacao && outraAba.n ? ' <button type="button" class="font-medium text-primary hover:underline" data-acao="alerta-aba" data-aba="' + outraAba.id + '">' + outraAba.txt + " (" + outraAba.n + ")</button>" : "") + "</p>") +
           "</div>" +
-          (ehAdmin() && admin.length ? '<h2 class="pt-2 text-sm font-semibold">Para a diretoria <span class="font-normal text-muted-foreground">' + admin.length + "</span></h2>" + admin.map(cartaoAlerta).join("") : "") +
-          (precisam.length ? '<h2 id="secao-marcas-acao" class="pt-2 text-sm font-semibold">Marcas desejo que precisam de ação <span class="font-normal text-muted-foreground">' + precisam.length + "</span></h2>" + precisam.map(cartaoMarcaAcao).join("") : "") +
+          (ehAdmin() && adminSit.length ? '<h2 class="pt-2 text-sm font-semibold">Para a diretoria <span class="font-normal text-muted-foreground">' + adminSit.length + "</span></h2>" + adminSit.map(cartaoAlerta).join("") : "") +
+          (precisam.length && !S.alertaSituacao ? '<h2 id="secao-marcas-acao" class="pt-2 text-sm font-semibold">Marcas desejo que precisam de ação <span class="font-normal text-muted-foreground">' + precisam.length + "</span></h2>" + precisam.map(cartaoMarcaAcao).join("") : "") +
         "</div>" +
 
         '<aside class="min-w-0 space-y-4">' +
@@ -7692,7 +7717,7 @@ var OPCOES_STATUS = [{ valor: "disponivel", rotulo: "Disponível" }, { valor: "r
 // tutorial, fechar janela, sair). Abrir o PDF do contrato fica de fora de proposito.
 var AVISO_SO_VER = "Seu acesso é só de visualização.";
 var ACOES_DE_LEITURA = {
-  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "limpar-filtros": 1, "entregas-marca": 1, "entregas-voltar": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
+  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "limpar-filtros": 1, "alerta-situacao": 1, "abrir-renov-confirmaram": 1, "entregas-marca": 1, "entregas-voltar": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
@@ -8136,6 +8161,8 @@ document.addEventListener("click", async function (ev) {
   }
   if (acao === "filtro-espaco") { trocarParametro("status", alvo.getAttribute("data-filtro")); render(); return; }
   if (acao === "alerta-aba") { S.alertaAba = alvo.getAttribute("data-aba") || "meus"; render(); return; }
+  if (acao === "alerta-situacao") { var sit = alvo.getAttribute("data-situacao"); S.alertaSituacao = S.alertaSituacao === sit ? null : sit; render(); return; }
+  if (acao === "abrir-renov-confirmaram") { if (S.fr) S.fr.sit = "confirmaram"; irPara("/app/renovacao"); return; }
   if (acao === "tema") { mudarTema(temaValendo() === "escuro" ? "claro" : "escuro"); return; }
   if (acao === "tema-escolher") { mudarTema(alvo.getAttribute("data-tema")); return; }
   if (acao === "edicao-global") {
