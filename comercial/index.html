@@ -429,6 +429,20 @@
   .selo-divisao{display:inline-flex;align-items:center;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:600;white-space:nowrap}
   .selo-divisao-ia{background:var(--ambar-fraco,rgba(255,194,75,.15));color:var(--warning-foreground);border:1px solid var(--warning)}
   .selo-divisao-falta{background:transparent;color:var(--muted-foreground);border:1px dashed var(--border)}
+  @media (min-width:640px){.sm\:col-span-2{grid-column:span 2 / span 2}}
+  .barra-visao{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+  .grupo-botoes-visao{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card)}
+  .botao-visao{padding:6px 14px;font-size:13px;color:var(--muted-foreground);background:transparent;border:0;cursor:pointer;font-family:inherit}
+  .botao-visao-ativo{background:var(--primary);color:var(--primary-foreground);font-weight:600}
+  .cartao-grupo{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--card);margin-bottom:10px}
+  .cartao-grupo-soltas{border-style:dashed;background:transparent}
+  .cartao-grupo-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .cartao-grupo-marcas{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .marca-mini{border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--background);cursor:pointer;text-align:left;font-family:inherit}
+  .marca-mini:hover{border-color:var(--primary)}
+  .marca-mini b{display:block;font-size:13px;font-weight:600}
+  .marca-mini span{display:block;font-size:11px;color:var(--muted-foreground)}
+  .chip-grupo{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:999px;padding:1px 9px;font-size:11px;color:var(--muted-foreground);white-space:nowrap}
   .grade-tipos{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
   @media (min-width:900px){.grade-tipos{grid-template-columns:repeat(4,minmax(0,1fr))}}
   .cartao-tipo{border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--card)}
@@ -709,7 +723,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.9";
+var VERSAO = "2026-09-22.10";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -1720,6 +1734,7 @@ async function getSponsors() {
       contratou: String(s.contratou || ""),
       setor: SETORES[s.setor] ? s.setor : "",
       razaoSocial: String(s.razao_social || ""), cnpj: String(s.cnpj || ""), endereco: String(s.endereco || ""), site: String(s.site || ""),
+      grupoId: s.grupo_id || null,
       empresaOrigem: String(s.empresa_origem || ""),
       contatos: contatosDe(s),
       historico: historicoDe(s),
@@ -1755,6 +1770,58 @@ async function saveInteraction(data) {
   try {
     return await API.criar("interacoes", { patrocinador_id: ehMarca ? null : alvo, prospeccao_id: ehMarca ? alvo.slice(2) : null, data: quando.toISOString(), observacao: obs, proximo_passo: prox.slice(0, 500), tipo: TIPO_INTERACAO[data.tipo] ? data.tipo : "outro" });
   } catch (e) { throw new Error("Não foi possível registrar a interação."); }
+}
+
+var NEGOCIA = {
+  junto: { label: "Negocia junto", ajuda: "falar com uma marca é falar com todas (Toyota e Lexus)" },
+  separado: { label: "Negocia separado", ajuda: "cada marca tem a sua conversa e o seu momento (BMW e Mini)" },
+};
+async function getGrupos() {
+  var r;
+  try { r = await API.listar("grupos"); } catch (e) { throw new Error("Não foi possível carregar os grupos."); }
+  return r.map(function (g) {
+    return { id: g.id, nome: g.nome || "Grupo", negocia: NEGOCIA[g.negocia] ? g.negocia : "separado",
+             atendimentoUid: g.atendimento_uid || null, atendimentoNome: g.atendimento_nome || "",
+             observacao: g.observacao || "" };
+  }).sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
+}
+async function saveGrupo(data) {
+  var nome = String(data.nome || "").trim();
+  if (nome.length < 2 || nome.length > 80) throw new Error("Dê um nome ao grupo, de 2 a 80 letras.");
+  var repetido = (S.grupos || []).some(function (g) { return g.id !== data.id && chaveMarca(g.nome) === chaveMarca(nome); });
+  if (repetido) throw new Error("Já existe um grupo com esse nome.");
+  var at = data.atendimentoUid ? perfilPorUid(data.atendimentoUid) : null;
+  var payload = {
+    nome: nome, negocia: NEGOCIA[data.negocia] ? data.negocia : "separado",
+    atendimento_uid: at ? at.id : null, atendimento_nome: at ? at.nome : "",
+    observacao: String(data.observacao || "").trim().slice(0, 300),
+  };
+  var id = data.id;
+  try {
+    if (id) await API.atualizar("grupos", id, payload);
+    else { var novo = await API.criar("grupos", payload); id = novo.id; }
+  } catch (e) { throw new Error("Não foi possível salvar o grupo."); }
+  return { id: id, atendimento: at };
+}
+function grupoPorId(gid) { return (S.grupos || []).find(function (g) { return g.id === gid; }) || null; }
+function marcasDoGrupo(gid) { return (S.sponsors || []).filter(function (p) { return p.grupoId === gid; }); }
+// CNPJ distinto dentro do grupo: e o numero que o dono do festival quis ver
+function cnpjsDoGrupo(gid) {
+  var vistos = {};
+  marcasDoGrupo(gid).forEach(function (p) {
+    var c = String(p.cnpj || "").replace(/\D/g, "");
+    if (c) vistos[c] = 1;
+  });
+  return Object.keys(vistos).length;
+}
+// marcas no evento X empresas pagando: grupo com marca conta 1, marca sem grupo conta 1
+function contagemMarcasEmpresas(base) {
+  var gruposVistos = {}, soltas = 0;
+  base.forEach(function (p) {
+    if (p.grupoId && grupoPorId(p.grupoId)) gruposVistos[p.grupoId] = 1;
+    else soltas++;
+  });
+  return { marcas: base.length, empresas: Object.keys(gruposVistos).length + soltas };
 }
 
 async function getCombinados() {
@@ -1881,6 +1948,7 @@ async function saveSponsor(data) {
   payload.contratou = String(data.contratou || "").trim().slice(0, 500);
   payload.contatos = contatos;
   payload.setor = SETORES[data.setor] ? data.setor : "";
+  payload.grupo_id = data.grupoId && grupoPorId(data.grupoId) ? data.grupoId : null;
   payload.razao_social = String(data.razaoSocial || "").trim().slice(0, 160);
   payload.cnpj = String(data.cnpj || "").trim().slice(0, 20);
   payload.endereco = String(data.endereco || "").trim().slice(0, 240);
@@ -2730,7 +2798,9 @@ var S = {
   papel: "vendedor",
   perfis: null,
   formPatro: { aberto: false, patro: null, salvando: false },
-  fp: { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos", setor: "todos" },
+  fp: { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos", setor: "todos", visao: "marca" },
+  grupos: null, gruposErro: null, gruposCarregando: false,
+  formGrupo: { aberto: false, grupo: null, salvando: false },
   papelMudando: false,
   config: null,
   formInter: { aberto: false, patroId: null, salvando: false },
@@ -4811,7 +4881,7 @@ function acaoDaTela(caminho) {
       (extra || "") + ' title="' + esc(txt) + '" aria-label="' + esc(txt) + '">' + icone(ic) + '<span class="hidden sm:inline">' + esc(txt) + "</span></button>";
   };
   if (caminho === "/app/espacos") return b("novo", "plus", "Novo espaço");
-  if (caminho === "/app/patrocinadores") return b("novo-patro", "plus", "Novo patrocinador");
+  if (caminho === "/app/patrocinadores") return S.fp.visao === "grupo" ? b("novo-grupo", "plus", "Novo grupo") : b("novo-patro", "plus", "Novo patrocinador");
   if (caminho === "/app/marcas") return b("nova-marca", "plus", "Nova marca desejo");
   if (caminho === "/app/propriedades") return b("nova-entrega", "plus", "Nova entrega");
   if (caminho === "/app/contratos") {
@@ -4897,6 +4967,7 @@ function casca(conteudo, caminho) {
     "</div>" +
     (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto && !S.formEntrega.aberto ? dialogoFicha() : "") +
     (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto && !S.formEntrega.aberto ? dialogoFichaProspeccao() : "") +
+    (S.formGrupo.aberto ? dialogoGrupo() : "") +
     (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formContrato.aberto ? dialogoContrato() : "") + (S.formEntrega.aberto ? dialogoEntrega() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
     barraConversaR27() + gaveta +
     '<nav aria-label="Navegação principal" class="nav-inferior fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
@@ -5905,6 +5976,69 @@ function blocoNumerosCarteira() {
   ], false);
 }
 
+function opcoesGrupo() {
+  return [{ valor: "", rotulo: "Sem grupo" }].concat((S.grupos || []).map(function (g) { return { valor: g.id, rotulo: g.nome }; }));
+}
+function seletorVisaoCarteira() {
+  var b = function (v, rotulo) {
+    return '<button type="button" class="' + cn("botao-visao", S.fp.visao === v && "botao-visao-ativo") + '" data-acao="carteira-visao" data-valor="' + v + '">' + rotulo + "</button>";
+  };
+  var base = (S.sponsors || []).filter(function (p) { return passaEdicao(edicoesDaMarca(p)); });
+  var c = contagemMarcasEmpresas(base);
+  return '<div class="barra-visao">' +
+    '<div class="grupo-botoes-visao">' + b("marca", "Por marca") + b("grupo", "Por grupo") + "</div>" +
+    '<span class="text-xs text-muted-foreground">' + c.marcas + (c.marcas === 1 ? " marca" : " marcas") + " no evento · " +
+      c.empresas + (c.empresas === 1 ? " empresa" : " empresas") + " pagando</span>" +
+  "</div>";
+}
+// Uma ficha por grupo, com as marcas dentro. O contato continua sendo de cada marca.
+function blocoListaGrupos() {
+  if (S.gruposErro) return errorList(S.gruposErro, "recarregar-grupos", S.gruposCarregando);
+  if (!S.grupos || !S.sponsors) return loadingList("Carregando os grupos...");
+  var base = S.sponsors.filter(function (p) { return passaEdicao(edicoesDaMarca(p)); });
+  var chip = function (txt) { return '<span class="chip-grupo">' + esc(txt) + "</span>"; };
+  var marcaMini = function (p) {
+    var onde = p.espacoVinculado || "";
+    return '<button type="button" class="marca-mini" data-acao="ficha" data-id="' + esc(p.id) + '">' +
+      "<b>" + esc(p.nome) + "</b>" + (onde ? "<span>" + esc(onde) + "</span>" : "") + "</button>";
+  };
+  var cartao = function (g) {
+    var marcas = base.filter(function (p) { return p.grupoId === g.id; });
+    var nc = cnpjsDoGrupo(g.id);
+    return '<article class="cartao-grupo">' +
+      '<div class="cartao-grupo-topo">' +
+        '<div class="min-w-0">' +
+          '<h3 class="truncate text-sm font-semibold">' + esc(g.nome) + "</h3>" +
+          '<p class="mt-1 flex flex-wrap items-center gap-1.5">' +
+            chip(marcas.length + (marcas.length === 1 ? " marca" : " marcas")) +
+            (nc ? chip(nc + (nc === 1 ? " CNPJ" : " CNPJ")) : chip("CNPJ não preenchido")) +
+            chip(NEGOCIA[g.negocia].label.toLowerCase()) +
+            chip(g.atendimentoNome ? "atendimento: " + g.atendimentoNome : "sem atendimento") +
+          "</p>" +
+        "</div>" +
+        (podeMexer() ? '<button type="button" class="' + btnCls("ghost", "icon", "h-8 w-8 shrink-0") + '" data-acao="editar-grupo" data-id="' + esc(g.id) + '" title="Editar o grupo"><span class="sr-only">Editar</span>' + icone("pencil") + "</button>" : "") +
+      "</div>" +
+      (marcas.length
+        ? '<div class="cartao-grupo-marcas">' + marcas.map(marcaMini).join("") + "</div>"
+        : '<p class="mt-2 text-xs text-muted-foreground">Nenhuma marca neste grupo ainda. Abra a marca e escolha o grupo no cadastro.</p>') +
+      (g.observacao ? '<p class="mt-2 text-xs text-muted-foreground">' + esc(g.observacao) + "</p>" : "") +
+    "</article>";
+  };
+  var comGrupo = S.grupos.map(cartao).join("");
+  var soltas = base.filter(function (p) { return !p.grupoId || !grupoPorId(p.grupoId); });
+  var bloco = !S.grupos.length && !soltas.length
+    ? emptyList("handshake", "Nenhuma marca na edição escolhida", "")
+    : comGrupo + (soltas.length
+      ? '<article class="cartao-grupo cartao-grupo-soltas">' +
+          '<div class="cartao-grupo-topo"><div class="min-w-0"><h3 class="truncate text-sm font-semibold">Marcas sem grupo</h3>' +
+          '<p class="mt-1 text-xs text-muted-foreground">Marca que não faz parte de nenhum grupo conta como uma empresa própria.</p></div>' +
+          '<span class="chip-grupo shrink-0">' + soltas.length + "</span></div>" +
+          '<div class="cartao-grupo-marcas">' + soltas.map(marcaMini).join("") + "</div>" +
+        "</article>"
+      : "");
+  return (!S.grupos.length ? '<p class="text-sm text-muted-foreground">Nenhum grupo criado ainda. Use <b>Novo grupo</b> para juntar as marcas que pertencem à mesma empresa.</p>' : "") + bloco;
+}
+
 function blocoListaPatrocinadores() {
   if (S.sponsorsErro) return errorList(S.sponsorsErro, "recarregar-patrocinadores", S.sponsorsCarregando);
   if (!S.sponsors) return loadingList("Carregando patrocinadores...");
@@ -5974,8 +6108,9 @@ function telaPatrocinadores() {
   var ligados = !!(f.q.trim() || f.status !== "todos" || f.cuida !== "todos" || f.renov !== "todos" || f.tipoMarca !== "todos" || f.prazo !== "todos" || f.setor !== "todos");
   return '<section class="space-y-6">' +
     '<div id="numeros-patro">' + blocoNumerosCarteira() + "</div>" +
+    seletorVisaoCarteira() +
     blocoAvisoCadastro() +
-    barraDeFiltros("filtros-patro",
+    (f.visao === "grupo" ? "" : barraDeFiltros("filtros-patro",
       campoBusca("busca-patro", "Buscar por nome, contato ou espaço", f.q) +
       selectNativo("filtro-status", "filtro-status", [{ valor: "todos", rotulo: "Todos os status" }].concat(Object.keys(STATUS_PATROCINADOR).map(function (k) { return { valor: k, rotulo: STATUS_PATROCINADOR[k].label }; })), f.status, { className: "h-10 bg-card" }) +
       selectNativo("filtro-cuida", "filtro-cuida", opcoesQuemCuida(), f.cuida, { className: "h-10 bg-card" }) +
@@ -5983,8 +6118,8 @@ function telaPatrocinadores() {
       selectNativo("filtro-tipo-marca", "filtro-tipo-marca", opcoesTipoMarca(), f.tipoMarca, { className: "h-10 bg-card" }) +
       selectNativo("filtro-prazo-marca", "filtro-prazo-marca", OPCOES_PRAZO_MARCA, f.prazo, { className: "h-10 bg-card" }) +
       selectNativo("filtro-setor", "filtro-setor", opcoesSetor(true), f.setor, { className: "h-10 bg-card" }),
-      ligados, "patro") +
-    '<div id="bloco-lista-patro">' + blocoListaPatrocinadores() + "</div>" +
+      ligados, "patro")) +
+    '<div id="bloco-lista-patro">' + (f.visao === "grupo" ? blocoListaGrupos() : blocoListaPatrocinadores()) + "</div>" +
   "</section>";
 }
 
@@ -6035,6 +6170,9 @@ function dialogoPatrocinador() {
         '<p class="text-xs text-muted-foreground">Contrato a 30 dias ou menos do vencimento vira "Em risco de renovação" sozinho, e o espaço vinculado volta a ficar disponível.</p>' +
         '<details class="rounded-md border border-border px-4 py-3"' + (v.razaoSocial || v.cnpj || v.endereco || v.site ? " open" : "") + '><summary class="cursor-pointer text-sm font-medium">Empresa e faturamento <span class="font-normal text-muted-foreground">· opcional</span></summary>' +
           '<div class="mt-3 grid gap-4 sm:grid-cols-[2fr_1fr]">' +
+            '<div class="space-y-2 sm:col-span-2"><label class="' + LABEL + '" for="patro-grupo">Grupo</label>' +
+              selectNativo("patro-grupo", "grupo_id", opcoesGrupo(), v.grupoId || "") +
+              '<p class="text-[11px] leading-snug text-muted-foreground">Junta esta marca com as outras da mesma empresa, como Fiat, Jeep e Ram na Stellantis. A marca continua com o contato e o espaço dela.</p></div>' +
             '<div class="space-y-2"><label class="' + LABEL + '" for="patro-razao">Razão social</label><input id="patro-razao" name="razao_social" class="' + INPUT + '" value="' + esc(v.razaoSocial || "") + '" maxlength="160"></div>' +
             '<div class="space-y-2"><label class="' + LABEL + '" for="patro-cnpj">CNPJ</label><input id="patro-cnpj" name="cnpj" class="' + INPUT + '" value="' + esc(v.cnpj || "") + '" maxlength="20" placeholder="00.000.000/0000-00"></div>' +
           "</div>" +
@@ -7369,6 +7507,35 @@ function textoSomaDivisao(d, valor) {
     (dif > 0 ? "Sobra " : "Falta ") + esc(formatCurrency(Math.abs(dif))) + ".</span>";
 }
 
+function dialogoGrupo() {
+  var g = S.formGrupo.grupo;
+  var v = g || { nome: "", negocia: "separado", atendimentoUid: null, observacao: "" };
+  var dentro = g ? marcasDoGrupo(g.id) : [];
+  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-form-grupo"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-form-grupo" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto">' +
+      '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-form-grupo" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">' + (g ? "Editar grupo" : "Novo grupo") + "</h2>" +
+        '<p class="text-sm text-muted-foreground">Um grupo junta marcas da mesma empresa. Serve para o faturamento e para manter o mesmo atendimento.</p></div>' +
+      '<form id="form-grupo" class="space-y-5 pt-2">' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="grupo-nome">Nome do grupo</label><input id="grupo-nome" name="nome" maxlength="80" required class="' + INPUT + '" value="' + esc(v.nome) + '" placeholder="Ex.: Stellantis"></div>' +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="grupo-negocia">Como a negociação acontece</label>' +
+          selectNativo("grupo-negocia", "negocia", Object.keys(NEGOCIA).map(function (k) { return { valor: k, rotulo: NEGOCIA[k].label }; }), v.negocia) +
+          '<p class="text-[11px] leading-snug text-muted-foreground">' + esc(NEGOCIA[v.negocia].ajuda) + "</p></div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="grupo-atend">Atendimento do grupo</label>' +
+          selectNativo("grupo-atend", "atendimento_uid", opcoesPessoas(), v.atendimentoUid || "") +
+          '<label class="mt-2 flex items-start gap-2 text-xs text-muted-foreground"><input type="checkbox" name="aplicar" value="1" checked class="mt-0.5">' +
+          "<span>Aplicar este atendimento às " + (dentro.length || 0) + " marca" + (dentro.length === 1 ? "" : "s") + " do grupo. Quem atende uma atende todas.</span></label></div>" +
+        '<div class="space-y-2"><label class="' + LABEL + '" for="grupo-obs">Observação (opcional)</label><input id="grupo-obs" name="observacao" maxlength="300" class="' + INPUT + '" value="' + esc(v.observacao) + '" placeholder="Ex.: fatura em 3 CNPJ"></div>' +
+        (dentro.length ? '<p class="text-xs text-muted-foreground">Marcas neste grupo: ' + esc(dentro.map(function (p) { return p.nome; }).join(", ")) + ".</p>" : '<p class="text-xs text-muted-foreground">Depois de criar, abra cada marca na Carteira e escolha este grupo no cadastro.</p>') +
+        '<div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 pt-3">' +
+          (g ? '<button type="button" class="' + btnCls("ghost", "default", "text-xs font-bold uppercase sm:mr-auto btn-excluir") + '" data-acao="excluir-grupo" data-id="' + esc(g.id) + '">' + icone("trash-2") + " Excluir grupo</button>" : "") +
+          '<button type="button" class="' + btnCls("outline") + '" data-acao="fechar-form-grupo">Cancelar</button>' +
+          '<button type="submit" class="' + btnCls("default", "default", "font-bold uppercase") + '"' + (S.formGrupo.salvando ? " disabled" : "") + ">" + (S.formGrupo.salvando ? icone("loader-circle", "animate-spin") : "") + " Salvar grupo</button>" +
+        "</div>" +
+      "</form>" +
+      '<button type="button" data-acao="fechar-form-grupo" class="absolute right-4 top-4 rounded-sm opacity-70 cursor-pointer transition-opacity hover:opacity-100"><span class="sr-only">Fechar</span>' + icone("x", "h-4 w-4") + "</button>" +
+    "</div>";
+}
+
 function dialogoContrato() {
   var c = S.formContrato.contrato;
   var lido = S.formContrato.lido;
@@ -8548,6 +8715,7 @@ async function prepararTela(caminho) {
   if (caminho === "/app/patrocinadores") {
     if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
     if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // lista de espacos do formulario
+    if (!S.grupos && !S.gruposCarregando) carregar("grupos", getGrupos);
   }
   // erro ao ler de novo mantem a lista que ja estava na tela (nunca fica "carregando" para sempre)
   if (caminho === "/app/equipe") {
@@ -8682,7 +8850,7 @@ var ACOES_DE_LEITURA = {
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
-  "divisao-propriedades": 1, "abrir-contrato-divisao": 1, "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
+  "divisao-propriedades": 1, "abrir-contrato-divisao": 1, "carteira-visao": 1, "fechar-form-grupo": 1, "recarregar-grupos": 1, "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
   "recarregar-espacos": 1, "recarregar-overview": 1, "recarregar-patrocinadores": 1, "recarregar-marcas": 1, "recarregar-entregas": 1,
   "esqueci-senha": 1, "auth-voltar": 1,
 };
@@ -8838,6 +9006,29 @@ document.addEventListener("click", async function (ev) {
       ". O valor de cada balde você digita.");
     return;
   }
+  if (acao === "carteira-visao") { S.fp.visao = alvo.getAttribute("data-valor") === "grupo" ? "grupo" : "marca"; render(); return; }
+  if (acao === "novo-grupo") { S.formGrupo = { aberto: true, grupo: null, salvando: false }; render();
+    setTimeout(function () { var e = document.getElementById("grupo-nome"); if (e) e.focus(); }, 0); return; }
+  if (acao === "editar-grupo") { S.formGrupo = { aberto: true, grupo: grupoPorId(id), salvando: false }; render(); return; }
+  if (acao === "fechar-form-grupo") { if (!S.formGrupo.salvando) { S.formGrupo.aberto = false; render(); } return; }
+  if (acao === "excluir-grupo") {
+    var gx = grupoPorId(id);
+    if (!gx) return;
+    var dentro = marcasDoGrupo(id);
+    if (!confirm("Excluir o grupo " + gx.nome + "?" + (dentro.length ? " As " + dentro.length + " marcas dele continuam no painel, só ficam sem grupo." : ""))) return;
+    S.formGrupo.salvando = true; render();
+    try {
+      if (dentro.length) await API.atualizarVarios(dentro.map(function (p) { return { col: "patrocinadores", id: p.id, dados: { grupo_id: null } }; }));
+      await API.apagar("grupos", id);
+      S.formGrupo = { aberto: false, grupo: null, salvando: false };
+      S.grupos = null; S.sponsors = null;
+      await Promise.all([carregar("grupos", getGrupos), carregar("sponsors", getSponsors)]);
+      toast.success("Grupo excluído.");
+    } catch (e) { S.formGrupo.salvando = false; toast.error("Não foi possível excluir o grupo."); }
+    render();
+    return;
+  }
+  if (acao === "recarregar-grupos") { carregar("grupos", getGrupos); return; }
   if (acao === "fechar-conversa-r27") { if (!S.conversaR27 || !S.conversaR27.salvando) { S.conversaR27 = null; render(); } return; }
   if (acao === "nova-marca") { S.formProsp = { aberto: true, prosp: null, salvando: false }; render(); setTimeout(function () { var el = document.getElementById("marca-nome"); if (el) el.focus(); }, 0); return; }
   if (acao === "editar-marca") {
@@ -9573,6 +9764,34 @@ document.addEventListener("submit", async function (ev) {
     }
     return;
   }
+  if (ev.target.id === "form-grupo") {
+    ev.preventDefault();
+    if (S.formGrupo.salvando) return;
+    var fg = new FormData(ev.target);
+    var gAtual = S.formGrupo.grupo;
+    S.formGrupo.salvando = true; render();
+    try {
+      var rg = await saveGrupo({ id: gAtual ? gAtual.id : null, nome: fg.get("nome"), negocia: fg.get("negocia"),
+                                 atendimentoUid: fg.get("atendimento_uid"), observacao: fg.get("observacao") });
+      // "quem tiver atendendo BMW vai atender Mini": o atendimento do grupo desce para as marcas
+      var espalhar = fg.get("aplicar") === "1" && rg.atendimento && gAtual;
+      if (espalhar) {
+        var alvos = marcasDoGrupo(gAtual.id).filter(function (p) { return p.atendimentoUid !== rg.atendimento.id; });
+        if (alvos.length) await API.atualizarVarios(alvos.map(function (p) {
+          return { col: "patrocinadores", id: p.id, dados: { atendimento_uid: rg.atendimento.id, atendimento_nome: rg.atendimento.nome } };
+        }));
+      }
+      S.formGrupo = { aberto: false, grupo: null, salvando: false };
+      S.grupos = null; S.sponsors = null;
+      await Promise.all([carregar("grupos", getGrupos), carregar("sponsors", getSponsors)]);
+      toast.success(gAtual ? "Grupo atualizado." : "Grupo criado.");
+    } catch (e) {
+      S.formGrupo.salvando = false;
+      toast.error(e.message);
+    }
+    render();
+    return;
+  }
   if (ev.target.id === "form-conversa-r27") {
     ev.preventDefault();
     var cr = S.conversaR27;
@@ -9722,6 +9941,7 @@ document.addEventListener("submit", async function (ev) {
         });
       })(),
       setor: String(fp.get("setor") || ""),
+      grupoId: String(fp.get("grupo_id") || ""),
       razaoSocial: String(fp.get("razao_social") || ""), cnpj: String(fp.get("cnpj") || ""), endereco: String(fp.get("endereco") || ""), site: String(fp.get("site") || ""),
       tipo: String(fp.get("tipo") || "patrocinador"), status: String(fp.get("status") || "ativo"),
       vendedorUid: travaP ? atual.vendedorUid : fp.get("vendedor_uid") || null, atendimentoUid: travaP ? atual.atendimentoUid : fp.get("atendimento_uid") || null,
