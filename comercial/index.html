@@ -757,7 +757,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.18";
+var VERSAO = "2026-09-22.19";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -1553,9 +1553,11 @@ async function criarApiTeste() {
         patrocinadora: "AURORA SEGUROS PARTICIPAÇÕES S.A.",
         assinantes: [{ nome: "Bianca Lima", email: "bianca@marca.com.br" }, { nome: "Diretoria do festival", email: "" }],
         vigencia_inicio: "2027-01-01", vigencia_fim: "2027-12-31", valor: 450000,
+        outras_marcas: ["Bajaj"],
+        valores: { exposicao: 300000, merchandising: 130000, hospitalidade: 20000, desconto: 0 },
         entregas: [
           { descricao: "Área de 500 m² na Arena, com montagem por conta do patrocinador", quantidade: 1, categoria: "espaco", prazo: "2027-08-01", trecho: "Cláusula 3.1: fica cedida ao PATROCINADOR área de 500 m² na Arena." },
-          { descricao: "Credenciais VIP para os quatro dias", quantidade: 60, categoria: "credenciais", prazo: "2027-07-15", trecho: "Cláusula 4.2: serão entregues 60 (sessenta) credenciais VIP." },
+          { descricao: "Credenciais VIP para os quatro dias", quantidade: 60, categoria: "credenciais", marca: "Bajaj", prazo: "2027-07-15", trecho: "Cláusula 4.2: serão entregues 60 (sessenta) credenciais VIP." },
           { descricao: "Logo no telão do palco principal nos intervalos", quantidade: null, categoria: "midia", prazo: "", trecho: "Cláusula 5.1: exibição da marca no telão do palco principal." },
           { descricao: "Camarote para 20 convidados no sábado", quantidade: 1, categoria: "hospitalidade", prazo: "2027-08-10", trecho: "Cláusula 6.4: camarote com capacidade para 20 convidados." },
         ],
@@ -2414,6 +2416,7 @@ async function lerPdfDoContrato(caminho) {
     '{"titulo":"o nome do contrato, curto","patrocinadora":"a empresa patrocinadora, como está escrita no contrato","vigencia_inicio":"AAAA-MM-DD ou vazio","vigencia_fim":"AAAA-MM-DD ou vazio","valor":número ou null,' +
     '"assinantes":[{"nome":"quem assina","email":"e-mail se o contrato trouxer, senão vazio"}],' +
     '"valores":{"exposicao":número ou null,"merchandising":número ou null,"hospitalidade":número ou null,"desconto":número ou null},' +
+    '"outras_marcas":["nome de cada outra marca coberta por este mesmo contrato"],' +
     '"empresa":{"razao_social":"razão social da patrocinadora","cnpj":"CNPJ da patrocinadora, ou vazio","endereco":"endereço da patrocinadora em uma linha, ou vazio"},' +
     '"entregas":[{"descricao":"o que o evento entrega, curto","quantidade":número ou null,' +
     '"categoria":"espaco|credenciais|midia|hospitalidade|ativacao|outro","prazo":"AAAA-MM-DD ou vazio","marca":"a marca dona desta entrega, ou vazio",' +
@@ -2439,6 +2442,10 @@ async function lerPdfDoContrato(caminho) {
     "assinantes são as pessoas que assinam nas duas pontas, com o nome como está escrito. Se o contrato não trouxer e-mail, deixe o e-mail vazio.\n" +
     "patrocinadora é a empresa que está patrocinando, não a organizadora do evento. Copie a razão social como está no contrato.\n" +
     "empresa traz os dados de faturamento da patrocinadora, nunca os da organizadora. Se o contrato não trouxer o CNPJ ou o endereço, deixe vazio.\n" +
+    "outras_marcas são as OUTRAS marcas que este mesmo documento cobre, além da patrocinadora que assina. " +
+    "Exemplo: um contrato assinado pela Jeep que diz \"para as marcas JEEP e RAM\" tem outras_marcas [\"RAM\"]. " +
+    "Nunca inclua a própria patrocinadora, nem a organizadora do evento, nem nome de produto ou de linha. " +
+    "Contrato de uma marca só: devolva lista vazia.\n" +
     "marca só quando o contrato cobre MAIS DE UMA marca e diz de quem é cada entrega (por exemplo \"à MINI caberá\"). " +
     "Contrato de uma marca só: deixe marca vazia em todos os itens.\n" +
     "valores só existe quando o contrato QUEBRA o valor total em partes, com os números escritos lá. " +
@@ -7707,11 +7714,27 @@ function blocoConfereMarca(patroIdEscolhido) {
 }
 
 // Bloco da divisao do valor dentro do formulario de contrato.
+// Nomes que a IA leu viram ids de marcas da base. So entra quem bate de verdade: nome que nao
+// existe na Carteira e ignorado, porque aqui nao se cadastra marca por adivinhacao.
+function cobertasLidasPelaIa(dados, principalId) {
+  var nomes = dados && Array.isArray(dados.outras_marcas) ? dados.outras_marcas : [];
+  var ids = [];
+  nomes.forEach(function (nome) {
+    var n = String(nome || "").trim();
+    if (!n) return;
+    var m = (S.sponsors || []).find(function (x) { return x.id !== principalId && marcaBate(x.nome, n) === true; });
+    if (m && ids.indexOf(m.id) < 0) ids.push(m.id);
+  });
+  return ids;
+}
 // o que esta escolhido agora no formulario (ainda nao salvo)
 function cobertosDoForm() {
   if (S.formContrato.cobertos) return S.formContrato.cobertos;
   var c = S.formContrato.contrato;
-  return c && c.cobertos ? c.cobertos.slice() : [];
+  if (c && c.cobertos) return c.cobertos.slice();
+  // contrato novo lido pela IA: ela pode ter dito que o documento cobre mais de uma marca
+  var lido = S.formContrato.lido;
+  return lido ? cobertasLidasPelaIa(lido.dados, lido.patroId) : [];
 }
 function blocoCobertosContrato(v) {
   var lista = cobertosDoForm();
@@ -7722,6 +7745,10 @@ function blocoCobertosContrato(v) {
   return '<div class="space-y-2"><label class="' + LABEL + '">Também neste contrato <span class="text-muted-foreground">(opcional)</span></label>' +
     '<div class="chips-cobertas">' + lista.map(chip).join("") +
       '<button type="button" class="chip-coberta chip-coberta-add" data-acao="escolher-cobertas">' + icone("plus", "size-3") + "Escolher marcas</button></div>" +
+    ((S.formContrato.lido && !S.formContrato.cobertos && lista.length)
+      ? '<p class="aviso-ia-divisao">' + icone("sparkles", "size-4 shrink-0") +
+        "<span>A IA leu no contrato que ele cobre também estas marcas. Confira e tire o que não for.</span></p>"
+      : "") +
     '<p class="text-[11px] leading-snug text-muted-foreground">' +
       (lista.length
         ? "O valor fica inteiro aqui, na marca principal. Quem está nesta lista passa a aparecer com contrato, mas <b>não soma dinheiro de novo</b>."
@@ -10387,7 +10414,9 @@ document.addEventListener("submit", async function (ev) {
       var entregasGravadas = 0;
       if (lidoC && resC.id) {
         try {
-          var rEnt = await gravarEntregasLidas({ id: resC.id, patrocinadorId: dadosC.patrocinadorId, inicio: dadosC.inicio, fim: dadosC.fim, valor: dadosC.valor }, lidoC.dados, true);
+          // sem "cobertos" aqui, marcaDaEntrega nunca tinha candidata e jogava tudo na marca principal
+          var rEnt = await gravarEntregasLidas({ id: resC.id, patrocinadorId: dadosC.patrocinadorId, cobertos: dadosC.cobertos || [],
+            inicio: dadosC.inicio, fim: dadosC.fim, valor: dadosC.valor }, lidoC.dados, true);
           entregasGravadas = rEnt.criados;
         } catch (e) {}
       }
