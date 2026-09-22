@@ -431,6 +431,8 @@
   .selo-divisao-falta{background:transparent;color:var(--muted-foreground);border:1px dashed var(--border)}
   @media (min-width:640px){.sm\:col-span-2{grid-column:span 2 / span 2}}
   .resumo-grupos{font-size:13px;color:var(--muted-foreground);margin:0 0 10px}
+  /* dialogo que abre POR CIMA de outro dialogo: os de baixo usam z-50 */
+  .dialogo-acima{z-index:60}
   .caixa-exemplos{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;
     border:1px dashed var(--border);border-radius:12px;padding:12px 14px;margin-top:8px}
   .caixa-exemplos p{margin:0;flex:1 1 320px;min-width:0}
@@ -755,7 +757,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.17";
+var VERSAO = "2026-09-22.18";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -8231,8 +8233,8 @@ function dialogoCobertas() {
       (g ? '<span class="block text-xs text-muted-foreground">' + esc(g.nome) + "</span>" : "") + "</span>" +
       (on ? icone("check", "size-4 shrink-0 text-success") : "") + "</button>";
   };
-  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-cobertas"></div>' +
-    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-cob" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto">' +
+  return '<div class="fixed inset-0 dialogo-acima bg-foreground/80" data-state="open" data-acao="fechar-cobertas"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-cob" data-state="open" class="fixed left-[50%] top-[50%] dialogo-acima grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto">' +
       '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-cob" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">Marcas neste contrato</h2>' +
         '<p class="text-sm text-muted-foreground">Marque as outras marcas que este mesmo documento cobre. O dinheiro continua contando uma vez só.</p></div>' +
       '<div class="relative">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
@@ -8253,8 +8255,8 @@ function dialogoGrupoDaMarca() {
       (abaixo ? '<span class="block text-xs text-muted-foreground">' + esc(abaixo) + "</span>" : "") + "</span>" +
       (on ? icone("check", "size-4 shrink-0 text-success") : "") + "</button>";
   };
-  return '<div class="fixed inset-0 z-50 bg-foreground/80" data-state="open" data-acao="fechar-grupo-da-marca"></div>' +
-    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-gdm" data-state="open" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto">' +
+  return '<div class="fixed inset-0 dialogo-acima bg-foreground/80" data-state="open" data-acao="fechar-grupo-da-marca"></div>' +
+    '<div role="dialog" aria-modal="true" aria-labelledby="titulo-gdm" data-state="open" class="fixed left-[50%] top-[50%] dialogo-acima grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-y-auto">' +
       '<div class="flex flex-col space-y-1.5 text-center sm:text-left"><h2 id="titulo-gdm" class="text-lg font-semibold leading-none tracking-tight text-2xl font-black uppercase">Grupo de ' + esc(p.nome) + "</h2>" +
         '<p class="text-sm text-muted-foreground">Grupo junta marcas da mesma empresa. A maioria das marcas não tem grupo, e tudo bem.</p></div>' +
       '<div class="lista-escolher">' +
@@ -9194,7 +9196,7 @@ function render() {
   }
   if (ultimaRota !== caminho) ligarAoVivo(caminho);
   ultimaRota = caminho;
-  document.body.classList.toggle("dialogo-aberto", S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || S.formContrato.aberto || S.formEntrega.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp || !!S.ampliada);
+  document.body.classList.toggle("dialogo-aberto", S.cobertasAberto || S.grupoDaMarca.aberto || S.escolherMarcas.aberto || S.formGrupo.aberto || S.form.aberto || S.formPatro.aberto || S.formInter.aberto || S.formProsp.aberto || S.formContrato.aberto || S.formEntrega.aberto || !!S.detalhe || !!S.ficha || !!S.fichaProsp || !!S.ampliada);
 
   if (foco) {
     var el = document.getElementById(foco.id);
