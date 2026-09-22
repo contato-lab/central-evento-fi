@@ -709,7 +709,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.8";
+var VERSAO = "2026-09-22.9";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -820,11 +820,11 @@ function ouvirTemaDoComputador() {
 // no claro entra o logotipo preto e verde; no escuro, o branco
 function logoPainel(cls) {
   var arq = temaValendo() === "escuro" ? "logo-festival-branco.png" : "logo-festival.png";
-  return '<img src="' + arq + '?v=3" alt="Suhai Festival Interlagos" class="' + cls + '">';
+  return '<img src="' + arq + '?v=3" alt="Festival Interlagos" class="' + cls + '">';
 }
 // no celular o cabecalho e estreito: entra so o simbolo redondo da marca
 function logoCabecalho() {
-  return '<img src="icone-festival.png?v=3" alt="Suhai Festival Interlagos" class="logo-simbolo">' +
+  return '<img src="icone-festival.png?v=3" alt="Festival Interlagos" class="logo-simbolo">' +
     logoPainel("logo-largo h-10 w-auto shrink-0");
 }
 function botaoTema() {
@@ -2783,7 +2783,11 @@ function contaVazia() {
 }
 
 // inativo: o dono tirou o acesso (a pessoa continua no historico, mas nao entra mais)
-var PAPEIS = { dono: "Dono do sistema", admin: "Diretoria", vendedor: "Comercial e atendimento", visualizacao: "Visualização", inativo: "Sem acesso" };
+var PAPEIS = { dono: "Dono do sistema", admin: "Diretoria", vendedor: "Comercial e atendimento", visualizacao: "Visualização", operacao: "Operação", inativo: "Sem acesso" };
+// Pedido do dono do festival: "todo mundo precisa saber o que cada marca contratou, o atendimento,
+// a imprensa, todo mundo". E o limite que ele mesmo deu: ver quanto foi o contrato nao, ler o
+// contrato na integra nao, saber o que tem de propriedade sim.
+var ROTAS_DA_OPERACAO = { "/app/propriedades": 1, "/app/conta": 1 };
 var RENOVACAO = {
   sem_contato: { label: "Sem contato", className: "border-foreground/15 bg-foreground/8 text-foreground" },
   em_negociacao: { label: "Em negociação", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
@@ -3914,10 +3918,13 @@ function ehDono() { return S.papel === "dono"; }
 // conversas, e nao mexe em nada. As telas escondem os botoes de gravar; o despachante de cliques
 // (ACOES_DE_LEITURA) e as regras do banco seguram o que escapar.
 function ehVisualizacao() { return S.papel === "visualizacao"; }
-function podeMexer() { return !ehVisualizacao(); }
-function podeVerValores() { return !ehVisualizacao(); }
+function ehOperacao() { return S.papel === "operacao"; }
+// os dois niveis que so leem: mesma regra em quase tudo, o que muda e o tanto de tela que enxergam
+function soLeitura() { return ehVisualizacao() || ehOperacao(); }
+function podeMexer() { return !soLeitura(); }
+function podeVerValores() { return !soLeitura(); }
 // historico de interacoes: texto livre, pode ter preco. Visualizacao nao le (a regra nega)
-function podeVerConversas() { return !ehVisualizacao(); }
+function podeVerConversas() { return !soLeitura(); }
 // contratos e valores: diretoria ve todos; comercial e atendimento, so das marcas que cuida.
 // Visualizacao nunca, mesmo se alguem a puser como atendimento de uma marca (a regra nega).
 function podeVerContratosDe(p) { return !ehVisualizacao() && (ehAdmin() || (!!p && !!S.uid && (p.vendedorUid === S.uid || p.atendimentoUid === S.uid))); }
@@ -3953,6 +3960,7 @@ function avatar(fotoUrl, nome, tamanho, extra) {
 function avatarPessoa(p, tamanho, extra) { return avatar(p.fotoUrl, p.nome, tamanho, extra); }
 // o que cada nivel permite, em uma frase (Equipe e Minha conta)
 var FRASE_PAPEL = {
+  operacao: "Vê só Propriedades, de todas as marcas: o que foi prometido e o que já foi entregue. Não vê valor, não abre contrato e não edita nada.",
   visualizacao: "Vê tudo, só não vê contratos, valores e o histórico de conversas. Não mexe em nada.",
   vendedor: "Trabalha a carteira. Contratos e valores, só das marcas em que é vendedor ou atendimento.",
   admin: "Vê tudo, todos os contratos e valores, e tem a tela Valores. Marca o selo Master e ajusta os prazos.",
@@ -4019,7 +4027,7 @@ var TIPOS_LIXEIRA = {
 var LISTA_DA_COLECAO = { patrocinadores: "sponsors", espacos: "spaces", contratos: "contracts", prospeccao: "prospects", combinados: "combinados", interacoes: "interactions" };
 var CAMPOS_RESTAURAR = { excluido_em: null, excluido_por_uid: null, excluido_por_nome: null, excluido_lote: null };
 function camposLixeira(lote) { return { excluido_em: agoraIso(), excluido_por_uid: S.uid, excluido_por_nome: S.nome, excluido_lote: lote || null }; }
-function podeVerLixeira() { return !!S.uid && !ehVisualizacao() && S.papel !== "inativo"; }
+function podeVerLixeira() { return !!S.uid && !soLeitura() && S.papel !== "inativo"; }
 // Envelope ainda aberto na DocuSign (quem recebeu pode assinar a qualquer momento)
 function envelopeAberto(c) { return !!(c && c.assinatura && c.assinatura.status === "enviado"); }
 // O contrato ja foi assinado alguma vez: pela DocuSign (assinatura.status ou o PDF original guardado)
@@ -4589,15 +4597,15 @@ function telaAuth() {
   var degrade = '<span class="marca-degrade" aria-hidden="true"><i style="width:56px"></i><i style="width:40px"></i><i style="width:28px"></i><i style="width:20px"></i><i style="width:12px"></i><i style="width:8px"></i></span>';
   return '<main class="grid min-h-screen bg-background lg:grid-cols-[minmax(0,1fr)_minmax(440px,0.72fr)]">' +
     '<section class="marca-hero hidden border-r border-border p-12 lg:flex lg:flex-col lg:justify-between">' + chevrons +
-      '<img src="logo-festival-branco.png?v=2" alt="Suhai Festival Interlagos" class="relative w-56 self-start">' +
+      '<img src="logo-festival-branco.png?v=2" alt="Festival Interlagos" class="relative w-56 self-start">' +
       '<div class="relative max-w-xl"><span class="marca-pilula text-primary" style="border-color:var(--marca-verde)">Gestão comercial</span>' +
       '<h1 class="mt-6 text-6xl uppercase">Patrocínios e espaços<br>em uma <span class="text-primary">única pista</span>.</h1>' +
       '<p class="mt-5 max-w-md text-sm text-muted-foreground">Mapa dos espaços por edição, carteira de patrocinadores, marcas desejo e tudo o que foi prometido a cada cliente.</p>' +
       '<div class="mt-7">' + degrade + "</div></div>" +
-      '<p class="relative text-xs font-bold uppercase tracking-widest text-muted-foreground">Suhai Festival Interlagos 2026</p>' +
+      '<p class="relative text-xs font-bold uppercase tracking-widest text-muted-foreground">Festival Interlagos 2026</p>' +
     "</section>" +
     '<section class="flex items-center justify-center px-5 py-10 sm:px-10"><div class="w-full max-w-md">' +
-      '<div class="mb-10 flex items-center gap-3 lg:hidden"><img src="logo-festival-branco.png?v=2" alt="Suhai Festival Interlagos" class="h-12 w-auto"></div>' +
+      '<div class="mb-10 flex items-center gap-3 lg:hidden"><img src="logo-festival-branco.png?v=2" alt="Festival Interlagos" class="h-12 w-auto"></div>' +
       '<p class="text-sm font-semibold uppercase tracking-widest text-primary">Acesso reservado</p>' +
       (recuperar ? formRecuperarSenha() :
       '<h2 class="mt-2 text-4xl uppercase">' + (login ? "Bem-vindo de volta" : "Criar sua conta") + "</h2>" +
@@ -4694,7 +4702,7 @@ async function enviarAuth() {
   try {
     await API.entrar(a.email, a.password);
     a.loading = false; a.password = "";
-    irPara("/app/inicio");
+    irPara(ehOperacao() ? "/app/propriedades" : "/app/inicio");
   } catch (e) {
     a.loading = false;
     var cLogin = (e && e.code) || "";
@@ -4729,6 +4737,7 @@ var ROTAS_SEM_VISUALIZACAO = { "/app/contratos": 1, "/app/interacoes": 1, "/app/
 function navVisivel() {
   return NAV.filter(function (i) {
     if (i.lixeira && !podeVerLixeira()) return false;
+    if (ehOperacao()) return !!ROTAS_DA_OPERACAO[i.to];
     if (ehVisualizacao() && ROTAS_SEM_VISUALIZACAO[i.to]) return false;
     return !i.admin || ehAdmin();
   });
@@ -6148,7 +6157,7 @@ function telaEquipe() {
       };
       if (p.papel === "inativo") return '<div class="flex flex-wrap items-center gap-2">' + selo + (mexeAcesso ? botaoAcesso(false) : "") + "</div>";
       if (!mexeAcesso) return selo;
-      return '<div class="flex flex-wrap items-center gap-2">' + selectNativo("papel-" + p.id, "papel", [{ valor: "visualizacao", rotulo: PAPEIS.visualizacao }, { valor: "vendedor", rotulo: PAPEIS.vendedor }, { valor: "admin", rotulo: PAPEIS.admin }], p.papel, { className: "w-56", disabled: S.papelMudando }) + botaoAcesso(true) + "</div>";
+      return '<div class="flex flex-wrap items-center gap-2">' + selectNativo("papel-" + p.id, "papel", [{ valor: "visualizacao", rotulo: PAPEIS.visualizacao }, { valor: "operacao", rotulo: PAPEIS.operacao }, { valor: "vendedor", rotulo: PAPEIS.vendedor }, { valor: "admin", rotulo: PAPEIS.admin }], p.papel, { className: "w-56", disabled: S.papelMudando }) + botaoAcesso(true) + "</div>";
     };
     // foto (ou iniciais), nome e apelido
     var pessoa = function (p, titulo) {
@@ -6184,7 +6193,7 @@ function telaEquipe() {
     '<details class="rounded-md border border-border bg-card px-4 py-3 text-sm">' +
       '<summary class="cursor-pointer font-medium">O que cada nível vê</summary>' +
       '<div class="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">' +
-        ["visualizacao", "vendedor", "admin", "dono"].map(function (k) { return '<div class="rounded-md border border-border p-3"><span class="font-semibold text-foreground">' + esc(PAPEIS[k]) + "</span><br>" + esc(FRASE_PAPEL[k]) + "</div>"; }).join("") +
+        ["visualizacao", "operacao", "vendedor", "admin", "dono"].map(function (k) { return '<div class="rounded-md border border-border p-3"><span class="font-semibold text-foreground">' + esc(PAPEIS[k]) + "</span><br>" + esc(FRASE_PAPEL[k]) + "</div>"; }).join("") +
       "</div>" +
       '<p class="mt-3 text-xs text-muted-foreground">Conta nova entra como Visualização. ' + (ehDono() ? "Você, como dono do sistema, sobe cada pessoa para o nível certo. Quem saiu da empresa: use Tirar acesso." : "Só o dono do sistema muda o nível das pessoas.") + "</p></details>" +
     '<div id="bloco-equipe">' + corpo + "</div>" +
@@ -8355,7 +8364,7 @@ window.addEventListener("scroll", function () { if (S.tour.ativo) requestAnimati
 // o que a regra nega a quem so visualiza: nem pede (senao a tela quebra com permission-denied)
 var FORA_DA_VISUALIZACAO = { contracts: 1, interactions: 1, lixeira: 1 };
 async function carregar(chave, fn) {
-  if (ehVisualizacao() && FORA_DA_VISUALIZACAO[chave]) return;
+  if (soLeitura() && FORA_DA_VISUALIZACAO[chave]) return;
   S[chave + "Carregando"] = true;
   S[chave + "Erro"] = null;
   render();
@@ -8593,6 +8602,7 @@ function render() {
   if (caminho === "/app/lixeira" && !podeVerLixeira()) { irPara("/app/inicio", true); return; }
   if (caminho === "/app/equipe" && !ehAdmin()) { irPara("/app/espacos", true); return; }
   if (caminho === "/app/valores" && !ehAdmin()) { irPara("/app/inicio", true); return; }
+  if (ehOperacao() && !ROTAS_DA_OPERACAO[caminho]) { irPara("/app/propriedades", true); return; }
   if (ehVisualizacao() && ROTAS_SEM_VISUALIZACAO[caminho]) { irPara("/app/inicio", true); return; }
   document.title = TITULOS[caminho];
 
