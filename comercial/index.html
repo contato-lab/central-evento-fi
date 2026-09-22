@@ -422,6 +422,32 @@
   .linha-contrato-corpo{padding-left:14px}
   /* ---- Interações: uma conversa por linha ---- */
   .pl-9{padding-left:2.25rem}
+  .bloco-divisao{border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--muted-fraco,transparent)}
+  .aviso-ia-divisao{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.45;color:var(--warning-foreground);
+    background:var(--ambar-fraco,rgba(255,194,75,.12));border:1px solid var(--warning);border-radius:10px;padding:10px 12px;margin:0}
+  .aviso-ia-divisao svg{margin-top:2px}
+  .selo-divisao{display:inline-flex;align-items:center;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:600;white-space:nowrap}
+  .selo-divisao-ia{background:var(--ambar-fraco,rgba(255,194,75,.15));color:var(--warning-foreground);border:1px solid var(--warning)}
+  .selo-divisao-falta{background:transparent;color:var(--muted-foreground);border:1px dashed var(--border)}
+  .grade-tipos{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (min-width:900px){.grade-tipos{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  .cartao-tipo{border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--card)}
+  .cartao-tipo-forte{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+  table.tabela-tipos{min-width:0}
+  @media (max-width:720px){table.tabela-tipos{min-width:620px}}
+  .rolagem-tabela{overflow-x:auto}
+  tr.linha-total-geral td{border-top:2px solid var(--border);background:var(--muted-fraco,transparent)}
+  .lista-pendentes{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+  .linha-pendente{display:flex;align-items:center;gap:12px;width:100%;border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;background:var(--card);cursor:pointer;text-align:left}
+  .linha-pendente:hover{border-color:var(--primary)}
+  .soma-divisao{font-size:13px;line-height:1.5}
+  .soma-divisao b{font-weight:600}
+  .soma-ok{display:inline-flex;align-items:center;gap:6px;color:var(--verde-texto)}
+  .soma-erro{display:inline-flex;align-items:center;gap:6px;color:var(--warning-foreground)}
+  .text-\[11px\]{font-size:11px}
+  .leading-snug{line-height:1.375}
+  .size-3\.5{width:.875rem;height:.875rem}
   .barra-conversa{position:fixed;left:50%;bottom:24px;z-index:60;transform:translateX(-50%);width:min(660px,calc(100vw - 28px));background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--sombra-flutua);padding:12px 14px}
   .barra-conversa-miolo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .barra-conversa-texto{flex:1 1 100%;margin:0;font-size:13px;line-height:1.4;color:var(--muted-foreground)}
@@ -683,7 +709,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.5";
+var VERSAO = "2026-09-22.8";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -1936,6 +1962,56 @@ async function suggestNextStep(interactionId) {
   return { suggestion: shortSuggestion };
 }
 
+/* --------------------------------------------- tipos de receita (exposicao etc) */
+// O dono do festival: "sao tres itens, exposicao, merchandising e hospitalidade, por evento, e um
+// total geral". E a regra do desconto: "os pacotes vao incidir no merchandising, eles nao podem
+// incidir no custo de espaco".
+var TIPO_RECEITA = {
+  exposicao: { label: "Exposição", ajuda: "o espaço em si: box, estande, área, metragem" },
+  merchandising: { label: "Merchandising", ajuda: "patrocínio, mídia, ativação, credenciais, tudo que não é espaço nem hospitalidade" },
+  hospitalidade: { label: "Hospitalidade", ajuda: "camarote, hotel, transfer, alimentação de convidado" },
+};
+var TIPOS_RECEITA = ["exposicao", "merchandising", "hospitalidade"];
+// a IA ja classifica cada entrega do contrato; este mapa leva a categoria dela para o balde do dinheiro
+var BALDE_DA_CATEGORIA = { espaco: "exposicao", hospitalidade: "hospitalidade",
+  credenciais: "merchandising", midia: "merchandising", ativacao: "merchandising", outro: "merchandising" };
+
+function numOuNulo(v) {
+  if (v === "" || v == null) return null;
+  var n = Number(v);
+  return isFinite(n) ? n : null;
+}
+function temDivisao(c) {
+  var d = c && c.divisao;
+  return !!d && TIPOS_RECEITA.some(function (k) { return d[k] != null; });
+}
+// o desconto sai inteiro do merchandising: o espaco fica sempre com o valor de tabela
+function baldeDoContrato(c, balde) {
+  var d = (c && c.divisao) || {};
+  var v = d[balde] == null ? 0 : d[balde];
+  if (balde === "merchandising") v -= d.desconto || 0;
+  return v;
+}
+function somaDivisao(c) {
+  return TIPOS_RECEITA.reduce(function (t, k) { return t + baldeDoContrato(c, k); }, 0);
+}
+// bate com o valor do contrato? um centavo de folga por causa do arredondamento
+function divisaoFecha(c) {
+  if (!temDivisao(c) || c.valor == null) return true;
+  return Math.abs(somaDivisao(c) - c.valor) < 0.01;
+}
+function divisaoConferida(c) { return !!(c && c.divisao && c.divisao.conferidaEm); }
+// contrato que tem valor e ninguem dividiu ainda: nao some da conta, vira pendencia
+function divisaoPendente(c) {
+  return c && c.valor != null && c.valor > 0 && (!temDivisao(c) || !divisaoConferida(c));
+}
+function rotuloOrigemDivisao(d) {
+  if (!d || !d.origem) return "";
+  if (d.origem === "ia") return "lido pela IA";
+  if (d.origem === "propriedades") return "somado das propriedades";
+  return "digitado" + (d.por ? " por " + d.por : "");
+}
+
 /* ------------------------------------------------------------- contratos */
 var STATUS_CONTRATO = {
   rascunho: { label: "Rascunho", className: "border-foreground/15 bg-foreground/8 text-foreground" },
@@ -1972,6 +2048,13 @@ async function getContracts() {
       iaLidoEm: c.ia_lido_em || null,
       // o que a IA leu no PDF, guardado so quando bate diferente do que esta preenchido
       iaInicio: c.ia_inicio || "", iaFim: c.ia_fim || "", iaValor: c.ia_valor == null ? null : Number(c.ia_valor),
+      divisao: {
+        exposicao: numOuNulo(c.valor_exposicao), merchandising: numOuNulo(c.valor_merchandising),
+        hospitalidade: numOuNulo(c.valor_hospitalidade),
+        desconto: numOuNulo(c.desconto) || 0, descontoMotivo: c.desconto_motivo || "",
+        origem: c.divisao_origem || "", por: c.divisao_por_nome || "", em: c.divisao_em || "",
+        conferidaEm: c.divisao_conferida_em || "", conferidaPor: c.divisao_conferida_por_nome || "",
+      },
       criadoPor: c.criado_por || null, criadoPorNome: nomePessoa(c.criado_por, ""), createdAt: c.created_at || "", updatedAt: c.updated_at || "",
       iaAutoEm: c.ia_auto_em || null,
       diasParaVencer: c.fim ? diasAte(c.fim) : null,
@@ -2053,11 +2136,29 @@ async function saveContract(data, arquivo, arquivoPronto) {
   if (inicio && fim && fim < inicio) throw new Error("A data de fim vem antes do início.");
   var valor = data.valor === "" || data.valor == null ? null : Number(data.valor);
   if (valor !== null && !(isFinite(valor) && valor >= 0)) throw new Error("Confira o valor.");
+  // divisao do valor em exposicao, merchandising e hospitalidade
+  var div = {}, temAlgum = false;
+  TIPOS_RECEITA.forEach(function (k) {
+    var n = numOuNulo(data["valor_" + k]);
+    if (n !== null && (!isFinite(n) || n < 0)) throw new Error("Confira o valor de " + TIPO_RECEITA[k].label.toLowerCase() + ".");
+    div[k] = n;
+    if (n !== null) temAlgum = true;
+  });
+  var desc = numOuNulo(data.desconto) || 0;
+  if (!isFinite(desc) || desc < 0) throw new Error("Confira o desconto.");
+  if (temAlgum) {
+    var somaPartes = (div.exposicao || 0) + (div.merchandising || 0) - desc + (div.hospitalidade || 0);
+    if (somaPartes < 0) throw new Error("O desconto passou do valor de merchandising.");
+    if (valor !== null && Math.abs(somaPartes - valor) >= 0.01)
+      throw new Error("A divisão soma " + formatCurrency(somaPartes) + " e o contrato é de " + formatCurrency(valor) + ". Ajuste antes de salvar.");
+  }
   if (arquivo && arquivo.size > 20 * 1024 * 1024) throw new Error("O PDF passa de 20 MB.");
   if (arquivo && arquivo.type && arquivo.type !== "application/pdf") throw new Error("Só aceitamos PDF.");
   var dono = (S.sponsors || []).find(function (x) { return x.id === data.patrocinadorId; });
   var payload = {
     patrocinador_id: data.patrocinadorId, titulo: titulo, status: data.status, inicio: inicio, fim: fim, valor: valor,
+    valor_exposicao: div.exposicao, valor_merchandising: div.merchandising, valor_hospitalidade: div.hospitalidade,
+    desconto: desc, desconto_motivo: String(data.descontoMotivo || "").trim().slice(0, 200),
     vendedor_uid: dono ? dono.vendedorUid || null : null, atendimento_uid: dono ? dono.atendimentoUid || null : null,
     edicao: EDICOES_IDS.indexOf(data.edicao) >= 0 ? data.edicao : "",
     signatarios: Array.isArray(data.signatarios) ? limparAssinantes(data.signatarios) : lerSignatarios(data.signatarios), observacao: String(data.observacao || "").trim().slice(0, 1000),
@@ -2068,6 +2169,19 @@ async function saveContract(data, arquivo, arquivoPronto) {
     var caminho = "contratos/" + data.patrocinadorId + "/" + Date.now() + "-" + limpo;
     try { await API.subirArquivo(caminho, arquivo); } catch (e) { throw new Error("Não foi possível guardar o PDF. Tente de novo."); }
     payload.arquivo_path = caminho; payload.arquivo_nome = arquivo.name;
+  }
+  // quem mexeu na divisao assina embaixo: o total de Valores mostra quanto ja passou por um humano
+  if (temAlgum) {
+    var antes = cAntes && cAntes.divisao ? cAntes.divisao : null;
+    var mudou = !antes || TIPOS_RECEITA.some(function (k) { return (antes[k] == null ? null : antes[k]) !== div[k]; }) || (antes.desconto || 0) !== desc;
+    if (mudou || !antes || !antes.conferidaEm) {
+      payload.divisao_origem = data.divisaoOrigem || "manual";
+      payload.divisao_por = S.uid; payload.divisao_por_nome = S.nome || "";
+      payload.divisao_em = agoraIso();
+      // preenchido a mao ja nasce conferido; proposta da IA so vira conferida quando alguem salva
+      payload.divisao_conferida_em = agoraIso();
+      payload.divisao_conferida_por = S.uid; payload.divisao_conferida_por_nome = S.nome || "";
+    }
   }
   if (data.status === "assinado" && !data.assinadoEm) payload.assinado_em = hojeMais(0);
   var id = data.id || null;
@@ -2185,6 +2299,7 @@ async function lerPdfDoContrato(caminho) {
   var prompt = "Leia o contrato e devolva JSON com esta forma exata:\n" +
     '{"titulo":"o nome do contrato, curto","patrocinadora":"a empresa patrocinadora, como está escrita no contrato","vigencia_inicio":"AAAA-MM-DD ou vazio","vigencia_fim":"AAAA-MM-DD ou vazio","valor":número ou null,' +
     '"assinantes":[{"nome":"quem assina","email":"e-mail se o contrato trouxer, senão vazio"}],' +
+    '"valores":{"exposicao":número ou null,"merchandising":número ou null,"hospitalidade":número ou null,"desconto":número ou null},' +
     '"empresa":{"razao_social":"razão social da patrocinadora","cnpj":"CNPJ da patrocinadora, ou vazio","endereco":"endereço da patrocinadora em uma linha, ou vazio"},' +
     '"entregas":[{"descricao":"o que o evento entrega, curto","quantidade":número ou null,' +
     '"categoria":"espaco|credenciais|midia|hospitalidade|ativacao|outro","prazo":"AAAA-MM-DD ou vazio",' +
@@ -2209,7 +2324,13 @@ async function lerPdfDoContrato(caminho) {
     "titulo é como a equipe chamaria este contrato, tipo \"Contrato de patrocínio Master 2027\". Sem nome de empresa e sem número de processo.\n" +
     "assinantes são as pessoas que assinam nas duas pontas, com o nome como está escrito. Se o contrato não trouxer e-mail, deixe o e-mail vazio.\n" +
     "patrocinadora é a empresa que está patrocinando, não a organizadora do evento. Copie a razão social como está no contrato.\n" +
-    "empresa traz os dados de faturamento da patrocinadora, nunca os da organizadora. Se o contrato não trouxer o CNPJ ou o endereço, deixe vazio.";
+    "empresa traz os dados de faturamento da patrocinadora, nunca os da organizadora. Se o contrato não trouxer o CNPJ ou o endereço, deixe vazio.\n" +
+    "valores só existe quando o contrato QUEBRA o valor total em partes, com os números escritos lá. " +
+    "exposicao é o espaço em si: box, estande, área, metragem. " +
+    "hospitalidade é camarote, hotel, transfer e alimentação de convidado. " +
+    "merchandising é todo o resto: patrocínio, mídia, marca exposta, ativação, credenciais e cota. " +
+    "desconto é abatimento ou desconto de pacote, sempre número positivo.\n" +
+    "Se o contrato traz só um valor total, devolva null nos quatro. NUNCA reparta o total por conta própria, nem por estimativa, nem proporcionalmente.";
   var bruto;
   try { bruto = await comPrazo(API.lerPdf(sistema, prompt, caminho), 120000, "A IA demorou mais de dois minutos. Tente de novo."); }
   catch (e) {
@@ -2230,6 +2351,35 @@ async function lerPdfDoContrato(caminho) {
   catch (e) { throw new Error("A IA respondeu em um formato que não deu para entender. Tente de novo."); }
   if (!dados || !(dados.entregas || []).length) throw new Error("A IA não encontrou entregas neste PDF. Confira se o arquivo é mesmo o contrato.");
   return dados;
+}
+
+// Transforma o que a IA leu numa proposta de divisao. Devolve null quando nao ha o que propor.
+// Nunca chuta valor: quando o contrato nao quebra o total, so zera o balde que nao tem entrega.
+function divisaoLidaPelaIa(dados) {
+  if (!dados) return null;
+  var val = dados.valores || {};
+  var num = function (x) { var n = Number(x); return x != null && x !== "" && isFinite(n) && n >= 0 ? n : null; };
+  var prop = { exposicao: num(val.exposicao), merchandising: num(val.merchandising), hospitalidade: num(val.hospitalidade), desconto: num(val.desconto) || 0 };
+  prop.doContrato = TIPOS_RECEITA.some(function (k) { return prop[k] !== null; });
+  // as categorias das entregas dizem em que balde o contrato NAO encosta
+  var temCat = {};
+  (dados.entregas || []).forEach(function (it) { temCat[BALDE_DA_CATEGORIA[it.categoria] || "merchandising"] = true; });
+  TIPOS_RECEITA.forEach(function (k) { if (prop[k] === null && !temCat[k]) prop[k] = 0; });
+  return TIPOS_RECEITA.some(function (k) { return prop[k] !== null; }) ? prop : null;
+}
+// Sobrou um balde sem numero e o total e conhecido? O que falta e dele, por conta.
+function fecharDivisaoProposta(prop, total) {
+  if (!prop || total == null || !isFinite(total)) return prop;
+  var vazios = TIPOS_RECEITA.filter(function (k) { return prop[k] === null; });
+  if (vazios.length !== 1) return prop;
+  var falta = vazios[0];
+  var conhecido = TIPOS_RECEITA.reduce(function (t, k) {
+    if (k === falta) return t;
+    return t + (prop[k] || 0) - (k === "merchandising" ? (prop.desconto || 0) : 0);
+  }, 0);
+  var resto = total - conhecido + (falta === "merchandising" ? (prop.desconto || 0) : 0);
+  if (resto >= 0) prop[falta] = Math.round(resto * 100) / 100;
+  return prop;
 }
 
 // Grava em Propriedades o que a leitura trouxe. pularCabecalho serve para quando a
@@ -2303,6 +2453,22 @@ async function gravarEntregasLidas(c, dados, pularCabecalho) {
   if (iaIni) { if (!c.inicio) { mudanca.inicio = iaIni; completou.push("início"); mudanca.ia_inicio = null; } else if (c.inicio !== iaIni) { mudanca.ia_inicio = iaIni; divergiu.push("início"); } else mudanca.ia_inicio = null; }
   if (iaFim) { if (!c.fim) { mudanca.fim = iaFim; completou.push("fim"); mudanca.ia_fim = null; } else if (c.fim !== iaFim) { mudanca.ia_fim = iaFim; divergiu.push("fim"); } else mudanca.ia_fim = null; }
   if (iaVal !== null) { if (c.valor == null) { mudanca.valor = iaVal; completou.push("valor"); mudanca.ia_valor = null; } else if (Number(c.valor) !== iaVal) { mudanca.ia_valor = iaVal; divergiu.push("valor"); } else mudanca.ia_valor = null; }
+
+  // divisao do valor: so entra quando o contrato ainda nao tem divisao nenhuma, para nunca
+  // passar por cima do que uma pessoa ja resolveu
+  if (!temDivisao(c)) {
+    var prop = divisaoLidaPelaIa(dados);
+    var totalFim = mudanca.valor != null ? Number(mudanca.valor) : (c.valor == null ? null : Number(c.valor));
+    prop = fecharDivisaoProposta(prop, totalFim);
+    if (prop && TIPOS_RECEITA.some(function (k) { return prop[k] !== null; })) {
+      TIPOS_RECEITA.forEach(function (k) { if (prop[k] !== null) mudanca["valor_" + k] = prop[k]; });
+      mudanca.desconto = prop.desconto || 0;
+      mudanca.divisao_origem = "ia";
+      mudanca.divisao_em = lidoEm;
+      // de proposito sem divisao_conferida_em: fica pendente ate uma pessoa salvar o formulario
+      completou.push("divisão do valor (confira)");
+    }
+  }
 
   if (Object.keys(mudanca).length) { try { await API.atualizar("contratos", c.id, mudanca); } catch (e) { completou = []; divergiu = []; } }
   return { criados: criados, completou: completou, repetidos: repetidos, pulados: pulados, divergiu: divergiu };
@@ -6619,7 +6785,7 @@ function linhaContrato(c) {
       '<span class="min-w-0 flex-1">' +
         '<span class="block truncate text-sm font-semibold">' + esc(c.patrocinador || "Sem marca") + ' <span class="font-normal text-muted-foreground">· ' + esc(c.titulo) + "</span></span>" +
         '<span class="block truncate text-xs text-muted-foreground">' + [periodo ? esc(periodo) : "", c.valor ? esc(formatCurrency(c.valor)) : "", venc, alertas].filter(Boolean).join(" · ") + "</span>" +
-      "</span>" + badge(st, "shrink-0 whitespace-nowrap") + "</button>" +
+      "</span>" + seloDivisao(c) + badge(st, "shrink-0 whitespace-nowrap") + "</button>" +
     (aberto ? '<div class="linha-contrato-corpo">' + cartaoContrato(c, true, true) + "</div>" : "") +
   "</div>";
 }
@@ -6667,6 +6833,14 @@ function divergenciasContrato(c) {
   if (c.iaFim && c.iaFim !== c.fim) d.push({ campo: "fim", rotulo: "Fim", noPainel: c.fim ? formatDateOnly(c.fim) : "em branco", noPdf: formatDateOnly(c.iaFim) });
   if (c.iaValor != null && Number(c.iaValor) !== Number(c.valor)) d.push({ campo: "valor", rotulo: "Valor", noPainel: c.valor == null ? "em branco" : formatCurrency(c.valor), noPdf: formatCurrency(c.iaValor) });
   return d;
+}
+// selo discreto para quem ainda nao conferiu a divisao que a IA propos
+function seloDivisao(c) {
+  if (!c || c.valor == null || c.valor <= 0) return "";
+  if (!temDivisao(c)) return '<span class="selo-divisao selo-divisao-falta" title="O valor deste contrato ainda não foi dividido em exposição, merchandising e hospitalidade">sem divisão</span>';
+  if (!divisaoConferida(c)) return '<span class="selo-divisao selo-divisao-ia" title="A IA propôs a divisão. Abra o contrato, confira e salve">divisão a conferir</span>';
+  if (!divisaoFecha(c)) return '<span class="selo-divisao selo-divisao-falta" title="A soma das partes não bate com o valor do contrato">divisão não fecha</span>';
+  return "";
 }
 function avisoDivergencia(c) {
   var d = divergenciasContrato(c);
@@ -6844,6 +7018,109 @@ function vendedorDoContrato(c) {
   if (p.vendedorUid) return { chave: p.vendedorUid, nome: nome || "Vendedor sem cadastro" };
   return { chave: nome ? "nome:" + chaveMarca(nome) : "", nome: nome };
 }
+// Soma por tipo de receita. O desconto ja sai abatido do merchandising, entao o total daqui
+// sempre bate com a soma dos contratos: o espaco nunca perde valor por causa de pacote.
+function somarPorTipo(lista) {
+  var r = { exposicao: { total: 0, n: 0 }, merchandising: { total: 0, n: 0 }, hospitalidade: { total: 0, n: 0 },
+            naoClassificado: { total: 0, n: 0 }, todos: { total: 0, n: 0 }, aConferir: 0 };
+  lista.forEach(function (c) {
+    if (!temValorContrato(c)) return;
+    r.todos.total += c.valor; r.todos.n++;
+    if (!temDivisao(c)) { r.naoClassificado.total += c.valor; r.naoClassificado.n++; return; }
+    if (!divisaoConferida(c)) r.aConferir++;
+    TIPOS_RECEITA.forEach(function (k) {
+      var v = baldeDoContrato(c, k);
+      if (v) { r[k].total += v; r[k].n++; }
+    });
+  });
+  return r;
+}
+function contratosNaoClassificados(lista) {
+  return lista.filter(function (c) { return temValorContrato(c) && c.valor > 0 && !temDivisao(c); })
+    .sort(function (a, b) { return b.valor - a.valor; });
+}
+function contratosAConferir(lista) {
+  return lista.filter(function (c) { return temValorContrato(c) && temDivisao(c) && !divisaoConferida(c); })
+    .sort(function (a, b) { return b.valor - a.valor; });
+}
+
+// os quatro numeros do topo: os tres baldes do dono do festival e o total de verdade
+function cartoesDeTipo(r) {
+  var cartao = function (rotulo, g, ajuda, forte) {
+    return '<div class="' + cn("cartao-tipo", forte && "cartao-tipo-forte") + '">' +
+      '<span class="block text-xs text-muted-foreground">' + esc(rotulo) + "</span>" +
+      '<span class="mt-1 block text-2xl font-semibold leading-none tracking-tight">' + esc(formatCurrency(g.total)) + "</span>" +
+      '<span class="mt-1 block text-xs text-muted-foreground">' + ajuda + "</span></div>";
+  };
+  return '<div class="grade-tipos">' +
+    TIPOS_RECEITA.map(function (k) {
+      return cartao(TIPO_RECEITA[k].label, r[k], esc(qtdTexto(r[k].n, "contrato", "contratos")));
+    }).join("") +
+    cartao("Total geral", r.todos,
+      r.naoClassificado.n
+        ? '<span class="text-warning-foreground">' + esc(formatCurrency(r.naoClassificado.total)) + " ainda sem divisão</span>"
+        : esc(qtdTexto(r.todos.n, "contrato", "contratos")),
+      true) +
+  "</div>";
+}
+
+// a matriz que o dono pediu: uma linha por evento, uma coluna por tipo, o total embaixo
+function tabelaEventoTipo(lista) {
+  var ed = S.fv.edicao;
+  var linhas = EDICOES.filter(function (e) { return ed === "todas" || e.id === ed; }).map(function (e) {
+    return { nome: e.rotulo, soma: somarPorTipo(lista.filter(function (c) { return edicaoDoContrato(c) === e.id; })) };
+  });
+  var sem = lista.filter(function (c) { return !edicaoDoContrato(c); });
+  if (sem.length) linhas.push({ nome: "Sem edição no cadastro", soma: somarPorTipo(sem) });
+  var geral = somarPorTipo(lista);
+  var cel = function (g, forte) {
+    return '<td class="' + cn(TD, "whitespace-nowrap text-right align-top", forte && "font-bold") + '">' +
+      (g.total ? esc(formatCurrency(g.total)) : '<span class="text-muted-foreground">R$ 0</span>') + "</td>";
+  };
+  var th = function (txt, dir) { return '<th class="' + cn(TH, "text-xs font-bold uppercase", dir && "text-right") + '">' + txt + "</th>"; };
+  var linha = function (l, forte) {
+    return '<tr class="' + (forte ? "linha-total-geral" : "") + '"><td class="' + cn(TD, "align-top", forte && "font-bold") + '">' + esc(l.nome) + "</td>" +
+      TIPOS_RECEITA.map(function (k) { return cel(l.soma[k], forte); }).join("") +
+      cel(l.soma.naoClassificado, forte) + cel(l.soma.todos, true) + "</tr>";
+  };
+  return '<div class="rolagem-tabela"><table class="tabela-tipos w-full caption-bottom text-sm"><thead class="[&_tr]:border-b"><tr>' +
+      th("Evento") + TIPOS_RECEITA.map(function (k) { return th(TIPO_RECEITA[k].label, true); }).join("") +
+      th("Sem divisão", true) + th("Total", true) +
+    "</tr></thead><tbody>" +
+      linhas.map(function (l) { return linha(l, false); }).join("") +
+      linha({ nome: "Total geral", soma: geral }, true) +
+    "</tbody></table></div>";
+}
+
+// contrato com valor que ninguem dividiu ainda: fica a vista ate alguem resolver
+function blocoNaoClassificado(lista) {
+  var falta = contratosNaoClassificados(lista), conferir = contratosAConferir(lista);
+  if (!falta.length && !conferir.length) {
+    return '<p class="text-sm text-muted-foreground">Todo contrato com valor já está dividido e conferido.</p>';
+  }
+  var item = function (c, tipo) {
+    return '<button type="button" class="linha-pendente" data-acao="abrir-contrato-divisao" data-id="' + esc(c.id) + '">' +
+      '<span class="min-w-0 flex-1 text-left">' +
+        '<span class="block truncate text-sm font-semibold">' + esc(c.patrocinador || "Sem marca") + '<span class="font-normal text-muted-foreground"> · ' + esc(c.titulo) + "</span></span>" +
+        '<span class="block text-xs text-muted-foreground">' + esc(tipo) + "</span>" +
+      "</span>" +
+      '<span class="shrink-0 text-sm font-semibold">' + esc(formatCurrency(c.valor)) + "</span>" +
+    "</button>";
+  };
+  return (falta.length
+      ? '<p class="text-sm text-muted-foreground">' + esc(qtdTexto(falta.length, "contrato", "contratos")) +
+        " com valor e sem divisão, somando <b>" + esc(formatCurrency(falta.reduce(function (t, c) { return t + c.valor; }, 0))) +
+        "</b>. Eles entram no total geral, mas não aparecem em nenhum dos três tipos.</p>" +
+        '<div class="lista-pendentes">' + falta.slice(0, 12).map(function (c) { return item(c, "sem divisão"); }).join("") + "</div>" +
+        (falta.length > 12 ? '<p class="text-xs text-muted-foreground">e mais ' + (falta.length - 12) + ".</p>" : "")
+      : "") +
+    (conferir.length
+      ? '<p class="mt-4 text-sm text-muted-foreground">' + esc(qtdTexto(conferir.length, "contrato", "contratos")) +
+        " com divisão proposta pela IA e ainda não conferida por uma pessoa. O valor já conta nos tipos.</p>" +
+        '<div class="lista-pendentes">' + conferir.slice(0, 12).map(function (c) { return item(c, "a IA propôs, falta conferir"); }).join("") + "</div>"
+      : "");
+}
+
 function valoresPorVendedor(lista) {
   var grupos = {};
   lista.forEach(function (c) {
@@ -6987,6 +7264,7 @@ function telaValores() {
   else {
     var lista = contratosDosValores();
     var s = somarContratos(lista);
+    var porTipo = somarPorTipo(lista);
     var negociacao = { n: s.enviado.n + s.rascunho.n, total: s.enviado.total + s.rascunho.total };
     var semValor = lista.filter(function (c) { return !temValorContrato(c); }).length;
     corpo =
@@ -6997,6 +7275,11 @@ function telaValores() {
       (semValor ? '<p class="flex items-start gap-1.5 text-sm text-warning-foreground">' + icone("triangle-alert", "size-4 shrink-0 translate-y-0.5") +
         "<span>" + esc(qtdTexto(semValor, "contrato", "contratos")) + " sem valor preenchido: conta" + (semValor > 1 ? "m" : "") + ' na quantidade, mas não na soma. Preencha o valor em <a href="#/app/contratos" class="font-bold underline">Contratos</a>.</span></p>' : "") +
       (lista.length ? "" : '<p class="border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Nenhum contrato neste filtro. Troque para Todos os contratos ou outra edição.</p>') +
+      secao("valores-por-tipo", "Por tipo de receita",
+        "Exposição é o espaço em si. Hospitalidade é camarote, hotel e transfer. Merchandising é todo o resto. " +
+        "Desconto de pacote já sai abatido do merchandising: o espaço entra sempre pelo valor de tabela.",
+        cartoesDeTipo(porTipo) + tabelaEventoTipo(lista)) +
+      secao("valores-pendentes", "O que falta dividir", "", blocoNaoClassificado(lista)) +
       secao("valores-por-vendedor", "Por vendedor", "O vendedor da marca na Carteira.", tabelaValores("Vendedor", valoresPorVendedor(lista), s)) +
       secao("valores-espacos", "Espaços pela tabela de preços", "Soma do preço de cada espaço no cadastro. Espaço sem preço conta na quantidade, fora da soma. <b>Guardado para renovar</b> é o espaço disponível que ainda está com a marca que ocupou em 2026.", blocoEspacosValores()) +
       secao("valores-renovacao", "Renovação 2027 da base", "", blocoRenovacaoValores()) +
@@ -7032,6 +7315,51 @@ function blocoConfereMarca(patroIdEscolhido) {
     "<span>No PDF a patrocinadora é <b>" + esc(noContrato) + "</b>" + (bate === true ? ", bate com a marca escolhida." : ". Confira se é a marca escolhida aqui.") + "</span></p>";
 }
 
+// Bloco da divisao do valor dentro do formulario de contrato.
+function blocoDivisaoContrato(v) {
+  var d = (v && v.divisao) || {};
+  var campo = function (k) {
+    var t = TIPO_RECEITA[k];
+    return '<div class="space-y-2"><label class="' + LABEL + '" for="div-' + k + '">' + esc(t.label) + "</label>" +
+      '<input id="div-' + k + '" name="valor_' + k + '" type="number" min="0" step="0.01" inputmode="decimal" data-divisao="1" class="' + INPUT + '" value="' +
+      (d[k] == null ? "" : esc(String(d[k]))) + '" placeholder="0,00">' +
+      '<p class="text-[11px] leading-snug text-muted-foreground">' + esc(t.ajuda) + "</p></div>";
+  };
+  return '<section class="bloco-divisao space-y-3">' +
+    '<div class="flex flex-wrap items-baseline justify-between gap-2">' +
+      '<h3 class="text-sm font-black uppercase">Como esse valor se divide</h3>' +
+      '<button type="button" class="' + btnCls("ghost", "default", "h-7 text-xs font-bold uppercase") + '" data-acao="divisao-propriedades" title="Ver que tipo de entrega este contrato tem">' + icone("list-checks", "size-3.5") + "Conferir pelas propriedades</button>" +
+    "</div>" +
+    (d.origem === "ia" && !d.conferidaEm
+      ? '<p class="aviso-ia-divisao">' + icone("sparkles", "size-4 shrink-0") +
+        "<span>A IA propôs esta divisão lendo o PDF. Confira os números e salve: só aí ela passa a contar como conferida em Valores.</span></p>"
+      : "") +
+    '<p class="text-xs text-muted-foreground">Pode deixar em branco agora: o contrato entra em Valores como não classificado e alguém divide depois. O botão acima não soma dinheiro, ele olha as entregas do contrato e zera o balde que não tem nenhuma.</p>' +
+    '<div class="grid gap-4 sm:grid-cols-3">' + TIPOS_RECEITA.map(campo).join("") + "</div>" +
+    '<div class="grid gap-4 sm:grid-cols-2">' +
+      '<div class="space-y-2"><label class="' + LABEL + '" for="div-desconto">Desconto do pacote (R$)</label>' +
+        '<input id="div-desconto" name="desconto" type="number" min="0" step="0.01" inputmode="decimal" data-divisao="1" class="' + INPUT + '" value="' + (d.desconto ? esc(String(d.desconto)) : "") + '" placeholder="0,00">' +
+        '<p class="text-[11px] leading-snug text-muted-foreground">Abate só no merchandising. O espaço fica sempre com o valor de tabela.</p></div>' +
+      '<div class="space-y-2"><label class="' + LABEL + '" for="div-motivo">Motivo do desconto</label>' +
+        '<input id="div-motivo" name="desconto_motivo" maxlength="200" class="' + INPUT + '" value="' + esc(d.descontoMotivo || "") + '" placeholder="Ex.: pacote Master 2027"></div>' +
+    "</div>" +
+    '<div id="soma-divisao" class="soma-divisao">' + textoSomaDivisao(d, v && v.valor) + "</div>" +
+    (d.origem ? '<p class="text-xs text-muted-foreground">' + esc(rotuloOrigemDivisao(d)) + (d.em ? " em " + esc(formatDateTime(d.em)) : "") + "</p>" : "") +
+  "</section>";
+}
+// a linha que diz se a divisao fecha com o valor do contrato
+function textoSomaDivisao(d, valor) {
+  var tem = TIPOS_RECEITA.some(function (k) { return d[k] != null && d[k] !== ""; });
+  if (!tem) return '<span class="text-muted-foreground">Nada dividido ainda.</span>';
+  var soma = (Number(d.exposicao) || 0) + (Number(d.merchandising) || 0) - (Number(d.desconto) || 0) + (Number(d.hospitalidade) || 0);
+  var alvo = valor == null || valor === "" ? null : Number(valor);
+  if (alvo === null) return "<span>Soma: <b>" + esc(formatCurrency(soma)) + "</b>. O contrato ainda está sem valor.</span>";
+  var dif = soma - alvo;
+  if (Math.abs(dif) < 0.01) return '<span class="soma-ok">' + icone("check", "size-4") + " Soma <b>" + esc(formatCurrency(soma)) + "</b>, bate com o contrato.</span>";
+  return '<span class="soma-erro">' + icone("triangle-alert", "size-4") + " Soma <b>" + esc(formatCurrency(soma)) + "</b> e o contrato é <b>" + esc(formatCurrency(alvo)) + "</b>. " +
+    (dif > 0 ? "Sobra " : "Falta ") + esc(formatCurrency(Math.abs(dif))) + ".</span>";
+}
+
 function dialogoContrato() {
   var c = S.formContrato.contrato;
   var lido = S.formContrato.lido;
@@ -7048,6 +7376,13 @@ function dialogoContrato() {
     fim: d && /^\d{4}-\d{2}-\d{2}$/.test(d.vigencia_fim || "") ? d.vigencia_fim : "",
     valor: d && d.valor != null && isFinite(Number(d.valor)) && Number(d.valor) > 0 ? Number(d.valor) : null,
     signatarios: d && Array.isArray(d.assinantes) ? d.assinantes.slice(0, 10).map(function (x) { return { nome: String(x.nome || "").slice(0, 120), email: String(x.email || "").slice(0, 160) }; }).filter(function (x) { return x.nome; }) : [],
+    divisao: (function () {
+      var pr = d ? divisaoLidaPelaIa(d) : null;
+      if (!pr) return {};
+      pr = fecharDivisaoProposta(pr, d && d.valor != null && isFinite(Number(d.valor)) ? Number(d.valor) : null);
+      return { exposicao: pr.exposicao, merchandising: pr.merchandising, hospitalidade: pr.hospitalidade,
+               desconto: pr.desconto || 0, descontoMotivo: "", origem: "ia", conferidaEm: "" };
+    })(),
     status: "rascunho", observacao: "", arquivoNome: "", edicao: "",
   };
   var caixa = function (miolo) {
@@ -7116,6 +7451,7 @@ function dialogoContrato() {
           : '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-arquivo">PDF do contrato' + (c && c.arquivoNome ? " (trocar)" : "") + '</label><input id="contrato-arquivo" name="arquivo" type="file" accept="application/pdf,.pdf" class="' + cn(INPUT, "py-1.5") + '">' +
             (c && c.arquivoNome ? '<p class="text-xs text-muted-foreground">Guardado: ' + esc(c.arquivoNome) + "</p>" : '<p class="text-xs text-muted-foreground">Até 20 MB. Pode deixar sem PDF em rascunho.</p>') + "</div>") +
       "</div>" +
+      blocoDivisaoContrato(v) +
       blocoAssinantes(v.signatarios) +
       '<div class="space-y-2"><label class="' + LABEL + '" for="contrato-obs">Observação (opcional)</label><textarea id="contrato-obs" name="observacao" rows="2" maxlength="1000" placeholder="Ex.: minuta aprovada pelo jurídico em 15/09" class="' + cn(INPUT, "min-h-[60px] h-auto py-2") + '">' + esc(v.observacao || "") + "</textarea></div>" +
       '<p class="text-xs text-muted-foreground">Ao marcar como assinado com data de fim, o vencimento do patrocinador passa a ser essa data.</p>' +
@@ -8336,7 +8672,7 @@ var ACOES_DE_LEITURA = {
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
-  "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
+  "divisao-propriedades": 1, "abrir-contrato-divisao": 1, "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
   "recarregar-espacos": 1, "recarregar-overview": 1, "recarregar-patrocinadores": 1, "recarregar-marcas": 1, "recarregar-entregas": 1,
   "esqueci-senha": 1, "auth-voltar": 1,
 };
@@ -8457,6 +8793,41 @@ document.addEventListener("click", async function (ev) {
   if (acao === "fechar-form-inter") { if (!S.formInter.salvando) { S.formInter.aberto = false; render(); } return; }
   if (acao === "ficha") { S.ficha = id; S.fichaProsp = null; fecharMenu(); render(); return; }
   if (acao === "fechar-ficha") { S.ficha = null; render(); return; }
+  if (acao === "abrir-contrato-divisao") {
+    var cDiv = (S.contracts || []).find(function (x) { return x.id === id; });
+    if (!cDiv) return;
+    S.formContrato = { aberto: true, contrato: cDiv, salvando: false, modo: "mao", lido: null, patroId: cDiv.patrocinadorId };
+    render();
+    setTimeout(function () { var e = document.getElementById("div-exposicao"); if (e) { e.focus(); e.scrollIntoView({ block: "center" }); } }, 60);
+    return;
+  }
+  if (acao === "divisao-propriedades") {
+    // a propriedade nao guarda valor, entao aqui nao se soma dinheiro nenhum. O que ela guarda e a
+    // CATEGORIA, e isso ja diz em que balde o contrato encosta e, principalmente, em qual NAO encosta.
+    var cAtual = S.formContrato.contrato;
+    var pid = cAtual ? cAtual.patrocinadorId : String((document.getElementById("contrato-patro") || {}).value || "");
+    var doContrato = (S.combinados || []).filter(function (x) {
+      return x.status !== "cancelado" && (cAtual ? x.contratoId === cAtual.id : x.patrocinadorId === pid);
+    });
+    if (!doContrato.length) { toast.error("Esta marca ainda não tem propriedade cadastrada."); return; }
+    var quantos = { exposicao: 0, merchandising: 0, hospitalidade: 0 };
+    doContrato.forEach(function (x) { quantos[BALDE_DA_CATEGORIA[x.categoria] || "merchandising"]++; });
+    var zerados = [];
+    TIPOS_RECEITA.forEach(function (k) {
+      var e = document.getElementById("div-" + k);
+      if (!e) return;
+      // so mexe no que esta em branco: nunca apaga numero que alguem ja digitou
+      if (!quantos[k] && String(e.value).trim() === "") { e.value = "0"; zerados.push(TIPO_RECEITA[k].label.toLowerCase()); }
+    });
+    var achou = TIPOS_RECEITA.filter(function (k) { return quantos[k]; })
+      .map(function (k) { return quantos[k] + " de " + TIPO_RECEITA[k].label.toLowerCase(); }).join(", ");
+    var e0 = document.getElementById("div-exposicao");
+    if (e0) e0.dispatchEvent(new Event("input", { bubbles: true }));
+    toast.success(qtdTexto(doContrato.length, "propriedade", "propriedades") + ": " + achou +
+      (zerados.length ? ". Zerei " + zerados.join(" e ") + ", porque não tem entrega desse tipo" : "") +
+      ". O valor de cada balde você digita.");
+    return;
+  }
   if (acao === "fechar-conversa-r27") { if (!S.conversaR27 || !S.conversaR27.salvando) { S.conversaR27 = null; render(); } return; }
   if (acao === "nova-marca") { S.formProsp = { aberto: true, prosp: null, salvando: false }; render(); setTimeout(function () { var el = document.getElementById("marca-nome"); if (el) el.focus(); }, 0); return; }
   if (acao === "editar-marca") {
@@ -8973,6 +9344,18 @@ document.addEventListener("input", function (ev) {
     document.getElementById("bloco-lista").innerHTML = blocoListaEspacos();
     return;
   }
+  if (el.getAttribute && el.getAttribute("data-divisao") === "1" || el.id === "contrato-valor") {
+    var alvo = document.getElementById("soma-divisao");
+    if (alvo) {
+      var pega = function (id) { var e = document.getElementById(id); return e ? e.value : ""; };
+      alvo.innerHTML = textoSomaDivisao({
+        exposicao: pega("div-exposicao"), merchandising: pega("div-merchandising"),
+        hospitalidade: pega("div-hospitalidade"), desconto: pega("div-desconto"),
+      }, pega("contrato-valor"));
+    }
+    if (el.id === "contrato-valor") return;
+    return;
+  }
   if (el.id === "conversa-r27") { if (S.conversaR27) S.conversaR27.texto = el.value; return; }
   if (el.id === "busca-inter") {
     S.buscaInter = el.value;
@@ -9233,6 +9616,9 @@ document.addEventListener("submit", async function (ev) {
       patrocinadorId: atualC ? atualC.patrocinadorId : String(fct.get("patrocinador_id") || ""),
       titulo: fct.get("titulo"), status: String(fct.get("status") || "rascunho"), edicao: String(fct.get("edicao") || ""),
       inicio: fct.get("inicio"), fim: fct.get("fim"), valor: fct.get("valor"),
+      valor_exposicao: fct.get("valor_exposicao"), valor_merchandising: fct.get("valor_merchandising"),
+      valor_hospitalidade: fct.get("valor_hospitalidade"),
+      desconto: fct.get("desconto"), descontoMotivo: fct.get("desconto_motivo"),
       signatarios: assinantesDoFormulario(ev.target), observacao: fct.get("observacao"),
       assinadoEm: atualC ? atualC.assinadoEm : null,
     };
