@@ -757,7 +757,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.22";
+var VERSAO = "2026-09-22.23";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -9232,7 +9232,7 @@ function render() {
     return;
   }
   if (caminho === "/app/lixeira" && !podeVerLixeira()) { irPara("/app/inicio", true); return; }
-  if (caminho === "/app/equipe" && !ehAdmin()) { irPara("/app/espacos", true); return; }
+  if (caminho === "/app/equipe" && !ehAdmin()) { irPara("/app/inicio", true); return; }
   if (caminho === "/app/valores" && !ehAdmin()) { irPara("/app/inicio", true); return; }
   if (ehOperacao() && !ROTAS_DA_OPERACAO[caminho]) { irPara("/app/propriedades", true); return; }
   if (ehVisualizacao() && ROTAS_SEM_VISUALIZACAO[caminho]) { irPara("/app/inicio", true); return; }
