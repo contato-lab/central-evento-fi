@@ -420,6 +420,10 @@
   .linha-contrato-aberta{background:var(--muted)}
   .linha-contrato-aberta .linha-contrato-topo{background:transparent}
   .linha-contrato-corpo{padding-left:14px}
+  /* ---- Interações: uma conversa por linha ---- */
+  .pl-9{padding-left:2.25rem}
+  .linha-conversa{display:flex;align-items:flex-start;gap:10px;padding:10px 16px}
+  @media (max-width:640px){ .linha-conversa{flex-wrap:wrap;gap:6px 10px} .linha-conversa>span:nth-child(3){flex-basis:100%} }
   /* ---- Carteira: o que ainda nao foi preenchido ---- */
   .celula-vazia{color:var(--muted-foreground);opacity:.55}
   .aviso-cadastro{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius);
@@ -673,7 +677,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.3";
+var VERSAO = "2026-09-22.4";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -2541,6 +2545,8 @@ var S = {
   maisAberto: false,   // gaveta "Mais" do menu de baixo, no celular
   listaEspacos: false, // a lista embaixo do mapa so aparece pelo botao Lista
   marcaEntregas: null, // Propriedades: marca aberta a direita (null = a de mais atraso; no celular, mostra a lista)
+  marcaInter: null,    // Interações: marca aberta a direita (null = a mais urgente; no celular, mostra a lista)
+  buscaInter: "",      // Interações: busca da coluna da esquerda, alcança qualquer marca
   alertaAba: "meus",   // Início: "meus" ou "equipe"
   alertaSituacao: null, // Início: cartao clicado ("vermelhas", "amarelas", "outras") filtra os alertas; null = todos
   renovAgrupar: true,   // Renovação: separa "ainda sem resposta" de quem já andou
@@ -6275,27 +6281,139 @@ function cartaoInteracao(it, compacto) {
     "</div></article>";
 }
 
+// Uma conversa em uma linha: tipo, o que foi dito, o proximo passo e quem registrou.
+function linhaInteracao(it) {
+  var gerando = S.sugerindo === it.id;
+  var quem = quemRegistrou(it);
+  return '<div class="linha-conversa">' +
+    '<span class="shrink-0 text-xs text-muted-foreground" style="width:4.5rem">' + esc(dataCurta(it.data)) + "</span>" +
+    (it.tipo ? '<span class="' + cn(BADGE, "shrink-0 whitespace-nowrap text-foreground") + '">' + esc(TIPO_INTERACAO[it.tipo]) + "</span>" : '<span class="shrink-0"></span>') +
+    '<span class="min-w-0 flex-1">' +
+      '<span class="block break-words text-sm">' + esc(it.observacao) + "</span>" +
+      (it.proximoPasso
+        ? '<span class="mt-1 flex items-start gap-1.5 text-sm"><span class="text-xs font-medium text-muted-foreground">Próximo passo:</span> <b class="font-semibold">' + esc(it.proximoPasso) + "</b></span>"
+        : '<span class="mt-1 block text-xs text-muted-foreground">Sem próximo passo combinado.</span>') +
+      (quem ? '<span class="mt-0.5 block text-xs text-muted-foreground">Registrado por ' + esc(quem) + "</span>" : "") +
+    "</span>" +
+    '<span class="flex shrink-0 items-center gap-1">' +
+      (podeMexer() ? '<button type="button" class="' + btnCls("ghost", "icon", "h-8 w-8") + '" data-acao="sugerir" data-id="' + esc(it.id) + '"' + (gerando ? " disabled" : "") + ' title="Sugerir o próximo passo com a IA" aria-label="Sugerir próximo passo">' + (gerando ? icone("loader-circle", "animate-spin") : icone("sparkles")) + "</button>" : "") +
+      botaoExcluirIcone("interacao", it, "o contato com " + it.patrocinador) +
+    "</span>" +
+  "</div>";
+}
+
+function campoBuscaInter() {
+  return '<div class="relative mb-2">' + icone("search", "absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground") +
+    '<input id="busca-inter" aria-label="Buscar marca" placeholder="Buscar qualquer marca" class="' + cn(INPUT, "h-9 bg-card pl-9 text-sm") + '" value="' + esc(S.buscaInter) + '"></div>';
+}
+
+// Interacoes: quem precisa de atencao a esquerda, a conversa da marca a direita.
+// A coluna da esquerda NAO e "marcas com conversa": e a fila de trabalho, ordenada por urgencia,
+// e a busca alcanca qualquer marca para registrar a primeira conversa.
 function blocoListaInteracoes() {
   if (S.interactionsErro) return errorList(S.interactionsErro, "recarregar-interacoes", S.interactionsCarregando);
-  if (!S.interactions) return loadingList("Carregando interações...", 3);
-  if (!S.interactions.length) return emptyList("history", "Nenhuma interação registrada ainda", "Use o botão Registrar contato para começar o histórico.");
-  var lista = interacoesFiltradas();
-  if (!lista.length) return emptyList("history", "Nenhuma interação encontrada", "Ajuste os filtros.");
-  return '<div class="grid gap-4">' + lista.map(function (it) { return cartaoInteracao(it, false); }).join("") + "</div>";
+  if (!S.interactions || !S.sponsors) return loadingList("Carregando conversas...", 3);
+  var cfg = configAtual(), limite = cfg.dias_sem_contato;
+  var termo = chaveMarca(S.buscaInter);
+
+  // 1. tudo que tem conversa, + quem precisa de atencao mesmo sem nunca ter falado
+  var mapa = {};
+  var juntar = function (chave, nome, ehMarca, id) {
+    if (!mapa[chave]) mapa[chave] = { chave: chave, nome: nome, ehMarca: ehMarca, id: id, conversas: [], ultimo: null, atrasada: false, proximaAcao: "" };
+    return mapa[chave];
+  };
+  (S.sponsors || []).filter(function (p) { return passaEdicao(edicoesDaMarca(p)); }).forEach(function (p) {
+    var m = juntar(p.id, p.nome, false, p.id);
+    m.ultimo = p.ultimoContato || null;
+  });
+  (S.prospects || []).filter(function (x) { return passaEdicao(edicoesDaMarcaDesejo(x)); }).forEach(function (x) {
+    var m = juntar("p:" + x.id, x.nome, true, x.id);
+    m.ultimo = x.ultimoContato || null;
+    m.atrasada = !!x.atrasada;
+    m.proximaAcao = x.proximaAcao || "";
+    m.esfriando = !!x.esfriando;
+  });
+  interacoesFiltradas().forEach(function (it) {
+    var chave = it.patrocinadorId || "p:" + it.prospeccaoId;
+    var m = juntar(chave, it.patrocinador, it.ehMarca, it.patrocinadorId || it.prospeccaoId);
+    m.conversas.push(it);
+  });
+
+  var todas = Object.keys(mapa).map(function (k) { return mapa[k]; });
+  todas.forEach(function (m) { m.dias = m.ultimo ? Math.max(0, -diasAte(m.ultimo)) : null; });
+  // quem entra na fila: tem conversa, ou esta atrasada, ou passou do limite de dias sem contato
+  var naFila = function (m) { return m.conversas.length || m.atrasada || m.esfriando || (m.dias !== null && m.dias > limite); };
+  var lista = termo ? todas.filter(function (m) { return chaveMarca(m.nome).indexOf(termo) >= 0; }) : todas.filter(naFila);
+  // urgencia: acao atrasada, depois esfriando, depois quem esta ha mais tempo sem falar
+  var peso = function (m) { return m.atrasada ? 0 : m.esfriando ? 1 : m.dias === null ? 2 : 3; };
+  lista.sort(function (x, y) { return peso(x) - peso(y) || (y.dias || 9999) - (x.dias || 9999) || x.nome.localeCompare(y.nome, "pt-BR"); });
+
+  // busca sem resultado NAO pode engolir o campo de busca, senao a pessoa nao corrige o que digitou
+  if (!lista.length && !termo) {
+    return emptyList("history", "Nenhuma conversa registrada ainda", podeMexer() ? "Use o botão Registrar contato para começar o histórico." : "");
+  }
+
+  var escolhida = S.marcaInter && mapa[S.marcaInter] && lista.some(function (m) { return m.chave === S.marcaInter; }) ? S.marcaInter : (lista[0] || {}).chave;
+  var ativa = lista.find(function (m) { return m.chave === escolhida; }) || null;
+
+  var selo = function (m) {
+    if (m.atrasada) return '<span class="selo-atraso" title="Próxima ação atrasada">!</span>';
+    if (m.esfriando) return '<span class="selo-conferir" title="Sem contato há muito tempo">esfriando</span>';
+    return "";
+  };
+  var quando = function (m) {
+    if (m.dias === null) return '<span class="celula-vazia">nunca falamos</span>';
+    return esc(textoDias(m.dias, false)); // textoDias ja vem com o "há"
+  };
+  var linhasMarcas = lista.map(function (m) {
+    var ativo = m.chave === escolhida;
+    return '<button type="button" class="' + cn("marca-linha", ativo && "marca-linha-ativa") + '" data-acao="inter-marca" data-chave="' + esc(m.chave) + '" aria-current="' + (ativo ? "true" : "false") + '">' +
+      '<span class="min-w-0 flex-1"><span class="block truncate text-sm font-medium">' + esc(m.nome) + (m.ehMarca ? '<span class="font-normal text-muted-foreground"> · desejo</span>' : "") + "</span>" +
+      '<span class="block truncate text-xs text-muted-foreground">' + quando(m) + (m.conversas.length ? " · " + m.conversas.length + (m.conversas.length === 1 ? " conversa" : " conversas") : "") + "</span></span>" +
+      selo(m) + icone("chevron-right", "size-4 shrink-0 text-muted-foreground md:hidden") + "</button>";
+  }).join("");
+
+  if (!ativa) {
+    return '<div class="mestre-detalhe">' +
+      '<aside class="lista-marcas" aria-label="Marcas">' + campoBuscaInter() + "</aside>" +
+      '<section class="detalhe-marca"><p class="px-4 py-8 text-center text-sm text-muted-foreground">Nenhuma marca com esse nome. Confira a busca.</p></section>' +
+    "</div>";
+  }
+  var acaoNova = podeMexer()
+    ? '<button type="button" class="' + btnCls("outline", "default", "h-8 shrink-0 gap-1.5 text-xs font-medium") + '" data-acao="nova-interacao" data-patro="' + esc(ativa.ehMarca ? "p:" + ativa.id : ativa.id) + '">' + icone("message-square-plus", "size-4") + " Registrar contato</button>"
+    : "";
+  var detalhe =
+    '<div class="flex items-start justify-between gap-3 border-b border-border px-4 py-3">' +
+      '<div class="min-w-0">' +
+        '<button type="button" class="md:hidden mb-1 flex items-center gap-1 text-xs text-muted-foreground" data-acao="inter-voltar">' + icone("chevron-left", "size-4") + " Marcas</button>" +
+        '<button type="button" class="block truncate text-left text-base font-semibold hover:underline" data-acao="' + (ativa.ehMarca ? "ficha-marca" : "ficha") + '" data-id="' + esc(ativa.id) + '" title="Abrir a ficha">' + esc(ativa.nome) + "</button>" +
+        '<p class="text-xs text-muted-foreground">' + (ativa.ehMarca ? "Marca desejo · " : "") + quando(ativa) +
+          (ativa.atrasada && ativa.proximaAcao ? ' · <span class="text-destructive">atrasado: ' + esc(ativa.proximaAcao) + "</span>" : "") + "</p>" +
+      "</div>" + acaoNova +
+    "</div>" +
+    (ativa.conversas.length
+      ? '<div class="divide-y divide-border">' + ativa.conversas.map(linhaInteracao).join("") + "</div>"
+      : '<p class="px-4 py-8 text-center text-sm text-muted-foreground">Nenhuma conversa registrada com esta marca.' + (podeMexer() ? " Use o botão acima para começar." : "") + "</p>");
+
+  return '<div class="' + cn("mestre-detalhe", S.marcaInter && "escolhida") + '">' +
+    '<aside class="lista-marcas" aria-label="Marcas">' +
+      campoBuscaInter() +
+      linhasMarcas +
+      (termo ? "" : '<p class="mt-2 px-2 text-xs text-muted-foreground">Quem precisa de atenção primeiro. Busque pelo nome para achar qualquer outra marca.</p>') +
+    "</aside>" +
+    '<section class="detalhe-marca">' + detalhe + "</section>" +
+  "</div>";
 }
 
 function telaInteracoes() {
   var f = S.fi;
-  var patros = [{ valor: "todos", rotulo: "Todos os patrocinadores e marcas" }].concat((S.sponsors || []).map(function (p) { return { valor: p.id, rotulo: p.nome }; }));
-  if ((S.prospects || []).length) patros.push({ grupo: "Marcas desejo", itens: S.prospects.map(function (m) { return { valor: "p:" + m.id, rotulo: m.nome }; }) });
   var vendedores = [{ valor: "todos", rotulo: "Registrado por qualquer um" }].concat((S.perfis || []).map(function (p) { return { valor: p.id, rotulo: rotuloPessoa(p) }; }));
   var tipos = [{ valor: "todos", rotulo: "Todos os tipos" }].concat(Object.keys(TIPO_INTERACAO).map(function (k) { return { valor: k, rotulo: TIPO_INTERACAO[k] }; }));
-  return '<section class="space-y-6">' +
-    '<div id="filtros-inter" class="grid gap-3 sm:grid-cols-3">' +
-      selectNativo("filtro-inter-patro", "filtro-inter-patro", patros, f.patro, { className: "h-11 bg-card" }) +
-      selectNativo("filtro-inter-vendedor", "filtro-inter-vendedor", vendedores, f.vendedor, { className: "h-11 bg-card" }) +
-      selectNativo("filtro-inter-tipo", "filtro-inter-tipo", tipos, f.tipo, { className: "h-11 bg-card" }) +
-    "</div>" +
+  return '<section class="space-y-5">' +
+    barraDeFiltros("filtros-inter",
+      selectNativo("filtro-inter-vendedor", "filtro-inter-vendedor", vendedores, f.vendedor, { className: "h-10 bg-card" }) +
+      selectNativo("filtro-inter-tipo", "filtro-inter-tipo", tipos, f.tipo, { className: "h-10 bg-card" }),
+      !!(f.vendedor !== "todos" || f.tipo !== "todos"), "inter") +
     '<div id="bloco-lista-inter">' + blocoListaInteracoes() + "</div>" +
   "</section>";
 }
@@ -8157,7 +8275,7 @@ var OPCOES_STATUS = [{ valor: "disponivel", rotulo: "Disponível" }, { valor: "r
 // tutorial, fechar janela, sair). Abrir o PDF do contrato fica de fora de proposito.
 var AVISO_SO_VER = "Seu acesso é só de visualização.";
 var ACOES_DE_LEITURA = {
-  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "limpar-filtros": 1, "add-contato": 1, "remover-contato": 1, "renov-etapa": 1, "abrir-detalhe-contrato": 1, "carteira-status": 1, "carteira-cuida": 1, "filtro-estagio-etapa": 1, "alerta-situacao": 1, "abrir-renov-confirmaram": 1, "entregas-marca": 1, "entregas-voltar": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
+  modo: 1, sair: 1, tutorial: 1, tema: 1, "tema-escolher": 1, mais: 1, "alerta-aba": 1, "lista-espacos": 1, "filtro-espaco": 1, "limpar-filtros": 1, "add-contato": 1, "remover-contato": 1, "renov-etapa": 1, "abrir-detalhe-contrato": 1, "carteira-status": 1, "carteira-cuida": 1, "filtro-estagio-etapa": 1, "alerta-situacao": 1, "abrir-renov-confirmaram": 1, "entregas-marca": 1, "entregas-voltar": 1, "inter-marca": 1, "inter-voltar": 1, "tutorial-depois": 1, "tour-proximo": 1, "tour-voltar": 1, "tour-sair": 1,
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
@@ -8650,12 +8768,15 @@ document.addEventListener("click", async function (ev) {
     return;
   }
   if (acao === "entregas-marca") { S.marcaEntregas = alvo.getAttribute("data-chave"); render(); return; }
+  if (acao === "inter-marca") { S.marcaInter = alvo.getAttribute("data-chave"); render(); return; }
+  if (acao === "inter-voltar") { S.marcaInter = null; render(); return; }
   if (acao === "entregas-voltar") { S.marcaEntregas = null; render(); return; }
   if (acao === "limpar-filtros") {
     var tela = alvo.getAttribute("data-tela");
     if (tela === "patro") S.fp = { q: "", status: "todos", cuida: "todos", renov: "todos", tipoMarca: "todos", prazo: "todos", setor: "todos" };
     if (tela === "contratos") { S.fc = { q: "", status: "todos", vendedor: "todos", cuida: "todos", renov: "todos", tipo: "todos", prazo: "todos" }; trocarParametro("patro", ""); }
     if (tela === "entregas") S.fe = { q: "", status: "todos", origem: "todas", patro: "todos", cuida: "todos", renov: "todos", tipo: "todos", prazo: "todos" };
+    if (tela === "inter") { S.fi.vendedor = "todos"; S.fi.tipo = "todos"; }
     render();
     return;
   }
@@ -8792,6 +8913,14 @@ document.addEventListener("input", function (ev) {
   if (el.id === "busca") {
     trocarParametro("q", el.value);
     document.getElementById("bloco-lista").innerHTML = blocoListaEspacos();
+    return;
+  }
+  if (el.id === "busca-inter") {
+    S.buscaInter = el.value;
+    var foco = el.selectionStart;
+    document.getElementById("bloco-lista-inter").innerHTML = blocoListaInteracoes();
+    var novo = document.getElementById("busca-inter");
+    if (novo) { novo.focus(); try { novo.setSelectionRange(foco, foco); } catch (e) {} }
     return;
   }
   if (el.id === "busca-patro") {
