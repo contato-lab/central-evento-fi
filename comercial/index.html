@@ -422,6 +422,12 @@
   .linha-contrato-corpo{padding-left:14px}
   /* ---- Interações: uma conversa por linha ---- */
   .pl-9{padding-left:2.25rem}
+  .barra-conversa{position:fixed;left:50%;bottom:24px;z-index:60;transform:translateX(-50%);width:min(660px,calc(100vw - 28px));background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--sombra-flutua);padding:12px 14px}
+  .barra-conversa-miolo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .barra-conversa-texto{flex:1 1 100%;margin:0;font-size:13px;line-height:1.4;color:var(--muted-foreground)}
+  .barra-conversa-texto b{color:var(--foreground);font-weight:600}
+  .barra-conversa input{flex:1 1 200px;min-width:0}
+  @media (max-width:767px){.barra-conversa{bottom:84px}}
   .linha-conversa{display:flex;align-items:flex-start;gap:10px;padding:10px 16px}
   @media (max-width:640px){ .linha-conversa{flex-wrap:wrap;gap:6px 10px} .linha-conversa>span:nth-child(3){flex-basis:100%} }
   /* ---- Carteira: o que ainda nao foi preenchido ---- */
@@ -677,7 +683,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.4";
+var VERSAO = "2026-09-22.5";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -1721,7 +1727,7 @@ async function saveInteraction(data) {
   var ehMarca = alvo.indexOf("p:") === 0;
   if (!alvo || obs.length < 3 || obs.length > 2000 || isNaN(quando)) throw new Error("Escolha o patrocinador ou a marca desejo e escreva o que aconteceu.");
   try {
-    await API.criar("interacoes", { patrocinador_id: ehMarca ? null : alvo, prospeccao_id: ehMarca ? alvo.slice(2) : null, data: quando.toISOString(), observacao: obs, proximo_passo: prox.slice(0, 500), tipo: TIPO_INTERACAO[data.tipo] ? data.tipo : "outro" });
+    return await API.criar("interacoes", { patrocinador_id: ehMarca ? null : alvo, prospeccao_id: ehMarca ? alvo.slice(2) : null, data: quando.toISOString(), observacao: obs, proximo_passo: prox.slice(0, 500), tipo: TIPO_INTERACAO[data.tipo] ? data.tipo : "outro" });
   } catch (e) { throw new Error("Não foi possível registrar a interação."); }
 }
 
@@ -2562,6 +2568,7 @@ var S = {
   papelMudando: false,
   config: null,
   formInter: { aberto: false, patroId: null, salvando: false },
+  conversaR27: null,
   configSalvando: false,
   combinados: null, combinadosErro: null, combinadosCarregando: false,
   ficha: null,
@@ -2957,6 +2964,53 @@ function camposDaMudanca(campo, valor, p) {
   if (campo === "atend") { var a = valor ? perfilPorUid(valor) : null; return { atendimento_uid: a ? a.id : null, atendimento_nome: a ? a.nome : "" }; }
   return null;
 }
+// Todo clique na Renovacao veio de uma conversa com a marca. Aqui o clique vira registro.
+function textoConversaR27(campo, valor) {
+  if (campo === "resp") {
+    if (valor === "confirmou") return "Confirmou a renovação para 2027.";
+    if (valor === "recusou") return "Avisou que não vai renovar em 2027.";
+    if (valor === "em_negociacao") return "Renovação 2027 em negociação.";
+    return null;
+  }
+  if (campo === "forma") {
+    if (valor === "valor_2026") return "Escolheu pagar pelo Valor 2026, com o sinal de 10%.";
+    if (valor === "valor_2027") return "Escolheu pagar pelo Valor 2027.";
+    return null;
+  }
+  if (campo === "sinal") return dataRazoavel(valor) ? "Pagou o sinal de 10%." : null;
+  return null;
+}
+// como estava ANTES da mudanca, para nao registrar conversa quando nada mudou de fato
+function valorR27Antes(campo, p) {
+  if (campo === "resp") return p.renovacao === "renovado" ? "confirmou" : p.renovacao || "sem_contato";
+  if (campo === "forma") return p.pagamento2027 || "";
+  if (campo === "sinal") return p.sinalPagoEm || "";
+  return null;
+}
+async function registrarConversaR27(p, campo, valor) {
+  var texto = textoConversaR27(campo, valor);
+  if (!texto || !podeVerConversas()) return;
+  var quando = new Date().toISOString();
+  try {
+    var doc = await saveInteraction({ patrocinadorId: p.id, data: quando, observacao: texto, proximoPasso: "", tipo: "outro" });
+    if (!doc || !doc.id) return;
+    p.ultimoContato = quando; // a Carteira e os alertas passam a contar a partir de hoje
+    S.conversaR27 = { id: doc.id, nome: p.nome, titulo: texto, texto: "", salvando: false };
+    if (S.interactions) await carregar("interactions", getInteractions);
+  } catch (e) { /* a renovacao ja foi salva; falha no registro nao pode atrapalhar */ }
+}
+function barraConversaR27() {
+  var c = S.conversaR27;
+  if (!c) return "";
+  return '<div class="barra-conversa">' +
+    '<form id="form-conversa-r27" class="barra-conversa-miolo">' +
+      '<p class="barra-conversa-texto"><b>' + esc(c.nome) + ":</b> " + esc(c.titulo) + " Quer contar o que a marca falou?</p>" +
+      '<input id="conversa-r27" name="texto" maxlength="1800" autocomplete="off" aria-label="O que a marca falou" placeholder="Ex.: falei com a Marina, pediu o contrato até sexta" class="' + cn(INPUT, "h-9 text-sm") + '" value="' + esc(c.texto) + '"' + (c.salvando ? " disabled" : "") + ">" +
+      '<button type="submit" class="' + btnCls("default", "default", "h-9 shrink-0 px-3 text-xs font-bold uppercase") + '"' + (c.salvando ? " disabled" : "") + ">" + (c.salvando ? icone("loader-circle", "animate-spin") : "") + "Salvar</button>" +
+      '<button type="button" class="' + btnCls("ghost", "icon", "h-9 w-9 shrink-0") + '" data-acao="fechar-conversa-r27" title="Agora não"' + (c.salvando ? " disabled" : "") + '><span class="sr-only">Fechar</span>' + icone("x") + "</button>" +
+    "</form>" +
+  "</div>";
+}
 var AVISO_R27 = { resp: "Resposta registrada", conf: "Data da confirmação salva", forma: "Forma de pagamento salva", sinal: "Sinal atualizado", vend: "Vendedor trocado", atend: "Atendimento trocado" };
 async function mudarRenovacao(campo, pid, valor) {
   if (!podeMexer()) { toast.error(AVISO_SO_VER); render(); return; }
@@ -2966,6 +3020,7 @@ async function mudarRenovacao(campo, pid, valor) {
   var campos = camposDaMudanca(campo, valor, p);
   if (!campos) return;
   var recusouAntes = p.renovacao === "recusou";
+  var r27Antes = valorR27Antes(campo, p);
   try {
     await API.atualizar("patrocinadores", pid, campos);
     Object.keys(campos).forEach(function (k) { if (MAPA_CAMPOS_PATRO[k]) p[MAPA_CAMPOS_PATRO[k]] = campos[k]; });
@@ -2973,6 +3028,7 @@ async function mudarRenovacao(campo, pid, valor) {
     // recusou agora: o espaco dela fica livre e a vez da fila comeca hoje
     if (campos.renovacao === "recusou" && !recusouAntes) await comecarVezDepoisDaRecusa(p);
     toast.success(AVISO_R27[campo] + ": " + p.nome + ".");
+    if (r27Antes !== null && String(valor) !== String(r27Antes)) await registrarConversaR27(p, campo, valor);
   } catch (e) { toast.error("Não foi possível salvar. Confira a conexão e tente de novo."); }
   render();
 }
@@ -4667,7 +4723,7 @@ function casca(conteudo, caminho) {
     (S.ficha && !S.formPatro.aberto && !S.formInter.aberto && !S.formContrato.aberto && !S.formEntrega.aberto ? dialogoFicha() : "") +
     (S.fichaProsp && !S.formPatro.aberto && !S.formInter.aberto && !S.formProsp.aberto && !S.formEntrega.aberto ? dialogoFichaProspeccao() : "") +
     (S.formProsp.aberto ? dialogoProspeccao() : "") + (S.formContrato.aberto ? dialogoContrato() : "") + (S.formEntrega.aberto ? dialogoEntrega() : "") + (S.formPatro.aberto ? dialogoPatrocinador() : "") + (S.formInter.aberto ? dialogoInteracao() : "") +
-    gaveta +
+    barraConversaR27() + gaveta +
     '<nav aria-label="Navegação principal" class="nav-inferior fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">' + inferior + "</nav>" +
   "</div>";
 }
@@ -6346,7 +6402,8 @@ function blocoListaInteracoes() {
   var lista = termo ? todas.filter(function (m) { return chaveMarca(m.nome).indexOf(termo) >= 0; }) : todas.filter(naFila);
   // urgencia: acao atrasada, depois esfriando, depois quem esta ha mais tempo sem falar
   var peso = function (m) { return m.atrasada ? 0 : m.esfriando ? 1 : m.dias === null ? 2 : 3; };
-  lista.sort(function (x, y) { return peso(x) - peso(y) || (y.dias || 9999) - (x.dias || 9999) || x.nome.localeCompare(y.nome, "pt-BR"); });
+  lista.sort(function (x, y) { var dx = x.dias == null ? 9999 : x.dias, dy = y.dias == null ? 9999 : y.dias;
+    return peso(x) - peso(y) || dy - dx || x.nome.localeCompare(y.nome, "pt-BR"); });
 
   // busca sem resultado NAO pode engolir o campo de busca, senao a pessoa nao corrige o que digitou
   if (!lista.length && !termo) {
@@ -8207,7 +8264,7 @@ function render() {
   var ativo = document.activeElement;
   var foco = ativo && ativo.id ? { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd } : null;
 
-  if (ultimaRota !== null && ultimaRota !== caminho) { S.ficha = null; S.fichaProsp = null; S.ampliada = null; if (!S.equipeSalvando) S.equipeEditando = null; }
+  if (ultimaRota !== null && ultimaRota !== caminho) { S.ficha = null; S.fichaProsp = null; S.ampliada = null; if (!S.equipeSalvando) S.equipeEditando = null; if (S.conversaR27 && !S.conversaR27.texto) S.conversaR27 = null; }
   // Minha conta abre sempre limpa: sem rascunho, recado ou previa de foto de uma visita anterior
   if (ultimaRota !== caminho && caminho === "/app/conta") { soltarFotoNova(); S.conta = contaVazia(); }
   // Contratos aberto por um botao que leva a uma marca (?patro=ID): os filtros de antes (status,
@@ -8279,7 +8336,7 @@ var ACOES_DE_LEITURA = {
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
-  "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
+  "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
   "recarregar-espacos": 1, "recarregar-overview": 1, "recarregar-patrocinadores": 1, "recarregar-marcas": 1, "recarregar-entregas": 1,
   "esqueci-senha": 1, "auth-voltar": 1,
 };
@@ -8400,6 +8457,7 @@ document.addEventListener("click", async function (ev) {
   if (acao === "fechar-form-inter") { if (!S.formInter.salvando) { S.formInter.aberto = false; render(); } return; }
   if (acao === "ficha") { S.ficha = id; S.fichaProsp = null; fecharMenu(); render(); return; }
   if (acao === "fechar-ficha") { S.ficha = null; render(); return; }
+  if (acao === "fechar-conversa-r27") { if (!S.conversaR27 || !S.conversaR27.salvando) { S.conversaR27 = null; render(); } return; }
   if (acao === "nova-marca") { S.formProsp = { aberto: true, prosp: null, salvando: false }; render(); setTimeout(function () { var el = document.getElementById("marca-nome"); if (el) el.focus(); }, 0); return; }
   if (acao === "editar-marca") {
     var mk = (S.prospects || []).find(function (x) { return x.id === id; });
@@ -8915,6 +8973,7 @@ document.addEventListener("input", function (ev) {
     document.getElementById("bloco-lista").innerHTML = blocoListaEspacos();
     return;
   }
+  if (el.id === "conversa-r27") { if (S.conversaR27) S.conversaR27.texto = el.value; return; }
   if (el.id === "busca-inter") {
     S.buscaInter = el.value;
     var foco = el.selectionStart;
@@ -9121,6 +9180,26 @@ document.addEventListener("submit", async function (ev) {
     }
     return;
   }
+  if (ev.target.id === "form-conversa-r27") {
+    ev.preventDefault();
+    var cr = S.conversaR27;
+    if (!cr || cr.salvando) return;
+    var extra = String(cr.texto || "").trim();
+    // nao escreveu nada: o registro padrao ja esta salvo, e so fechar
+    if (extra.length < 3) { S.conversaR27 = null; render(); return; }
+    cr.salvando = true; render();
+    try {
+      await API.atualizar("interacoes", cr.id, { observacao: (cr.titulo + " " + extra).slice(0, 2000) });
+      S.conversaR27 = null;
+      if (S.interactions) await carregar("interactions", getInteractions);
+      toast.success("Conversa registrada.");
+    } catch (e) {
+      cr.salvando = false;
+      toast.error("Não foi possível salvar o que você escreveu.");
+    }
+    render();
+    return;
+  }
   if (ev.target.id === "form-inter") {
     ev.preventDefault();
     var fi = new FormData(ev.target);
@@ -9322,6 +9401,12 @@ document.addEventListener("submit", async function (ev) {
 });
 
 document.addEventListener("keydown", function (ev) {
+  if (ev.key === "Enter" && ev.target && ev.target.id === "conversa-r27") {
+    ev.preventDefault();
+    var fc = document.getElementById("form-conversa-r27");
+    if (fc) { if (fc.requestSubmit) fc.requestSubmit(); else fc.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); }
+    return;
+  }
   if ((ev.key === "Enter" || ev.key === " ") && ev.target.closest && ev.target.closest('[data-acao="mapa-espaco"], [data-acao="ampliar-zona"]')) {
     ev.preventDefault(); ev.target.closest('[data-acao="mapa-espaco"], [data-acao="ampliar-zona"]').click(); return;
   }
@@ -9342,7 +9427,8 @@ document.addEventListener("keydown", function (ev) {
   if (S.ficha) { S.ficha = null; render(); return; }
   if (S.fichaProsp) { S.fichaProsp = null; render(); return; }
   if (S.detalhe) { S.detalhe = null; render(); return; }
-  if (S.ampliada) { S.ampliada = null; render(); }
+  if (S.ampliada) { S.ampliada = null; render(); return; }
+  if (S.conversaR27 && !S.conversaR27.salvando) { S.conversaR27 = null; render(); }
 });
 // trocou de tela: a gaveta "Mais" do celular fecha sozinha
 window.addEventListener("hashchange", function () { S.maisAberto = false; render(); });
