@@ -398,6 +398,19 @@
   table.tabela-renov details summary::before{content:"›";display:inline-block;transition:transform .12s}
   table.tabela-renov details[open] summary::before{transform:rotate(90deg)}
   .min-w-40{min-width:10rem}
+  /* classes que eu usei e que o app.css compilado nao traz (sem elas o espaco vale zero e as
+     coisas colam umas nas outras, que foi o caso da bolinha vermelha grudada no 66) */
+  .gap-x-4{column-gap:1rem}
+  .max-w-52{max-width:13rem}
+  .pb-1{padding-bottom:.25rem}
+  .pr-3{padding-right:.75rem}
+  .tracking-wide{letter-spacing:.025em}
+  .text-\[10px\]{font-size:10px;line-height:1.3}
+  /* a barra dos tres estados e a legenda dela */
+  .barra-renov{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--muted)}
+  .barra-renov>i{display:block;height:8px}
+  .legenda-renov{display:flex;flex-wrap:wrap;column-gap:1rem;row-gap:.25rem;align-items:center;font-size:14px}
+  .item-legenda{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
   /* ---- Contratos: uma linha por contrato, detalhe abre embaixo ---- */
   .linha-contrato{border-bottom:1px solid var(--border)}
   .linha-contrato:last-child{border-bottom:0}
@@ -655,7 +668,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.1";
+var VERSAO = "2026-09-22.2";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -3474,15 +3487,32 @@ function blocoNumerosRenovacao() {
       etapa("Sinal de 10% pago", sinal, v26.length ? "de " + v26.length + " no Valor 2026" : "ninguém escolheu o Valor 2026 ainda", "falta_sinal") + seta +
       (ehVisualizacao() ? "" : etapa("Contrato 2027 assinado", ass, "meta: a base toda", "falta_contrato")) +
     "</div>" +
-    '<div><div class="flex items-baseline justify-between text-xs text-muted-foreground"><span>Caminho da renovação</span><span>' + pct + "% da base confirmou · meta 100%</span></div>" +
-      '<div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted"><div class="h-2 rounded-full bg-success" style="width:' + pct + '%"></div></div></div>' +
-    '<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">' +
-      '<button type="button" class="' + cn("link-funil", S.fr && S.fr.sit === "sem_resposta" && "text-foreground font-semibold") + '" data-acao="renov-etapa" data-sit="sem_resposta">' +
-        '<span class="ponto" style="background:var(--warning)"></span>Ainda sem resposta: <b class="font-semibold">' + semResp + "</b></button>" +
-      '<button type="button" class="' + cn("link-funil", S.fr && S.fr.sit === "recusaram" && "text-foreground font-semibold") + '" data-acao="renov-etapa" data-sit="recusaram">' +
-        '<span class="ponto" style="background:var(--destructive)"></span>Recusaram: <b class="font-semibold">' + rec + "</b></button>" +
-      (v27 ? '<span class="text-muted-foreground">Escolheram o Valor 2027 (+12%): <b class="font-semibold text-foreground">' + v27 + "</b></span>" : "") +
-    "</div>" +
+    // A barra mostra a base inteira dividida nos tres estados: o tamanho da faixa amarela e o
+    // recado, sem precisar ler numero. A legenda embaixo continua filtrando a lista.
+    (function () {
+      var total = base.length || 1;
+      var larg = function (n) { return (100 * n / total).toFixed(1) + "%"; };
+      var item = function (cor, rot, n, sit) {
+        var ativo = S.fr && S.fr.sit === sit;
+        var miolo = '<span class="ponto" style="background:' + cor + '"></span>' + rot + ' <b class="font-semibold text-foreground">' + n + "</b>";
+        if (!sit) return '<span class="item-legenda text-muted-foreground">' + miolo + "</span>";
+        return '<button type="button" class="' + cn("item-legenda link-funil", ativo && "text-foreground font-semibold") + '" data-acao="renov-etapa" data-sit="' + sit + '" aria-pressed="' + (ativo ? "true" : "false") + '">' + miolo + "</button>";
+      };
+      return '<div>' +
+        '<div class="flex items-baseline justify-between text-xs text-muted-foreground"><span>Caminho da renovação</span><span>' + base.length + " marcas da base</span></div>" +
+        '<div class="barra-renov mt-1" role="img" aria-label="' + conf + " confirmaram, " + semResp + " sem resposta, " + rec + ' recusaram">' +
+          '<i style="width:' + larg(conf) + ';background:var(--success)"></i>' +
+          '<i style="width:' + larg(semResp) + ';background:var(--warning)"></i>' +
+          '<i style="width:' + larg(rec) + ';background:var(--destructive)"></i>' +
+        "</div>" +
+        '<div class="legenda-renov mt-2">' +
+          item("var(--success)", "Confirmaram", conf, "confirmaram") +
+          item("var(--warning)", "Ainda sem resposta", semResp, "sem_resposta") +
+          item("var(--destructive)", "Recusaram", rec, "recusaram") +
+          (v27 ? item("var(--muted-foreground)", "Escolheram o Valor 2027 (+12%)", v27, "") : "") +
+        "</div>" +
+      "</div>";
+    })() +
   "</div>";
 }
 // Qual e o proximo passo desta marca na renovacao 2027. E a unica pergunta que a tela responde,
