@@ -431,6 +431,9 @@
   .selo-divisao-falta{background:transparent;color:var(--muted-foreground);border:1px dashed var(--border)}
   @media (min-width:640px){.sm\:col-span-2{grid-column:span 2 / span 2}}
   .resumo-grupos{font-size:13px;color:var(--muted-foreground);margin:0 0 10px}
+  .caixa-exemplos{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;
+    border:1px dashed var(--border);border-radius:12px;padding:12px 14px;margin-top:8px}
+  .caixa-exemplos p{margin:0;flex:1 1 320px;min-width:0}
   .chips-cobertas{display:flex;flex-wrap:wrap;gap:6px}
   .chip-coberta{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--primary);border-radius:999px;
     padding:3px 10px;font-size:12px;background:var(--primary-fraco,transparent);color:var(--foreground);cursor:pointer;font-family:inherit}
@@ -752,7 +755,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.16";
+var VERSAO = "2026-09-22.17";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -1809,7 +1812,7 @@ async function getGrupos() {
   var r;
   try { r = await API.listar("grupos"); } catch (e) { throw new Error("Não foi possível carregar os grupos."); }
   return r.map(function (g) {
-    return { id: g.id, nome: g.nome || "Grupo", negocia: NEGOCIA[g.negocia] ? g.negocia : "separado",
+    return { id: g.id, nome: g.nome || "Grupo", negocia: NEGOCIA[g.negocia] ? g.negocia : "separado", exemplo: g.exemplo === true,
              atendimentoUid: g.atendimento_uid || null, atendimentoNome: g.atendimento_nome || "",
              observacao: g.observacao || "" };
   }).sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
@@ -2141,6 +2144,7 @@ async function getContracts() {
         canceladoEm: c.assinatura.cancelado_em || "", canceladoPor: c.assinatura.cancelado_por || "",
       } : null,
       cobertos: Array.isArray(c.patrocinadores_cobertos) ? c.patrocinadores_cobertos.filter(Boolean) : [],
+      exemplo: c.exemplo === true,
       arquivoPath: c.arquivo_path || "", arquivoNome: c.arquivo_nome || "",
       // PDF de antes da assinatura: so existe quando a DocuSign devolveu o contrato assinado
       arquivoOriginalPath: c.arquivo_original_path || "",
@@ -7226,7 +7230,86 @@ function telaContratos() {
       selectNativo("filtro-contrato-prazo", "filtro-contrato-prazo", OPCOES_PRAZO_CONTRATO, f.prazo, { className: "h-10 bg-card" }),
       filtrosContratoLigados(), "contratos") +
     '<div id="bloco-lista-contratos">' + blocoListaContratos() + "</div>" +
+    blocoExemplos() +
   "</section>";
+}
+
+/* ---------------------------------------------- exemplos de teste (so o dono) */
+// Cria um jogo de contratos ficticios em cima de marcas que JA existem na base, para dar o que
+// testar na divisao de valor, no contrato que cobre mais de uma marca e no Valores por grupo.
+// Nada disso e dado real: tudo nasce com exemplo:true e [EXEMPLO] no titulo.
+function temExemplos() {
+  return (S.contracts || []).some(function (c) { return c.exemplo; }) || (S.grupos || []).some(function (g) { return g.exemplo; });
+}
+async function carregarExemplos() {
+  var base = (S.sponsors || []).filter(function (p) { return passaEdicao(edicoesDaMarca(p)); });
+  if (base.length < 3) { toast.error("Preciso de pelo menos 3 marcas nesta edição para montar os exemplos."); return; }
+  var ed = edicaoEscolhida();
+  var edCont = EDICOES_IDS.indexOf(ed) >= 0 ? ed : EDICOES_IDS[0];
+  var a = base[0], b = base[1], c3 = base[2];
+  var ini = "2027-01-01", fim = "2027-12-31";
+  var criados = 0;
+  var criar = async function (dados) {
+    try { await API.criar("contratos", Object.assign({
+      status: "assinado", inicio: ini, fim: fim, edicao: edCont, assinado_em: hojeMais(0),
+      observacao: "Contrato de exemplo, criado pelo botão de teste. Pode apagar.",
+      signatarios: [], exemplo: true,
+    }, dados)); criados++; } catch (e) {}
+  };
+  // 1. divisao completa e fechada, com desconto de pacote abatendo so no merchandising
+  await criar({ patrocinador_id: a.id, titulo: "[EXEMPLO] Patrocínio com pacote", valor: 500000,
+    valor_exposicao: 300000, valor_merchandising: 220000, valor_hospitalidade: 20000,
+    desconto: 40000, desconto_motivo: "pacote de exemplo",
+    divisao_origem: "manual", divisao_por: S.uid, divisao_por_nome: S.nome || "", divisao_em: agoraIso(),
+    divisao_conferida_em: agoraIso(), divisao_conferida_por: S.uid, divisao_conferida_por_nome: S.nome || "" });
+  // 2. um contrato so cobrindo duas marcas
+  await criar({ patrocinador_id: b.id, titulo: "[EXEMPLO] Contrato de duas marcas", valor: 600000,
+    patrocinadores_cobertos: [c3.id],
+    valor_exposicao: 400000, valor_merchandising: 200000, valor_hospitalidade: 0, desconto: 0,
+    divisao_origem: "manual", divisao_por: S.uid, divisao_por_nome: S.nome || "", divisao_em: agoraIso(),
+    divisao_conferida_em: agoraIso(), divisao_conferida_por: S.uid, divisao_conferida_por_nome: S.nome || "" });
+  // 3. com valor e SEM divisao, para aparecer em "O que falta dividir"
+  await criar({ patrocinador_id: c3.id, titulo: "[EXEMPLO] Sem divisão ainda", valor: 180000, desconto: 0 });
+  // 4. a IA propos e ninguem conferiu: entra com o selo "divisão a conferir"
+  await criar({ patrocinador_id: a.id, titulo: "[EXEMPLO] Divisão proposta pela IA", valor: 240000,
+    valor_exposicao: 150000, valor_merchandising: 90000, valor_hospitalidade: 0, desconto: 0,
+    divisao_origem: "ia", divisao_em: agoraIso() });
+  // 5. um grupo com as tres marcas, para o Valores por quem paga ter o que somar
+  try {
+    var g = await API.criar("grupos", { nome: "[EXEMPLO] Grupo de teste", negocia: "junto",
+      atendimento_uid: null, atendimento_nome: "", observacao: "Grupo de exemplo. Pode apagar.", exemplo: true });
+    await API.atualizarVarios([a, b, c3].map(function (p) {
+      return { col: "patrocinadores", id: p.id, dados: { grupo_id: g.id } };
+    }));
+  } catch (e) {}
+  S.contracts = null; S.grupos = null; S.sponsors = null;
+  await Promise.all([carregar("contracts", getContracts), carregar("grupos", getGrupos), carregar("sponsors", getSponsors)]);
+  toast.success(criados + " contratos de exemplo criados em " + a.nome + ", " + b.nome + " e " + c3.nome + ". Todos com [EXEMPLO] no título.");
+}
+async function removerExemplos() {
+  var cs = (S.contracts || []).filter(function (c) { return c.exemplo; });
+  var gs = (S.grupos || []).filter(function (g) { return g.exemplo; });
+  var idsG = gs.map(function (g) { return g.id; });
+  var marcas = (S.sponsors || []).filter(function (p) { return p.grupoId && idsG.indexOf(p.grupoId) >= 0; });
+  try {
+    if (marcas.length) await API.atualizarVarios(marcas.map(function (p) { return { col: "patrocinadores", id: p.id, dados: { grupo_id: null } }; }));
+    for (var i = 0; i < cs.length; i++) { try { await API.apagar("contratos", cs[i].id); } catch (e) {} }
+    for (var j = 0; j < gs.length; j++) { try { await API.apagar("grupos", gs[j].id); } catch (e) {} }
+  } catch (e) { toast.error("Não foi possível remover tudo. Tente de novo."); }
+  S.contracts = null; S.grupos = null; S.sponsors = null;
+  await Promise.all([carregar("contracts", getContracts), carregar("grupos", getGrupos), carregar("sponsors", getSponsors)]);
+  toast.success("Exemplos removidos. Sua base voltou ao que era.");
+}
+function blocoExemplos() {
+  if (!ehDono()) return "";
+  var tem = temExemplos();
+  return '<div class="caixa-exemplos">' +
+    '<p class="text-xs text-muted-foreground">' + (tem
+      ? "Os contratos com <b>[EXEMPLO]</b> no título são de teste e não valem nada. Remova quando terminar."
+      : "Precisa de contratos para testar a divisão de valor e o contrato de várias marcas? Isso cria quatro de mentira nas marcas desta edição, e depois some com eles.") + "</p>" +
+    '<button type="button" class="' + btnCls(tem ? "outline" : "ghost", "default", cn("h-8 shrink-0 text-xs font-bold uppercase", tem && "btn-excluir")) + '" data-acao="' + (tem ? "remover-exemplos" : "carregar-exemplos") + '"' + (S.exemplosMexendo ? " disabled" : "") + ">" +
+      (S.exemplosMexendo ? icone("loader-circle", "animate-spin") : icone(tem ? "trash-2" : "target")) +
+      (tem ? " Remover os exemplos" : " Carregar exemplos de teste") + "</button></div>";
 }
 
 /* ------------------------------------------------- tela: valores (diretoria) */
@@ -9321,6 +9404,15 @@ document.addEventListener("click", async function (ev) {
   if (acao === "carteira-visao") { S.fp.visao = alvo.getAttribute("data-valor") === "grupo" ? "grupo" : "marca"; render(); return; }
   if (acao === "novo-grupo") { S.formGrupo = { aberto: true, grupo: null, salvando: false }; render();
     setTimeout(function () { var e = document.getElementById("grupo-nome"); if (e) e.focus(); }, 0); return; }
+  if (acao === "carregar-exemplos" || acao === "remover-exemplos") {
+    if (S.exemplosMexendo) return;
+    if (acao === "remover-exemplos" && !confirm("Remover todos os contratos e o grupo de exemplo? Nada de verdade é apagado.")) return;
+    S.exemplosMexendo = true; render();
+    try { if (acao === "carregar-exemplos") await carregarExemplos(); else await removerExemplos(); }
+    catch (e) { toast.error("Não deu certo. Tente de novo."); }
+    S.exemplosMexendo = false; render();
+    return;
+  }
   if (acao === "escolher-cobertas") { S.cobertasAberto = true; S.cobertasBusca = ""; S.formContrato.cobertos = cobertosDoForm(); render();
     setTimeout(function () { var e = document.getElementById("busca-cobertas"); if (e) e.focus(); }, 0); return; }
   if (acao === "fechar-cobertas") { S.cobertasAberto = false; render(); return; }
