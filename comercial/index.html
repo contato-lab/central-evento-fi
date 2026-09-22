@@ -477,6 +477,9 @@
   @media (max-width:720px){table.tabela-tipos{min-width:620px}}
   .rolagem-tabela{overflow-x:auto}
   tr.linha-total-geral td{border-top:2px solid var(--border);background:var(--muted-fraco,transparent)}
+  .link-grupo-valor{background:transparent;border:0;padding:0;font:inherit;color:var(--foreground);
+    cursor:pointer;text-align:left;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px}
+  .link-grupo-valor:hover{text-decoration-color:var(--primary)}
   .lista-pendentes{display:flex;flex-direction:column;gap:6px;margin-top:10px}
   .linha-pendente{display:flex;align-items:center;gap:12px;width:100%;border:1px solid var(--border);border-radius:10px;
     padding:10px 12px;background:var(--card);cursor:pointer;text-align:left}
@@ -749,7 +752,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.15";
+var VERSAO = "2026-09-22.16";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -7339,6 +7342,56 @@ function tabelaEventoTipo(lista) {
     "</tbody></table></div>";
 }
 
+// O grupo de um contrato e o grupo da marca PRINCIPAL dele. Contrato que cobre marcas de grupos
+// diferentes conta no grupo de quem assinou, que e quem paga.
+function grupoDoContrato(c) {
+  var p = patroDoContrato(c);
+  if (!p || !p.grupoId) return null;
+  return grupoPorId(p.grupoId);
+}
+function tabelaGrupoTipo(lista) {
+  var porGrupo = {}, semGrupo = [];
+  lista.forEach(function (c) {
+    var g = grupoDoContrato(c);
+    if (!g) { semGrupo.push(c); return; }
+    (porGrupo[g.id] = porGrupo[g.id] || { grupo: g, itens: [] }).itens.push(c);
+  });
+  var linhas = Object.keys(porGrupo).map(function (k) {
+    var g = porGrupo[k];
+    var quantas = marcasDoGrupo(g.grupo.id).length;
+    return { id: g.grupo.id, nome: g.grupo.nome, abaixo: quantas + (quantas === 1 ? " marca" : " marcas"), soma: somarPorTipo(g.itens) };
+  }).sort(function (a, b) { return b.soma.todos.total - a.soma.todos.total; });
+  if (semGrupo.length) {
+    var quantasSoltas = (S.sponsors || []).filter(function (p) { return !p.grupoId || !grupoPorId(p.grupoId); }).length;
+    linhas.push({ id: null, nome: "Marcas sem grupo", abaixo: quantasSoltas + (quantasSoltas === 1 ? " marca, cada uma é uma empresa" : " marcas, cada uma é uma empresa"), soma: somarPorTipo(semGrupo) });
+  }
+  if (!linhas.length) return '<p class="text-sm text-muted-foreground">Nenhum contrato com valor neste filtro.</p>';
+  var geral = somarPorTipo(lista);
+  var cel = function (g, forte) {
+    return '<td class="' + cn(TD, "whitespace-nowrap text-right align-top", forte && "font-bold") + '">' +
+      (g.total ? esc(formatCurrency(g.total)) : '<span class="text-muted-foreground">R$ 0</span>') + "</td>";
+  };
+  var th = function (txt, dir) { return '<th class="' + cn(TH, "text-xs font-bold uppercase", dir && "text-right") + '">' + txt + "</th>"; };
+  var nomeCel = function (l, forte) {
+    var titulo = l.id
+      ? '<button type="button" class="link-grupo-valor" data-acao="filtrar-por-grupo" data-valor="' + esc(l.id) + '" title="Ver as marcas deste grupo na Carteira">' + esc(l.nome) + "</button>"
+      : esc(l.nome);
+    return '<td class="' + cn(TD, "align-top", forte && "font-bold") + '">' + titulo +
+      (l.abaixo ? '<span class="block text-xs font-normal text-muted-foreground">' + esc(l.abaixo) + "</span>" : "") + "</td>";
+  };
+  var linha = function (l, forte) {
+    return '<tr class="' + (forte ? "linha-total-geral" : "") + '">' + nomeCel(l, forte) +
+      TIPOS_RECEITA.map(function (k) { return cel(l.soma[k], forte); }).join("") +
+      cel(l.soma.naoClassificado, forte) + cel(l.soma.todos, true) + "</tr>";
+  };
+  return '<div class="rolagem-tabela"><table class="tabela-tipos w-full caption-bottom text-sm"><thead class="[&_tr]:border-b"><tr>' +
+      th("Quem paga") + TIPOS_RECEITA.map(function (k) { return th(TIPO_RECEITA[k].label, true); }).join("") +
+      th("Sem divisão", true) + th("Total", true) +
+    "</tr></thead><tbody>" +
+      linhas.map(function (l) { return linha(l, false); }).join("") +
+      linha({ id: null, nome: "Total geral", abaixo: "", soma: geral }, true) +
+    "</tbody></table></div>";
+}
 // contrato com valor que ninguem dividiu ainda: fica a vista ate alguem resolver
 function blocoNaoClassificado(lista) {
   var falta = contratosNaoClassificados(lista), conferir = contratosAConferir(lista);
@@ -7526,6 +7579,12 @@ function telaValores() {
         "Exposição é o espaço em si. Hospitalidade é camarote, hotel e transfer. Merchandising é todo o resto. " +
         "Desconto de pacote já sai abatido do merchandising: o espaço entra sempre pelo valor de tabela.",
         cartoesDeTipo(porTipo) + tabelaEventoTipo(lista)) +
+      (S.grupos && S.grupos.length
+        ? secao("valores-por-grupo", "Por quem paga",
+            "Grupo junta as marcas da mesma empresa. Um contrato conta no grupo de quem assinou, e nunca duas vezes. " +
+            "Clique no nome do grupo para ver as marcas dele na Carteira.",
+            tabelaGrupoTipo(lista))
+        : "") +
       secao("valores-pendentes", "O que falta dividir", "", blocoNaoClassificado(lista)) +
       secao("valores-por-vendedor", "Por vendedor", "O vendedor da marca na Carteira.", tabelaValores("Vendedor", valoresPorVendedor(lista), s)) +
       secao("valores-espacos", "Espaços pela tabela de preços", "Soma do preço de cada espaço no cadastro. Espaço sem preço conta na quantidade, fora da soma. <b>Guardado para renovar</b> é o espaço disponível que ainda está com a marca que ocupou em 2026.", blocoEspacosValores()) +
@@ -8964,6 +9023,7 @@ async function prepararTela(caminho) {
     if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors); // seletor da fila de interessados
     if (podeMexer() && !S.prospects && !S.prospectsCarregando) carregar("prospects", getProspects); // so o seletor da fila usa
   }
+  if (caminho === "/app/valores" && !S.grupos && !S.gruposCarregando) carregar("grupos", getGrupos);
   if (caminho === "/app/patrocinadores") {
     if (!S.sponsors && !S.sponsorsCarregando) carregar("sponsors", getSponsors);
     if (!S.spaces && !S.spacesCarregando) carregar("spaces", getSpaces); // lista de espacos do formulario
@@ -9273,7 +9333,12 @@ document.addEventListener("click", async function (ev) {
   if (acao === "tirar-coberta") {
     S.formContrato.cobertos = cobertosDoForm().filter(function (x) { return x !== id; }); render(); return;
   }
-  if (acao === "filtrar-por-grupo") { S.fp.visao = "marca"; S.fp.grupo = alvo.getAttribute("data-valor") || "todos"; S.ficha = null; render(); return; }
+  if (acao === "filtrar-por-grupo") {
+    S.fp.visao = "marca"; S.fp.grupo = alvo.getAttribute("data-valor") || "todos"; S.ficha = null;
+    // chamado de Valores tambem: sem isso o filtro liga numa tela que a pessoa nao esta vendo
+    if (rotaAtual().caminho !== "/app/patrocinadores") { irPara("/app/patrocinadores"); return; }
+    render(); return;
+  }
   if (acao === "grupo-da-marca") { S.grupoDaMarca = { aberto: true, patroId: id, salvando: false }; render(); return; }
   if (acao === "fechar-grupo-da-marca") { if (!S.grupoDaMarca.salvando) { S.grupoDaMarca.aberto = false; render(); } return; }
   if (acao === "criar-grupo-para-marca") {
