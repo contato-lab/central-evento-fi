@@ -757,7 +757,7 @@ import { EDICOES, ZONAS, TIPOS, MAPA, chaveMapa, nomeEspaco, todosEspacos } from
  *                            quem olha a tela, sem servidor.
  *  - Lovable AI           -> Firebase AI Logic (Gemini), sem chave na pagina
  */
-var VERSAO = "2026-09-22.23";
+var VERSAO = "2026-09-22.25";
 
 // funcao no Cloud Run que manda o contrato para a DocuSign e recebe a volta
 var URL_ASSINATURA = "https://assinatura-docusign-78864288270.southamerica-east1.run.app";
@@ -1263,6 +1263,7 @@ async function criarApiTeste() {
     { id: "v1", nome: "Igor Souza", email: "igor@teste.local", papel: "vendedor" },
     // foto com endereco de fora do painel (gravada antes da regra nova): nao aparece, e o dono tira na Equipe
     { id: "v2", nome: "Pedro Paulo", email: "pedro@teste.local", papel: "admin", foto_url: "https://exemplo.invalid/pixel.gif", foto_path: null },
+    { id: "v3", nome: "Marina Alves", email: "marina@teste.local", papel: "atendimento" },
   ];
   var papelTeste = (location.search.match(/[?&]papel=(\w+)/) || [])[1] || "dono";
   dados.patrocinadores[0].vendedor_uid = "v1"; dados.patrocinadores[0].vendedor_nome = "Igor Souza"; dados.patrocinadores[0].master = true;
@@ -1495,8 +1496,8 @@ async function criarApiTeste() {
       if (!c) throw new Error("Contrato não encontrado.");
       if (acao === "cancelar") {
         // mesmas travas da funcao: nivel, quem cuida da marca e envio aberto
-        if (["vendedor", "admin", "dono"].indexOf(papelTeste) < 0) throw new Error("Seu acesso ao painel não permite mexer em contratos.");
-        if (papelTeste === "vendedor" && c.vendedor_uid !== user.uid && c.atendimento_uid !== user.uid) throw new Error("Só a diretoria e quem cuida da marca cancelam o envio deste contrato.");
+        if (["vendedor", "atendimento", "admin", "dono"].indexOf(papelTeste) < 0) throw new Error("Seu acesso ao painel não permite mexer em contratos.");
+        if ((papelTeste === "vendedor" || papelTeste === "atendimento") && c.vendedor_uid !== user.uid && c.atendimento_uid !== user.uid) throw new Error("Só a diretoria e quem cuida da marca cancelam o envio deste contrato.");
         var ac = c.assinatura || {};
         if (ac.status !== "enviado" || !ac.envelope_id) throw new Error("Este contrato não está esperando assinatura na DocuSign.");
         var motivo = String(extra && extra.motivo != null ? extra.motivo : "").replace(/\s+/g, " ").trim().slice(0, 200);
@@ -2926,11 +2927,16 @@ function contaVazia() {
 }
 
 // inativo: o dono tirou o acesso (a pessoa continua no historico, mas nao entra mais)
-var PAPEIS = { dono: "Dono do sistema", admin: "Diretoria", vendedor: "Comercial e atendimento", visualizacao: "Visualização", operacao: "Operação", inativo: "Sem acesso" };
+// "vendedor" e o que esta gravado nas fichas antigas e nas regras: e o Comercial, so mudou o rotulo.
+// "atendimento" entrou na 22.25 com a MESMA permissao, para a Equipe mostrar quem faz o que.
+var PAPEIS = { dono: "Criador do sistema", admin: "Diretoria", vendedor: "Comercial", atendimento: "Atendimento", visualizacao: "Visualização", operacao: "Operação", inativo: "Sem acesso" };
 // Pedido do dono do festival: "todo mundo precisa saber o que cada marca contratou, o atendimento,
 // a imprensa, todo mundo". E o limite que ele mesmo deu: ver quanto foi o contrato nao, ler o
 // contrato na integra nao, saber o que tem de propriedade sim.
 var ROTAS_DA_OPERACAO = { "/app/propriedades": 1, "/app/conta": 1 };
+// os niveis que o Criador escolhe na Equipe, na ordem em que aparecem no seletor. "dono" nao
+// entra (ninguem vira dono pelo painel) e "inativo" tem botao proprio de tirar o acesso.
+var NIVEIS_QUE_O_DONO_DA = ["visualizacao", "operacao", "vendedor", "atendimento", "admin"];
 var RENOVACAO = {
   sem_contato: { label: "Sem contato", className: "border-foreground/15 bg-foreground/8 text-foreground" },
   em_negociacao: { label: "Em negociação", className: "border-warning/30 bg-warning/10 text-warning-foreground" },
@@ -3759,6 +3765,37 @@ function resumoPropriedades(p) {
   ativos.forEach(function (c) { var k = CATEGORIA_ENTREGA[c.categoria] || "Outro"; por[k] = (por[k] || 0) + 1; });
   return ativos.length + (ativos.length > 1 ? " itens" : " item") + " em Propriedades: " + Object.keys(por).map(function (k) { return k + " (" + por[k] + ")"; }).join(", ");
 }
+// Escreve as entregas de verdade, nao a contagem por categoria: e isso que a pessoa poria a mao.
+// Corta no limite do campo (500) e diz quantas ficaram de fora, para ninguem achar que e tudo.
+function textoDasPropriedades(p) {
+  var ativos = combinadosDe(p.id).filter(function (c) { return c.status !== "cancelado"; });
+  if (!ativos.length) return "";
+  // "Area de 500 m2" no meio da frase vira "area de 500 m2"; "VIP" e "LED" ficam como estao
+  var minuscula = function (t) {
+    var primeira = t.split(" ")[0] || "";
+    if (primeira.length < 2) return t;
+    var a = primeira.charAt(0), b = primeira.charAt(1);
+    if (a !== a.toLocaleUpperCase("pt-BR") || b !== b.toLocaleLowerCase("pt-BR")) return t;
+    return a.toLocaleLowerCase("pt-BR") + t.slice(1);
+  };
+  var itens = ativos.map(function (c) {
+    var d = String(c.descricao || "").trim();
+    if (!d) return "";
+    // quantidade 1 nao vira texto: "1 camarote" e ruido
+    return c.quantidade != null && c.quantidade > 1 ? c.quantidade + " " + minuscula(d) : minuscula(d);
+  }).filter(Boolean);
+  if (!itens.length) return "";
+  var cabem = [];
+  for (var i = 0; i < itens.length; i++) {
+    if (cabem.concat(itens[i]).join(", ").length > 420) break;
+    cabem.push(itens[i]);
+  }
+  if (!cabem.length) cabem = [itens[0].slice(0, 420)];
+  var resto = itens.length - cabem.length;
+  var texto = cabem.length > 1 ? cabem.slice(0, -1).join(", ") + " e " + cabem[cabem.length - 1] : cabem[0];
+  if (resto > 0) texto += ", e mais " + resto;
+  return texto.charAt(0).toLocaleUpperCase("pt-BR") + texto.slice(1, 500);
+}
 function textoContratou(p) { return p.contratou || resumoPropriedades(p); }
 function blocoCotasSemEspaco() {
   if (!S.spaces || !S.sponsors) return "";
@@ -4113,9 +4150,10 @@ function avatarPessoa(p, tamanho, extra) { return avatar(p.fotoUrl, p.nome, tama
 var FRASE_PAPEL = {
   operacao: "Vê só Propriedades, de todas as marcas: o que foi prometido e o que já foi entregue. Não vê valor, não abre contrato e não edita nada.",
   visualizacao: "Vê tudo, só não vê contratos, valores e o histórico de conversas. Não mexe em nada.",
-  vendedor: "Trabalha a carteira. Contratos e valores, só das marcas em que é vendedor ou atendimento.",
+  vendedor: "Trabalha a carteira. Contratos e valores, só das marcas em que é o vendedor ou o atendimento.",
+  atendimento: "Mesmo acesso do Comercial. Contratos e valores, só das marcas em que é o vendedor ou o atendimento.",
   admin: "Vê tudo, todos os contratos e valores, e tem a tela Valores. Marca o selo Master e ajusta os prazos.",
-  dono: "Define o nível de cada pessoa.",
+  dono: "Vê tudo e é o único que muda o nível de acesso das pessoas.",
 };
 // todo mundo menos quem perdeu o acesso
 function pessoasAtivas() { return (S.perfis || []).filter(function (p) { return p.papel !== "inativo"; }); }
@@ -6269,7 +6307,14 @@ function dialogoPatrocinador() {
           '<span><span class="font-bold">Patrocinador Master</span><br><span class="text-xs text-muted-foreground">' + (admin ? "Marca que pagou mais e tem mais direitos no festival. Ganha prioridade na renovação e alerta vermelho." : "Só um administrador pode marcar ou desmarcar o selo Master.") + "</span></span></label>" +
         '<div class="space-y-2"><label class="' + LABEL + '" for="patro-espaco">Espaço vinculado</label>' + selectNativo("patro-espaco", "espaco_vinculado_id", opcoesEspacos(p ? p.id : null, v.espacoVinculadoId || ""), v.espacoVinculadoId || "") +
           (S.spaces ? "" : '<p class="text-xs text-muted-foreground">Carregando a lista de espaços...</p>') + "</div>" +
-        '<div class="space-y-2"><label class="' + LABEL + '" for="patro-contratou">O que contratou (opcional)</label>' +
+        '<div class="space-y-2">' +
+          '<div class="flex flex-wrap items-center justify-between gap-2">' +
+            '<label class="' + LABEL + '" for="patro-contratou">O que contratou (opcional)</label>' +
+            // marca sem propriedade nao ganha botao: nao teria de onde puxar
+            (v.id && textoDasPropriedades(v)
+              ? '<button type="button" class="' + btnCls("ghost", "default", "h-7 gap-1.5 px-2 text-xs font-bold uppercase") + '" data-acao="puxar-propriedades" data-id="' + esc(v.id) + '">' + icone("package-check", "size-3.5") + "Puxar de Propriedades</button>"
+              : "") +
+          "</div>" +
           '<textarea id="patro-contratou" name="contratou" rows="2" maxlength="500" placeholder="Ex.: naming da Arena, mídia no telão e camarote no sábado" class="' + cn(INPUT, "min-h-[52px] h-auto py-2") + '">' + esc(v.contratou || "") + "</textarea>" +
           '<p class="text-xs text-muted-foreground">Para cota sem espaço físico, como a prefeitura: o que a marca leva no festival. O detalhe de cada entrega fica em Propriedades.</p></div>' +
         '<div class="grid gap-5 sm:grid-cols-2">' +
@@ -6407,7 +6452,7 @@ function telaEquipe() {
       };
       if (p.papel === "inativo") return '<div class="flex flex-wrap items-center gap-2">' + selo + (mexeAcesso ? botaoAcesso(false) : "") + "</div>";
       if (!mexeAcesso) return selo;
-      return '<div class="flex flex-wrap items-center gap-2">' + selectNativo("papel-" + p.id, "papel", [{ valor: "visualizacao", rotulo: PAPEIS.visualizacao }, { valor: "operacao", rotulo: PAPEIS.operacao }, { valor: "vendedor", rotulo: PAPEIS.vendedor }, { valor: "admin", rotulo: PAPEIS.admin }], p.papel, { className: "w-56", disabled: S.papelMudando }) + botaoAcesso(true) + "</div>";
+      return '<div class="flex flex-wrap items-center gap-2">' + selectNativo("papel-" + p.id, "papel", NIVEIS_QUE_O_DONO_DA.map(function (k) { return { valor: k, rotulo: PAPEIS[k] }; }), p.papel, { className: "w-56", disabled: S.papelMudando }) + botaoAcesso(true) + "</div>";
     };
     // foto (ou iniciais), nome e apelido
     var pessoa = function (p, titulo) {
@@ -6443,7 +6488,7 @@ function telaEquipe() {
     '<details class="rounded-md border border-border bg-card px-4 py-3 text-sm">' +
       '<summary class="cursor-pointer font-medium">O que cada nível vê</summary>' +
       '<div class="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">' +
-        ["visualizacao", "operacao", "vendedor", "admin", "dono"].map(function (k) { return '<div class="rounded-md border border-border p-3"><span class="font-semibold text-foreground">' + esc(PAPEIS[k]) + "</span><br>" + esc(FRASE_PAPEL[k]) + "</div>"; }).join("") +
+        ["visualizacao", "operacao", "vendedor", "atendimento", "admin", "dono"].map(function (k) { return '<div class="rounded-md border border-border p-3"><span class="font-semibold text-foreground">' + esc(PAPEIS[k]) + "</span><br>" + esc(FRASE_PAPEL[k]) + "</div>"; }).join("") +
       "</div>" +
       '<p class="mt-3 text-xs text-muted-foreground">Conta nova entra como Visualização. ' + (ehDono() ? "Você, como dono do sistema, sobe cada pessoa para o nível certo. Quem saiu da empresa: use Tirar acesso." : "Só o dono do sistema muda o nível das pessoas.") + "</p></details>" +
     '<div id="bloco-equipe">' + corpo + "</div>" +
@@ -9314,7 +9359,7 @@ var ACOES_DE_LEITURA = {
   "mapa-espaco": 1, "fechar-detalhe": 1, "ampliar-zona": 1, "fechar-ampliada": 1, "modo-ampliada": 1, "abrir-espaco": 1, edicao: 1, "menu-filtro": 1,
   ficha: 1, "fechar-ficha": 1, "ficha-marca": 1, "fechar-ficha-marca": 1, "ver-entregas-patro": 1, "imprimir-relatorio": 1, "voltar-relatorio": 1,
   "filtro-setor": 1, "filtro-estagio": 1,
-  "divisao-propriedades": 1, "abrir-contrato-divisao": 1, "carteira-visao": 1, "fechar-form-grupo": 1, "fechar-escolher-marcas": 1, "grupo-da-marca": 1, "fechar-grupo-da-marca": 1, "filtrar-por-grupo": 1, "escolher-cobertas": 1, "fechar-cobertas": 1, "mexer-coberta": 1, "tirar-coberta": 1, "recarregar-grupos": 1, "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
+  "divisao-propriedades": 1, "abrir-contrato-divisao": 1, "carteira-visao": 1, "fechar-form-grupo": 1, "fechar-escolher-marcas": 1, "grupo-da-marca": 1, "fechar-grupo-da-marca": 1, "puxar-propriedades": 1, "filtrar-por-grupo": 1, "escolher-cobertas": 1, "fechar-cobertas": 1, "mexer-coberta": 1, "tirar-coberta": 1, "recarregar-grupos": 1, "fechar-conversa-r27": 1, "fechar-form": 1, "fechar-form-patro": 1, "fechar-form-inter": 1, "fechar-form-marca": 1, "fechar-form-entrega": 1, "fechar-form-contrato": 1,
   "recarregar-espacos": 1, "recarregar-overview": 1, "recarregar-patrocinadores": 1, "recarregar-marcas": 1, "recarregar-entregas": 1,
   "esqueci-senha": 1, "auth-voltar": 1,
 };
@@ -9499,6 +9544,17 @@ document.addEventListener("click", async function (ev) {
     // chamado de Valores tambem: sem isso o filtro liga numa tela que a pessoa nao esta vendo
     if (rotaAtual().caminho !== "/app/patrocinadores") { irPara("/app/patrocinadores"); return; }
     render(); return;
+  }
+  if (acao === "puxar-propriedades") {
+    var pPx = (S.sponsors || []).find(function (x) { return x.id === id; });
+    var campoPx = document.getElementById("patro-contratou");
+    if (!pPx || !campoPx) return;
+    var txtPx = textoDasPropriedades(pPx);
+    if (!txtPx) { toast.error("Esta marca ainda não tem propriedade cadastrada."); return; }
+    campoPx.value = txtPx;
+    campoPx.focus();
+    toast.success("Texto montado a partir de Propriedades. Ajuste como quiser antes de salvar.");
+    return;
   }
   if (acao === "grupo-da-marca") { S.grupoDaMarca = { aberto: true, patroId: id, salvando: false }; render(); return; }
   if (acao === "fechar-grupo-da-marca") { if (!S.grupoDaMarca.salvando) { S.grupoDaMarca.aberto = false; render(); } return; }
@@ -10286,7 +10342,8 @@ document.addEventListener("change", async function (ev) {
   }
   if (el.id && el.id.indexOf("papel-") === 0 && ehDono()) {
     var uid = el.id.slice(6);
-    var novoPapel = el.value === "admin" || el.value === "visualizacao" ? el.value : "vendedor";
+    // antes daqui so passavam "admin" e "visualizacao": escolher Operacao gravava Comercial
+    var novoPapel = NIVEIS_QUE_O_DONO_DA.indexOf(el.value) >= 0 ? el.value : "vendedor";
     S.papelMudando = true; render();
     try {
       await API.atualizar("profiles", uid, { papel: novoPapel });
